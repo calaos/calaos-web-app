@@ -1,0 +1,10 @@
+
+
+    
+    
+	<div data-role="content">
+	    <ul data-role="listview">
+	      <li ng-repeat="item in items.home | orderBy:hits ">
+	        <a href="#/room/{{item.name}}">{{item.name}}</a></li>
+	    </ul>
+	</div>
