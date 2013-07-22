@@ -12,15 +12,33 @@ function HomeCtrl($rootScope, $scope, $http) {
 	"action": "get_home"
     };
 
-    $http.post('http://127.0.0.1/api.php', query).success(function(data) {
+    $http.post('http://sailhas.enna.me/api.php', query).success(function(data) {
 	$scope.items = data;
 	$rootScope.home = data;
 	home = data;
-    console.log("HomeCtrl");
-	console.log($rootScope.home);
+
+    console.log(home);
+
+    for(var i=0; i< data.home.length; i++) {
+	
+	switch(home.home[i].type) 
+	{ 
+	case "salon": 
+	    home.home[i].type = "lounge";
+	    break;
+	case "sam": 
+	    home.home[i].type = "dinningroom";
+	    break;
+	default: 
+	    home.home[i].type = "various";
+	    break; 
+	}
+
+    }
     });
-    console.log($rootScope);
-  $scope.orderProp = 'hint';
+
+
+    $scope.orderProp = 'hint';
 }
 
 function RoomCtrl($rootScope, $scope, $routeParams, $http) {
@@ -34,20 +52,18 @@ function RoomCtrl($rootScope, $scope, $routeParams, $http) {
 	"audio_players": ["0"]
     };
     
-    $http.post('http://127.0.0.1/api.php', query).success(function(data) {
-    console.log("RoomCtrl");
-    console.log(home.home);
+    $http.post('http://sailhas.enna.me/api.php', query).success(function(data) {
     	
-    for(var i=0; i< home.home.length; i++) {
-    	console.log(home.home[i].name);
-        	
-    	if (home.home[i].name == $routeParams.room_name)
-		{
+	for(var i=0; i< home.home.length; i++) {
+    	    console.log(home.home[i].name);
+            
+    	    if (home.home[i].name == $routeParams.room_name)
+	    {
     		$scope.room = home.home[i];
     		$scope.values = data;
     		break;
-		}
-    }
+	    }
+	}
 
     });
 
