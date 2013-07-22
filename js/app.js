@@ -2,7 +2,7 @@
 
 /* App Module */
 
-var calaos =  angular.module('calaos', []);
+var calaos =  angular.module('calaos', ['ui.bootstrap']);
 
 calaos.config(['$routeProvider', function($routeProvider) {
   $routeProvider.
@@ -14,3 +14,7 @@ calaos.config(['$httpProvider', function($httpProvider) {
         $httpProvider.defaults.useXDomain = true;
         delete $httpProvider.defaults.headers.common['X-Requested-With'];
 }]);
+
+function NavBarCtrl($scope) {
+    $scope.isCollapsed = true;
+}
