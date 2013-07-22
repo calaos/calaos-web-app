@@ -5,10 +5,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    
+
     <title>Calaos Web Admin</title>
 
     <link rel="stylesheet" href="css/bootstrap.css" />
+    <link rel="stylesheet" href="css/app.css" />
     <link rel="stylesheet" href="css/bootstrap-responsive.min.css" />
 
     <script src="js/angular.min.js"></script>
@@ -23,15 +24,11 @@
 
   </head>
   <body>
-    
+
     <div class="navbar navbar-inverse navbar-fixed-top" ng-controller="NavBarCtrl">
       <div class="navbar-inner">
         <div class="container">
-          <button class="btn btn-navbar" ng-click="isCollapsed = !isCollapsed"> <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-
-          </button> <a class="brand" href="#">Calaos</a>
+          <a class="brand" href="#">Calaos</a>
 
           <div class="nav-collapse" collapse="isCollapsed">
             <ul class="nav">
@@ -56,7 +53,7 @@
       <!-- /navbar-inner -->
     </div>
 
-    <div class="container" ng-view></div>    
+    <div class="container" ng-view></div>
 
   </body>
 </html>
