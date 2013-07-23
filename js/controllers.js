@@ -22,39 +22,18 @@ function HomeCtrl($rootScope, $scope, $http) {
     //create an array of max 3 rooms
     $scope.homeByRow = [];
     var a = [];
-    var cpt = 0;
     for (var i = 0;i < $scope.items.home.length;i++) {
+        $scope.items.home[i].icon = getRoomTypeIcon($scope.items.home[i].type);
         a.push(i);
-        cpt++;
-        if (cpt >= 3) {
+        if (a.length >= 3) {
             $scope.homeByRow.push(a);
             a = [];
-            cpt = 0;
         }
     }
+    if (a.length > 0) $scope.homeByRow.push(a);
 
     console.log(home);
-
-    for(var i=0; i< data.home.length; i++) {
-
-	switch(home.home[i].type)
-	{
-	case "salon":
-	    home.home[i].type = "lounge";
-	    break;
-	case "sam":
-	    home.home[i].type = "dinningroom";
-	    break;
-	default:
-	    home.home[i].type = "various";
-	    break;
-	}
-
-    }
     });
-
-
-//    $scope.orderProp = 'hint';
 }
 
 function RoomCtrl($rootScope, $scope, $routeParams, $http) {
