@@ -63,3 +63,39 @@ function RoomCtrl($rootScope, $scope, $routeParams, $http) {
     });
 
 }
+
+function SettingsCtrl($scope, $cookieStore) {
+
+    var tmp = $cookieStore.get('cn_user');
+    console.log(tmp);
+    if (tmp) {
+	$scope.cn_user = tmp;
+    }
+
+    var tmp = $cookieStore.get('cn_pass');
+    console.log(tmp);
+    if (tmp) {
+	$scope.cn_pass = tmp;
+    }
+    var tmp = $cookieStore.get('use_calaosnetwork');
+    console.log(tmp);
+    if (tmp) {
+	$scope.use_calaos_network = tmp;
+    } else  {
+	var tmp = $cookieStore.get('host');
+	console.log(tmp);
+	if (tmp) {
+	    $scope.host = tmp;
+	}
+    }
+
+    $scope.sign_in = function () {
+	console.log("Sign in");
+	var tmp = $cookieStore.get('cn_pass');
+	console.log(tmp);
+	$cookieStore.put('cn_user', $scope.cn_user);
+	$cookieStore.put('cn_pass', $scope.cn_pass);
+	$cookieStore.put('use_calaosnetwork', $scope.use_calaosnetwork);
+	$cookieStore.put('host', $scope.host);
+    }
+}
