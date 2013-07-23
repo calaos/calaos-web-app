@@ -1,0 +1,5 @@
+var calaosConfig = {
+    cn_user: 'user name calaos',
+    cn_pass: 'password calaos',
+    host: 'https://hostname/api.php'
+};

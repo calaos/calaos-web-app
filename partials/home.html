@@ -1,15 +1,12 @@
 
-
-
-
 <div data-role="content">
-  <ul class="unstyled">
-    <li ng-repeat="item in items.home | orderBy:hits ">
-      <div class="well"><a href="#/room/{{item.name}}">
-        <img src="img/{{item.type}}/{{item.type}}_small.png" class="img-circle">
-        {{item.name}}
-      </a>
-    </li>
-      </div>
-  </ul>
+    <div class="row-fluid" ng-repeat="row in homeByRow">
+        <div class="span4" ng-repeat="it in row">
+            <div class="well">
+                <a href="#/room/{{items.home[it].name}}">
+                <img src="img/{{items.home[it].type}}/{{items.home[it].type}}_small.png" class="img-circle" />
+                {{items.home[it].name}}</a>
+            </div>
+        </div>
+    </div>
 </div>
