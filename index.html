@@ -30,34 +30,17 @@
 
     <div class="navbar navbar-inverse navbar-fixed-top" ng-controller="NavBarCtrl">
       <div class="navbar-inner">
-        <div class="container">
-          <a class="brand" href="#">Calaos</a>
-
-          <div class="nav-collapse" collapse="isCollapsed">
-            <ul class="nav">
-              <li><a href="#"><i class="icon-home icon-white"></i> Home</a>
-              </li>
-              <li><a href="#/settings">Config</a>
-
-              </li>
-              <li><a href="#">Grades</a>
-
-              </li>
-            </ul>
-            <ul class="nav pull-right">
-              <li><a href="#/class"><i class="icon-upload icon-white"></i> Upload/Save</a>
-              </li>
-              <li><a href="#/class"><i class="icon-off icon-white"></i> Save/Logout</a>
-              </li>
-            </ul>
-          </div>
-          <!-- /.nav-collapse -->
-        </div>
+        <ul class="nav">
+          <a class="btn btn-inverse" href="#"><i class="icon-arrow-left icon-white"></i> Back</a>
+        </ul>       
+        <a class="brand" href="#">Calaos</a>
+        <ul class="nav pull-right">
+          <a class="btn btn-inverse" href="#/settings"><i class="icon-user icon-white"></i></a>
+        </ul>
       </div>
-      <!-- /navbar-inner -->
     </div>
 
-    <div class="container" ng-view></div>
+    <div ng-view ng-animate="'slide'"></div>  
 
   </body>
 </html>

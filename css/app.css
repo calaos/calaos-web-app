@@ -6,6 +6,15 @@ body {
     padding-bottom: 10px;
 }
 
+.brand
+{
+    position: absolute;
+    width: 100%;
+    left: 0;
+    text-align: center;
+    margin: auto;
+}
+
 /*.box
 {
     position: relative;
