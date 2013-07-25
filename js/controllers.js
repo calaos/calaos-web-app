@@ -32,7 +32,6 @@ function HomeCtrl($rootScope, $scope, $http) {
     }
     if (a.length > 0) $scope.homeByRow.push(a);
 
-    console.log(home);
     });
 }
 
@@ -50,8 +49,6 @@ function RoomCtrl($rootScope, $scope, $routeParams, $http) {
     $http.post(calaosConfig.host, query).success(function(data) {
 
 	for(var i=0; i< home.home.length; i++) {
-    	    console.log(home.home[i].name);
-
     	    if (home.home[i].name == $routeParams.room_name)
 	    {
     		$scope.room = home.home[i];
@@ -64,38 +61,33 @@ function RoomCtrl($rootScope, $scope, $routeParams, $http) {
 
 }
 
-function SettingsCtrl($scope, $cookieStore) {
+function SettingsCtrl($scope) {
 
-    var tmp = $cookieStore.get('cn_user');
-    console.log(tmp);
+    var tmp = getCookie('cn_user');
     if (tmp) {
 	$scope.cn_user = tmp;
     }
-
-    var tmp = $cookieStore.get('cn_pass');
-    console.log(tmp);
+    var tmp = getCookie('cn_pass');
     if (tmp) {
 	$scope.cn_pass = tmp;
     }
-    var tmp = $cookieStore.get('use_calaosnetwork');
-    console.log(tmp);
+    var tmp = getCookie('use_calaosnetwork');
     if (tmp) {
-	$scope.use_calaos_network = tmp;
+	if (tmp == "true")
+	    $scope.use_calaos_network = true;
+	else
+	    $scope.use_calaos_network = false;
     } else  {
-	var tmp = $cookieStore.get('host');
-	console.log(tmp);
+	var tmp = getCookie('host');
 	if (tmp) {
 	    $scope.host = tmp;
 	}
     }
 
     $scope.sign_in = function () {
-	console.log("Sign in");
-	var tmp = $cookieStore.get('cn_pass');
-	console.log(tmp);
-	$cookieStore.put('cn_user', $scope.cn_user);
-	$cookieStore.put('cn_pass', $scope.cn_pass);
-	$cookieStore.put('use_calaosnetwork', $scope.use_calaosnetwork);
-	$cookieStore.put('host', $scope.host);
+	setCookie('cn_user', $scope.cn_user, 365);
+	setCookie('cn_pass', $scope.cn_pass, 0);
+	setCookie('use_calaosnetwork', $scope.use_calaosnetwork, 365);
+	setCookie('host', $scope.host, 365);
     }
 }
