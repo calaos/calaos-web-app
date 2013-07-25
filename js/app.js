@@ -2,7 +2,7 @@
 
 /* App Module */
 
-var calaos =  angular.module('calaos', ['ui.bootstrap', 'ngCookies']);
+var calaos =  angular.module('calaos', ['ui.bootstrap']);
 
 calaos.config(['$routeProvider', function($routeProvider) {
   $routeProvider.
