@@ -1,12 +1,15 @@
 
-<div data-role="content">
+
     <div class="row-fluid" ng-repeat="row in homeByRow">
         <div class="span4" ng-repeat="it in row">
-            <div class="well">
-                <a href="#/room/{{items.home[it].name}}">
-                <img src="img/{{items.home[it].icon}}" class="img-circle" />
-                {{items.home[it].name}}</a>
+
+            <div class="roomlist">
+              <p class="roomlist"><img width="54" height="30" src="img/icon_room.png"/>        {{items.home[it].name}}</p>
+              <a href="#/room/{{items.home[it].name}}">
+                <img class="roomlist" src="img/{{items.home[it].icon}}"/>
+              </a>
             </div>
+
         </div>
     </div>
-</div>
+

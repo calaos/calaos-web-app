@@ -15,6 +15,28 @@ body {
     margin: auto;
 }
 
+div.roomlist {
+    margin: 0.8em;
+    padding: 0.2em;
+    overflow: auto;
+    background: #eee;
+    line-height: 1.5;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+p.roomlist {
+    margin: 0 ;
+    padding: 1em;
+    overflow: auto;
+}
+img.roomlist {
+    float: left;
+    margin-left: 2em;
+    width: 326px;
+    height: 172px;
+}
+
+
 /*.box
 {
     position: relative;
