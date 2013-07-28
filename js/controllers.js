@@ -4,7 +4,7 @@
 
 var home;
 
-function HomeCtrl($rootScope, $scope, $http) {
+function RoomsListCtrl($rootScope, $scope, $http) {
 
     var query = {
     "cn_user": calaosConfig.cn_user,
