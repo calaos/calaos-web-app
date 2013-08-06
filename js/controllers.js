@@ -4,26 +4,42 @@
 
 var home;
 
-function RoomsListCtrl($rootScope, $scope, $http) {
+function CalaosMainController($rootScope, $scope, $routeParams, $http, $location) {
+    //setup everything calaos needs here,
+    //and do the get_home api call to get the entire house
+    //also start the event polling timer here
 
     var query = {
-    "cn_user": calaosConfig.cn_user,
-	"cn_pass": calaosConfig.cn_pass,
-	"action": "get_home"
+        "cn_user": calaosConfig.cn_user,
+        "cn_pass": calaosConfig.cn_pass,
+        "action": "get_home"
     };
 
-    $http.post(calaosConfig.host, query).success(function(data) {
-	$scope.items = data;
-	$rootScope.home = data;
-	home = data;
+    $http.post(calaosConfig.host, query)
+        .success(function(data) {
+            $rootScope.homeRaw = data;
+            
+            $location.path('/'+(isMobile?'mobile':'desktop')+'/home');
+        })
+        .error(function(data, status) {
+            //todo, handle error here
+        }); 
+}
 
-    $scope.items.home.sort(function (rooma, roomb) { return roomb.hits - rooma.hits; });
+function RoomsListCtrl($rootScope, $scope, $http, $location) {
+
+    if (typeof $rootScope.homeRaw === "undefined") {
+        $location.path('/load');
+        return;
+    }
+
+    $rootScope.homeRaw.home.sort(function (rooma, roomb) { return roomb.hits - rooma.hits; });
 
     //create an array of max 3 rooms
     $scope.homeByRow = [];
     var a = [];
-    for (var i = 0;i < $scope.items.home.length;i++) {
-        $scope.items.home[i].icon = getRoomTypeIcon($scope.items.home[i].type);
+    for (var i = 0;i < $rootScope.homeRaw.home.length;i++) {
+        $rootScope.homeRaw.home[i].icon = getRoomTypeIcon($rootScope.homeRaw.home[i].type);
         a.push(i);
         if (a.length >= 3) {
             $scope.homeByRow.push(a);
@@ -31,8 +47,6 @@ function RoomsListCtrl($rootScope, $scope, $http) {
         }
     }
     if (a.length > 0) $scope.homeByRow.push(a);
-
-    });
 }
 
 function RoomCtrl($rootScope, $scope, $routeParams, $http) {
@@ -58,6 +72,10 @@ function RoomCtrl($rootScope, $scope, $routeParams, $http) {
 	}
 
     });
+
+}
+
+function MenuController($scope) {
 
 }
 

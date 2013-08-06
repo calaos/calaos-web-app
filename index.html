@@ -26,7 +26,7 @@
     <script src="js/directives.js"></script>
 
   </head>
-  <body>
+  <body ng-controller="CalaosMainController">
 
     <div class="navbar navbar-inverse navbar-fixed-top" ng-controller="NavBarCtrl">
       <div class="navbar-inner">
@@ -40,7 +40,7 @@
       </div>
     </div>
 
-    <div ng-view ng-animate="'slide'"></div>  
+    <div ng-view ng-animate="'slide'" ng-cloak class="ng-cloak"></div>  
 
   </body>
 </html>

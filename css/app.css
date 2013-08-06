@@ -13,6 +13,10 @@ body {
     background-repeat: repeat-x;
 }
 
+[ng\:cloak], [ng-cloak], .ng-cloak {
+    display: none !important;
+}
+
 .brand
 {
     position: absolute;
@@ -56,5 +60,4 @@ img.roomlist {
     height: 86px;
     
 }
-
 
