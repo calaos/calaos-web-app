@@ -5,8 +5,6 @@
 var calaos =  angular.module('calaos', ['ui.bootstrap']);
 
 calaos.config(['$routeProvider', function($routeProvider) {
-    var device = isMobile?'mobile':'desktop';
-
     $routeProvider.
       when('/load', {templateUrl: 'partials/loading.html'}).
       when('/mobile/home',  {templateUrl: 'partials/mobile/home.html',   controller: 'RoomsListCtrl'}).

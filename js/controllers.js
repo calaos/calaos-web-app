@@ -18,12 +18,25 @@ function CalaosMainController($rootScope, $scope, $routeParams, $http, $location
     $http.post(calaosConfig.host, query)
         .success(function(data) {
             $rootScope.homeRaw = data;
-            
-            $location.path('/'+(isMobile?'mobile':'desktop')+'/home');
+
+            var device;
+
+            if (typeof $location.search().d !== "undefined") {
+                if ($location.search().d === "mobile")
+                    device = 'mobile';
+                else if ($location.search().d === "desktop")
+                    device = 'desktop';
+                else
+                    device = isMobile?'mobile':'desktop';
+            }
+
+            console.log(device);
+
+            $location.path('/'+device+'/home');
         })
         .error(function(data, status) {
             //todo, handle error here
-        }); 
+        });
 }
 
 function RoomsListCtrl($rootScope, $scope, $http, $location) {
