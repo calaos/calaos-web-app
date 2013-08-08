@@ -29,6 +29,8 @@ function CalaosMainController($rootScope, $scope, $routeParams, $http, $location
                 else
                     device = isMobile?'mobile':'desktop';
             }
+            else
+                    device = isMobile?'mobile':'desktop';
 
             console.log(device);
 
