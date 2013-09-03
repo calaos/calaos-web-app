@@ -3,14 +3,34 @@
 
 
 body {
-    padding-top: 50px;
+    padding-top: 0px;
     padding-bottom: 0px;
+    padding-right: 0px;
+    padding-left: 0px;
     background: url('../img/background.png') center center fixed; 
     -webkit-background-size: cover;
     -moz-background-size: cover;
     -o-background-size: cover;
     background-size: cover;
     background-repeat: repeat-x;
+}
+
+.navbar-fixed-top {
+    margin-bottom: 0px;
+}
+
+.navbar .nav {
+    margin-left: 15px;
+}
+
+.nav.pull-right .nav {
+    margin-right: 20px;
+    border-right-width: 10px;
+    margin-left: 0px;
+}
+
+element.style {
+
 }
 
 [ng\:cloak], [ng-cloak], .ng-cloak {
@@ -28,13 +48,13 @@ body {
 
 
 div.roomlist {
-    margin: 8px;
+    margin: 2px;
     padding: 8px;
     overflow: auto;
     background: rgba(0, 0, 0, 0.1);
-    line-height: 1.5;
+    line-height: 4;
     border-radius: 8px;
-    border: 4px solid #174856;
+    border: 2px solid #174856;
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
 
 }
@@ -55,7 +75,7 @@ h3.roomlist {
 
 img.roomlist {
     float: left;
-    margin-left: 2em;
+    margin-left: 80px;
     width: 160px;
     height: 86px;
     
