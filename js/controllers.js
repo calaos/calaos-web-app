@@ -21,16 +21,21 @@ function CalaosMainController($rootScope, $scope, $routeParams, $http, $location
 
             var device;
 
-            if (typeof $location.search().d !== "undefined") {
-                if ($location.search().d === "mobile")
-                    device = 'mobile';
-                else if ($location.search().d === "desktop")
-                    device = 'desktop';
-                else
-                    device = isMobile?'mobile':'desktop';
+            if (typeof calaosConfig.dev_mode !== "undefined") {
+                device = calaosConfig.dev_mode;
             }
-            else
-                    device = isMobile?'mobile':'desktop';
+            else {
+                if (typeof $location.search().d !== "undefined") {
+                    if ($location.search().d === "mobile")
+                        device = 'mobile';
+                    else if ($location.search().d === "desktop")
+                        device = 'desktop';
+                    else
+                        device = isMobile?'mobile':'desktop';
+                }
+                else
+                        device = isMobile?'mobile':'desktop';
+            }
 
             console.log(device);
 

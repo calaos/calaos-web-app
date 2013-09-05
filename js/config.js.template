@@ -1,5 +1,6 @@
 var calaosConfig = {
     cn_user: 'user name calaos',
     cn_pass: 'password calaos',
-    host: 'https://hostname/api.php'
+    host: 'https://hostname/api.php',
+    dev_mode: 'mobile' //or dev_mode: 'desktop'
 };
