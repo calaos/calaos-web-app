@@ -1,12 +1,5 @@
 
-    
-    
-<div data-role="content">
-  <ul data-role="listview">
-	    {{room.hits}} | {{room.name}} | {{room.type}}
-    <li ng-repeat="it in room.items.inputs">
-      <a> {{it.name}} - {{it.type}}</a></li>
-  </ul>
-</div>
+
+<content-item ng-repeat="item in room.items.inputs" content="item"></content-item>
 	
 	
