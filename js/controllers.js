@@ -79,14 +79,16 @@ function RoomCtrl($rootScope, $scope, $routeParams, $http) {
 	"outputs": ["output_0", "output_1"],
 	"audio_players": ["0"]
     };
-
+ 
     $http.post(calaosConfig.host, query).success(function(data) {
 
-	for(var i=0; i< home.home.length; i++) {
-    	    if (home.home[i].name == $routeParams.room_name)
+	for(var i=0; i< $rootScope.homeRaw.home.length; i++) {
+    	    if ($rootScope.homeRaw.home[i].name == $routeParams.room_name)
 	    {
-    		$scope.room = home.home[i];
+    		$scope.room = $rootScope.homeRaw.home[i];
     		$scope.values = data;
+		console.log(data);
+		console.log($scope.room);
     		break;
 	    }
 	}
