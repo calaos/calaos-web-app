@@ -1,12 +1,10 @@
 
 <div class="row-fluid" ng-repeat="row in homeByRow">
   <div class="span4" ng-repeat="it in row">
-    <a href="#/room/{{homeRaw.home[it].name}}">
+    <a href="#/mobile/room/{{homeRaw.home[it].name}}">
       <div class="roomlist "> 
-        
         <img class="roomlist" ng-src="img/{{homeRaw.home[it].icon}}"/>
         <h3 class="roomlist pull-right">{{homeRaw.home[it].name}}</h3>
-        
       </div>
     </a>
   </div>
