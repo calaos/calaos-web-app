@@ -79,25 +79,20 @@ function RoomCtrl($rootScope, $scope, $routeParams, $http) {
 	"outputs": ["output_0", "output_1"],
 	"audio_players": ["0"]
     };
- 
-    $http.post(calaosConfig.host, query).success(function(data) {
 
-	for(var i=0; i< $rootScope.homeRaw.home.length; i++) {
-    	    if ($rootScope.homeRaw.home[i].name == $routeParams.room_name)
-	    {
-    		$scope.room = $rootScope.homeRaw.home[i];
-    		$scope.values = data;
-		console.log(data);
-
-    		break;
-	    }
+    for(var i=0; i< $rootScope.homeRaw.home.length; i++) {
+    	if ($rootScope.homeRaw.home[i].name == $routeParams.room_name)
+	{
+    	    $scope.room = $rootScope.homeRaw.home[i];
+    	    break;
 	}
+    }
 
-    });
 
     $scope.getTemplateUrl = function(content) {
-	console.log(content.type);
-	return content.type ;
+	console.log(content);
+	console.log(content.gui_type);
+	return content.gui_type ;
     }
 }
 
