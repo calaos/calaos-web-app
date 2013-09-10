@@ -88,13 +88,17 @@ function RoomCtrl($rootScope, $scope, $routeParams, $http) {
     		$scope.room = $rootScope.homeRaw.home[i];
     		$scope.values = data;
 		console.log(data);
-		console.log($scope.room);
+
     		break;
 	    }
 	}
 
     });
 
+    $scope.getTemplateUrl = function(content) {
+	console.log(content.type);
+	return content.type ;
+    }
 }
 
 function MenuController($scope) {
