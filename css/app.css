@@ -3,16 +3,13 @@
 
 
 body {
-    //padding-top: 48px;
+    /*padding-top: 48px;*/
     padding-bottom: 0px;
     padding-right: 0px;
     padding-left: 0px;
-    background: url('../img/background.png') center center fixed; 
-    -webkit-background-size: cover;
-    -moz-background-size: cover;
-    -o-background-size: cover;
-    background-size: cover;
-    background-repeat: repeat-x;
+    background: url('../img/background.png');
+    background-color:#000;
+  
 }
 
 .navbar-fixed-top {
@@ -24,7 +21,7 @@ body {
 }
 
 .nav.pull-right .nav {
-    margin-right: 20px;
+
     border-right-width: 10px;
     margin-left: 0px;
 }
@@ -72,3 +69,36 @@ img.roomlist {
     
 }
 
+#ng-view {
+  position:relative;
+}
+
+/* Animations */
+.slide-animation.ng-enter, .slide-animation.ng-leave {
+  -webkit-transition:all linear 0.5s;
+  -moz-transition:all linear 0.5s;
+  -o-transition:all linear 0.5s;
+  transition:all linear 0.5s;
+
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  min-height:1000px;
+}
+
+.slide-animation.ng-enter {
+  opacity:0;
+}
+
+.slide-animation.ng-enter.ng-enter-active {
+  opacity:1;
+}
+
+.slide-animation.ng-leave {
+  opacity:1;
+}
+
+.slide-animation.ng-leave.ng-leave-active {
+  opacity:0;
+}
