@@ -2,7 +2,7 @@
 
 /* App Module */
 
-var calaos =  angular.module('calaos', ['ui.bootstrap']);
+var calaos =  angular.module('calaos', ['ngRoute', 'ngAnimate']);
 
 
 
