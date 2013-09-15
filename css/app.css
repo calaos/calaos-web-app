@@ -3,17 +3,23 @@
 
 
 body {
-    /*padding-top: 48px;*/
+    padding-top: 50px;
     padding-bottom: 0px;
     padding-right: 0px;
     padding-left: 0px;
+    
     background: url('../img/background.png');
     background-color:#000;
-  
+    width : 100%;
+    height: 100%;
+
+	background-repeat:no-repeat;
+	background-attachment:fixed;
 }
 
 .navbar-fixed-top {
     margin-bottom: 0px;
+    position: fixed;
 }
 
 .navbar .nav {
@@ -118,5 +124,11 @@ img.io-icon-light {
 img.io-icon {
     width: 43px;
     height: 33px;
+    margin: 5px;
+}
+
+img.io-icon-temp {
+    width: 18px;
+    height: 35px;
     margin: 5px;
 }
