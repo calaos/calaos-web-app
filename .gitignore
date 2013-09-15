@@ -1,1 +1,9 @@
 js/config.js
+.build
+.project
+.sdb*
+.settings
+*.php
+*.wgt
+.rds_delta
+.sdk_delta.info
