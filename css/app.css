@@ -102,3 +102,21 @@ img.roomlist {
 .slide-animation.ng-leave.ng-leave-active {
   opacity:0;
 }
+
+img.shutter {
+    width: 48px;
+    height: 39px;
+}
+
+img.io-icon-light {
+    width: 38px;
+    height: 38px;
+    margin: 5px;
+}
+
+
+img.io-icon {
+    width: 43px;
+    height: 33px;
+    margin: 5px;
+}
