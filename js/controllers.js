@@ -37,8 +37,6 @@ function CalaosMainController($rootScope, $scope, $routeParams, $http, $location
                         device = isMobile?'mobile':'desktop';
             }
 
-            console.log(device);
-
             $location.path('/'+device+'/home');
         })
         .error(function(data, status) {
@@ -67,6 +65,14 @@ function RoomsListCtrl($rootScope, $scope, $http, $location) {
         }
     }
     if (a.length > 0) $scope.homeByRow.push(a);
+    
+    
+    
+    $scope.keyPressed = function(ev) {
+    	console.log(ev);
+    	  if (ev.which==13)
+    	    alert('Im a lert');
+    	}
 }
 
 function RoomCtrl($rootScope, $scope, $routeParams, $http) {
@@ -90,8 +96,6 @@ function RoomCtrl($rootScope, $scope, $routeParams, $http) {
 
 
     $scope.getTemplateUrl = function(content) {
-	console.log(content);
-	console.log(content.gui_type);
 	return content.gui_type ;
     }
 }
