@@ -13,8 +13,8 @@ body {
     width : 100%;
     height: 100%;
 
-	background-repeat:no-repeat;
-	background-attachment:fixed;
+    background-repeat:no-repeat;
+    background-attachment:fixed;
 }
 
 .navbar-fixed-top {
@@ -76,37 +76,37 @@ img.roomlist {
 }
 
 #ng-view {
-  position:relative;
+    position:relative;
 }
 
 /* Animations */
 .slide-animation.ng-enter, .slide-animation.ng-leave {
-  -webkit-transition:all linear 0.5s;
-  -moz-transition:all linear 0.5s;
-  -o-transition:all linear 0.5s;
-  transition:all linear 0.5s;
+    -webkit-transition:all linear 0.5s;
+    -moz-transition:all linear 0.5s;
+    -o-transition:all linear 0.5s;
+    transition:all linear 0.5s;
 
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  min-height:1000px;
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    min-height:1000px;
 }
 
 .slide-animation.ng-enter {
-  opacity:0;
+    opacity:0;
 }
 
 .slide-animation.ng-enter.ng-enter-active {
-  opacity:1;
+    opacity:1;
 }
 
 .slide-animation.ng-leave {
-  opacity:1;
+    opacity:1;
 }
 
 .slide-animation.ng-leave.ng-leave-active {
-  opacity:0;
+    opacity:0;
 }
 
 img.shutter {
@@ -135,77 +135,83 @@ img.io-icon-temp {
 
 
 input[type="range"] {
-	-webkit-appearance: none;
-	-webkit-box-shadow:
-		inset 0 0 0 1px rgb(140, 140, 140),
-		inset 0 1px 2px rgba(0, 0, 0, 0.3),
-		0 1px 0 rgba(255, 255, 255, 0.3);
-	background: rgba(0, 0, 0, 0);
-	border-radius: 10px;
-	height: 4px;
-	width: 100%;
-
+    -webkit-appearance: none;
+    -webkit-box-shadow:
+    inset 0 0 0 1px rgb(140, 140, 140),
+    inset 0 1px 2px rgba(0, 0, 0, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0);
+    border-radius: 10px;
+    height: 4px;
+    /*width: 100%;*/
 }
 
 input[type="range"]::-webkit-slider-thumb {
-	-webkit-appearance: none;
-	-webkit-box-shadow:
-		inset 0 1px 0 rgba(255, 255, 255, 0.2),
-		0 0 0 1px rgb(140, 140, 140),
-		0 1px 1px rgba(0, 0, 0, 0.3);
-	border-radius: 10px;
-	background-color: rgba(255, 255, 255, 0.4);
-	background-image:
-		-webkit-gradient(
-		  radial, 50% 50%, 2, 50% 50%, 3, from(rgb(200, 200, 200)), to(rgba(255, 255, 255, 0))
-		), 
-		-webkit-gradient(
-			linear,
-			left top,
-			left bottom,
-			from(rgb(240, 240, 240)),
-			to(rgb(210, 210, 210))
-		);
-	width: 20px;
-	height: 20px;
+    -webkit-appearance: none;
+    -webkit-box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 0 1px rgb(140, 140, 140),
+    0 1px 1px rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.4);
+    background-image:
+    -webkit-gradient(
+	radial, 50% 50%, 2, 50% 50%, 3, from(rgb(200, 200, 200)), to(rgba(255, 255, 255, 0))
+    ), 
+    -webkit-gradient(
+	linear,
+	left top,
+	left bottom,
+	from(rgb(240, 240, 240)),
+	to(rgb(210, 210, 210))
+    );
+    width: 20px;
+    height: 20px;
 }
 
 
 .array-header
 { 
-	width: 100%;
+    width: 100%;
 }
 
 .array-left
 { 
-	text-align: left;  
+    text-align: left;  
 }
 .array-right
 { 
-	text-align: right;
+    text-align: right;
 }
 
 
 input[type="checkbox"] {
-	-webkit-appearance:none;	/* Remove Safari default */
-	outline: none;
-	width: 34px;
-	height: 31px;
-	border: 0;
+    -webkit-appearance:none;	/* Remove Safari default */
+    outline: none;
+    width: 34px;
+    height: 31px;
+    border: 0;
 }
 
 
 /* unchecked */
 input[type="checkbox"] {
-	background: url('../img/icon_bool_off.png');
+    background: url('../img/icon_bool_off.png');
 }
 
 /* checked */
 input[type="checkbox"]:checked {
-	background: url('../img/icon_bool_on.png');	
-	border: 0;
+    background: url('../img/icon_bool_on.png');	
+    border: 0;
 }
 
-
+div.color-picker {
+    background-color: #000;
+    border-radius: 8px;
+    border: 2px solid #174856;
+    text-align: center;
+    margin: 5px;
+    height: 32px;
+}
 
 
