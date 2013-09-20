@@ -14,17 +14,18 @@ calaos.config(['$routeProvider', function($routeProvider) {
       when('/desktop/home',  {templateUrl: 'partials/desktop/home.html',   controller: 'RoomsListCtrl'}).
       when('/desktop/room/:room_name', {templateUrl: 'partials/desktop/room.html',  controller: 'RoomCtrl'}).
       when('/desktop/settings', {templateUrl: 'partials/desktop/settings.html',  controller: 'SettingsCtrl'}).
-	  otherwise({rebdirectTo: '/load'})}]);
+    otherwise({rebdirectTo: '/load'})
+}]);
 
 calaos.config(['$httpProvider', function($httpProvider) {
     $httpProvider.defaults.useXDomain = true;
     delete $httpProvider.defaults.headers.common['X-Requested-With'];
 }]);
 
-function NavBarCtrl($scope, $window) {
+calaos.controller('NavBarCtrl', function ($scope, $window) {
     $scope.isCollapsed = true;
 
     $scope.goHistoryBack = function() {
         $window.history.back();
     };
-}
+});

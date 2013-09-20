@@ -4,7 +4,7 @@
 
 var home;
 
-function CalaosMainController($rootScope, $scope, $routeParams, $http, $location) {
+calaos.controller('CalaosMainController', function ($rootScope, $scope, $routeParams, $http, $location) {
     //setup everything calaos needs here,
     //and do the get_home api call to get the entire house
     //also start the event polling timer here
@@ -42,9 +42,9 @@ function CalaosMainController($rootScope, $scope, $routeParams, $http, $location
         .error(function(data, status) {
             //todo, handle error here
         });
-}
+});
 
-function RoomsListCtrl($rootScope, $scope, $http, $location) {
+calaos.controller('RoomsListCtrl', function ($rootScope, $scope, $http, $location) {
 
     if (typeof $rootScope.homeRaw === "undefined") {
         $location.path('/load');
@@ -65,17 +65,17 @@ function RoomsListCtrl($rootScope, $scope, $http, $location) {
         }
     }
     if (a.length > 0) $scope.homeByRow.push(a);
-    
-    
-    
+
+
+
     $scope.keyPressed = function(ev) {
     	console.log(ev);
     	  if (ev.which==13)
     	    alert('Im a lert');
     	}
-}
+});
 
-function RoomCtrl($rootScope, $scope, $routeParams, $http) {
+calaos.controller('RoomCtrl', function ($rootScope, $scope, $routeParams, $http) {
 
     var query = {
 	"cn_user": calaosConfig.cn_user,
@@ -97,13 +97,13 @@ function RoomCtrl($rootScope, $scope, $routeParams, $http) {
     $scope.getTemplateUrl = function(content) {
 	return content.gui_type ;
     }
-}
+});
 
-function MenuController($scope) {
+calaos.controller('MenuController', function ($scope) {
 
-}
+});
 
-function SettingsCtrl($scope) {
+calaos.controller('SettingsCtrl', function ($scope) {
 
     var tmp = getCookie('cn_user');
     if (tmp) {
@@ -132,13 +132,13 @@ function SettingsCtrl($scope) {
 	setCookie('use_calaosnetwork', $scope.use_calaosnetwork, 365);
 	setCookie('host', $scope.host, 365);
     }
-}
+});
 
-function ColorPickerCtrl($scope) {
+calaos.controller('ColorPickerCtrl', function ($scope) {
 
     console.log($scope.$parent);
 
     $scope.selectColor = function() {
 	console.log("colorPicker click");
     }
-}
+});
