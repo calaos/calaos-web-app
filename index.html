@@ -12,7 +12,8 @@
     <link rel="stylesheet" href="css/bootstrap-responsive.min.css" />
     <link rel="stylesheet" href="css/app.css" />
 
-    
+
+    <script src="js/jquery-1.8.2.js"></script>
     <script src="js/angular.js"></script>
     <script src="js/angular-route.js"></script>
     <script src="js/angular-animate.js"></script>
@@ -33,21 +34,21 @@
 
     <div class="navbar navbar-inverse navbar-fixed-top" ng-controller="NavBarCtrl">
       <div class="navbar-inner">
+        <ul class="brand">Calaos</ul>
         <ul class="nav">
-          <a class="btn btn-inverse" href="/"><i class="icon-arrow-left icon-white"></i> Back</a>
-        </ul>       
-        <a class="brand" href="#/mobile/home">Calaos</a>
+          <button class="btn btn-inverse" ng-click="goHistoryBack()"><i class="icon-arrow-left icon-white"></i> Back</button>
+        </ul>
         <ul class="nav pull-right">
           <a class="btn btn-inverse" href="#/mobile/settings"><i class="icon-user icon-white"></i></a>
         </ul>
       </div>
     </div>
 
-	
+
 	<div class="container">
-	<div data-ng-view="" id="ng-view"  ng-cloak class="ng-cloak slide-animation"></div>  
+	<div data-ng-view="" id="ng-view"  ng-cloak class="ng-cloak slide-animation"></div>
 	</div>
-	 
+
 
   </body>
 </html>

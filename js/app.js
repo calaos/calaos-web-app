@@ -21,6 +21,10 @@ calaos.config(['$httpProvider', function($httpProvider) {
     delete $httpProvider.defaults.headers.common['X-Requested-With'];
 }]);
 
-function NavBarCtrl($scope) {
+function NavBarCtrl($scope, $window) {
     $scope.isCollapsed = true;
+
+    $scope.goHistoryBack = function() {
+        $window.history.back();
+    };
 }
