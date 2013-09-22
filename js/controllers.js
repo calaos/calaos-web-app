@@ -44,30 +44,30 @@ calaos.controller('SettingsCtrl', function ($scope) {
 
     var tmp = getCookie('cn_user');
     if (tmp) {
-	$scope.cn_user = tmp;
+        $scope.cn_user = tmp;
     }
     var tmp = getCookie('cn_pass');
     if (tmp) {
-	$scope.cn_pass = tmp;
+        $scope.cn_pass = tmp;
     }
     var tmp = getCookie('use_calaosnetwork');
     if (tmp) {
-	if (tmp == "true")
-	    $scope.use_calaos_network = true;
-	else
-	    $scope.use_calaos_network = false;
+        if (tmp == "true")
+            $scope.use_calaos_network = true;
+        else
+            $scope.use_calaos_network = false;
     } else  {
-	var tmp = getCookie('host');
-	if (tmp) {
-	    $scope.host = tmp;
-	}
+        var tmp = getCookie('host');
+        if (tmp) {
+            $scope.host = tmp;
+        }
     }
 
     $scope.sign_in = function () {
-	setCookie('cn_user', $scope.cn_user, 365);
-	setCookie('cn_pass', $scope.cn_pass, 0);
-	setCookie('use_calaosnetwork', $scope.use_calaosnetwork, 365);
-	setCookie('host', $scope.host, 365);
+        setCookie('cn_user', $scope.cn_user, 365);
+        setCookie('cn_pass', $scope.cn_pass, 0);
+        setCookie('use_calaosnetwork', $scope.use_calaosnetwork, 365);
+        setCookie('host', $scope.host, 365);
     }
 });
 

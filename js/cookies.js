@@ -2,13 +2,13 @@ function setCookie(key, value, days)
 {   
     if (days)
     {  
-	var date = new Date();
-	date.setTime(date.getTime() + (days * 24 * 60 * 60 *1000)); 
-	var expires = "; expires=" + date.toGMTString();
+        var date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 *1000)); 
+        var expires = "; expires=" + date.toGMTString();
     }
     else
     {
-	var expires = "";
+        var expires = "";
     }
 
     var value = key + "=" + value + expires + "; path=/";
@@ -23,13 +23,13 @@ function getCookie(key)
     var cookieArr = document.cookie.split(';');
     for(var i=0; i < cookieArr.length; i++)
     {
-	var c = cookieArr[i];
+        var c = cookieArr[i];
 
-	while (c.charAt(0)==' ') 
-	    c = c.substring(1,c.length);
-	
-	if (c.indexOf(name) == 0) 
-	    return c.substring(name.length,c.length);
+        while (c.charAt(0)==' ') 
+            c = c.substring(1,c.length);
+        
+        if (c.indexOf(name) == 0) 
+            return c.substring(name.length,c.length);
     }
     return null;
 
