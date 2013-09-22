@@ -1,9 +1,8 @@
 <div class="roomlist" ng-if="item.visible == 'true'">
   <h3 class="roomlist"><input type="checkbox" class="light" disabled="true" ng-model="item.state"/></i>  {{item.name}}
   <div class="pull-right">
-    <a href=""><img class="shutter" ng-src="img/button_light_on.png"/></i></a>
-    <a href=""><img class="shutter" ng-src="img/button_light_off.png"/></i></a>
+    <img class="shutter" ng-src="img/button_light_on.png" ng-click="setState(item)"/></img>
+    <img class="shutter" ng-src="img/button_light_off.png" ng-click="setState(item)"/></img>
   </div>
   </h3>
-
 </div>

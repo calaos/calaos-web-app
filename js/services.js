@@ -143,5 +143,28 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
         return deferred.promise;
     };
 
+    factory.setState = function (content) {
+        var query = {
+            "cn_user": calaosConfig.cn_user,
+            "cn_pass": calaosConfig.cn_pass,
+            "action": "set_state",
+            "type": "output",
+            "id": content.id,
+            "value": content.value
+        };
+
+        $http.post(calaosConfig.host, query)
+            .success(function(data) {
+                console.log("Set state success");
+                //todo set the value in the initial model,
+                // but i don't know how yet  ...
+            })
+            .error(function(data, status) {
+                //todo, handle error here
+                //but i don't know how yet....
+                console.log("error in http request");
+            });
+    };
+
     return factory;
 }]);

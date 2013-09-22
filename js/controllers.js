@@ -34,6 +34,10 @@ calaos.controller('RoomCtrl', function ($scope, $routeParams, CalaosHome) {
     $scope.getTemplateUrl = function(content) {
         return content.gui_type ;
     }
+
+    $scope.setState = function(content) {
+        CalaosHome.setState(content);
+    }
 });
 
 calaos.controller('MenuController', function ($scope) {
