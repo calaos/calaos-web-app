@@ -2,100 +2,37 @@
 
 /* Controllers */
 
-var home;
+calaos.controller('RoomsListCtrl', function ($scope, CalaosHome) {
 
-calaos.controller('CalaosMainController', function ($rootScope, $scope, $routeParams, $http, $location) {
-    //setup everything calaos needs here,
-    //and do the get_home api call to get the entire house
-    //also start the event polling timer here
+    console.log('controller RoomsListCtrl');
 
-    var query = {
-        "cn_user": calaosConfig.cn_user,
-        "cn_pass": calaosConfig.cn_pass,
-        "action": "get_home"
-    };
+    //get the sorted homeByRow from the calaos service
+    //and inject that into the controller scope
+    CalaosHome.getSortedHomeByRow().then(function (data) {
+        $scope.homeByRow = data;
+    });
 
-    $http.post(calaosConfig.host, query)
-        .success(function(data) {
-            $rootScope.homeRaw = data;
-
-            var device;
-
-            if (typeof calaosConfig.dev_mode !== "undefined") {
-                device = calaosConfig.dev_mode;
-            }
-            else {
-                if (typeof $location.search().d !== "undefined") {
-                    if ($location.search().d === "mobile")
-                        device = 'mobile';
-                    else if ($location.search().d === "desktop")
-                        device = 'desktop';
-                    else
-                        device = isMobile?'mobile':'desktop';
-                }
-                else
-                        device = isMobile?'mobile':'desktop';
-            }
-
-            $location.path('/'+device+'/home');
-        })
-        .error(function(data, status) {
-            //todo, handle error here
-        });
-});
-
-calaos.controller('RoomsListCtrl', function ($rootScope, $scope, $http, $location) {
-
-    if (typeof $rootScope.homeRaw === "undefined") {
-        $location.path('/load');
-        return;
-    }
-
-    $rootScope.homeRaw.home.sort(function (rooma, roomb) { return roomb.hits - rooma.hits; });
-
-    //create an array of max 3 rooms
-    $scope.homeByRow = [];
-    var a = [];
-    for (var i = 0;i < $rootScope.homeRaw.home.length;i++) {
-        $rootScope.homeRaw.home[i].icon = getRoomTypeIcon($rootScope.homeRaw.home[i].type);
-        a.push(i);
-        if (a.length >= 3) {
-            $scope.homeByRow.push(a);
-            a = [];
-        }
-    }
-    if (a.length > 0) $scope.homeByRow.push(a);
-
-
+    CalaosHome.getRawHome().then(function (data) {
+        $scope.homeRaw = data;
+    });
 
     $scope.keyPressed = function(ev) {
-    	console.log(ev);
-    	  if (ev.which==13)
-    	    alert('Im a lert');
-    	}
+        console.log(ev);
+        if (ev.which==13)
+            alert('Im a lert');
+    }
 });
 
-calaos.controller('RoomCtrl', function ($rootScope, $scope, $routeParams, $http) {
+calaos.controller('RoomCtrl', function ($scope, $routeParams, CalaosHome) {
 
-    var query = {
-	"cn_user": calaosConfig.cn_user,
-	"cn_pass": calaosConfig.cn_pass,
-	"action": "get_state",
-	"inputs": ["input_0"],
-	"outputs": ["output_0", "output_1"],
-	"audio_players": ["0"]
-    };
-
-    for(var i=0; i< $rootScope.homeRaw.home.length; i++) {
-    	if ($rootScope.homeRaw.home[i].name == $routeParams.room_name)
-	{
-    	    $scope.room = $rootScope.homeRaw.home[i];
-    	    break;
-	}
-    }
+    //get the room from the calaos service
+    //and inject that into the controller scope
+    CalaosHome.getRoom($routeParams.room_name).then(function (data) {
+        $scope.room = data;
+    });
 
     $scope.getTemplateUrl = function(content) {
-	return content.gui_type ;
+        return content.gui_type ;
     }
 });
 
@@ -139,6 +76,6 @@ calaos.controller('ColorPickerCtrl', function ($scope) {
     console.log($scope.$parent);
 
     $scope.selectColor = function() {
-	console.log("colorPicker click");
+        console.log("colorPicker click");
     }
 });

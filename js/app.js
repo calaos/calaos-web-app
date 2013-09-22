@@ -5,8 +5,26 @@
 var calaos =  angular.module('calaos', ['ngRoute', 'ngAnimate']);
 
 calaos.config(['$routeProvider', function($routeProvider) {
+
+    var device;
+
+    if (typeof calaosConfig.dev_mode !== "undefined") {
+        device = calaosConfig.dev_mode;
+    }
+    else {
+        if (typeof $location.search().d !== "undefined") {
+            if ($location.search().d === "mobile")
+                device = 'mobile';
+            else if ($location.search().d === "desktop")
+                device = 'desktop';
+            else
+                device = isMobile?'mobile':'desktop';
+        }
+        else
+                device = isMobile?'mobile':'desktop';
+    }
+
     $routeProvider.
-      when('/load', {templateUrl: 'partials/loading.html'}).
       when('/mobile/home',  {templateUrl: 'partials/mobile/home.html',   controller: 'RoomsListCtrl'}).
       when('/mobile/room/:room_name', {templateUrl: 'partials/mobile/room.html',  controller: 'RoomCtrl'}).
       when('/mobile/settings', {templateUrl: 'partials/mobile/settings.html',  controller: 'SettingsCtrl'}).
@@ -14,7 +32,7 @@ calaos.config(['$routeProvider', function($routeProvider) {
       when('/desktop/home',  {templateUrl: 'partials/desktop/home.html',   controller: 'RoomsListCtrl'}).
       when('/desktop/room/:room_name', {templateUrl: 'partials/desktop/room.html',  controller: 'RoomCtrl'}).
       when('/desktop/settings', {templateUrl: 'partials/desktop/settings.html',  controller: 'SettingsCtrl'}).
-    otherwise({rebdirectTo: '/load'})
+    otherwise({redirectTo: '/' + device + '/home'})
 }]);
 
 calaos.config(['$httpProvider', function($httpProvider) {
