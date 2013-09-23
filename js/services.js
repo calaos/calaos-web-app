@@ -143,14 +143,14 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
         return deferred.promise;
     };
 
-    factory.setState = function (content) {
+    factory.setState = function (content, value) {
         var query = {
             "cn_user": calaosConfig.cn_user,
             "cn_pass": calaosConfig.cn_pass,
             "action": "set_state",
             "type": "output",
             "id": content.id,
-            "value": content.value
+            "value": value
         };
 
         $http.post(calaosConfig.host, query)
@@ -158,6 +158,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 console.log("Set state success");
                 //todo set the value in the initial model,
                 // but i don't know how yet  ...
+                content.state = value;
             })
             .error(function(data, status) {
                 //todo, handle error here

@@ -35,8 +35,8 @@ calaos.controller('RoomCtrl', function ($scope, $routeParams, CalaosHome) {
         return content.gui_type ;
     }
 
-    $scope.setState = function(content) {
-        CalaosHome.setState(content);
+    $scope.setState = function(content, value) {
+        CalaosHome.setState(content, value);
     }
 });
 
