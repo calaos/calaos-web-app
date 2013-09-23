@@ -158,12 +158,12 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 console.log("Set state success");
                 //todo set the value in the initial model,
                 // but i don't know how yet  ...
-                content.state = value;
+                console.log(data);
             })
             .error(function(data, status) {
                 //todo, handle error here
                 //but i don't know how yet....
-                console.log("error in http request");
+                
             });
     };
 

@@ -2,11 +2,13 @@
   <table class="array-header">
     <tr>
       <td class="array-left"><h3 class="roomlist"><img class="io-icon-light" ng-src="img/icon_light_off.png"/></i>  {{item.name}}</td>
-	<td class="array-right"><a href=""><img class="shutter" ng-src="img/button_light_on.png"/></i></a>
-	  <a href=""><img class="shutter" ng-src="img/button_light_off.png"/></i></a></td>
+	<td class="array-right">
+          <img class="shutter" ng-src="img/button_light_on.png" ng-click='setState(item, "true")'/></img>
+          <img class="shutter" ng-src="img/button_light_off.png" ng-click='setState(item, "false")'/></img>
+        </td>
     </tr>
     <tr>
-      <td class="array-left"> <input type="range" min="0" max="100" step="1" ng-model="item.state"/></td>
+      <td class="array-left"> <input type="range" min="0" max="100" step="1" ng-model="item.state"  ng-change="changeState(item)"/></td>
       <td class="array-right"><h3 class="roomlist">{{item.state}}%</h3></td>
     </tr>
   </table>

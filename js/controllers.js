@@ -38,6 +38,10 @@ calaos.controller('RoomCtrl', function ($scope, $routeParams, CalaosHome) {
     $scope.setState = function(content, value) {
         CalaosHome.setState(content, value);
     }
+
+    $scope.changeState = function(content) {
+        CalaosHome.setState(content, content.state);
+    }
 });
 
 calaos.controller('MenuController', function ($scope) {
