@@ -112,10 +112,12 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
             for (var i = 0;i < calaosObj.home.length;i++) {
                 calaosObj.home[i].icon = getRoomTypeIcon(calaosObj.home[i].type);
 
+                if (calaosObj.home[i].items.inputs)
                 for (var io = 0;io < calaosObj.home[i].items.inputs.length;io++) {
                     inputCache[calaosObj.home[i].items.inputs[io].id] = calaosObj.home[i].items.inputs[io];
                 }
 
+                if (calaosObj.home[i].items.outputs)
                 for (var io = 0;io < calaosObj.home[i].items.outputs.length;io++) {
                     outputCache[calaosObj.home[i].items.outputs[io].id] = calaosObj.home[i].items.outputs[io];
                 }
@@ -246,6 +248,9 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
     };
 
     factory.setState = function (content, value) {
+        alert("Petit coquin ;-)");
+        return;
+
         var query = {
             "cn_user": calaosConfig.cn_user,
             "cn_pass": calaosConfig.cn_pass,
