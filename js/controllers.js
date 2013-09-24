@@ -61,6 +61,40 @@ calaos.controller('LightCtrl', function ($scope, CalaosHome) {
     }
 });
 
+calaos.controller('LightDimmerCtrl', function ($scope, CalaosHome) {
+
+    var updateState = function (item) {
+        $scope.percent_value = 0.0;
+
+        if (!isNaN(parseInt(item.state)))
+            $scope.percent_value = parseInt(item.state);
+        else if (item.state.substr(0, 4) == "set ")
+            $scope.percent_value = parseInt(item.state.substr(4, item.state.length - 4));
+        else if (item.state == "true")
+            $scope.percent_value = 100;
+        else if (item.state == "false")
+            $scope.percent_value = 0;
+
+        $scope.state = $scope.percent_value > 0?true:false;
+        $scope.name = $scope._item.name;
+        $scope.percent_value_rw = $scope.percent_value;
+    }
+
+    $scope.changeValueDimmer = function () {
+        var s = "set " + $scope.percent_value_rw;
+        CalaosHome.setState($scope._item, s);
+    }
+
+    $scope.init = function(it) {
+        $scope._item = CalaosHome.getItemOutput(it.id);
+
+        updateState(it);
+        $scope.$watch("_item", function() {
+            updateState($scope._item);
+        }, true);
+    }
+});
+
 calaos.controller('MenuController', function ($scope) {
 
 });

@@ -1,5 +1,5 @@
 <div class="roomlist" ng-controller="LightCtrl" ng-init="init(item)">
-  <h3 class="roomlist" ng-class="{active: state==true}"><input type="checkbox" class="light" disabled="true" ng-model="state"/></i>  {{name}}
+  <h3 class="roomlist" ng-class="{active: state==true}"><input type="checkbox" class="light" disabled="true" ng-model="state"/> {{name}}
   <div class="pull-right">
     <img class="shutter" ng-src="img/button_light_on.png" ng-click='setState(item, "true")'/></img>
     <img class="shutter" ng-src="img/button_light_off.png" ng-click='setState(item, "false")'/></img>
