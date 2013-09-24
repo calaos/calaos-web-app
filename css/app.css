@@ -7,7 +7,7 @@ body {
     padding-bottom: 0px;
     padding-right: 0px;
     padding-left: 0px;
-    
+
     background: url('../img/background.png');
     background-color:#000;
     width : 100%;
@@ -60,6 +60,9 @@ div.roomlist {
 
 }
 
+.active {
+    color: #EEE62F !important;
+}
 
 h3.roomlist {
     font: Helvetica, Arial, Sans-Serif;
@@ -68,11 +71,10 @@ h3.roomlist {
     text-shadow: 0px 3px 8px #2a2a2a;
 }
 
-
 img.roomlist {
     width: 80px;
     height: 44px;
-    
+
 }
 
 #ng-view {
@@ -157,7 +159,7 @@ input[type="range"]::-webkit-slider-thumb {
     background-image:
     -webkit-gradient(
 	radial, 50% 50%, 2, 50% 50%, 3, from(rgb(200, 200, 200)), to(rgba(255, 255, 255, 0))
-    ), 
+    ),
     -webkit-gradient(
 	linear,
 	left top,
@@ -171,16 +173,16 @@ input[type="range"]::-webkit-slider-thumb {
 
 
 .array-header
-{ 
+{
     width: 100%;
 }
 
 .array-left
-{ 
-    text-align: left;  
+{
+    text-align: left;
 }
 .array-right
-{ 
+{
     text-align: right;
 }
 
@@ -201,7 +203,7 @@ input[type="checkbox"] {
 
 /* checked */
 input[type="checkbox"]:checked {
-    background: url('../img/icon_bool_on.png');	
+    background: url('../img/icon_bool_on.png');
     border: 0;
 }
 
@@ -230,7 +232,7 @@ input[type="checkbox"].light {
 /* checked */
 input[type="checkbox"].light:checked {
    background-image: url("../img/icon_light_sprite.png");
-    
+
     -webkit-animation: light_on_animation 0.5s steps(10);
     -moz-animation: light_on_animation 0.5s steps(10);
     -ms-animation: light_on_animation 0.5s steps(10);
