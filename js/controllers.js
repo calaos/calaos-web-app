@@ -47,13 +47,17 @@ calaos.controller('RoomCtrl', function ($scope, $routeParams, CalaosHome) {
 calaos.controller('LightCtrl', function ($scope, CalaosHome) {
 
     var updateState = function (item) {
-        $scope.state = $scope.item.state == "true"?true:false;
+        $scope.state = $scope._item.state == "true"?true:false;
+        $scope.name = $scope._item.name;
     }
 
     $scope.init = function(it) {
-        $scope.item = it;
+        $scope._item = CalaosHome.getItemOutput(it.id);
 
         updateState(it);
+        $scope.$watch("_item", function() {
+            updateState($scope._item);
+        }, true);
     }
 });
 

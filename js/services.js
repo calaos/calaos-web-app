@@ -10,14 +10,94 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
     //by the $http request later. All array are empty at the start
     var calaosObj = null;
     var homeSortedByRow = null;
+    var poll_uuid = null;
 
-    var query = {
-        "cn_user": calaosConfig.cn_user,
-        "cn_pass": calaosConfig.cn_pass,
-        "action": "get_home"
-    };
+    //those are the cache input and output tables
+    //they are used to quickly query for an IO without
+    //having to look over all rooms
+    var inputCache = [];
+    var outputCache = [];
+
+    var processCalaosEvent = function (event) {
+        if (event == "")
+           return;
+
+        console.debug("Received event: ", event);
+
+        var tokens = event.split(" ");
+
+        if (tokens.length < 2) //drop, this is probably not a calaos event
+            return;
+
+        //correctly decode the parameters
+        for (var i = 0;i < tokens.length;i++) {
+            tokens[i] = decodeURIComponent(tokens[i]);
+        }
+
+        if (tokens[0] == 'input' ||
+            tokens[0] == 'output') {
+            var id = tokens[1];
+
+            var tokchange = tokens[2].split(':');
+            if (tokchange.length == 2) {
+                if (tokens[0] == 'input' && inputCache.hasOwnProperty(tokens[1])) {
+                    if (tokchange[0] == 'state')
+                        inputCache[tokens[1]].state = tokchange[1];
+                    else if (tokchange[0] == 'name')
+                        inputCache[tokens[1]].name = tokchange[1];
+                    else
+                        console.debug('Event change not implemented!');
+                }
+                else if (tokens[0] == 'output' && outputCache.hasOwnProperty(tokens[1])) {
+                    if (tokchange[0] == 'state')
+                        outputCache[tokens[1]].state = tokchange[1];
+                    else if (tokchange[0] == 'name')
+                        outputCache[tokens[1]].name = tokchange[1];
+                    else
+                        console.debug('Event change not implemented!');
+                }
+            }
+        }
+        else {
+            //TODO: implement other events here:
+            //new_input, new_output
+            //delete_input, delete_output
+            //modify_room, delete_room, new_room
+            //audio_volume, audio_status
+            //audio songchanged
+            console.debug('Event not implemented!');
+        }
+    }
+
+    var pollEvents = function () {
+        //here we call in a loop the polling for events change in calaos
+        if (!poll_uuid)
+            return;
+
+        var query = {
+            "cn_user": calaosConfig.cn_user,
+            "cn_pass": calaosConfig.cn_pass,
+            "action": "poll_listen",
+            "uuid": poll_uuid,
+            "type": "get"
+        };
+
+        $http.post(calaosConfig.host, query)
+            .success(function(data) {
+                for (var i = 0;i < data.events.length;i++)
+                    processCalaosEvent(data.events[i]);
+                $timeout(pollEvents, 200);
+            });
+    }
 
     var doInitRequest = function (success_cb, error_cb) {
+
+        var query = {
+            "cn_user": calaosConfig.cn_user,
+            "cn_pass": calaosConfig.cn_pass,
+            "action": "get_home"
+        };
+
         $http.post(calaosConfig.host, query)
         .success(function(data) {
             calaosObj = data;
@@ -26,10 +106,20 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
             calaosObj.home.sort(function (rooma, roomb) { return roomb.hits - rooma.hits; });
 
             //create an array of max 3 rooms
+            //and fill cache
             homeSortedByRow = [];
             var a = [];
             for (var i = 0;i < calaosObj.home.length;i++) {
                 calaosObj.home[i].icon = getRoomTypeIcon(calaosObj.home[i].type);
+
+                for (var io = 0;io < calaosObj.home[i].items.inputs.length;io++) {
+                    inputCache[calaosObj.home[i].items.inputs[io].id] = calaosObj.home[i].items.inputs[io];
+                }
+
+                for (var io = 0;io < calaosObj.home[i].items.outputs.length;io++) {
+                    outputCache[calaosObj.home[i].items.outputs[io].id] = calaosObj.home[i].items.outputs[io];
+                }
+
                 a.push(i);
                 if (a.length >= 3) {
                     homeSortedByRow.push(a);
@@ -45,6 +135,18 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
             //but i don't know how yet....
 
             error_cb();
+        }).then(function (value) {
+            var q = {
+                "cn_user": calaosConfig.cn_user,
+                "cn_pass": calaosConfig.cn_pass,
+                "action": "poll_listen",
+                "type": "register"
+            };
+            return $http.post(calaosConfig.host, q).
+                success(function(data) {
+                    poll_uuid = data['uuid'];
+                    $timeout(pollEvents, 1000);
+                });
         });
     };
 
@@ -166,6 +268,16 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 console.log("error in http request");
             });
     };
+
+    //get an io from the cache
+    factory.getItemInput = function (id) {
+        return inputCache[id];
+    }
+
+    //get an io from the cache
+    factory.getItemOutput = function (id) {
+        return outputCache[id];
+    }
 
     return factory;
 }]);
