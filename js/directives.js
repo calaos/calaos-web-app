@@ -24,7 +24,7 @@ calaos.directive("colorPicker", function(){
             image.src = scope.url;
 
             image.onload = function () {
-                ctx.scale(image.width / element[0].width , image.height /  element[0].height);
+                ctx.scale( window.innerWidth / image.width , window.innerWidth / image.height);
                 ctx.drawImage(image, 0, 0, image.width, image.height); // draw the image on the canvas
             }
 
