@@ -44,6 +44,19 @@ calaos.controller('RoomCtrl', function ($scope, $routeParams, CalaosHome) {
     }
 });
 
+calaos.controller('LightCtrl', function ($scope, CalaosHome) {
+
+    var updateState = function (item) {
+        $scope.state = $scope.item.state == "true"?true:false;
+    }
+
+    $scope.init = function(it) {
+        $scope.item = it;
+
+        updateState(it);
+    }
+});
+
 calaos.controller('MenuController', function ($scope) {
 
 });
