@@ -248,9 +248,6 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
     };
 
     factory.setState = function (content, value) {
-        alert("Petit coquin ;-)");
-        return;
-
         var query = {
             "cn_user": calaosConfig.cn_user,
             "cn_pass": calaosConfig.cn_pass,
