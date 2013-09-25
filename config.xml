@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://calaos.fr/calaoswebapp" version="1.0.0" viewmodes="maximized">
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://yourdomain/calaoswebapp" version="1.0.0" viewmodes="maximized">
     <access origin="*" subdomains="true"></access>
-    <tizen:application id="7GtSYu99Jn.calaoswebapp" package="7GtSYu99Jn" required_version="2.2"/>
-    <author href="calaos.fr" email="aguirre.nicolas@gmail.com">Raoul Hecky &amp; Nicolas Aguirre</author>
+    <tizen:application id="E64YgcqPUA.calaoswebapp" package="E64YgcqPUA" required_version="2.2"/>
     <content src="index.html"/>
-    <description>Calaos mobile controller</description>
     <icon src="icon.png"/>
-    <license>GPLv3</license>
-    <name>Calaos</name>
-    <tizen:setting screen-orientation="portrait" context-menu="enable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+    <name>calaoswebapp</name>
+    <tizen:privilege name="http://tizen.org/privilege/system"/>
 </widget>
