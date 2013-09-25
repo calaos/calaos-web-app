@@ -266,3 +266,14 @@ input[type="checkbox"].light:checked {
    from { background-position:    0px; }
      to { background-position: -220px; }
 }
+
+
+#color {
+    left: 50%;
+    bottom: 50%;
+    width: 200px;
+    height: 200px;
+    margin: -100px;
+    position:absolute;
+    z-index: -2;
+}

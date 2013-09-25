@@ -165,11 +165,23 @@ calaos.controller('SettingsCtrl', function ($scope) {
     }
 });
 
-calaos.controller('ColorPickerCtrl', function ($scope) {
+calaos.controller('ColorPickerCtrl', function ($scope, $routeParams) {
 
-    console.log($scope.$parent);
+    $scope.color = $routeParams.color;
+    document.getElementById("color").style.backgroundColor = $scope.color;
+
+    var convertColor = function (color) {
+        var tmp = /(.*?)rgb\((\d+), (\d+), (\d+)\)/.exec(color);
+        
+        var red = parseInt(tmp[2]);
+        var green = parseInt(tmp[3]);
+        var blue = parseInt(tmp[4]);
+        
+        return blue | (green << 8) | (red << 16);
+
+    }
 
     $scope.selectColor = function() {
-        console.log("colorPicker click");
+        $scope.color = convertColor(document.getElementById("color").style.backgroundColor);
     }
 });
