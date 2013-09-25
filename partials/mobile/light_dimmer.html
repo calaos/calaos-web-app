@@ -8,7 +8,7 @@
         </td>
     </tr>
     <tr>
-      <td class="array-left"> <input type="range" min="0" max="100" step="1" ng-model="percent_value_rw" ng-model-onblur ng-change="changeValueDimmer()"/></td>
+      <td class="array-left"> <input type="range" min="0" max="100" step="1" ng-model="percent_value_rw" ng-mouseup="changeValueDimmer()"/></td>
       <td class="array-right"><h3 class="roomlist">{{percent_value}}%</h3></td>
     </tr>
   </table>
