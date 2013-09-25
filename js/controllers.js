@@ -5,7 +5,7 @@
 calaos.controller('RoomsListCtrl', function ($scope, CalaosHome) {
 
     console.log('controller RoomsListCtrl');
-
+    
     //get the sorted homeByRow from the calaos service
     //and inject that into the controller scope
     CalaosHome.getSortedHomeByRow().then(function (data) {
@@ -16,11 +16,6 @@ calaos.controller('RoomsListCtrl', function ($scope, CalaosHome) {
         $scope.homeRaw = data;
     });
 
-    $scope.keyPressed = function(ev) {
-        console.log(ev);
-        if (ev.which==13)
-            alert('Im a lert');
-    }
 });
 
 calaos.controller('RoomCtrl', function ($scope, $routeParams, CalaosHome) {
@@ -184,4 +179,27 @@ calaos.controller('ColorPickerCtrl', function ($scope, $routeParams) {
     $scope.selectColor = function() {
         $scope.color = convertColor(document.getElementById("color").style.backgroundColor);
     }
+});
+
+calaos.controller('NavBarCtrl', function ($scope, $window) {
+    $scope.isCollapsed = true;
+
+    $scope.goHistoryBack = function() {
+        $window.history.back();
+    };
+
+    document.addEventListener('tizenhwkey', function(e) {
+        console.log(e.keyName);
+        if(e.keyName == "back")
+        {
+            var deviceCapabilities;
+            deviceCapabilities = tizen.systeminfo.getCapabilities();
+            console.log(deviceCapabilities)
+            if (deviceCapabilities.bluetooth)
+            {
+                console.log("Bluetooth is supported");
+            }
+            $window.history.back();
+        }
+    });
 });

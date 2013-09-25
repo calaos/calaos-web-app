@@ -39,27 +39,3 @@ calaos.config(['$httpProvider', function($httpProvider) {
     $httpProvider.defaults.useXDomain = true;
     delete $httpProvider.defaults.headers.common['X-Requested-With'];
 }]);
-
-
-calaos.controller('NavBarCtrl', function ($scope, $window) {
-    $scope.isCollapsed = true;
-
-    $scope.goHistoryBack = function() {
-        $window.history.back();
-    };
-
-    document.addEventListener('tizenhwkey', function(e) {
-        console.log(e.keyName);
-        if(e.keyName == "back")
-        {
-            var deviceCapabilities;
-            deviceCapabilities = tizen.systeminfo.getCapabilities();
-            console.log(deviceCapabilities)
-            if (deviceCapabilities.bluetooth)
-            {
-                console.log("Bluetooth is supported");
-            }
-            $window.history.back();
-        }
-    });
-});
