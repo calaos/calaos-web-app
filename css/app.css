@@ -187,25 +187,6 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 
-input[type="checkbox"] {
-    -webkit-appearance:none;	/* Remove Safari default */
-    outline: none;
-    width: 34px;
-    height: 31px;
-    border: 0;
-}
-
-
-/* unchecked */
-input[type="checkbox"] {
-    background: url('../img/icon_bool_off.png');
-}
-
-/* checked */
-input[type="checkbox"]:checked {
-    background: url('../img/icon_bool_on.png');
-    border: 0;
-}
 
 div.color-picker {
     background-color: #000;
@@ -268,12 +249,78 @@ input[type="checkbox"].light:checked {
 }
 
 
-#color {
-    left: 50%;
-    bottom: 50%;
+
+.form-signin {
+  max-width: 330px;
+  padding: 15px;
+  margin: 0 auto;
+}
+.form-signin .form-signin-heading,
+.form-signin .checkbox {
+  margin-bottom: 10px;
+}
+.form-signin .checkbox {
+  font-weight: normal;
+}
+.form-signin .form-control {
+  position: relative;
+  font-size: 16px;
+  height: auto;
+  width: 100%;
+  padding: 10px;
+  -webkit-box-sizing: border-box;
+     -moz-box-sizing: border-box;
+          box-sizing: border-box;
+}
+.form-signin .form-control:focus {
+  z-index: 2;
+}
+.form-signin input[type="text"] {
+  margin-bottom: -1px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.form-signin input[type="password"] {
+  margin-bottom: 10px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.form-signin h1 {
+    font: Helvetica, Arial, Sans-Serif;
+    font-size: 16;
+    color: #999;
+}
+
+
+input[type="checkbox"] {
+    -webkit-appearance:none;	/* Remove Safari default */
+    outline: none;
+    width: 34px;
+    height: 31px;
+    border: 0;
+}
+
+
+/* unchecked */
+input[type="checkbox"] {
+    background: url('../img/icon_bool_off.png');
+}
+
+/* checked */
+input[type="checkbox"]:checked {
+    background: url('../img/icon_bool_on.png');
+    border: 0;
+}
+
+label.info {
+    color: #eee;
+    margin-left: 24px;
+    vertical-align: center;
+    line-height: 42px;
     width: 200px;
-    height: 200px;
-    margin: -100px;
-    position:absolute;
-    z-index: -2;
+}
+
+.btn-large {
+    width: 100%;
 }
