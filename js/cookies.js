@@ -27,11 +27,13 @@ function getCookie(key)
 
         while (c.charAt(0)==' ') 
             c = c.substring(1,c.length);
-        
-        if (c.indexOf(name) == 0) 
-            return c.substring(name.length,c.length);
+
+        if (c.indexOf(name) == 0)
+        {
+            var str = c.substring(name.length,c.length);
+            console.log("Get cookie : " + name + " value: " + str);
+            return str;
+        }
     }
     return null;
-
-   
 }

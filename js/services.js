@@ -1,6 +1,8 @@
 'use strict';
 
-/* Services */
+var calaosConfig = {
+    dev_mode: 'mobile'
+}
 
 //This is main calaos service
 calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $timeout) {
@@ -11,6 +13,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
     var calaosObj = null;
     var homeSortedByRow = null;
     var poll_uuid = null;
+
 
     //those are the cache input and output tables
     //they are used to quickly query for an IO without
@@ -90,7 +93,34 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
             });
     }
 
+    var initConfig = function () {
+
+        calaosConfig.cn_user = getCookie('cn_user');
+        calaosConfig.cn_pass = getCookie('cn_pass');
+        var tmp = getCookie('use_calaosnetwork');
+        if (tmp) {
+            if (tmp == "true")
+                calaosConfig.use_calaosnetwork = true;
+            else
+                calaosConfig.use_calaosnetwork = false;
+        } else  {
+            var tmp = getCookie('host');
+            if (tmp) {
+                calaosConfig.host = tmp;
+            }
+        }
+        if (!calaosConfig.cn_user|| !calaosConfig.cn_pass)
+            return false;
+        else
+            return true;
+            
+        
+    }
+
     var doInitRequest = function (success_cb, error_cb) {
+
+        if (!initConfig())
+            error_cb();
 
         var query = {
             "cn_user": calaosConfig.cn_user,
@@ -135,7 +165,6 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
         .error(function(data, status) {
             //todo, handle error here
             //but i don't know how yet....
-
             error_cb();
         }).then(function (value) {
             var q = {
@@ -281,5 +310,9 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
         return outputCache[id];
     }
 
+    //reset Calaos main object (after user/pass changed for example)
+    factory.reset = function() {
+        calaosObj = null;
+    }
     return factory;
 }]);

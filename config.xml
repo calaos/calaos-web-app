@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://yourdomain/calaoswebapp" version="1.0.0" viewmodes="maximized">
     <access origin="*" subdomains="true"></access>
-    <tizen:application id="E64YgcqPUA.calaoswebapp" package="E64YgcqPUA" required_version="2.2"/>
+    <tizen:application id="E64YgcqPUB.calaoswebapp" package="E64YgcqPUB" required_version="2.2"/>
     <content src="index.html"/>
     <icon src="icon.png"/>
     <name>calaoswebapp</name>
