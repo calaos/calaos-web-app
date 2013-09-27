@@ -6,4 +6,5 @@
     <icon src="icon.png"/>
     <name>calaoswebapp</name>
     <tizen:privilege name="http://tizen.org/privilege/system"/>
+    <access origin="*" subdomains="true"/>
 </widget>
