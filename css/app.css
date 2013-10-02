@@ -2,7 +2,14 @@
 { margin: 0; padding: 0; }
 
 
+@font-face {
+  font-family: 'CalaosContent';
+  src: url('../fonts/calaos_content.ttf') format('truetype');
+}
+
 body {
+    font-family: CalaosContent, Lucida Sans, Helvetica, sans-serif;
+
     padding-top: 50px;
     padding-bottom: 0px;
     padding-right: 0px;
@@ -15,6 +22,7 @@ body {
 
     background-repeat:no-repeat;
     background-attachment:fixed;
+
 }
 
 .navbar-fixed-top {
@@ -79,10 +87,10 @@ div.roomlist {
 }
 
 h3.roomlist {
-    font: Helvetica, Arial, Sans-Serif;
+    font: CalaosContent, Helvetica, Arial, Sans-Serif;
     font-size: 100%;
-    color: #999;
-    text-shadow: 0px 3px 8px #2a2a2a;
+    color: #e7e7e7;
+    text-shadow: 0 0 10px rgba(231,231,231, 0.2);
 }
 
 img.roomlist {
@@ -229,11 +237,11 @@ input[type="checkbox"].light {
 input[type="checkbox"].light:checked {
    background-image: url("../img/icon_light_sprite.png");
 
-    -webkit-animation: light_on_animation 0.5s steps(10);
-    -moz-animation: light_on_animation 0.5s steps(10);
-    -ms-animation: light_on_animation 0.5s steps(10);
-    -o-animation: light_on_animation 0.5s steps(10);
-    animation: light_on_animation 0.5s steps(10);
+    -webkit-animation: light_on_animation .5s steps(10);
+    -moz-animation: light_on_animation .5s steps(10);
+    -ms-animation: light_on_animation .5s steps(10);
+    -o-animation: light_on_animation .5s steps(10);
+    animation: light_on_animation .5s steps(10);
     border: 0;
 }
 
@@ -300,7 +308,7 @@ input[type="checkbox"].light:checked {
 }
 
 .form-signin h1 {
-    font: Helvetica, Arial, Sans-Serif;
+    font: CalaosContent, Helvetica, Arial, Sans-Serif;
     font-size: 16;
     color: #999;
 }
@@ -343,3 +351,4 @@ label.info {
 .btn-large {
     width: 100%;
 }
+
