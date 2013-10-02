@@ -64,6 +64,10 @@ div.roomlist {
     color: #EEE62F !important;
 }
 
+.bool_active {
+    color: #38b0d3 !important;
+}
+
 h3.roomlist {
     font: Helvetica, Arial, Sans-Serif;
     font-size: 100%;
