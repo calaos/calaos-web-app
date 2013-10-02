@@ -62,10 +62,20 @@ div.roomlist {
 
 .active {
     color: #EEE62F !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
 }
 
 .bool_active {
     color: #38b0d3 !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
 }
 
 h3.roomlist {
@@ -201,6 +211,7 @@ div.color-picker {
     height: 32px;
 }
 
+
 /* light on/off style */
 /* unchecked */
 input[type="checkbox"].light {
@@ -251,8 +262,6 @@ input[type="checkbox"].light:checked {
    from { background-position:    0px; }
      to { background-position: -220px; }
 }
-
-
 
 .form-signin {
   max-width: 330px;
@@ -307,8 +316,14 @@ input[type="checkbox"] {
 
 
 /* unchecked */
-input[type="checkbox"] {
+input[type="checkbox"]
+{
     background: url('../img/icon_bool_off.png');
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
 }
 
 /* checked */
