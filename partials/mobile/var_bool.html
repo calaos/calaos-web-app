@@ -1,8 +1,8 @@
-<div class="roomlist" ng-if="item.visible == 'true'"> 
+<div class="roomlist" ng-controller="LightCtrl" ng-init="init(item)">
 <table class="array-header">
 <tr>
-  <td class="array-left">  <h3 class="roomlist">{{item.name}}</h3></td>
-  <td class="array-right"><input type="checkbox" disabled="true" ng-model="item.state"/></td>
+  <td class="array-left">  <h3  ng-class="{active: state==true}" class="roomlist">{{item.name}}</h3></td>
+  <td class="array-right"><input type="checkbox" ng-disabled="_item.rw == 'false'" ng-model="state" ng-click='setState(item, state)'/></td>
 </tr>
 </table>
 </div>
