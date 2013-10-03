@@ -133,7 +133,6 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
         $http.post(calaosConfig.host, query)
         .success(function(data) {
             calaosObj = data;
-
             //sort rooms
             calaosObj.home.sort(function (rooma, roomb) { return roomb.hits - rooma.hits; });
 
@@ -270,6 +269,37 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                     }
                 }
                 deferred.resolve(room);
+            }, function () {
+                console.log("error in http request");
+            });
+        }
+
+        return deferred.promise;
+    };
+
+    //returns the audioplayer by its name
+    factory.getAudioPlayer = function (name) {
+        var deferred = $q.defer();
+        if (calaosObj) {
+            var audioplayer = {};
+            for(var i = 0;i < calaosObj.audio.length; i++) {
+                if (calaosObj.audio[i].name == name) {
+                    audioplayer = calaosObj.audio[i];
+                    break;
+                }
+            }
+            deferred.resolve(audioplayer);
+        }
+        else {
+            doInitRequest(function () {
+                var audioplayer = {};
+                for(var i = 0;i < calaosObj.audio.length; i++) {
+                    if (calaosObj.audio[i].name == name) {
+                        audioplayer = calaosObj.audio[i];
+                        break;
+                    }
+                }
+                deferred.resolve(audioplayer);
             }, function () {
                 console.log("error in http request");
             });

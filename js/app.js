@@ -25,14 +25,17 @@ calaos.config(['$routeProvider', function($routeProvider) {
     }
 
     $routeProvider.
+      when('/mobile/main',  {templateUrl: 'partials/mobile/main.html',   controller: 'MainCtrl'}).
       when('/mobile/home',  {templateUrl: 'partials/mobile/home.html',   controller: 'RoomsListCtrl'}).
+      when('/mobile/audio',  {templateUrl: 'partials/mobile/audio.html',   controller: 'AudioCtrl'}).
       when('/mobile/room/:room_name', {templateUrl: 'partials/mobile/room.html',  controller: 'RoomCtrl'}).
+      when('/mobile/audio/:audio_name', {templateUrl: 'partials/mobile/audio_player.html',  controller: 'AudioPlayerCtrl'}).
       when('/mobile/settings', {templateUrl: 'partials/mobile/settings.html',  controller: 'SettingsCtrl'}).
       when('/mobile/color-picker', {templateUrl: 'partials/mobile/color-picker.html',  controller: 'ColorPickerCtrl'}).
       when('/desktop/home',  {templateUrl: 'partials/desktop/home.html',   controller: 'RoomsListCtrl'}).
       when('/desktop/room/:room_name', {templateUrl: 'partials/desktop/room.html',  controller: 'RoomCtrl'}).
       when('/desktop/settings', {templateUrl: 'partials/desktop/settings.html',  controller: 'SettingsCtrl'}).
-    otherwise({redirectTo: '/' + device + '/home'})
+    otherwise({redirectTo: '/' + device + '/main'})
 }]);
 
 calaos.config(['$httpProvider', function($httpProvider) {

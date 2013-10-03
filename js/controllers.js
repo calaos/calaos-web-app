@@ -2,6 +2,13 @@
 
 /* Controllers */
 
+calaos.controller('MainCtrl', function ($scope, CalaosHome) {
+
+    console.log('controller MainCtrl');
+
+
+});
+
 calaos.controller('RoomsListCtrl', function ($scope, CalaosHome) {
 
     console.log('controller RoomsListCtrl');
@@ -14,6 +21,31 @@ calaos.controller('RoomsListCtrl', function ($scope, CalaosHome) {
 
     CalaosHome.getRawHome().then(function (data) {
         $scope.homeRaw = data;
+    });
+
+});
+
+calaos.controller('AudioCtrl', function ($scope, CalaosHome) {
+
+    console.log('controller AudioCtrl');
+
+    CalaosHome.getRawAudio().then(function (data) {
+        $scope.audioRaw = data;
+        console.log(data);
+    });
+
+});
+
+calaos.controller('AudioPlayerCtrl', function ($scope, $routeParams, CalaosHome) {
+
+    console.log('controller AudioPlayerCtrl');
+
+    //get the room from the calaos service
+    //and inject that into the controller scope
+    CalaosHome.getAudioPlayer($routeParams.audio_name).then(function (data) {
+        $scope.audioplayer = data;
+        $scope.playing = $scope.audioplayer.status == "playing" ? true: false;
+        console.log($scope.playing);
     });
 
 });

@@ -1,0 +1,53 @@
+
+
+<h3 class="audio_title" ng-class='{audio_active: audioplayer.status=="playing"}'><input type="checkbox" class="audioplayer_state" disabled="true" ng-model="playing"/>{{audioplayer.name}}
+
+<div>
+<img class="photo" src="img/album_cover.png">
+</div>
+
+
+<p>
+<img class="shutter" ng-src="img/button_previous.png" ng-click='setState(item, "true")'/></img>
+<img class="shutter" ng-src="img/button_play.png" ng-click='setState(item, "true")'/></img>
+<img class="shutter" ng-src="img/button_stop.png" ng-click='setState(item, "false")'/></img>
+<img class="shutter" ng-src="img/button_next.png" ng-click='setState(item, "false")'/></img>
+</p>
+
+
+
+<div>
+<input class="audio_position" type="range" min="0" max="100" step="1" ng-model="percent_value_rw" ng-mouseup="changeValueDimmer()"/>
+<div>
+
+<!--
+<div>
+<input type="range" min="0" max="100" ng-model="audioplayer.volume">{{audioplayer.position}}
+<div>
+
+<div>
+cd
+</div>
+
+-->
+<div>
+<p class="text-left">
+Artist : {{audioplayer.current_track.artist}}
+</p>
+<p class="text-left">
+Album : {{audioplayer.current_track.album}}
+</p>
+<p class="text-left">
+Title : {{audioplayer.current_track.title}}
+</p>
+<p class="text-left">
+Duration : {{audioplayer.current_track.duration}}
+</p>
+</div>
+
+<!--
+<div>
+bargraph
+</div>
+
+-->
