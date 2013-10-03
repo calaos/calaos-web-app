@@ -103,13 +103,15 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 calaosConfig.use_calaosnetwork = true;
             else
                 calaosConfig.use_calaosnetwork = false;
-        } else  {
+        }
+
+        if (!tmp || calaosConfig.use_calaosnetwork == false) {
             var tmp = getCookie('host');
             if (tmp) {
                 calaosConfig.host = tmp;
             }
         }
-        if (!calaosConfig.cn_user|| !calaosConfig.cn_pass)
+        if (!calaosConfig.cn_user|| !calaosConfig.cn_pass || !calaosConfig.host)
             return false;
         else
             return true;
