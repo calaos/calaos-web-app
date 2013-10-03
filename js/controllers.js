@@ -56,6 +56,39 @@ calaos.controller('LightCtrl', function ($scope, CalaosHome) {
     }
 });
 
+calaos.controller('AnalogOutCtrl', function ($scope, CalaosHome) {
+
+    var updateState = function (item) {
+        $scope.state = parseFloat($scope._item.state);
+        $scope.name = $scope._item.name;
+    }
+
+    $scope.init = function(it) {
+        $scope._item = CalaosHome.getItemOutput(it.id);
+
+        updateState(it);
+        $scope.$watch("_item", function() {
+            updateState($scope._item);
+        }, true);
+    }
+
+    $scope.increase = function(it) {
+        var step = parseFloat($scope._item.step) || 1.0 ;
+
+        $scope.state += step;
+        $scope.setState(it, $scope.state);
+    }
+
+    $scope.decrease = function(it) {
+        var step = parseFloat($scope._item.step) || 1.0 ;
+
+        $scope.state -= step;
+        $scope.setState(it, $scope.state.toString());
+    }
+
+});
+
+
 calaos.controller('LightDimmerCtrl', function ($scope, CalaosHome) {
 
     var updateState = function (item) {
