@@ -1,7 +1,7 @@
 
 /* Player name */
 .audio_title {
-  text-align: "center";
+  text-align: center;
   color: rgba(255, 255, 255, 0.2);
 }
 
@@ -11,6 +11,32 @@
   margin: 0 auto;
   height: 300px; /* spécifiez la hauteur de l'image, une bonne attitude à prendre */
   width: 300px; /* spécifiez la largeur de l'image, une bonne habitude à prendre */
+}
+
+.controls {
+    width:210px;
+    margin: 0px auto;
+    padding: 10px;
+}
+
+.info-label
+{
+    clear:both;
+    float:left;
+    width:30%;
+    text-align:right;
+    margin: 0em 1em 1em 0;
+    color: #FFF;
+}
+
+.info-field {
+    text-align:left;
+    margin: 0 0 1em 0;
+    color: #FFF;
+}
+
+.infos {
+    color: #fff;
 }
 
 /* Checkbox for icon on top of audio player name */

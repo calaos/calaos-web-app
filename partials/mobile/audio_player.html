@@ -1,24 +1,27 @@
 
-
-<h3 class="audio_title" ng-class='{audio_active: audioplayer.status=="playing"}'><input type="checkbox" class="audioplayer_state" disabled="true" ng-model="playing"/>{{audioplayer.name}}
+<div>
+<h3 class="audio_title text-center" ng-class='{audio_active: audioplayer.status=="playing"}'>
+<input type="checkbox" class="audioplayer_state" disabled="true" ng-model="playing"/>{{audioplayer.name}}
+</h3>
+</div>
 
 <div>
 <img class="photo" src="img/album_cover.png">
 </div>
 
 
-<p>
+<div class="controls">
 <img class="shutter" ng-src="img/button_previous.png" ng-click='setState(item, "true")'/></img>
 <img class="shutter" ng-src="img/button_play.png" ng-click='setState(item, "true")'/></img>
 <img class="shutter" ng-src="img/button_stop.png" ng-click='setState(item, "false")'/></img>
 <img class="shutter" ng-src="img/button_next.png" ng-click='setState(item, "false")'/></img>
-</p>
+</div>
 
 
 
-<div>
+<div class="controls">
 <input class="audio_position" type="range" min="0" max="100" step="1" ng-model="percent_value_rw" ng-mouseup="changeValueDimmer()"/>
-<div>
+</div>
 
 <!--
 <div>
@@ -30,21 +33,30 @@ cd
 </div>
 
 -->
-<div>
-<p class="text-left">
-Artist : {{audioplayer.current_track.artist}}
-</p>
-<p class="text-left">
-Album : {{audioplayer.current_track.album}}
-</p>
-<p class="text-left">
-Title : {{audioplayer.current_track.title}}
-</p>
-<p class="text-left">
-Duration : {{audioplayer.current_track.duration}}
-</p>
-</div>
 
+<div>
+<label class="info-label">Artist :</label>
+<label class="info-field">{{audioplayer.current_track.artist}}</label>
+
+<label class="info-label">Album :</label>
+<label class="info-field">{{audioplayer.current_track.album}}</label>
+
+<label class="info-label">Title :</label>
+<label class="info-field">{{audioplayer.current_track.title}}</label>
+
+<label class="info-label">Duration :</label>
+<label class="info-field">{{audioplayer.current_track.duration}}</label>
+</div>
+<!--
+<div class="infos left">Album : </div>
+<div class="infos">{{audioplayer.current_track.album}}</div>
+
+<div class="infos left">Title : </div>
+<div class="infos">{{audioplayer.current_track.title}}</div>
+
+<div class="infos left">Duration : </div>
+<div class="infos">{{audioplayer.current_track.duration}}</div>
+-->
 <!--
 <div>
 bargraph
