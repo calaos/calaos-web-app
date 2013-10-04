@@ -14,7 +14,7 @@
 }
 
 .controls {
-    width:210px;
+    width:205px;
     margin: 0px auto;
     padding: 10px;
 }
@@ -26,13 +26,13 @@
     width:30%;
     text-align:right;
     margin: 0em 1em 1em 0;
-    color: #FFF;
+    color: #7f898b;
 }
 
 .info-field {
     text-align:left;
     margin: 0 0 1em 0;
-    color: #FFF;
+    color: #30b7d5;
 }
 
 .infos {

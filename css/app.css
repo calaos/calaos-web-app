@@ -30,8 +30,9 @@ body {
     position: fixed;
 }
 
-.navbar .nav {
+.navbar .nav{
     margin-left: 15px;
+    margin-right: 15px !important;
 }
 
 .nav.pull-right .nav {
