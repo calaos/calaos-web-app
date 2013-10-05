@@ -10,20 +10,8 @@ calaos.controller('MainCtrl', function ($scope, CalaosHome) {
 
 calaos.controller('MainAppCtrl', function ($scope, CalaosHome) {
 
-    console.log("controller MainAppCtrl, loginFailed = " + CalaosHome.loginFailed);
-
-    $scope.login = CalaosHome.loginFailed;
-//    $scope.loginFailed = true;
-    /*
-    $scope.$watch("CalaosHome.loginFailed", function() {
-        $scope.loginFailed = CalaosHome.loginFailed;
-    }, true);*/
-
-    $scope.$watch('CalaosHome.loginFailed', function (newVal, oldVal, scope) {
-            console.log("fuck de merde! " + newVal);
-        if(newVal) {
-            scope.login = newVal;
-        }
+    $scope.$watch( function () { return CalaosHome.loginFailed; }, function ( loginFailed ) {
+      $scope.login = loginFailed;
     });
 
 });

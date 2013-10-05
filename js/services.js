@@ -1,12 +1,16 @@
 'use strict';
 
 var calaosConfig = {
-    dev_mode: 'mobile'
+    dev_mode: 'mobile',
 }
+
+
 
 //This is main calaos service
 calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $timeout) {
-    var factory = {};
+    var factory = {
+      loginFailed: false
+    };
 
     //the calaos object will be filled by the data returned
     //by the $http request later. All array are empty at the start
@@ -20,9 +24,6 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
     //having to look over all rooms
     var inputCache = [];
     var outputCache = [];
-
-    //Errors
-    factory.loginFailed = false;
 
     var test = function () {
     $timeout(function() {
