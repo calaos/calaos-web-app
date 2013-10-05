@@ -281,3 +281,27 @@ calaos.controller('NavBarCtrl', function ($scope, $window) {
         }
     });
 });
+
+calaos.controller('MenuCtrl', function ($scope, $window, $location)
+{
+    $scope.menu = "home";
+
+    $scope.setMenu = function(menu) {
+
+        $scope.menu = menu;
+        switch(menu)
+        {
+        case "home":
+            $location.path('/mobile/home');
+            break;
+
+        case "audio":
+            $location.path('/mobile/audio');
+            break;
+
+        case "security":
+            $location.path('/mobile/home');
+            break;
+        }
+    }
+});

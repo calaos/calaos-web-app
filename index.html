@@ -32,17 +32,23 @@
   <body ng-controller="MainAppCtrl">
 
     <div class="calaos-navbar" ng-controller="NavBarCtrl">
-          <button class="btn-navbar btn-left" ng-click="goHistoryBack()"><i class="icon-arrow-left icon-white"></i> Back</button>
-          <p class="navbar-title">Calaos</p>
-          <button class="btn-navbar btn-right" href="#/mobile/settings"><i class="icon-user icon-white"></i></a>
+        <p class="navbar-title">Calaos</p>
+        <button class="btn-navbar btn-left" ng-click="goHistoryBack()"><i class="icon-arrow-left icon-white"></i></a></button>
+        <button class="btn-navbar btn-right"><a href="#/mobile/settings"><i class="icon-user icon-white"></i></a></button>
     </div>
 
-    <div class="alert alert-danger" ng-show="login">Login Failed!</div>
-    <div>{{ login }}</div>
+
 	<div class="container">
-	<div data-ng-view="" id="ng-view"  ng-cloak class="ng-cloak slide-animation"></div>
+        <div data-ng-view="" id="ng-view" class="slide-animation"></div>
 	</div>
 
+    <div class="calaos-footer"  ng-controller="MenuCtrl">
+        <ul class="calaos-footer-content">
+            <li class="menu home" ng-class='{home_selected: menu=="home"}' ng-src="img/button_home.png" ng-click='setMenu("home")'>Home</li>
+            <li class="menu media"  ng-class='{media_selected: menu=="audio"}' ng-click='setMenu("audio")'/>Music</li>
+            <li class="menu security" ng-class='{security_selected: menu=="security"}' ng-click='setMenu("security")'>Security</li>
+        </ul>
+    </div>
 
   </body>
 </html>
