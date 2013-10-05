@@ -9,8 +9,8 @@
 .photo {
   display: block;
   margin: 0 auto;
-  height: 300px; /* spécifiez la hauteur de l'image, une bonne attitude à prendre */
-  width: 300px; /* spécifiez la largeur de l'image, une bonne habitude à prendre */
+  height: 250px; /* spécifiez la hauteur de l'image, une bonne attitude à prendre */
+  width: 250px; /* spécifiez la largeur de l'image, une bonne habitude à prendre */
 }
 
 .controls {
