@@ -2,12 +2,6 @@
 
 /* Controllers */
 
-calaos.controller('MainCtrl', function ($scope, CalaosHome) {
-
-    CalaosHome.getSortedHomeByRow();
-    console.log('controller MainCtrl');
-})
-
 calaos.controller('MainAppCtrl', function ($scope, CalaosHome) {
 
     $scope.$watch( function () { return CalaosHome.loginFailed; }, function ( loginFailed ) {
