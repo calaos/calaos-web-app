@@ -10,6 +10,7 @@
 
     <link rel="stylesheet" href="css/bootstrap.css" />
     <link rel="stylesheet" href="css/bootstrap-responsive.min.css" />
+
     <link rel="stylesheet" href="css/app.css" />
     <link rel="stylesheet" href="css/audio.css" />
 
@@ -30,16 +31,10 @@
   </head>
   <body ng-controller="MainAppCtrl">
 
-    <div class="navbar navbar-inverse navbar-fixed-top" ng-controller="NavBarCtrl">
-      <div class="navbar-inner">
-        <ul class="brand">Calaos</ul>
-        <ul class="nav">
-          <button class="btn btn-inverse" ng-click="goHistoryBack()"><i class="icon-arrow-left icon-white"></i> Back</button>
-        </ul>
-        <ul class="nav pull-right">
-          <a class="btn btn-inverse" href="#/mobile/settings"><i class="icon-user icon-white"></i></a>
-        </ul>
-      </div>
+    <div class="calaos-navbar" ng-controller="NavBarCtrl">
+          <button class="btn-navbar btn-left" ng-click="goHistoryBack()"><i class="icon-arrow-left icon-white"></i> Back</button>
+          <p class="navbar-title">Calaos</p>
+          <button class="btn-navbar btn-right" href="#/mobile/settings"><i class="icon-user icon-white"></i></a>
     </div>
 
     <div class="alert alert-danger" ng-show="login">Login Failed!</div>
