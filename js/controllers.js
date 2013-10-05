@@ -4,15 +4,34 @@
 
 calaos.controller('MainCtrl', function ($scope, CalaosHome) {
 
+    CalaosHome.getSortedHomeByRow();
     console.log('controller MainCtrl');
+})
 
+calaos.controller('MainAppCtrl', function ($scope, CalaosHome) {
+
+    console.log("controller MainAppCtrl, loginFailed = " + CalaosHome.loginFailed);
+
+    $scope.login = CalaosHome.loginFailed;
+//    $scope.loginFailed = true;
+    /*
+    $scope.$watch("CalaosHome.loginFailed", function() {
+        $scope.loginFailed = CalaosHome.loginFailed;
+    }, true);*/
+
+    $scope.$watch('CalaosHome.loginFailed', function (newVal, oldVal, scope) {
+            console.log("fuck de merde! " + newVal);
+        if(newVal) {
+            scope.login = newVal;
+        }
+    });
 
 });
 
 calaos.controller('RoomsListCtrl', function ($scope, CalaosHome) {
 
     console.log('controller RoomsListCtrl');
-    
+
     //get the sorted homeByRow from the calaos service
     //and inject that into the controller scope
     CalaosHome.getSortedHomeByRow().then(function (data) {
@@ -176,7 +195,7 @@ calaos.controller('LightRGBCtrl', function ($scope, CalaosHome) {
 
     $scope.changeValueDimmer = function () {
         var s = "set " + $scope.percent_value_rw;
-        
+
         CalaosHome.setState($scope._item, s);
     }
 
@@ -210,7 +229,7 @@ calaos.controller('SettingsCtrl', function ($scope, $window, CalaosHome) {
             $scope.use_calaosnetwork = true;
         else
             $scope.use_calaosnetwork = false;
-    } 
+    }
 
     var tmp = getCookie('host');
     if (tmp) {
@@ -238,11 +257,11 @@ calaos.controller('ColorPickerCtrl', function ($scope, $routeParams) {
 
     var convertColor = function (color) {
         var tmp = /(.*?)rgb\((\d+), (\d+), (\d+)\)/.exec(color);
-        
+
         var red = parseInt(tmp[2]);
         var green = parseInt(tmp[3]);
         var blue = parseInt(tmp[4]);
-        
+
         return blue | (green << 8) | (red << 16);
 
     }

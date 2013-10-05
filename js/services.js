@@ -21,6 +21,18 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
     var inputCache = [];
     var outputCache = [];
 
+    //Errors
+    factory.loginFailed = false;
+
+    var test = function () {
+    $timeout(function() {
+        factory.loginFailed = !factory.loginFailed;
+        console.log(factory.loginFailed);
+        test();
+    } , 500);
+    }
+    test();
+
     var processCalaosEvent = function (event) {
         if (event == "")
            return;
@@ -115,8 +127,8 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
             return false;
         else
             return true;
-            
-        
+
+
     }
 
     var doInitRequest = function (success_cb, error_cb) {
@@ -161,11 +173,17 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
             }
             if (a.length > 0) homeSortedByRow.push(a);
 
+            factory.loginFailed = false;
+            console.log("login failed: " + factory.loginFailed);
+
             success_cb();
         })
         .error(function(data, status) {
-            //todo, handle error here
-            //but i don't know how yet....
+            if (status === 401) //login failed
+            {
+                factory.loginFailed = true;
+                console.log("login failed: " + factory.loginFailed);
+            }
             error_cb();
         }).then(function (value) {
             var q = {

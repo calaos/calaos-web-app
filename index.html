@@ -28,7 +28,7 @@
     <script src="js/directives.js"></script>
 
   </head>
-  <body>
+  <body ng-controller="MainAppCtrl">
 
     <div class="navbar navbar-inverse navbar-fixed-top" ng-controller="NavBarCtrl">
       <div class="navbar-inner">
@@ -42,7 +42,8 @@
       </div>
     </div>
 
-
+    <div class="alert alert-danger" ng-show="login">Login Failed!</div>
+    <div>{{ login }}</div>
 	<div class="container">
 	<div data-ng-view="" id="ng-view"  ng-cloak class="ng-cloak slide-animation"></div>
 	</div>
