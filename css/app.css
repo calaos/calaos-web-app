@@ -252,10 +252,38 @@ img.roomlist {
 
 }
 
+hr {
+    border: none;
+    background-color: #aaa;
+    color: #ccc;
+    height: 1px;
+    margin: 0;
+}
+
+
 img.audiolist {
     width: 80px;
     height: 80px;
 
+}
+
+h3.audiolist {
+    font: CalaosContent, Helvetica, Arial, Sans-Serif;
+    color: #EEE;
+    font-size: 14px;
+    text-align: right;
+}
+
+h4.audiolist {
+    font: CalaosContent, Helvetica, Arial, Sans-Serif;
+    color: #AAA;
+    font-size: 12px;
+    text-align: right;
+}
+
+p.audiolist {
+    color: #AAA;
+    text-align: right;
 }
 
 #ng-view {
