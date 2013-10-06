@@ -191,6 +191,24 @@ calaos.controller('LightRGBCtrl', function ($scope, CalaosHome) {
     }
 });
 
+calaos.controller('StringCtrl', function ($scope, CalaosHome) {
+
+    var updateState = function (item) {
+        $scope.state = $scope._item.state;
+        $scope.name = $scope._item.name;
+    }
+
+    $scope.init = function(it) {
+        $scope._item = CalaosHome.getItemOutput(it.id);
+
+        updateState(it);
+        $scope.$watch("_item", function() {
+            updateState($scope._item);
+        }, true);
+    }
+});
+
+
 calaos.controller('MenuController', function ($scope) {
 
 });
