@@ -6,15 +6,15 @@
 </div>
 
 <div>
-<img class="photo" src="img/album_cover.png">
+<img class="photo" ng-src='{{ host }}{{ audioplayer.cover_url }}'>
 </div>
 
 
 <div class="controls">
-<img class="shutter" ng-src="img/button_previous.png" ng-click='setState(item, "true")'/></img>
-<img class="shutter" ng-src="img/button_play.png" ng-click='setState(item, "true")'/></img>
-<img class="shutter" ng-src="img/button_stop.png" ng-click='setState(item, "false")'/></img>
-<img class="shutter" ng-src="img/button_next.png" ng-click='setState(item, "false")'/></img>
+<img class="shutter" ng-src="img/button_previous.png" ng-click='setState(audioplayer, "prev")'/></img>
+<img class="shutter" ng-src="img/button_play.png" ng-click='setState(audioplayer, "play")'/></img>
+<img class="shutter" ng-src="img/button_stop.png" ng-click='setState(audioplayer, "stop")'/></img>
+<img class="shutter" ng-src="img/button_next.png" ng-click='setState(audioplayer, "next")'/></img>
 </div>
 
 

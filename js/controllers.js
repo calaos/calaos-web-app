@@ -30,6 +30,8 @@ calaos.controller('AudioCtrl', function ($scope, CalaosHome) {
 
     console.log('controller AudioCtrl');
 
+    $scope.host = calaosConfig.host.substring(0, calaosConfig.host.lastIndexOf('/'));
+
     CalaosHome.getRawAudio().then(function (data) {
         $scope.audioRaw = data;
         console.log(data);
@@ -40,6 +42,12 @@ calaos.controller('AudioCtrl', function ($scope, CalaosHome) {
 calaos.controller('AudioPlayerCtrl', function ($scope, $routeParams, CalaosHome) {
 
     console.log('controller AudioPlayerCtrl');
+
+    $scope.host = calaosConfig.host.substring(0, calaosConfig.host.lastIndexOf('/'));
+
+    $scope.setState = function(content, value) {
+        CalaosHome.setState(content, value);
+    }
 
     //get the room from the calaos service
     //and inject that into the controller scope

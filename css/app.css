@@ -253,6 +253,12 @@ img.roomlist {
 
 }
 
+img.audiolist {
+    width: 80px;
+    height: 80px;
+
+}
+
 #ng-view {
     position:relative;
 }
