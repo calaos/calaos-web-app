@@ -1,0 +1,10 @@
+<div class="row-fluid" ng-repeat="cam in camerasRaw">
+<a href="#/mobile/camera/{{cam.name}}">
+  <div class="roomlist ">
+    <img class="cameralist" ng-src='{{ host }}{{ cam.url_lowres }}'/>
+    <div class="pull-right">
+        <h3 class="audiolist">{{cam.name}}</h3>
+    </div>
+  </div>
+</a>
+</div>

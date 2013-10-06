@@ -27,6 +27,7 @@ calaos.config(['$routeProvider', function($routeProvider) {
     $routeProvider.
       when('/mobile/home',  {templateUrl: 'partials/mobile/home.html',   controller: 'RoomsListCtrl'}).
       when('/mobile/audio',  {templateUrl: 'partials/mobile/audio.html',   controller: 'AudioCtrl'}).
+      when('/mobile/cameras',  {templateUrl: 'partials/mobile/cameras.html',   controller: 'CamerasCtrl'}).
       when('/mobile/room/:room_name', {templateUrl: 'partials/mobile/room.html',  controller: 'RoomCtrl'}).
       when('/mobile/audio/:audio_name', {templateUrl: 'partials/mobile/audio_player.html',  controller: 'AudioPlayerCtrl'}).
       when('/mobile/settings', {templateUrl: 'partials/mobile/settings.html',  controller: 'SettingsCtrl'}).

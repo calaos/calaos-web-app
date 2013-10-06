@@ -59,6 +59,19 @@ calaos.controller('AudioPlayerCtrl', function ($scope, $routeParams, CalaosHome)
 
 });
 
+calaos.controller('CamerasCtrl', function ($scope, CalaosHome) {
+
+    console.log('controller CamerasCtrl');
+
+    $scope.host = calaosConfig.host.substring(0, calaosConfig.host.lastIndexOf('/'));
+
+    CalaosHome.getRawCameras().then(function (data) {
+        $scope.camerasRaw = data;
+        console.log(data);
+    });
+
+});
+
 calaos.controller('RoomCtrl', function ($scope, $routeParams, CalaosHome) {
 
     //get the room from the calaos service
@@ -320,7 +333,7 @@ calaos.controller('MenuCtrl', function ($scope, $window, $location)
             break;
 
         case "security":
-            $location.path('/mobile/home');
+            $location.path('/mobile/cameras');
             break;
         }
     }
