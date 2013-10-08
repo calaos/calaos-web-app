@@ -4,15 +4,25 @@
 
 calaos.controller('MainAppCtrl', function ($scope, CalaosHome, $location) {
 
-    $scope.$watch( function () { return CalaosHome.loginFailed; }, function ( loginFailed ) {
-      $scope.login = loginFailed;
+    CalaosHome.getSortedHomeByRow().then(function () {},
+    function () {
+        console.log("go to login page");
+        $location.path('/' + getDevice() + '/settings');
     });
 
-    $location.path('/' + getDevice() + '/settings');
+    $scope.login = CalaosHome.loginFailed;
+    $scope.loading = CalaosHome.loading;
 
+    $scope.$watch( function () { return CalaosHome.loginFailed; }, function ( loginFailed ) {
+        $scope.login = loginFailed;
+    });
+
+    $scope.$watch( function () { return CalaosHome.loading; }, function ( loading ) {
+        $scope.loading = loading;
+    });
 });
 
-calaos.controller('RoomsListCtrl', function ($scope, CalaosHome) {
+calaos.controller('RoomsListCtrl', function ($scope, CalaosHome, $location) {
 
     console.log('controller RoomsListCtrl');
 
@@ -20,6 +30,10 @@ calaos.controller('RoomsListCtrl', function ($scope, CalaosHome) {
     //and inject that into the controller scope
     CalaosHome.getSortedHomeByRow().then(function (data) {
         $scope.homeByRow = data;
+    },
+    function() {
+        console.log("go to login page");
+        $location.path('/' + getDevice() + '/settings');
     });
 
     CalaosHome.getRawHome().then(function (data) {

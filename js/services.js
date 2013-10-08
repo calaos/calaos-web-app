@@ -183,15 +183,17 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 factory.loginFailed = true;
                 console.log("login failed: " + factory.loginFailed);
             }
+            factory.loading = false;
             error_cb();
         }).then(function (value) {
+            factory.loading = false;
             var q = {
                 "cn_user": calaosConfig.cn_user,
                 "cn_pass": calaosConfig.cn_pass,
                 "action": "poll_listen",
                 "type": "register"
             };
-            return $http.post(calaosConfig.host, q).
+            $http.post(calaosConfig.host, q).
                 success(function(data) {
                     poll_uuid = data['uuid'];
                     $timeout(pollEvents, 1000);
@@ -213,6 +215,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 getHomeReq(h);
             }, function () {
                 factory.loginFailed = true;
+                factory.loading = false;
                 console.log("get_ip: login failed: " + factory.loginFailed);
             });
         }
@@ -236,6 +239,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 deferred.resolve(homeSortedByRow);
             }, function () {
                 console.log("error in http request");
+                deferred.reject('error in request');
             });
 
         return deferred.promise;
@@ -252,6 +256,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 deferred.resolve(calaosObj.home);
             }, function () {
                 console.log("error in http request");
+                deferred.reject('error in request');
             });
 
         return deferred.promise;
@@ -268,6 +273,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 deferred.resolve(calaosObj.audio);
             }, function () {
                 console.log("error in http request");
+                deferred.reject('error in request');
             });
 
         return deferred.promise;
@@ -284,6 +290,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 deferred.resolve(calaosObj.cameras);
             }, function () {
                 console.log("error in http request");
+                deferred.reject('error in request');
             });
 
         return deferred.promise;
@@ -314,6 +321,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 deferred.resolve(room);
             }, function () {
                 console.log("error in http request");
+                deferred.reject('error in request');
             });
         }
 
@@ -345,6 +353,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 deferred.resolve(audioplayer);
             }, function () {
                 console.log("error in http request");
+                deferred.reject('error in request');
             });
         }
 
@@ -368,9 +377,8 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                 console.log("Set state success");
             })
             .error(function(data, status) {
-                //todo, handle error here
-                //but i don't know how yet....
                 console.log("error in http request");
+                deferred.reject('error in request');
             });
     };
 
@@ -391,6 +399,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
         inputCache = [];
         outputCache = [];
         poll_uuid = null;
+        factory.loading = true;
     }
     return factory;
 }]);

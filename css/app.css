@@ -545,4 +545,27 @@ label.info {
     width: 100%;
 }
 
+@-webkit-keyframes rotating { from { -webkit-transform: rotate(0deg); } to { -webkit-transform: rotate(360deg); } }
+@-moz-keyframes rotating { from { -moz-transform: rotate(0deg); } to { -moz-transform: rotate(360deg); } }
+@-ms-keyframes rotating { from { -ms-transform: rotate(0deg); } to { -ms-transform: rotate(360deg); } }
+@-o-keyframes rotating { from { -o-transform: rotate(0deg); } to { -o-transform: rotate(360deg); } }
+@keyframes rotating { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.loading {
+    position: fixed;
+    z-index: 9000;
+    background: url('../img/loading_bg.png');
+    top: 50%;
+    left: 50%;
+    margin-top: -101px;
+    margin-left: -101px;
+}
+
+.rotate_anim {
+    -webkit-animation: rotating 0.8s linear infinite;
+    -moz-animation: rotating 0.8s linear infinite;
+    -ms-animation: rotating 0.8s linear infinite;
+    -o-animation: rotating 0.8s linear infinite;
+    animation: rotating 0.8s linear infinite;
+}
 

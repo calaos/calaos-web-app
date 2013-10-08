@@ -36,6 +36,10 @@
         <button class="btn-navbar btn-right"><a href="#/mobile/settings"><i class="icon-user icon-white"></i></a></button>
     </div>
 
+    <div class="loading" ng-show="loading">
+    <img class="rotate_anim" src="img/loading_top.png" alt="loading"/>
+    </div>
+
 	<div class="container">
 	    <div class="alert alert-danger" ng-show="login">Login Failed!</div>
         <div data-ng-view="" id="ng-view" class="slide-animation"></div>
