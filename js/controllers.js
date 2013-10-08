@@ -2,11 +2,13 @@
 
 /* Controllers */
 
-calaos.controller('MainAppCtrl', function ($scope, CalaosHome) {
+calaos.controller('MainAppCtrl', function ($scope, CalaosHome, $location) {
 
     $scope.$watch( function () { return CalaosHome.loginFailed; }, function ( loginFailed ) {
       $scope.login = loginFailed;
     });
+
+    $location.path('/' + getDevice() + '/settings');
 
 });
 

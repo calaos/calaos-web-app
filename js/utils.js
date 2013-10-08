@@ -70,3 +70,25 @@ var check = false;
 return check;
 }();
 
+function getDevice() {
+    var device;
+
+    if (typeof calaosConfig.dev_mode !== "undefined") {
+        device = calaosConfig.dev_mode;
+    }
+    else {
+        if (typeof $location.search().d !== "undefined") {
+            if ($location.search().d === "mobile")
+                device = 'mobile';
+            else if ($location.search().d === "desktop")
+                device = 'desktop';
+            else
+                device = isMobile?'mobile':'desktop';
+        }
+        else
+                device = isMobile?'mobile':'desktop';
+    }
+
+    return device;
+}
+

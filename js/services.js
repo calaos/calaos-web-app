@@ -9,7 +9,8 @@ var calaosConfig = {
 //This is main calaos service
 calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $timeout) {
     var factory = {
-      loginFailed: false
+        loginFailed: false,
+        loading: true
     };
 
     //the calaos object will be filled by the data returned
@@ -18,21 +19,11 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
     var homeSortedByRow = null;
     var poll_uuid = null;
 
-
     //those are the cache input and output tables
     //they are used to quickly query for an IO without
     //having to look over all rooms
     var inputCache = [];
     var outputCache = [];
-
-    var test = function () {
-    $timeout(function() {
-        factory.loginFailed = !factory.loginFailed;
-        console.log(factory.loginFailed);
-        test();
-    } , 500);
-    }
-//    test();
 
     var processCalaosEvent = function (event) {
         if (event == "")
@@ -143,7 +134,14 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
             "action": "get_home"
         };
 
-        $http.post(calaosConfig.host, query)
+        var getHomeReq = function (hostUrl) {
+        var query = {
+            "cn_user": calaosConfig.cn_user,
+            "cn_pass": calaosConfig.cn_pass,
+            "action": "get_home"
+        };
+
+        $http.post(hostUrl, query)
         .success(function(data) {
             calaosObj = data;
             //sort rooms
@@ -199,6 +197,32 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                     $timeout(pollEvents, 1000);
                 });
         });
+        }
+
+        if (calaosConfig.use_calaosnetwork) {
+            $http.post('https://calaos.fr/calaos_network/api.php', {
+            "cn_user": calaosConfig.cn_user,
+            "cn_pass": calaosConfig.cn_pass,
+            "action": "get_ip"
+            }).then(function(data) {
+                var h;
+                if (data.data.at_home)
+                    h = 'https://' + data.data.private_ip + '/api.php';
+                else
+                    h = 'https://' + data.data.public_ip + '/api.php';
+                getHomeReq(h);
+            }, function () {
+                factory.loginFailed = true;
+                console.log("get_ip: login failed: " + factory.loginFailed);
+            });
+        }
+        else {
+            var h = calaosConfig.host;
+            if (h.substr(0, 4) != 'http')
+                h = 'https://' + h + '/api.php';
+            getHomeReq(h);
+        }
+
     };
 
     //returns the home sorted by 3 rows, this is used to have row of 3 rooms
@@ -363,6 +387,10 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
     //reset Calaos main object (after user/pass changed for example)
     factory.reset = function() {
         calaosObj = null;
+        homeSortedByRow = null;
+        inputCache = [];
+        outputCache = [];
+        poll_uuid = null;
     }
     return factory;
 }]);

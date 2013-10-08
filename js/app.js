@@ -6,24 +6,8 @@ var calaos =  angular.module('calaos', ['ngRoute', 'ngAnimate']);
 
 calaos.config(['$routeProvider', function($routeProvider) {
 
-    var device;
-
-    if (typeof calaosConfig.dev_mode !== "undefined") {
-        device = calaosConfig.dev_mode;
-    }
-    else {
-        if (typeof $location.search().d !== "undefined") {
-            if ($location.search().d === "mobile")
-                device = 'mobile';
-            else if ($location.search().d === "desktop")
-                device = 'desktop';
-            else
-                device = isMobile?'mobile':'desktop';
-        }
-        else
-                device = isMobile?'mobile':'desktop';
-    }
-
+    var device = getDevice();
+            
     $routeProvider.
       when('/mobile/home',  {templateUrl: 'partials/mobile/home.html',   controller: 'RoomsListCtrl'}).
       when('/mobile/audio',  {templateUrl: 'partials/mobile/audio.html',   controller: 'AudioCtrl'}).
@@ -42,3 +26,7 @@ calaos.config(['$httpProvider', function($httpProvider) {
     $httpProvider.defaults.useXDomain = true;
     delete $httpProvider.defaults.headers.common['X-Requested-With'];
 }]);
+
+calaos.config(['$sceDelegateProvider', function($sceDelegateProvider) {
+    $sceDelegateProvider.resourceUrlWhitelist(['self', '*']);
+}])
