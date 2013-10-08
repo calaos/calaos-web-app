@@ -412,6 +412,15 @@ div.color-picker {
     height: 32px;
 }
 
+#color {
+    position: absolute;
+    width : 30%;
+    height: 30%;
+    left: 30%;
+    top: 30%;
+    margin : auto;
+    z-index: -5;
+}
 
 /* light on/off style */
 /* unchecked */

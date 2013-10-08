@@ -11,7 +11,7 @@
     </tr>
     <tr>
       <td class="array-left"> <input type="range" min="0" max="100" step="1" ng-model="percent_value_rw" ng-model-onblur ng-change="changeValueDimmer()"/></td>
-      <td class="array-right"><a href="#/mobile/color-picker?color={{percent_value}}"><div class="color-picker"><h3 class="roomlist">{{percent_value}}%</h3></div></a></td>
+      <td class="array-right"><div class="color-picker" ng-click="colorPicker()"><h3 class="roomlist">{{percent_value}}%</h3></div></td>
     </tr>
   </table>
 </div>

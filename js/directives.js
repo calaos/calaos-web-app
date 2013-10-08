@@ -13,11 +13,16 @@ calaos.directive("colorPicker", function(){
             var onHold = false;
             var lastX;
             var lastY;
+            var w,h;
 
             console.log(element);
 
-            element[0].height = window.innerWidth;
-            element[0].width = window.innerWidth;
+            element[0].style.width='100%';
+            element[0].style.height='100%';
+            element[0].width  = element[0].offsetWidth - 10;
+            element[0].height = element[0].offsetWidth - 10 ;
+
+
             element[0].style.cursor = 'url("img/color-wheel-selector.png") 24 24, pointer';
 
             var image = new Image();
@@ -25,7 +30,7 @@ calaos.directive("colorPicker", function(){
             image.src = scope.url;
 
             image.onload = function () {
-                ctx.scale( window.innerWidth / image.width , window.innerWidth / image.height);
+                ctx.scale( element[0].width / image.width , element[0].width/ image.height);
                 ctx.drawImage(image, 0, 0, image.width, image.height); // draw the image on the canvas
             }
 

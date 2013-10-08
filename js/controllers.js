@@ -187,7 +187,7 @@ calaos.controller('LightDimmerCtrl', function ($scope, CalaosHome) {
     }
 });
 
-calaos.controller('LightRGBCtrl', function ($scope, CalaosHome) {
+calaos.controller('LightRGBCtrl', ['$scope', 'createDialog', function($scope, createDialogService) {
 
     var updateState = function (item) {
         $scope.percent_value = 0.0;
@@ -220,7 +220,23 @@ calaos.controller('LightRGBCtrl', function ($scope, CalaosHome) {
             updateState($scope._item);
         }, true);
     }
-});
+
+    $scope.colorPicker = function() {
+        console.log("ColorPicker click");
+
+        createDialogService('partials/mobile/color-picker.html', {
+                                id: 'simpleDialog',
+                                title: 'Choose a color',
+                                backdrop: true,
+                                css: {
+                                  margin: '0 auto'
+                                },
+                                success: {label: 'Success', fn: function() {console.log('Simple modal closed');}}
+                            });
+
+
+    };
+}]);
 
 calaos.controller('StringCtrl', function ($scope, CalaosHome) {
 
