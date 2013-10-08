@@ -127,17 +127,11 @@ calaos.controller('AnalogOutCtrl', function ($scope, CalaosHome) {
     }
 
     $scope.increase = function(it) {
-        var step = parseFloat($scope._item.step) || 1.0 ;
-
-        $scope.state += step;
-        $scope.setState(it, $scope.state);
+        $scope.setState(it, "inc");
     }
 
     $scope.decrease = function(it) {
-        var step = parseFloat($scope._item.step) || 1.0 ;
-
-        $scope.state -= step;
-        $scope.setState(it, $scope.state.toString());
+        $scope.setState(it, "dec");
     }
 
 });

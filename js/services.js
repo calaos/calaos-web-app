@@ -32,7 +32,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
         test();
     } , 500);
     }
-    test();
+//    test();
 
     var processCalaosEvent = function (event) {
         if (event == "")
@@ -337,12 +337,11 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
             "value": value
         };
 
+        console.log("setState: " + query.value);
+
         $http.post(calaosConfig.host, query)
             .success(function(data) {
                 console.log("Set state success");
-                //todo set the value in the initial model,
-                // but i don't know how yet  ...
-                content.state = value;
             })
             .error(function(data, status) {
                 //todo, handle error here
