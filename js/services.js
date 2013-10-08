@@ -212,6 +212,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
                     h = 'https://' + data.data.private_ip + '/api.php';
                 else
                     h = 'https://' + data.data.public_ip + '/api.php';
+                calaosConfig.host = h;
                 getHomeReq(h);
             }, function () {
                 factory.loginFailed = true;
@@ -223,6 +224,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
             var h = calaosConfig.host;
             if (h.substr(0, 4) != 'http')
                 h = 'https://' + h + '/api.php';
+            calaosConfig.host = h;
             getHomeReq(h);
         }
 
