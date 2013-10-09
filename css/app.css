@@ -578,3 +578,7 @@ label.info {
     animation: rotating 0.8s linear infinite;
 }
 
+.modal-body {
+    max-height: 400px;
+    padding: 0px;
+}

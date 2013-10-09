@@ -19,8 +19,8 @@ calaos.directive("colorPicker", function(){
 
             element[0].style.width='100%';
             element[0].style.height='100%';
-            element[0].width  = element[0].offsetWidth - 10;
-            element[0].height = element[0].offsetWidth - 10 ;
+            element[0].width  = element[0].offsetWidth;
+            element[0].height = element[0].offsetWidth;
 
 
             element[0].style.cursor = 'url("img/color-wheel-selector.png") 24 24, pointer';
@@ -36,13 +36,24 @@ calaos.directive("colorPicker", function(){
 
             function getColor() {
                 // get coordinates of current position
-                var canvasX = event.layerX + 12; //12 == half pointer size ?
-                var canvasY = event.layerY + 12; 
+                var rect = element[0].getBoundingClientRect();
+                var x = event.clientX - rect.left; //12 == half pointer size ?
+                var y = event.clientY - rect.top;
+
+
+
                 // get current pixel
-                var imageData = ctx.getImageData(canvasX, canvasY, 1, 1);
+                var imageData = ctx.getImageData(x, y, 1, 1);
                 var pixel = imageData.data;
                 var pixelColor = "rgb("+pixel[0]+", "+pixel[1]+", "+pixel[2]+")";
-                return pixelColor;
+
+                /* Check Alpha, if color is not fully opaque, it's not returned : BIG HACK*/
+                /* It's to avoid a check if the mouse is inside the circle */
+                /* We need so a colorpicker image with alpha values for elements wich
+                  don't want to be picked */
+                if (pixel[3] == 255)
+                    return pixelColor;
+
             }
 
 
@@ -53,14 +64,17 @@ calaos.directive("colorPicker", function(){
                 var currentX, currentY;
                 if(onHold)
                 { 
-                    document.getElementById("color").style.backgroundColor = getColor();
+                    var color = getColor();
+                    if (color != null)
+                        document.getElementById("color").style.backgroundColor = getColor();
                 }
             });
             element.bind('mouseup', function(event){
                 if (onHold)
                 {
                     onHold = false;
-                    document.getElementById("color").style.backgroundColor = getColor();
+                    if (color != null)
+                        document.getElementById("color").style.backgroundColor = getColor();
                 }
             });
             // canvas reset
