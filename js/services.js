@@ -331,12 +331,12 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
     };
 
     //returns the audioplayer by its name
-    factory.getAudioPlayer = function (name) {
+    factory.getAudioPlayer = function (pid) {
         var deferred = $q.defer();
         if (calaosObj) {
             var audioplayer = {};
             for(var i = 0;i < calaosObj.audio.length; i++) {
-                if (calaosObj.audio[i].name == name) {
+                if (calaosObj.audio[i].player_id == pid) {
                     audioplayer = calaosObj.audio[i];
                     break;
                 }
@@ -347,7 +347,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
             doInitRequest(function () {
                 var audioplayer = {};
                 for(var i = 0;i < calaosObj.audio.length; i++) {
-                    if (calaosObj.audio[i].name == name) {
+                    if (calaosObj.audio[i].player_id == pid) {
                         audioplayer = calaosObj.audio[i];
                         break;
                     }
@@ -361,6 +361,55 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
 
         return deferred.promise;
     };
+
+    factory.getCameraPic = function (camid, canceler) {
+        var deferred = $q.defer();
+        var query = {
+            "cn_user": calaosConfig.cn_user,
+            "cn_pass": calaosConfig.cn_pass,
+            "action": "get_camera_pic",
+            "camera_id": camid
+        };
+
+        console.debug(query);
+
+        $http.post(calaosConfig.host, query, {timeout: canceler.promise})
+            .success(function(data) {
+                deferred.resolve(data);
+                console.log(data);
+            })
+            .error(function () {
+                console.log("error in http request");
+                deferred.reject('error in request');
+            });
+
+        return deferred.promise;
+    };
+
+    factory.getCoverPic = function (pid, canceler) {
+        var deferred = $q.defer();
+        var query = {
+            "cn_user": calaosConfig.cn_user,
+            "cn_pass": calaosConfig.cn_pass,
+            "action": "get_cover",
+            "player_id": pid
+        };
+
+        console.debug(query);
+
+        $http.post(calaosConfig.host, query, {timeout: canceler.promise})
+            .success(function(data) {
+                deferred.resolve(data);
+                console.log(data);
+            })
+            .error(function () {
+                console.log("error in http request");
+                deferred.reject('error in request');
+            });
+
+        return deferred.promise;
+    };
+
 
     factory.setState = function (content, value) {
         var query = {

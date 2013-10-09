@@ -1,8 +1,12 @@
 <div class="row-fluid" ng-repeat="audio in audioRaw">
-<a href="#/mobile/audio/{{audio.name}}">
-  <div class="roomlist ">
-    <img class="audiolist" ng-src='{{ host }}{{ audio.cover_url }}'/>
-    <div class="pull-right">
+<a href="#/mobile/audio/{{audio.player_id}}">
+<div ng-controller="AudioItemCtrl" ng-init="init(audio)">
+  <div class="roomlist audioitem">
+    <div class="audiocover_bg pull-left">
+        <img class="audiolist audiocover" ng-src='{{ cover_src }}'/>
+        <div class="audiocover_top"></div>
+    </div>
+    <div>
         <h3 class="audiolist">{{audio.name}}</h3>
         <hr>
         <h4 class="audiolist">{{audio.current_track.artist}}</h4>
@@ -10,5 +14,6 @@
         <h4 class="audiolist">{{audio.current_track.title}}</h4>
     </div>
   </div>
+</div>
 </a>
 </div>

@@ -55,22 +55,77 @@ calaos.controller('AudioCtrl', function ($scope, CalaosHome) {
 
 });
 
-calaos.controller('AudioPlayerCtrl', function ($scope, $routeParams, CalaosHome) {
+calaos.controller('AudioItemCtrl', function ($scope, CalaosHome, $timeout, $q) {
+
+    console.log('controller AudioItemCtrl');
+    var timerPromise = null;
+    var canceler = null; //to cancel the request
+
+    $scope.init = function(it) {
+        // this is the default image when cover pic is unavailable or
+        // something went wrong
+        $scope.cover_src = "img/empty.png";
+
+        (function getCoverPic() {
+            canceler = $q.defer();
+            CalaosHome.getCoverPic(it.player_id, canceler)
+                .then(function(d) {
+                    if (d.error)
+                        $scope.cover_src = "img/empty.png";
+                    else
+                        $scope.cover_src = "data:" + d.contenttype + ";" + d.encoding + "," + d.data;
+                    timerPromise = $timeout(function() {
+                        getCoverPic();
+                    }, 300);
+                });
+        })();
+    }
+
+    $scope.$on('$locationChangeStart', function() {
+        $timeout.cancel(timerPromise);
+        canceler.resolve();
+    });
+
+});
+
+calaos.controller('AudioPlayerCtrl', function ($scope, $routeParams, CalaosHome, $timeout, $q) {
 
     console.log('controller AudioPlayerCtrl');
-
-    $scope.host = calaosConfig.host.substring(0, calaosConfig.host.lastIndexOf('/'));
 
     $scope.setState = function(content, value) {
         CalaosHome.setState(content, value);
     }
 
+    $scope.cover_src = "img/empty.png";
+    var timerPromise = null;
+    var canceler = null; //to cancel the request
+
     //get the room from the calaos service
     //and inject that into the controller scope
-    CalaosHome.getAudioPlayer($routeParams.audio_name).then(function (data) {
+    CalaosHome.getAudioPlayer($routeParams.player_id).then(function (data) {
         $scope.audioplayer = data;
         $scope.playing = $scope.audioplayer.status == "playing" ? true: false;
         console.log($scope.playing);
+
+        (function getCoverPic() {
+            canceler = $q.defer();
+            CalaosHome.getCoverPic(data.player_id, canceler)
+                .then(function(d) {
+                    if (d.error)
+                        $scope.cover_src = "img/empty.png";
+                    else
+                        $scope.cover_src = "data:" + d.contenttype + ";" + d.encoding + "," + d.data;
+                    timerPromise = $timeout(function() {
+                        getCoverPic();
+                    }, 300);
+                });
+        })();
+
+    });
+
+    $scope.$on('$locationChangeStart', function() {
+        $timeout.cancel(timerPromise);
+        canceler.resolve();
     });
 
 });
@@ -79,11 +134,42 @@ calaos.controller('CamerasCtrl', function ($scope, CalaosHome) {
 
     console.log('controller CamerasCtrl');
 
-    $scope.host = calaosConfig.host.substring(0, calaosConfig.host.lastIndexOf('/'));
-
     CalaosHome.getRawCameras().then(function (data) {
         $scope.camerasRaw = data;
         console.log(data);
+    });
+
+});
+
+calaos.controller('CameraItemCtrl', function ($scope, CalaosHome, $timeout, $q) {
+
+    console.log('controller CameraItemCtrl');
+    var timerPromise = null;
+    var canceler = null;
+
+    $scope.init = function(it) {
+        // this is the default image when camera pic is unavailable or
+        // something went wrong
+        $scope.cam_src = "img/cam_fail.png";
+
+        (function getCameraPic() {
+            canceler = $q.defer();
+            CalaosHome.getCameraPic(it.camera_id, canceler)
+                .then(function(d) {
+                    if (d.error)
+                        $scope.cam_src = "img/cam_fail.png";
+                    else
+                        $scope.cam_src = "data:" + d.contenttype + ";" + d.encoding + "," + d.data;
+                    $timeout(function() {
+                        getCameraPic();
+                    }, 300);
+                });
+        })();
+    }
+
+    $scope.$on('$locationChangeStart', function() {
+        $timeout.cancel(timerPromise);
+        canceler.resolve();
     });
 
 });

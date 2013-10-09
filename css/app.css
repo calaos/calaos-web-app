@@ -260,13 +260,6 @@ hr {
     margin: 0;
 }
 
-
-img.audiolist {
-    width: 80px;
-    height: 80px;
-
-}
-
 img.cameralist {
     width: 106px;
     height: 80px;
@@ -582,3 +575,57 @@ label.info {
     max-height: 400px;
     padding: 0px;
 }
+
+.audioitem {
+    height: 122px;
+}
+
+.audiocover_bg {
+    background: url('../img/player_small_cover_back.png');
+    width: 130px;
+    height: 120px;
+    position: relative;
+}
+
+.audiocover {
+    position: absolute;
+    left: 21px;
+    top: 11px;
+    width: 98px;
+    height: 98px;
+}
+
+.audiocover_top {
+    position:absolute;
+    left:0px;
+    top:0px;
+    width: 130px;
+    height: 120px;
+    background: url('../img/player_small_cover_front.png');
+}
+
+.audiocoverbig_bg {
+    background: url('../img/player_cover_back.png');
+    position: relative;
+    width: 188px;
+    height: 170px;
+    margin:auto;
+}
+
+.audiocoverbig {
+    position: absolute;
+    left: 21px;
+    top: 4px;
+    width: 161px;
+    height: 161px;
+}
+
+.audiocoverbig_top {
+    position:absolute;
+    left:0px;
+    top:0px;
+    width: 188px;
+    height: 170px;
+    background: url('../img/player_cover_front.png');
+}
+
