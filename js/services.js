@@ -101,6 +101,7 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
 
         calaosConfig.cn_user = getCookie('cn_user');
         calaosConfig.cn_pass = getCookie('cn_pass');
+        calaosConfig.host = "";
         var tmp = getCookie('use_calaosnetwork');
         if (tmp) {
             if (tmp == "true")
