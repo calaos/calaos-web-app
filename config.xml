@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://yourdomain/calaoswebapp" version="1.0.0" viewmodes="maximized">
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://calaos.fr/calaoswebapp" version="1.0.0" viewmodes="maximized">
+    <access origin="*" subdomains="true"></access>
     <access origin="*" subdomains="true"></access>
     <tizen:application id="E64YgcqPUB.calaoswebapp" package="E64YgcqPUB" required_version="2.2"/>
     <content src="index.html"/>
+    <feature name="http://tizen.org/feature/screen.size.large"/>
+    <feature name="http://tizen.org/feature/screen.size.normal"/>
+    <feature name="http://tizen.org/feature/screen.size.normal.480.800"/>
+    <feature name="http://tizen.org/feature/screen.size.normal.720.1280"/>
     <icon src="icon.png"/>
     <name>calaoswebapp</name>
     <tizen:privilege name="http://tizen.org/privilege/system"/>
-    <access origin="*" subdomains="true"/>
 </widget>
