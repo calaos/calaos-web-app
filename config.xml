@@ -10,5 +10,6 @@
     <feature name="http://tizen.org/feature/screen.size.normal.720.1280"/>
     <icon src="icon.png"/>
     <name>calaoswebapp</name>
-    <tizen:privilege name="http://tizen.org/privilege/system"/>
+    <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
+    <access origin="*" subdomains="true"/>
 </widget>
