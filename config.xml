@@ -11,5 +11,4 @@
     <icon src="icon.png"/>
     <name>calaoswebapp</name>
     <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
-    <access origin="*" subdomains="true"/>
 </widget>
