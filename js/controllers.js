@@ -415,14 +415,9 @@ calaos.controller('NavBarCtrl', function ($scope, $window) {
         console.log(e.keyName);
         if(e.keyName == "back")
         {
-            var deviceCapabilities;
-            deviceCapabilities = tizen.systeminfo.getCapabilities();
-            console.log(deviceCapabilities)
-            if (deviceCapabilities.bluetooth)
-            {
-                console.log("Bluetooth is supported");
-            }
-            $window.history.back();
+            //$window.history.back();
+            var app = tizen.application.getCurrentApplication();
+            app.exit();
         }
     });
 });
