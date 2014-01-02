@@ -5,10 +5,10 @@ var express = require("express");
 
 var app = express();
 
-app.use(express.static(__dirname + "/app")); //use static files in ROOT/public folder
-app.use(express.static(__dirname + "/app/css")); //use static files in ROOT/public folder
-app.use(express.static(__dirname + "/app/js")); //use static files in ROOT/public folder
-app.use(express.static(__dirname + "/app/img")); //use static files in ROOT/public folder
+app.use(express.static(__dirname + "/www")); //use static files in ROOT/public folder
+app.use(express.static(__dirname + "/www/css")); //use static files in ROOT/public folder
+app.use(express.static(__dirname + "/www/js")); //use static files in ROOT/public folder
+app.use(express.static(__dirname + "/www/img")); //use static files in ROOT/public folder
 
 
 
