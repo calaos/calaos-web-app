@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en" ng-app="calaos">
+  <head>
+    <meta charset="utf-8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, minimum-scale = 1, maximum-scale = 1">
+
+    <title>Calaos Web Admin</title>
+
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.css" />
+    <link rel="stylesheet" type="text/css" href="css/bootstrap-responsive.min.css" />
+
+    <link rel="stylesheet" type="text/css" href="css/app.css" />
+    <link rel="stylesheet" type="text/css" href="css/audio.css" />
+    <script type="text/javascript" src="phonegap.js"></script>
+
+    <script type="text/javascript" src="js/angular.js"></script>
+    <script type="text/javascript" src="js/angular-route.js"></script>
+    <script type="text/javascript" src="js/angular-animate.js"></script>
+    <script type="text/javascript" src="js/angular-touch.js"></script>
+    <script type="text/javascript" src="js/createDialog.js"></script>
+    <script type="text/javascript" src="js/cookies.js"></script>
+
+    <!-- Calaos application -->
+    <script type="text/javascript" src="js/utils.js"></script>
+    <script type="text/javascript" src="js/app.js"></script>
+    <script type="text/javascript" src="js/services.js"></script>
+    <script type="text/javascript" src="js/controllers.js"></script>
+    <script type="text/javascript" src="js/filters.js"></script>
+    <script type="text/javascript" src="js/directives.js"></script>
+
+    <script type="text/javascript">
+        app.initialize();
+    </script>
+
+  </head>
+  <body ng-controller="MainAppCtrl">
+
+    <div class="calaos-navbar" ng-controller="NavBarCtrl">
+        <p class="navbar-title">Calaos</p>
+        <button class="btn-navbar btn-left" ng-click="goHistoryBack()"><i class="icon-arrow-left icon-white"></i></button>
+        <button class="btn-navbar btn-right"><a href="#/mobile/settings"><i class="icon-user icon-white"></i></a></button>
+    </div>
+
+    <div class="loading" ng-show="loading">
+    <img class="rotate_anim" src="img/loading_top.png" alt="loading"/>
+    </div>
+
+	<div class="container">
+	    <div class="alert alert-danger" ng-show="login">Login Failed!</div>
+        <div data-ng-view="" id="ng-view" class="slide-animation"></div>
+	</div>
+
+    <div class="calaos-footer"  ng-controller="MenuCtrl">
+        <ul class="calaos-footer-content">
+            <li class="menu home" ng-class='{home_selected: menu=="home"}' ng-src="img/button_home.png" ng-click='setMenu("home")'>Home</li>
+            <li class="menu media"  ng-class='{media_selected: menu=="audio"}' ng-click='setMenu("audio")'/>Music</li>
+            <li class="menu security" ng-class='{security_selected: menu=="security"}' ng-click='setMenu("security")'>Security</li>
+        </ul>
+    </div>
+
+  </body>
+</html>
