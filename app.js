@@ -13,3 +13,4 @@ app.use(express.static(__dirname + "/www/img")); //use static files in ROOT/publ
 
 
 app.listen(port, host);
+console.log('Now listen on http://' + host + ':' + port);

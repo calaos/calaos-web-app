@@ -77,16 +77,7 @@ function getDevice() {
         device = calaosConfig.dev_mode;
     }
     else {
-        if (typeof $location.search().d !== "undefined") {
-            if ($location.search().d === "mobile")
-                device = 'mobile';
-            else if ($location.search().d === "desktop")
-                device = 'desktop';
-            else
-                device = isMobile?'mobile':'desktop';
-        }
-        else
-                device = isMobile?'mobile':'desktop';
+        device = isMobile?'mobile':'desktop';
     }
 
     return device;

@@ -1,7 +1,8 @@
 'use strict';
 
 var calaosConfig = {
-    dev_mode: 'mobile',
+    // Uncomment to force the mode
+    //dev_mode: 'mobile',
 }
 
 

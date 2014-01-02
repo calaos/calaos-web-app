@@ -1,34 +1,11 @@
-
-<div class="container-fluid">
-
-    <div class="row-fluid">
-
-    <div ng-include src="'partials/desktop/menu.html'" ng-controller="MenuController"></div>
-
-<div class="span10">
-
+<br>
 <div class="row-fluid" ng-repeat="row in homeByRow">
   <div class="span4" ng-repeat="it in row">
-    <div class="roomlist">
-
-      <div>
-        <h3 class="roomlist"><img width="54" height="30" src="img/icon_room.png"/> {{homeRaw.home[it].name}}</h3>
-        <h3 class="roomlist"><img width="24" height="24" src="img/icon_light_on.png"/> 3 lights on</h3>
+    <a href="#/desktop/room/{{homeRaw[it].name}}">
+      <div class="roomlist ">
+        <img class="roomlist" ng-src="img/{{homeRaw[it].icon}}"/>
+        <h3 class="roomlist pull-right">{{homeRaw[it].name}}</h3>
       </div>
-
-      <div>
-        <a href="#/room/{{homeRaw.home[it].name}}">
-          <img class="roomlist" ng-src="img/{{homeRaw.home[it].icon}}"/>
-          <img align="right" src="img/button_more.png"/>
-        </a>
-      </div>
-
-
-    </div>
+    </a>
   </div>
-</div>
-
-</div>
-
-</div>
 </div>

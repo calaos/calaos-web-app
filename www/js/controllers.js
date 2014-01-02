@@ -406,7 +406,6 @@ calaos.controller('ColorPickerCtrl', function ($scope, $routeParams) {
 
 calaos.controller('NavBarCtrl', function ($scope, $window) {
     $scope.isCollapsed = true;
-
     $scope.goHistoryBack = function() {
         $window.history.back();
     };
@@ -432,15 +431,15 @@ calaos.controller('MenuCtrl', function ($scope, $window, $location)
         switch(menu)
         {
         case "home":
-            $location.path('/mobile/home');
+            $location.path('/' + getDevice() +'/home');
             break;
 
         case "audio":
-            $location.path('/mobile/audio');
+            $location.path('/' + getDevice() +'/audio');
             break;
 
         case "security":
-            $location.path('/mobile/cameras');
+            $location.path('/' + getDevice() +'cameras');
             break;
         }
     }
