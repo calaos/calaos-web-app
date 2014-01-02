@@ -1,0 +1,631 @@
+/* app css stylesheet */
+{ margin: 0; padding: 0; }
+
+
+@font-face {
+  font-family: 'CalaosContent';
+  src: url('../fonts/calaos_content.ttf') format('truetype');
+}
+
+body {
+    font-family: CalaosContent, Lucida Sans, Helvetica, sans-serif;
+
+    padding-top: 0px;
+    padding-bottom: 0px;
+    padding-right: 0px;
+    padding-left: 0px;
+
+    background: url('../img/background.png');
+    background-color:#000;
+    width : 100%;
+    height: 100%;
+
+    background-attachment:fixed;
+    margin: 0;
+}
+
+.calaos-navbar {
+    top: 0;
+    padding-top: 0;
+    top: -1px;
+    padding-top: 1px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    position: fixed;
+    z-index: 1000;
+    height: 44px;
+    border-left-width: 0;
+    border-right-width: 0;
+    //position: relative;
+    border: 1px solid #333;
+    background: #111;
+    color: #fff;
+    font-weight: bold;
+    text-shadow: 0 -1px 0 #000;
+    background-image: -webkit-gradient(linear,left top,left bottom,from( #3c3c3c ),to( #111 ));
+    background-image: -webkit-linear-gradient( #3c3c3c,#111 );
+    back ground-image: -moz-linear-gradient( #3c3c3c,#111 );
+    background-image: -ms-linear-gradient( #3c3c3c,#111 );
+    background-image: -o-linear-gradient( #3c3c3c,#111 );
+    background-image: linear-gradient( #3c3c3c,#111 );
+    zoom: 1;
+}
+
+.btn-left {
+    left: 5px;
+}
+
+.btn-right {
+    right: 5px;
+}
+
+
+.btn-navbar {
+    top: 5px;
+    bottom: 5px;
+    display: inline-block;
+    position: absolute;
+
+    background-image: -webkit-linear-gradient(top, #444, #222);
+    background-image: -o-linear-gradient(top, #444, #222);
+    background-image: -moz-linear-gradient(top, #444, #222);
+    border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+    color: #eee;
+
+    cursor: pointer;
+    -webkit-background-clip: padding;
+    background-clip: padding-box;
+
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+
+    -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+    -moz-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+    color: #fff;
+    text-shadow: 0 -2px 0 #111;
+}
+
+.calaos-footer {
+    height: 78px;
+    bottom: 0;
+    padding-bottom: 0;
+    border-left-width: 0;
+    border-right-width: 0;
+    bottom: -1px;
+    padding-bottom: 1px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    position: fixed;
+    z-index: 1000;
+    border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+    background-image: url("../img/menu_footer.png");
+    color: #eee;
+}
+
+
+
+.calaos-footer-content, ul.calaos-footer-content, li.calaos-footer-content
+{
+    top: 12px;
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 30px; /* Hack like I like it in CSS */
+    padding: 0;
+    margin: 0 0 0 0;
+}
+
+.menu
+{
+    display: inline-block;
+    width: 100px;
+    height: 66px;
+    line-height: 100px;
+    cursor: pointer;
+}
+
+.home
+{
+    background-image: url("../img/button_home.png");
+}
+
+.media
+{
+    background-image: url("../img/button_media.png");
+}
+
+.security
+{
+    background-image: url("../img/button_security.png");
+}
+
+/* Add a specific class when the menu is selected */
+.home_selected /* ng-class seems not support - in class name ? */
+{
+    background-image: url("../img/button_home_glow.png") !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+.media_selected /* ng-class seems not support - in class name ? */
+{
+    background-image: url("../img/button_media_glow.png") !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+.security_selected /* ng-class seems not support - in class name ? */
+{
+    background-image: url("../img/button_security_glow.png") !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+.container
+{
+    padding-top: 44px;
+    padding-bottom: 66px;
+}
+.navbar-title
+{
+    text-shadow: 0 -1px 0 #000;
+    top: 5px;
+    bottom: 5px;
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 200;
+    color: #999999;
+    vertical-align: middle;
+    line-height: 30px; /* Hack like I like it in CSS */
+}
+
+
+div.roomlist {
+    margin: 2px;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    border: 2px solid #174856;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+
+}
+
+input.roomlist {
+    display: inline-block;
+    height: 24px;
+    font-size: 13px;
+    line-height: 18px;
+    color: #DDD;
+    background-color: rgba(0, 0, 0, 0.25);
+    border: 1px solid #222;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    padding: 4px;
+    margin: 0;
+}
+
+.active {
+    color: #EEE62F !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+.bool_active {
+    color: #38b0d3 !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+h3.roomlist {
+    font: CalaosContent, Helvetica, Arial, Sans-Serif;
+    font-size: 100%;
+    color: #e7e7e7;
+    text-shadow: 0 0 10px rgba(231,231,231, 0.2);
+}
+
+img.roomlist {
+    width: 80px;
+    height: 44px;
+
+}
+
+hr {
+    border: none;
+    background-color: #aaa;
+    color: #ccc;
+    height: 1px;
+    margin: 0;
+}
+
+img.cameralist {
+    width: 106px;
+    height: 80px;
+
+}
+
+h3.audiolist {
+    font: CalaosContent, Helvetica, Arial, Sans-Serif;
+    color: #EEE;
+    font-size: 14px;
+    text-align: right;
+}
+
+h4.audiolist {
+    font: CalaosContent, Helvetica, Arial, Sans-Serif;
+    color: #AAA;
+    font-size: 12px;
+    text-align: right;
+}
+
+p.audiolist {
+    color: #AAA;
+    text-align: right;
+}
+
+#ng-view {
+    position:relative;
+}
+
+/* Animations */
+.slide-animation.ng-enter, .slide-animation.ng-leave {
+    -webkit-transition:all linear 0.5s;
+    -moz-transition:all linear 0.5s;
+    -o-transition:all linear 0.5s;
+    transition:all linear 0.5s;
+
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    min-height:1000px;
+}
+
+.slide-animation.ng-enter {
+    opacity:0;
+}
+
+.slide-animation.ng-enter.ng-enter-active {
+    opacity:1;
+}
+
+.slide-animation.ng-leave {
+    opacity:1;
+}
+
+.slide-animation.ng-leave.ng-leave-active {
+    opacity:0;
+}
+
+img.shutter {
+    width: 48px;
+    height: 39px;
+}
+
+img.io-icon-light {
+    width: 22px;
+    height: 16px;
+    margin: 5px;
+}
+
+
+img.io-icon {
+    width: 43px;
+    height: 33px;
+    margin: 5px;
+}
+
+img.io-icon-temp {
+    width: 18px;
+    height: 35px;
+    margin: 5px;
+}
+
+
+input[type="range"] {
+    -webkit-appearance: none;
+    -webkit-box-shadow:
+    inset 0 0 0 1px rgb(140, 140, 140),
+    inset 0 1px 2px rgba(0, 0, 0, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0);
+    border-radius: 10px;
+    height: 4px;
+    /*width: 100%;*/
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    -webkit-box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 0 1px rgb(140, 140, 140),
+    0 1px 1px rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.4);
+    background-image:
+    -webkit-gradient(
+	radial, 50% 50%, 2, 50% 50%, 3, from(rgb(200, 200, 200)), to(rgba(255, 255, 255, 0))
+    ),
+    -webkit-gradient(
+	linear,
+	left top,
+	left bottom,
+	from(rgb(240, 240, 240)),
+	to(rgb(210, 210, 210))
+    );
+    width: 20px;
+    height: 20px;
+}
+
+
+.array-header
+{
+    width: 100%;
+}
+
+.array-left
+{
+    text-align: left;
+}
+.array-right
+{
+    text-align: right;
+}
+
+
+
+div.color-picker {
+    background-color: #000;
+    border-radius: 8px;
+    border: 2px solid #174856;
+    text-align: center;
+    margin: 5px;
+    height: 32px;
+}
+
+#color {
+    position: absolute;
+    width : 30%;
+    height: 30%;
+    left: 30%;
+    top: 30%;
+    margin : auto;
+    z-index: -5;
+}
+
+/* light on/off style */
+/* unchecked */
+input[type="checkbox"].light {
+    -webkit-appearance:none;	/* Remove Safari default */
+    outline: none;
+    width: 22px;
+    height: 16px;
+    border: 0;
+    margin: 10px;
+    background-image: url("../img/icon_light_off.png");
+
+}
+
+/* checked */
+input[type="checkbox"].light:checked {
+   background-image: url("../img/icon_light_sprite.png");
+
+    -webkit-animation: light_on_animation .5s steps(10);
+    -moz-animation: light_on_animation .5s steps(10);
+    -ms-animation: light_on_animation .5s steps(10);
+    -o-animation: light_on_animation .5s steps(10);
+    animation: light_on_animation .5s steps(10);
+    border: 0;
+}
+
+
+@-webkit-keyframes light_on_animation {
+   from { background-position:    0px; }
+     to { background-position: -220px; }
+}
+
+@-moz-keyframes light_on_animation {
+   from { background-position:    0px; }
+     to { background-position: -220px; }
+}
+
+@-ms-keyframes light_on_animation {
+   from { background-position:    0px; }
+     to { background-position: -220px; }
+}
+
+@-o-keyframes light_on_animation {
+   from { background-position:    0px; }
+     to { background-position: -220px; }
+}
+
+@keyframes light_on_animation {
+   from { background-position:    0px; }
+     to { background-position: -220px; }
+}
+
+.form-signin {
+  max-width: 330px;
+  padding: 15px;
+  margin: 0 auto;
+}
+.form-signin .form-signin-heading,
+.form-signin .checkbox {
+  margin-bottom: 10px;
+}
+.form-signin .checkbox {
+  font-weight: normal;
+}
+.form-signin .form-control {
+  position: relative;
+  font-size: 16px;
+  height: auto;
+  width: 100%;
+  padding: 10px;
+  -webkit-box-sizing: border-box;
+     -moz-box-sizing: border-box;
+          box-sizing: border-box;
+}
+.form-signin .form-control:focus {
+  z-index: 2;
+}
+.form-signin input[type="text"] {
+  margin-bottom: -1px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.form-signin input[type="password"] {
+  margin-bottom: 10px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.form-signin h1 {
+    font: CalaosContent, Helvetica, Arial, Sans-Serif;
+    font-size: 16;
+    color: #999;
+}
+
+
+input[type="checkbox"] {
+    -webkit-appearance:none;	/* Remove Safari default */
+    outline: none;
+    width: 34px;
+    height: 31px;
+    border: 0;
+}
+
+
+/* unchecked */
+input[type="checkbox"]
+{
+    background: url('../img/icon_bool_off.png');
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+/* checked */
+input[type="checkbox"]:checked {
+    background: url('../img/icon_bool_on.png');
+    border: 0;
+}
+
+label.info {
+    color: #eee;
+    margin-left: 24px;
+    vertical-align: center;
+    line-height: 42px;
+    width: 200px;
+}
+
+.btn-large {
+    width: 100%;
+}
+
+@-webkit-keyframes rotating { from { -webkit-transform: rotate(0deg); } to { -webkit-transform: rotate(360deg); } }
+@-moz-keyframes rotating { from { -moz-transform: rotate(0deg); } to { -moz-transform: rotate(360deg); } }
+@-ms-keyframes rotating { from { -ms-transform: rotate(0deg); } to { -ms-transform: rotate(360deg); } }
+@-o-keyframes rotating { from { -o-transform: rotate(0deg); } to { -o-transform: rotate(360deg); } }
+@keyframes rotating { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.loading {
+    position: fixed;
+    z-index: 9000;
+    background: url('../img/loading_bg.png');
+    top: 50%;
+    left: 50%;
+    margin-top: -101px;
+    margin-left: -101px;
+}
+
+.rotate_anim {
+    -webkit-animation: rotating 0.8s linear infinite;
+    -moz-animation: rotating 0.8s linear infinite;
+    -ms-animation: rotating 0.8s linear infinite;
+    -o-animation: rotating 0.8s linear infinite;
+    animation: rotating 0.8s linear infinite;
+}
+
+.modal-body {
+    max-height: 400px;
+    padding: 0px;
+}
+
+.audioitem {
+    height: 122px;
+}
+
+.audiocover_bg {
+    background: url('../img/player_small_cover_back.png');
+    width: 130px;
+    height: 120px;
+    position: relative;
+}
+
+.audiocover {
+    position: absolute;
+    left: 21px;
+    top: 11px;
+    width: 98px;
+    height: 98px;
+}
+
+.audiocover_top {
+    position:absolute;
+    left:0px;
+    top:0px;
+    width: 130px;
+    height: 120px;
+    background: url('../img/player_small_cover_front.png');
+}
+
+.audiocoverbig_bg {
+    background: url('../img/player_cover_back.png');
+    position: relative;
+    width: 188px;
+    height: 170px;
+    margin:auto;
+}
+
+.audiocoverbig {
+    position: absolute;
+    left: 21px;
+    top: 4px;
+    width: 161px;
+    height: 161px;
+}
+
+.audiocoverbig_top {
+    position:absolute;
+    left:0px;
+    top:0px;
+    width: 188px;
+    height: 170px;
+    background: url('../img/player_cover_front.png');
+}
+
