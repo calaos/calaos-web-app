@@ -1,0 +1,18 @@
+This repository provides the calaos web client.
+It aims to provide the complete control of your calaos-server through the internet.
+
+To test the web app, you can use a regular webserver, or use the nodejs webserver provides within this directory : 
+Just run 
+
+$ npm install
+$ node app.js
+And point your browser on http://127.0.0.1:3001
+
+You can also generate a package for ios of android.
+For this you need to install phonegap : http://phonegap.com and the respective SDK.
+Once you get everything installed, juste run
+phonegap build android/ios
+phoegap run android/ios
+
+You can also install this web application directly on the same machine as calaos-server by using the same webserver than the legacy calaos-web application.
+Just copy all the files of the www directory into the root direcotry of the calaos-web web server and remove the index.php file of the previous installation.

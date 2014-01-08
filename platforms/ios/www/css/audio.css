@@ -1,0 +1,85 @@
+
+/* Player name */
+.audio_title {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.2);
+}
+
+/* Cover centered on parent */
+.photo {
+  display: block;
+  margin: 0 auto;
+  height: 250px; /* spécifiez la hauteur de l'image, une bonne attitude à prendre */
+  width: 250px; /* spécifiez la largeur de l'image, une bonne habitude à prendre */
+}
+
+.controls {
+    width:205px;
+    margin: 0px auto;
+    padding: 10px;
+}
+
+.info-label
+{
+    clear:both;
+    float:left;
+    width:30%;
+    text-align:right;
+    margin: 0em 1em 1em 0;
+    color: #7f898b;
+}
+
+.info-field {
+    text-align:left;
+    margin: 0 0 1em 0;
+    color: #30b7d5;
+}
+
+.infos {
+    color: #fff;
+}
+
+/* Checkbox for icon on top of audio player name */
+input[type="checkbox"].audioplayer_state
+{
+    width: 22px;
+    height: 16px;
+    background: url('../img/icon_music_off.png');
+}
+
+/* checked */
+input[type="checkbox"].audioplayer_state:checked {
+    background: url('../img/icon_music_on.png');
+    border: 0;
+
+}
+
+.audio_active {
+      color: rgba(255, 255, 255, 1) !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+input[type="range"].audio_position {
+   -webkit-appearance:none;
+    -webkit-box-shadow: none;
+    background: rgba(0, 0, 0, 0);
+    border-radius: 2px;
+    border-color: #2fb4d3;
+    height: 3px;
+    padding: 0px
+    /*width: 100%;*/
+}
+
+input[type="range"].audio_position::-webkit-slider-thumb {
+   -webkit-appearance:none;
+   -webkit-box-shadow: none;
+    background: rgba(0, 0, 0, 0);
+    background: url('../img/slider.png');
+    width: 34px;
+    height: 28px;
+    border: 0;
+}
