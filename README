@@ -1,3 +1,11 @@
+This web application can be test by pointing your browser at the address :
+http://calaos.fr/demo
+
+And use the following informations to connect :
+user : demo@calaos.fr
+password : demo
+host : http://calaos.fr/api.php
+
 This repository provides the calaos web client.
 It aims to provide the complete control of your calaos-server through the internet.
 
