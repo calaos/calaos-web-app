@@ -273,7 +273,7 @@ calaos.controller('LightDimmerCtrl', function ($scope, CalaosHome) {
     }
 });
 
-calaos.controller('LightRGBCtrl', ['$scope', 'createDialog', function($scope, createDialogService) {
+calaos.controller('LightRGBCtrl', function($scope, CalaosHome) {
 
     var updateState = function (item) {
         $scope.percent_value = 0.0;
@@ -294,7 +294,6 @@ calaos.controller('LightRGBCtrl', ['$scope', 'createDialog', function($scope, cr
 
     $scope.changeValueDimmer = function () {
         var s = "set " + $scope.percent_value_rw;
-
         CalaosHome.setState($scope._item, s);
     }
 
@@ -307,22 +306,7 @@ calaos.controller('LightRGBCtrl', ['$scope', 'createDialog', function($scope, cr
         }, true);
     }
 
-    $scope.colorPicker = function() {
-        console.log("ColorPicker click");
-
-        createDialogService('partials/mobile/color-picker.html', {
-                                id: 'simpleDialog',
-                                title: 'Choose a color',
-                                backdrop: true,
-                                css: {
-                                  margin: '0 auto'
-                                },
-                                success: {label: 'Success', fn: function() {console.log('Simple modal closed');}}
-                            });
-
-
-    };
-}]);
+});
 
 calaos.controller('StringCtrl', function ($scope, CalaosHome) {
 
@@ -341,6 +325,28 @@ calaos.controller('StringCtrl', function ($scope, CalaosHome) {
     }
 });
 
+
+
+calaos.controller('ShutterCtrl', function ($scope, CalaosHome) {
+
+    var updateState = function (item) {
+        $scope.state = parseFloat($scope._item.state);
+        $scope.name = $scope._item.name;
+    }
+
+    $scope.init = function(it) {
+        $scope._item = CalaosHome.getItemOutput(it.id);
+
+        updateState(it);
+        $scope.$watch("_item", function() {
+            updateState($scope._item);
+        }, true);
+    }
+
+    $scope.setState = function(it, s) {
+        CalaosHome.setState(it, s);
+    }
+});
 
 calaos.controller('MenuController', function ($scope) {
 
