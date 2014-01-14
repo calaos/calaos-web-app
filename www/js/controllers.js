@@ -180,6 +180,7 @@ calaos.controller('RoomCtrl', function ($scope, $routeParams, CalaosHome) {
     //and inject that into the controller scope
     CalaosHome.getRoom($routeParams.room_name).then(function (data) {
         $scope.room = data;
+        console.log($scope.room);
     });
 
     $scope.getState = function(content) {

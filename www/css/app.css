@@ -196,13 +196,32 @@ body {
 }
 
 div.roomlist {
+    margin: 2px;
+    padding: 8px;
     background: rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     border: 2px solid #174856;
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
 }
+.block {
+  text-align: center;
+}
+ 
+.block:before {
+  content: '';
+  display: inline-block;
+  height: 100%; 
+  vertical-align: middle;
+  margin-right: -0.25em; /* Adjusts for spacing */
 
-
+ }
+ 
+.centered {
+  display: inline-block;
+  vertical-align: middle;
+  width: 300px;
+  padding: 10px 15px;
+ }
 div.roomlist-desktop {
     margin: 2px;
     padding: 8px;
