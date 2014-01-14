@@ -195,15 +195,26 @@ body {
     line-height: 30px; /* Hack like I like it in CSS */
 }
 
-
 div.roomlist {
-    margin: 2px;
-    padding: 8px;
     background: rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     border: 2px solid #174856;
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+}
 
+
+div.roomlist-desktop {
+    margin: 2px;
+    padding: 8px;
+    width: 220px;
+    height: 160px;
+    text-align: center;  
+    padding: 5px 10px;  
+    margin: 0 20px;  
+     -webkit-filter: drop-shadow(12px 12px 25px rgba(0,0,0,0.95));
+    filter: url(#drop-shadow);
+    -ms-filter: "progid:DXImageTransform.Microsoft.Dropshadow(OffX=12, OffY=12, Color='#444')";
+    filter: "progid:DXImageTransform.Microsoft.Dropshadow(OffX=12, OffY=12, Color='#444')";
 }
 
 input.roomlist {
