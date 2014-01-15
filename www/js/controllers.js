@@ -7,7 +7,7 @@ calaos.controller('MainAppCtrl', function ($scope, CalaosHome, $location) {
     CalaosHome.getSortedHomeByRow().then(function () {},
     function () {
         console.log("go to login page");
-        $location.path('/' + getDevice() + '/settings');
+        $location.path('/mobile/settings');
     });
 
     $scope.login = CalaosHome.loginFailed;
@@ -33,7 +33,7 @@ calaos.controller('RoomsListCtrl', function ($scope, CalaosHome, $location) {
     },
     function() {
         console.log("go to login page");
-        $location.path('/' + getDevice() + '/settings');
+        $location.path('/mobile/settings');
     });
 
     CalaosHome.getRawHome().then(function (data) {
