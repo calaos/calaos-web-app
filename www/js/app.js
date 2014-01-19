@@ -18,6 +18,9 @@ calaos.config(['$routeProvider', function($routeProvider) {
       when('/mobile/color-picker', {templateUrl: 'partials/mobile/color-picker.html',  controller: 'ColorPickerCtrl'}).
       when('/desktop/home',  {templateUrl: 'partials/desktop/home.html',   controller: 'RoomsListCtrl'}).
       when('/desktop/room/:room_name', {templateUrl: 'partials/desktop/room.html',  controller: 'RoomCtrl'}).
+      when('/desktop/audio',  {templateUrl: 'partials/desktop/audio.html',   controller: 'AudioCtrl'}).
+      when('/desktop/audio/:player_id', {templateUrl: 'partials/desktop/audio_player.html',  controller: 'AudioPlayerCtrl'}).
+      when('/desktop/cameras',  {templateUrl: 'partials/desktop/cameras.html',   controller: 'CamerasCtrl'}).
     otherwise({redirectTo: '/' + device + '/home'})
 }]);
 

@@ -456,7 +456,7 @@ calaos.controller('MenuCtrl', function ($scope, $window, $location)
             break;
 
         case "security":
-            $location.path('/' + getDevice() +'cameras');
+            $location.path('/' + getDevice() +'/cameras');
             break;
         }
     }
