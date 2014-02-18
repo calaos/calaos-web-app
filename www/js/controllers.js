@@ -355,6 +355,9 @@ calaos.controller('MenuController', function ($scope) {
 
 calaos.controller('SettingsCtrl', function ($scope, $window, CalaosHome) {
 
+    if (staticConfig.localhost)
+        $scope.localhost = true;
+
     var tmp = getCookie('cn_user');
     if (tmp) {
         $scope.cn_user = tmp;
@@ -380,11 +383,18 @@ calaos.controller('SettingsCtrl', function ($scope, $window, CalaosHome) {
     $scope.sign_in = function () {
         setCookie('cn_user', $scope.cn_user, 365);
         setCookie('cn_pass', $scope.cn_pass, 0);
-        setCookie('use_calaosnetwork', $scope.use_calaosnetwork, 365);
-        setCookie('host', $scope.host, 365);
+        if (staticConfig.localhost) {
+            setCookie('use_calaosnetwork', false, 365);
+            calaosConfig.host = location.protocol + '//' + location.hostname + '/api.php';
+            setCookie('host', calaosConfig.host, 365);
+        }
+        else {
+            setCookie('use_calaosnetwork', $scope.use_calaosnetwork, 365);
+            setCookie('host', $scope.host, 365);
+            calaosConfig.host = $scope.host;
+        }
         calaosConfig.cn_user = $scope.cn_user;
         calaosConfig.cn_pass = $scope.cn_pass;
-        calaosConfig.host = $scope.host;
         CalaosHome.reset();
         $window.history.back();
     }
