@@ -231,9 +231,6 @@ div.roomlist-desktop {
     padding: 5px 10px;  
     margin: 0 20px;  
      -webkit-filter: drop-shadow(12px 12px 25px rgba(0,0,0,0.95));
-    filter: url(#drop-shadow);
-    -ms-filter: "progid:DXImageTransform.Microsoft.Dropshadow(OffX=12, OffY=12, Color='#444')";
-    filter: "progid:DXImageTransform.Microsoft.Dropshadow(OffX=12, OffY=12, Color='#444')";
 }
 
 input.roomlist {
