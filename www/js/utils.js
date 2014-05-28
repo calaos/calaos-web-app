@@ -27,7 +27,7 @@ function getRoomTypeString(room) {
     if (room == "garage") rname = "Garage";
     if (room == "Internal") rname = "Internal Room";
 
-    else rname == "Unknown!";
+    else rname = "Unknown!";
 
     return rname;
 }
@@ -59,7 +59,7 @@ function getRoomTypeIcon(room) {
     if (room == "garage") rname = "room_garage.png";
     if (room == "Internal") rname = "room.png";
 
-    else rname == "room.png";
+    else rname = "room.png";
 
     return rname;
 }
