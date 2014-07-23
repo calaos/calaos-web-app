@@ -312,6 +312,7 @@ calaos.controller('LightRGBCtrl', function($scope, CalaosHome) {
 calaos.controller('StringCtrl', function ($scope, CalaosHome) {
 
     var updateState = function (item) {
+
         $scope.state = $scope._item.state;
         $scope.name = $scope._item.name;
     }
@@ -324,9 +325,30 @@ calaos.controller('StringCtrl', function ($scope, CalaosHome) {
             updateState($scope._item);
         }, true);
     }
+
+    $scope.setState = function(it, s) {
+        console.log("Writing : " + $scope.state);
+        CalaosHome.setState(it, $scope.state);
+    }
+
 });
 
+calaos.controller('StringInputCtrl', function ($scope, CalaosHome) {
 
+    var updateState = function (item) {
+        $scope.state = $scope._item.state;
+        $scope.name = $scope._item.name;
+    }
+
+    $scope.init = function(it) {
+        $scope._item = CalaosHome.getItemInput(it.id);
+
+        updateState(it);
+        $scope.$watch("_item", function() {
+            updateState($scope._item);
+        }, true);
+    }
+});
 
 calaos.controller('ShutterCtrl', function ($scope, CalaosHome) {
 

@@ -1,0 +1,18 @@
+<div class="roomlist" ng-controller="StringCtrl" ng-init="init(item)" ng-if="item.visible == 'true'">
+  <table class="array-header">
+    <tr>
+      <td class="array-left">
+         <h3 class="roomlist">{{name}}</h3>
+      </td>
+      <td class="array-right">
+        <div class="input-group">
+          <input type="text" class="form-control" ng-model="state">
+          <span class="input-group-btn">
+            <a href=""><img class="shutter" ng-src="img/button_play.png" ng-click='setState(item)'></img></a></span>
+          </span>
+        </div>        
+    </div>
+      </td>
+    </tr>
+  </table>
+</div>
