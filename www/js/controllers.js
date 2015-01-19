@@ -274,7 +274,7 @@ calaos.controller('LightDimmerCtrl', function ($scope, CalaosHome) {
     }
 });
 
-calaos.controller('LightRGBCtrl', function($scope, CalaosHome) {
+calaos.controller('LightRGBCtrl', function($scope, CalaosHome, $rootScope, ngDialog) {
 
     var updateState = function (item) {
         $scope.percent_value = 0.0;
@@ -307,6 +307,17 @@ calaos.controller('LightRGBCtrl', function($scope, CalaosHome) {
         }, true);
     }
 
+    $scope.colorPicker = function() {
+        console.log("ColorPicker click");
+        $rootScope.theme = 'ngdialog-theme-plain';
+
+        ngDialog.open({
+			template: 'partials/mobile/color-picker.html',
+			controller: 'ColorPickerCtrl',
+			className: 'ngdialog-theme-plain',
+			closeByDocument: false
+        });
+    };
 });
 
 calaos.controller('StringCtrl', function ($scope, CalaosHome) {
@@ -422,9 +433,9 @@ calaos.controller('SettingsCtrl', function ($scope, $window, CalaosHome) {
     }
 });
 
-calaos.controller('ColorPickerCtrl', function ($scope, $routeParams) {
+calaos.controller('ColorPickerCtrl', function ($scope, ngDialog) {
 
-    $scope.color = $routeParams.color;
+    /*$scope.color = $routeParams.color;
     document.getElementById("color").style.backgroundColor = $scope.color;
 
     var convertColor = function (color) {
@@ -440,6 +451,15 @@ calaos.controller('ColorPickerCtrl', function ($scope, $routeParams) {
 
     $scope.selectColor = function() {
         $scope.color = convertColor(document.getElementById("color").style.backgroundColor);
+    }*/
+    
+    $scope.close = function() {
+       ngDialog.close();
+    }
+    
+    $scope.validColor = function() {
+        console.log("Valid color clicked");
+        ngDialog.close();
     }
 });
 
