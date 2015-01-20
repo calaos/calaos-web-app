@@ -2,7 +2,7 @@
 
 /* App Module */
 
-var calaos =  angular.module('calaos', ['ngRoute', 'ngAnimate', 'ngTouch', 'ngDialog']);
+var calaos =  angular.module('calaos', ['ngRoute', 'ngAnimate', 'ngTouch', 'ngDialog', 'farbtastic']);
 
 calaos.config(['$routeProvider', function($routeProvider) {
 

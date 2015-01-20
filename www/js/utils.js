@@ -83,3 +83,11 @@ function getDevice() {
     return device;
 }
 
+function getRGBValueFromState(state) {
+    var v = parseInt(state);    
+    return [(v >> 16), (v >> 8) & 0x0000FF, v & 0x0000FF];
+}
+
+function computeStateFromRGBValue(r, g, b) {
+    return (r << 16) + (g << 8) + b;
+}

@@ -277,25 +277,19 @@ calaos.controller('LightDimmerCtrl', function ($scope, CalaosHome) {
 calaos.controller('LightRGBCtrl', function($scope, CalaosHome, $rootScope, ngDialog) {
 
     var updateState = function (item) {
-        $scope.percent_value = 0.0;
+        
+        var toHex = function (c) {
+            var hex = c.toString(16);
+            return hex.length == 1? "0" + hex : hex;
+        };
+        
+        var col = getRGBValueFromState(item.state);
+        
+        $scope.color = "#" + toHex(col[0]) + toHex(col[1]) + toHex(col[2]);
+        console.log("updateState color: " + $scope.color);
 
-        if (!isNaN(parseInt(item.state)))
-            $scope.percent_value = parseInt(item.state);
-        else if (item.state.substr(0, 4) == "set ")
-            $scope.percent_value = parseInt(item.state.substr(4, item.state.length - 4));
-        else if (item.state == "true")
-            $scope.percent_value = 100;
-        else if (item.state == "false")
-            $scope.percent_value = 0;
-
-        $scope.state = $scope.percent_value > 0?true:false;
+        $scope.state = col[0] > 0 || col[1] > 0 || col[2] > 0?true:false;
         $scope.name = $scope._item.name;
-        $scope.percent_value_rw = $scope.percent_value;
-    }
-
-    $scope.changeValueDimmer = function () {
-        var s = "set " + $scope.percent_value_rw;
-        CalaosHome.setState($scope._item, s);
     }
 
     $scope.init = function(it) {
@@ -306,7 +300,7 @@ calaos.controller('LightRGBCtrl', function($scope, CalaosHome, $rootScope, ngDia
             updateState($scope._item);
         }, true);
     }
-
+    
     $scope.colorPicker = function() {
         console.log("ColorPicker click");
         $rootScope.theme = 'ngdialog-theme-plain';
@@ -315,7 +309,8 @@ calaos.controller('LightRGBCtrl', function($scope, CalaosHome, $rootScope, ngDia
 			template: 'partials/mobile/color-picker.html',
 			controller: 'ColorPickerCtrl',
 			className: 'ngdialog-theme-plain',
-			closeByDocument: false
+			closeByDocument: false,
+            scope: $scope
         });
     };
 });
@@ -433,25 +428,49 @@ calaos.controller('SettingsCtrl', function ($scope, $window, CalaosHome) {
     }
 });
 
-calaos.controller('ColorPickerCtrl', function ($scope, ngDialog) {
+calaos.controller('ColorPickerCtrl', function ($scope, CalaosHome, ngDialog) {
+    
+    // Parse hex/rgb{a} color syntax.
+    // @input string
+    // @returns array [r,g,b{,o}]
+    var convertColor = function(color) {
 
-    /*$scope.color = $routeParams.color;
-    document.getElementById("color").style.backgroundColor = $scope.color;
+        var cache
+          , p = parseInt // Use p as a byte saving reference to parseInt
+          , color = color.replace(/\s\s*/g,'') // Remove all spaces
+        ;//var
 
-    var convertColor = function (color) {
-        var tmp = /(.*?)rgb\((\d+), (\d+), (\d+)\)/.exec(color);
+        // Checks for 6 digit hex and converts string to integer
+        if (cache = /^#([\da-fA-F]{2})([\da-fA-F]{2})([\da-fA-F]{2})/.exec(color)) 
+            cache = [p(cache[1], 16), p(cache[2], 16), p(cache[3], 16)];
 
-        var red = parseInt(tmp[2]);
-        var green = parseInt(tmp[3]);
-        var blue = parseInt(tmp[4]);
+        // Checks for 3 digit hex and converts string to integer
+        else if (cache = /^#([\da-fA-F])([\da-fA-F])([\da-fA-F])/.exec(color))
+            cache = [p(cache[1], 16) * 17, p(cache[2], 16) * 17, p(cache[3], 16) * 17];
 
-        return blue | (green << 8) | (red << 16);
+        // Checks for rgba and converts string to
+        // integer/float using unary + operator to save bytes
+        else if (cache = /^rgba\(([\d]+),([\d]+),([\d]+),([\d]+|[\d]*.[\d]+)\)/.exec(color))
+            cache = [+cache[1], +cache[2], +cache[3], +cache[4]];
 
+        // Checks for rgb and converts string to
+        // integer/float using unary + operator to save bytes
+        else if (cache = /^rgb\(([\d]+),([\d]+),([\d]+)\)/.exec(color))
+            cache = [+cache[1], +cache[2], +cache[3]];
+
+        // Otherwise throw an exception to make debugging easier
+        else throw Error(color + ' is not supported by $.parseColor');
+
+        // Performs RGBA conversion by default
+        isNaN(cache[3]) && (cache[3] = 1);
+
+        // Adds or removes 4th value based on rgba support
+        // Support is flipped twice to prevent erros if
+        // it's not defined
+        return cache.slice(0,3 + !!$.support.rgba);
     }
-
-    $scope.selectColor = function() {
-        $scope.color = convertColor(document.getElementById("color").style.backgroundColor);
-    }*/
+    
+    console.log("currentColor: " + $scope.color)
     
     $scope.close = function() {
        ngDialog.close();
@@ -460,6 +479,12 @@ calaos.controller('ColorPickerCtrl', function ($scope, ngDialog) {
     $scope.validColor = function() {
         console.log("Valid color clicked");
         ngDialog.close();
+
+        var c = convertColor($scope.color);
+        var v = computeStateFromRGBValue(c[0], c[1], c[2]);
+        console.log("color: " + c + "   " + v);
+        
+        CalaosHome.setState($scope._item, "set " + v);
     }
 });
 

@@ -656,3 +656,7 @@ label.info {
     background: url('../img/player_cover_front.png');
 }
 
+.colorpreview {
+    width: 150px;
+    height: 300px;
+}
