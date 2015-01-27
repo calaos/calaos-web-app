@@ -12,6 +12,7 @@ calaos.config(['$routeProvider', function($routeProvider) {
       when('/mobile/home',  {templateUrl: 'partials/mobile/home.html',   controller: 'RoomsListCtrl'}).
       when('/mobile/audio',  {templateUrl: 'partials/mobile/audio.html',   controller: 'AudioCtrl'}).
       when('/mobile/cameras',  {templateUrl: 'partials/mobile/cameras.html',   controller: 'CamerasCtrl'}).
+      when('/mobile/camera/:cam_id',  {templateUrl: 'partials/mobile/camerasingle.html',   controller: 'CameraSingleCtrl'}).
       when('/mobile/room/:room_name', {templateUrl: 'partials/mobile/room.html',  controller: 'RoomCtrl'}).
       when('/mobile/audio/:player_id', {templateUrl: 'partials/mobile/audio_player.html',  controller: 'AudioPlayerCtrl'}).
       when('/mobile/settings', {templateUrl: 'partials/mobile/settings.html',  controller: 'SettingsCtrl'}).
@@ -21,6 +22,7 @@ calaos.config(['$routeProvider', function($routeProvider) {
       when('/desktop/audio',  {templateUrl: 'partials/desktop/audio.html',   controller: 'AudioCtrl'}).
       when('/desktop/audio/:player_id', {templateUrl: 'partials/desktop/audio_player.html',  controller: 'AudioPlayerCtrl'}).
       when('/desktop/cameras',  {templateUrl: 'partials/desktop/cameras.html',   controller: 'CamerasCtrl'}).
+      when('/desktop/camera/:cam_id',  {templateUrl: 'partials/desktop/camerasingle.html',   controller: 'CameraSingleCtrl'}).
     otherwise({redirectTo: '/' + device + '/home'})
 }]);
 

@@ -331,6 +331,38 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
 
         return deferred.promise;
     };
+    
+    //return the camera by its id
+    factory.getCamera = function (cam_id) {
+        var deferred = $q.defer();
+        if (calaosObj) {
+            var cam = {};
+            for(var i = 0;i < calaosObj.cameras.length; i++) {
+                if (calaosObj.cameras[i].id == cam_id) {
+                    cam = calaosObj.cameras[i];
+                    break;
+                }
+            }
+            deferred.resolve(cam);
+        }
+        else {
+            doInitRequest(function () {
+                var cam = {};
+                for(var i = 0;i < calaosObj.cameras.length; i++) {
+                    if (calaosObj.cameras[i].id == cam_id) {
+                        cam = calaosObj.cameras[i];
+                        break;
+                    }
+                }
+                deferred.resolve(cam);
+            }, function () {
+                console.log("error in http request");
+                deferred.reject('error in request');
+            });
+        }
+
+        return deferred.promise;
+    }
 
     //returns the audioplayer by its name
     factory.getAudioPlayer = function (pid) {
@@ -372,8 +404,6 @@ calaos.factory('CalaosHome', ['$http', '$q', '$timeout', function ($http, $q, $t
             "action": "get_camera_pic",
             "camera_id": camid
         };
-
-        console.debug(query);
 
         $http.post(calaosConfig.host, query, {timeout: canceler.promise})
             .success(function(data) {

@@ -109,7 +109,7 @@ calaos.controller('AudioPlayerCtrl', function ($scope, $routeParams, CalaosHome,
 
         (function getCoverPic() {
             canceler = $q.defer();
-            CalaosHome.getCoverPic(data.player_id, canceler)
+            CalaosHome.getCoverPic(data.id, canceler)
                 .then(function(d) {
                     if (d.error)
                         $scope.cover_src = "img/empty.png";
@@ -141,7 +141,7 @@ calaos.controller('CamerasCtrl', function ($scope, CalaosHome) {
 
 });
 
-calaos.controller('CameraItemCtrl', function ($scope, CalaosHome, $timeout, $q) {
+calaos.controller('CameraItemCtrl', function ($scope, CalaosHome, $timeout, $q, $rootScope) {
 
     console.log('controller CameraItemCtrl');
     var timerPromise = null;
@@ -150,24 +150,63 @@ calaos.controller('CameraItemCtrl', function ($scope, CalaosHome, $timeout, $q) 
     $scope.init = function(it) {
         // this is the default image when camera pic is unavailable or
         // something went wrong
-        $scope.cam_src = "img/cam_fail.png";
+        $scope.cam_src = "img/camera_nocam.png";
 
         (function getCameraPic() {
             canceler = $q.defer();
-            CalaosHome.getCameraPic(it.camera_id, canceler)
+            CalaosHome.getCameraPic(it.id, canceler)
                 .then(function(d) {
                     if (d.error)
                         $scope.cam_src = "img/cam_fail.png";
                     else
                         $scope.cam_src = "data:" + d.contenttype + ";" + d.encoding + "," + d.data;
-                    $timeout(function() {
+                    timerPromise = $timeout(function() {
                         getCameraPic();
-                    }, 300);
+                    }, 500);
                 });
         })();
     }
 
-    $scope.$on('$locationChangeStart', function() {
+    $rootScope.$on('$locationChangeStart', function() {
+        console.log("$locationChangeStart")
+        $timeout.cancel(timerPromise);
+        canceler.resolve();
+    });
+
+});
+
+calaos.controller('CameraSingleCtrl', function ($scope, CalaosHome, $timeout, $q, $routeParams, $rootScope) {
+
+    console.log('controller CameraItemCtrl');
+    var timerPromise = null;
+    var canceler = null;
+    
+    //get the camera from the calaos service
+    //and inject that into the controller scope
+    CalaosHome.getCamera($routeParams.cam_id).then(function (data) {
+        $scope.cam = data;
+
+        // this is the default image when camera pic is unavailable or
+        // something went wrong
+        $scope.cam_src = "img/camera_nocam.png";
+
+        (function getCameraPic() {
+            canceler = $q.defer();
+            CalaosHome.getCameraPic($scope.cam.id, canceler)
+                .then(function(d) {
+                    if (d.error)
+                        $scope.cam_src = "img/cam_fail.png";
+                    else
+                        $scope.cam_src = "data:" + d.contenttype + ";" + d.encoding + "," + d.data;
+                    timerPromise = $timeout(function() {
+                        getCameraPic();
+                    }, 500);
+                });
+        })();
+    });
+
+    $rootScope.$on('$locationChangeStart', function() {
+        console.log("$locationChangeStart")
         $timeout.cancel(timerPromise);
         canceler.resolve();
     });
