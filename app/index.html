@@ -40,6 +40,10 @@
 
     <div class="container-fluid">
 
+        <div ng-hide="CalaosApp.isConnected()" class="alert alert-danger" role="alert">
+            <strong>Warning!</strong> Not connected to calaos_server!
+        </div>
+
         <div ui-view></div>
 
     </div>

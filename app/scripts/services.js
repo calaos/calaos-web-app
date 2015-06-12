@@ -2,12 +2,14 @@
 
 angular.module('calaosApp').factory('CalaosApp', ['$rootScope', function($rootScope) {
 
-    var connected;
-    var loading;
+    var connected = false;
+    var loading = false;
+    var auth = false;
     var homeData = {};
 
     var service = {
         isConnected: function() { return connected; },
+        isAuth: function() { return auth; },
         isLoading: function() { return loading; },
         getHomeData: function() { return homeData; },
 

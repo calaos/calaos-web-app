@@ -47,4 +47,25 @@ angular
                     requireLogin: true
                 }
             });
-  });
+    })
+    .run(function($rootScope, $state, $timeout) {
+
+        //Here we capture state changes (from defined states in $stateProvider)
+        //and inspect them for requireLogin property. If we try to access a page
+        //wich the user does not have access (not login yet), we redirect to /login
+
+        //subsrcibe to state change events
+        $rootScope.$on('$stateChangeStart', function (event, toState, toParams) {
+
+            var requireLogin = toState.data.requireLogin;
+
+            if (requireLogin &&
+                (typeof $rootScope.isAuth === 'undefined' ||
+                 $rootScope.isAuth === false)) {
+
+                event.preventDefault();
+
+                $state.go('login');
+            }
+        });
+    });
