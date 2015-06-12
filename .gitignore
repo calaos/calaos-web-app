@@ -1,9 +1,5 @@
-js/config.js
-.build
-.project
-.sdb*
-.settings
-*.php
-*.wgt
-.rds_delta
-.sdk_delta.info
+node_modules
+dist
+.tmp
+.sass-cache
+bower_components
