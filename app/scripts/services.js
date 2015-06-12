@@ -25,14 +25,23 @@ angular.module('calaosApp').factory('CalaosApp', ['$rootScope', function($rootSc
 
     };
 
-    var ws = new ReconnectingWebSocket('ws://xxx');
+    var getHost = function() {
+        var h = window.location.protocol === 'http:'?'ws://':'wss://';
+        h += window.location.hostname + ':' +
+             window.location.port + '/api/v3';
+
+        console.log('Connecting to ' + h);
+        return h;
+    }
+
+    var ws = new ReconnectingWebSocket(getHost());
     ws.onopen = function() {
         console.log('websocket open');
         $rootScope.$apply(function() {
             connected = true;
         });
 
-        service.send({ msg: 'login' });
+        //service.send({ msg: 'login' });
     };
 
     ws.onclose = function() {

@@ -20,18 +20,28 @@ angular
         //Set up the states
         $stateProvider
             .state('login', {
+                url: '/login',
                 templateUrl: 'views/login.html',
                 data: {
                     requireLogin: false
                 }
             })
             .state('home', {
+                url: '/home',
                 templateUrl: 'views/home.html',
                 data: {
                     requireLogin: true
                 }
             })
             .state('home.rooms', {
+                url: '/rooms',
+                templateUrl: 'views/home.html',
+                data: {
+                    requireLogin: true
+                }
+            })
+            .state('home.rooms.detail', {
+                url: '/:roomid',
                 templateUrl: 'views/home.html',
                 data: {
                     requireLogin: true
