@@ -1,12 +1,22 @@
 'use strict';
 
-angular.module('calaosApp').factory('CalaosApp', ['$rootScope', function($rootScope) {
+angular.module('calaosApp').factory('CalaosApp',
+    ['$rootScope', '$state', function($rootScope, $state) {
 
     var connected = false;
     var loading = false;
     var auth = false;
     var auth_failed = false;
+    var calaos_user = '';
+    var calaos_pass = '';
+
     var homeData = {};
+
+    //those are the cache input and output tables
+    //they are used to quickly query for an IO without
+    //having to look over all rooms
+    var inputCache = [];
+    var outputCache = [];
 
     var service = {
         isConnected: function() { return connected; },
@@ -25,12 +35,70 @@ angular.module('calaosApp').factory('CalaosApp', ['$rootScope', function($rootSc
         },
 
         signIn: function (cuser, cpass) {
-            console.log('Trying to sign in with ' + cuser);
+
+            loading = true;
+            auth_failed = false;
+            auth = false;
+            calaos_user = cuser;
+            calaos_pass = cpass;
+
+            console.log('Trying to sign in with ' + calaos_user);
+
+            if (connected) {
+                service.send({
+                    msg: 'login',
+                    data: {
+                        cn_user: calaos_user,
+                        cn_pass: calaos_pass,
+                    },
+                });
+            }
         },
     };
 
     var parseMessage = function(obj) {
 
+        if (obj.msg == 'login' && !auth) {
+            if (obj.data.success !== 'true') {
+                auth_failed = true;
+                auth = false;
+            }
+            else {
+                auth = true;
+
+                //query the complete house config
+                service.send({ msg: 'get_home' });
+            }
+        }
+        else if (obj.msg == 'get_home') {
+
+            homeData = obj.data;
+
+            //sort rooms
+            homeData.home.sort(function (rooma, roomb) {
+                return roomb.hits - rooma.hits;
+            });
+
+            //fill cache
+            for (var i = 0;i < homeData.home.length;i++) {
+                homeData.home[i].icon = getRoomTypeIcon(homeData.home[i].type);
+
+                if (homeData.home[i].items.inputs) {
+                    for (var io = 0;io < homeData.home[i].items.inputs.length;io++) {
+                        inputCache[homeData.home[i].items.inputs[io].id] = homeData.home[i].items.inputs[io];
+                    }
+                }
+
+                if (homeData.home[i].items.outputs) {
+                    for (var io = 0;io < homeData.home[i].items.outputs.length;io++) {
+                        outputCache[homeData.home[i].items.outputs[io].id] = homeData.home[i].items.outputs[io];
+                    }
+                }
+            }
+
+            loading = false;
+            $state.go('home');
+        }
     };
 
     var getHost = function() {
@@ -53,7 +121,15 @@ angular.module('calaosApp').factory('CalaosApp', ['$rootScope', function($rootSc
             connected = true;
         });
 
-        //service.send({ msg: 'login' });
+        if (!auth_failed) {
+            service.send({
+                msg: 'login',
+                data: {
+                    cn_user: calaos_user,
+                    cn_pass: calaos_pass,
+                },
+            });
+        }
     };
 
     ws.onclose = function() {
@@ -70,7 +146,9 @@ angular.module('calaosApp').factory('CalaosApp', ['$rootScope', function($rootSc
     };
     ws.onmessage = function(evt) {
         var received_msg = evt.data;
-        parseMessage(JSON.parse(received_msg));
+        $rootScope.$apply(function() {
+            parseMessage(JSON.parse(received_msg));
+        });
     };
 
     return service;
