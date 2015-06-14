@@ -1,0 +1,10 @@
+
+/*
+ * Here you can override the default detected ws://hostname/api/v3 used by
+ * the app. It allows you to run grunt server (on 9000 port) and connect to
+ * a your calaos_server on a different host:port.
+ */
+
+ var calaosDevConfig = {
+     calaosServerHost: '',
+ };

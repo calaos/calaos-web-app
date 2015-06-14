@@ -48,7 +48,7 @@ angular
                 }
             });
     })
-    .run(function($rootScope, $state, $timeout) {
+    .run(function($rootScope, $location, $timeout) {
 
         //Here we capture state changes (from defined states in $stateProvider)
         //and inspect them for requireLogin property. If we try to access a page
@@ -63,9 +63,8 @@ angular
                 (typeof $rootScope.isAuth === 'undefined' ||
                  $rootScope.isAuth === false)) {
 
-                event.preventDefault();
-
-                $state.go('login');
+                //using $state.go('login') here make a digest loop in angular...
+                $location.path('/login');
             }
         });
     });

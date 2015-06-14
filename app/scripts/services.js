@@ -28,6 +28,10 @@ angular.module('calaosApp').factory('CalaosApp', ['$rootScope', function($rootSc
     };
 
     var getHost = function() {
+
+        if (calaosDevConfig.calaosServerHost !== '')
+            return calaosDevConfig.calaosServerHost;
+
         var h = window.location.protocol === 'http:'?'ws://':'wss://';
         h += window.location.hostname + ':' +
              window.location.port + '/api/v3';
