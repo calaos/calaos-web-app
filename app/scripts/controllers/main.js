@@ -1,7 +1,7 @@
 'use strict';
 
 angular.module('calaosApp')
-.controller('MainCtrl', ['$scope', '$location', 'CalaosApp', function ($scope, $location, CalaosApp) {
+.controller('MainCtrl', ['$scope', 'CalaosApp', function ($scope, CalaosApp) {
 
     $scope.CalaosApp = CalaosApp;
 }]);

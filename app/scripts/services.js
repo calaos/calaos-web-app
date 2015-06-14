@@ -5,11 +5,13 @@ angular.module('calaosApp').factory('CalaosApp', ['$rootScope', function($rootSc
     var connected = false;
     var loading = false;
     var auth = false;
+    var auth_failed = false;
     var homeData = {};
 
     var service = {
         isConnected: function() { return connected; },
         isAuth: function() { return auth; },
+        hasAuthFailed: function() { return auth_failed; },
         isLoading: function() { return loading; },
         getHomeData: function() { return homeData; },
 
@@ -20,6 +22,10 @@ angular.module('calaosApp').factory('CalaosApp', ['$rootScope', function($rootSc
             else if (angular.isObject(data)) {
                 ws.send(JSON.stringify(data));
             }
+        },
+
+        signIn: function (cuser, cpass) {
+            console.log('Trying to sign in with ' + cuser);
         },
     };
 

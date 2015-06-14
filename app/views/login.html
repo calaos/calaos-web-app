@@ -1,1 +1,13 @@
-Todo login page
+<div class="container" ng-controller="LoginCtrl">
+
+    <div ng-hide="CalaosApp.hasAuthFailed()" class="alert alert-danger" role="alert">
+        <strong>Error!</strong> Authentication failed, please check your credentials.
+    </div>
+
+    <form class="form-signin">
+    <h1 class="form-signin-heading">Please Sign in </h1>
+    <input type="text" ng-model="cn_user" class="form-control" placeholder="Calaos Username" autofocus required>
+    <input type="password" ng-model="cn_pass" class="form-control" placeholder="Calaos Password" required>
+    <button class="btn btn-lg btn-inverse btn-large" ng-click="sign_in()">Sign in</button>
+  </form>
+</div>
