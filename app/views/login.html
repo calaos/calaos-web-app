@@ -9,10 +9,10 @@
         <strong>Error!</strong> Authentication failed, please check your credentials.
     </div>
 
-    <form class="form-signin">
+    <form class="form-signin" name="login-form">
         <h1 class="form-signin-heading">Please Sign in </h1>
-        <input type="text" ng-model="cn_user" class="form-control" placeholder="Calaos Username" autofocus required>
-        <input type="password" ng-model="cn_pass" class="form-control" placeholder="Calaos Password" required>
-        <button class="btn btn-lg btn-inverse btn-large" ng-click="sign_in()">Sign in</button>
+        <input type="text" name="login" ng-model="cn_user" class="form-control" placeholder="Calaos Username" autofocus required>
+        <input type="password" name="password" ng-model="cn_pass" class="form-control" placeholder="Calaos Password" required>
+        <button class="btn btn-lg btn-inverse btn-large btn-calaos" ng-click="sign_in()">Sign in</button>
     </form>
 </div>

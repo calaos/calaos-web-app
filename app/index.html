@@ -24,17 +24,12 @@
       <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
     <![endif]-->
 
-    <nav class="navbar navbar-inverse navbar-fixed-top">
+    <nav class="navbar navbar-inverse navbar-fixed-top calaos-navbar">
       <div class="container-fluid">
         <div class="navbar-header">
-          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
           <a class="navbar-brand" href="#">Calaos Web App</a>
         </div>
+        <button class="btn-navbar btn-right" ng-click="signOut()"><i class="glyphicon glyphicon-log-out" aria-hidden="true"></i></button>
       </div>
     </nav>
 
@@ -84,6 +79,7 @@
     <script src="scripts/services.js"></script>
     <script src="scripts/controllers/main.js"></script>
     <script src="scripts/controllers/login.js"></script>
+    <script src="scripts/controllers/home.js"></script>
     <!-- endbuild -->
 
 </body>

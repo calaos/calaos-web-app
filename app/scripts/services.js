@@ -11,6 +11,7 @@ angular.module('calaosApp').factory('CalaosApp',
     var calaos_pass = '';
 
     var homeData = {};
+    var homeSortedByRow = [];
 
     //those are the cache input and output tables
     //they are used to quickly query for an IO without
@@ -24,6 +25,7 @@ angular.module('calaosApp').factory('CalaosApp',
         hasAuthFailed: function() { return auth_failed; },
         isLoading: function() { return loading; },
         getHomeData: function() { return homeData; },
+        getSortedHomeByRow: function() { return homeSortedByRow; },
 
         send: function(data) {
             if (angular.isString(data)) {
@@ -54,6 +56,16 @@ angular.module('calaosApp').factory('CalaosApp',
                 });
             }
         },
+
+        signOut: function () {
+            loading = false;
+            auth_failed = false;
+            auth = false;
+            calaos_user = '';
+            calaos_pass = '';
+            homeData = '';
+            homeSortedByRow = '';
+        },
     };
 
     var parseMessage = function(obj) {
@@ -79,6 +91,9 @@ angular.module('calaosApp').factory('CalaosApp',
                 return roomb.hits - rooma.hits;
             });
 
+            homeSortedByRow = [];
+            var a = [];
+
             //fill cache
             for (var i = 0;i < homeData.home.length;i++) {
                 homeData.home[i].icon = getRoomTypeIcon(homeData.home[i].type);
@@ -94,7 +109,15 @@ angular.module('calaosApp').factory('CalaosApp',
                         outputCache[homeData.home[i].items.outputs[io].id] = homeData.home[i].items.outputs[io];
                     }
                 }
+
+                a.push(i);
+                if (a.length >= 3) {
+                    homeSortedByRow.push(a);
+                    a = [];
+                }
             }
+            if (a.length > 0)
+                homeSortedByRow.push(a);
 
             loading = false;
             $state.go('home');
