@@ -1,0 +1,17 @@
+<div class="roomlist" ng-if="item.visible == 'true'">
+  <table class="array-header">
+    <tr>
+      <td class="array-left">
+         <h3 class="roomlist" ng-class="{bool_active: item.state==true}"> {{item.name}}</h3>
+      </td>
+      <td class="array-right">
+         <div ng-show='item.rw == "true"'>
+             <input class="roomlist" ng-model="item.state">
+         </div>
+         <div ng-show='item.rw == "false"'>
+             <h3 class="roomlist" ng-model="item.state">{{item.state}}</h3>
+         </div>
+      </td>
+    </tr>
+  </table>
+</div>

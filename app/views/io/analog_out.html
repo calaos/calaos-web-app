@@ -1,0 +1,18 @@
+<div class="roomlist" ng-if="item.visible == 'true'">
+  <table class="array-header">
+    <tr>
+      <td class="array-left">
+         <h3 class="roomlist"><img class="io-icon-temp" ng-src="images/icon_analog.png"/> {{item.name}}</h3>
+      </td>
+      <td class="array-right">
+       <span><h3 class="roomlist" ng-model="state">{{item.state}} {{item.unit}}</h3></span>
+      </td>
+      <td class="array-right">
+          <div>
+              <img class="shutter" ng-src="images/button_plus.png" ng-click="CalaosApp.setState(item, 'inc')"/></img>
+              <img class="shutter" ng-src="images/button_min.png" ng-click="CalaosApp.setState(item, 'dec')"/></img>
+         </div>
+      </td>
+    </tr>
+  </table>
+</div>

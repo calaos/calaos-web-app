@@ -1,15 +1,19 @@
 
 <div class="container" ng-controller="HomeCtrl">
 
+<div ui-view>
+
 <div class="row-fluid" ng-repeat="row in homeByRow">
     <div class="span4" ng-repeat="it in row">
-        <a href="#">
+        <a ui-sref="home.room({roomId:homeRaw[it].roomId})">
             <div class="roomlist-desktop">
                 <h3>{{homeRaw[it].name}}</h3>
                 <img ng-src="images/{{homeRaw[it].icon}}" />
             </div>
         </a>
     </div>
+</div>
+
 </div>
 
 </div>

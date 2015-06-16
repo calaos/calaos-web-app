@@ -36,6 +36,17 @@ angular.module('calaosApp').factory('CalaosApp',
             }
         },
 
+        setState: function(item, state) {
+            service.send({
+                msg: 'set_state',
+                data: {
+                    type: 'output',
+                    id: item.id,
+                    value: state,
+                },
+            });
+        },
+
         signIn: function (cuser, cpass) {
 
             loading = true;
@@ -97,6 +108,7 @@ angular.module('calaosApp').factory('CalaosApp',
             //fill cache
             for (var i = 0;i < homeData.home.length;i++) {
                 homeData.home[i].icon = getRoomTypeIcon(homeData.home[i].type);
+                homeData.home[i].roomId = i;
 
                 if (homeData.home[i].items.inputs) {
                     for (var io = 0;io < homeData.home[i].items.inputs.length;io++) {
@@ -120,7 +132,40 @@ angular.module('calaosApp').factory('CalaosApp',
                 homeSortedByRow.push(a);
 
             loading = false;
-            $state.go('home');
+            $state.go('home.list');
+        }
+        else if (obj.msg == 'event') {
+            var event = obj.data;
+
+            console.debug("Received event: ", event.event_raw);
+
+            if (event.type_str == 'input_changed' &&
+                inputCache.hasOwnProperty(event.data.id)) {
+
+                if (event.data.hasOwnProperty('state'))
+                    inputCache[event.data.id].state = event.data.state;
+
+                if (event.data.hasOwnProperty('name'))
+                    inputCache[event.data.id].name = event.data.name;
+            }
+            else if (event.type_str == 'output_changed' &&
+                outputCache.hasOwnProperty(event.data.id)) {
+
+                if (event.data.hasOwnProperty('state'))
+                    outputCache[event.data.id].state = event.data.state;
+
+                if (event.data.hasOwnProperty('name'))
+                    outputCache[event.data.id].name = event.data.name;
+            }
+            else {
+                //TODO: implement other events here:
+                //new_input, new_output
+                //delete_input, delete_output
+                //modify_room, delete_room, new_room
+                //audio_volume, audio_status
+                //audio songchanged
+                console.debug('Event not implemented!');
+            }
         }
     };
 
@@ -159,6 +204,7 @@ angular.module('calaosApp').factory('CalaosApp',
         console.log('websocket closed');
         $rootScope.$apply(function() {
             connected = false;
+            loading = false;
         });
     };
     ws.onerror = function() {

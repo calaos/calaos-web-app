@@ -27,28 +27,46 @@ angular
                 }
             })
             .state('home', {
+                abstract: true,
                 url: '/home',
+                template: '<div ui-view></div>',
+                data: {
+                    requireLogin: true
+                }
+            })
+            .state('home.list', {
+                url: '',
                 templateUrl: 'views/home.html',
                 data: {
                     requireLogin: true
                 }
             })
-            .state('home.rooms', {
-                url: '/rooms',
-                templateUrl: 'views/home.html',
+            .state('home.room', {
+                url: '/{roomId:int}',
+                templateUrl: 'views/room.html',
+                controller: 'RoomCtrl',
                 data: {
                     requireLogin: true
                 }
             })
-            .state('home.rooms.detail', {
-                url: '/:roomid',
-                templateUrl: 'views/home.html',
+            .state('audio', {
+                url: '/audio',
+                templateUrl: 'views/audiolist.html',
+                data: {
+                    requireLogin: true
+                }
+            })
+            .state('security', {
+                url: '/security',
+                templateUrl: 'views/cameralist.html',
                 data: {
                     requireLogin: true
                 }
             });
     })
-    .run(function($rootScope, $location, $timeout) {
+    .run(function($rootScope, $location, $timeout, CalaosApp, $state) {
+
+        $rootScope.$state = $state;
 
         //Here we capture state changes (from defined states in $stateProvider)
         //and inspect them for requireLogin property. If we try to access a page
@@ -59,9 +77,9 @@ angular
 
             var requireLogin = toState.data.requireLogin;
 
-            if (requireLogin &&
-                (typeof $rootScope.isAuth === 'undefined' ||
-                 $rootScope.isAuth === false)) {
+            if (requireLogin && !CalaosApp.isAuth()) {
+
+                console.log("not logged in, redirect");
 
                 //using $state.go('login') here make a digest loop in angular...
                 $location.path('/login');

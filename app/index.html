@@ -29,7 +29,8 @@
         <div class="navbar-header">
           <a class="navbar-brand" href="#">Calaos Web App</a>
         </div>
-        <button class="btn-navbar btn-right" ng-click="signOut()"><i class="glyphicon glyphicon-log-out" aria-hidden="true"></i></button>
+        <button class="btn-navbar btn-left" ng-click="goBack()" ng-show="canGoBack()"><i class="glyphicon glyphicon-arrow-left" aria-hidden="true"></i></button>
+        <button class="btn-navbar btn-right" ng-click="signOut()" ng-show="CalaosApp.isAuth()"><i class="glyphicon glyphicon-log-out" aria-hidden="true"></i></button>
       </div>
     </nav>
 
@@ -41,6 +42,14 @@
 
         <div ui-view></div>
 
+    </div>
+
+    <div class="calaos-footer" ng-show="CalaosApp.isAuth()">
+        <ul class="calaos-footer-content">
+            <li class="menu home-menu" ng-class="{home_selected: $state.includes('home')}" ui-sref="home.list">Home</li>
+            <li class="menu media-menu" ui-sref-active="media_selected" ui-sref="audio">Audio</li>
+            <li class="menu security-menu" ui-sref-active="security_selected" ui-sref="security">Security</li>
+        </ul>
     </div>
 
     <!-- build:js(.) scripts/oldieshim.js -->
@@ -80,6 +89,8 @@
     <script src="scripts/controllers/main.js"></script>
     <script src="scripts/controllers/login.js"></script>
     <script src="scripts/controllers/home.js"></script>
+    <script src="scripts/controllers/room.js"></script>
+    <script src="scripts/controllers/io.js"></script>
     <!-- endbuild -->
 
 </body>

@@ -1,0 +1,21 @@
+<div class="roomlist" ng-if="item.visible == 'true'">
+  <table class="array-header">
+    <tr>
+      <td class="array-left">
+         <h3 class="roomlist" ng-class="{bool_active: state==true}">
+            <input type="checkbox" class="bool" disabled="true" ng-model="item.state" ng-show='item.rw == "true"'/> {{item.name}}
+         </h3>
+      </td>
+      <td class="array-right">
+         <div ng-show='item.rw == "true"'>
+            <img class="shutter" ng-src="images/button_bool_on.png" ng-click="CalaosApp.setState(item, 'true')"/></img>
+            <img class="shutter" ng-src="images/button_bool_off.png" ng-click="CalaosApp.setState(item, 'false')"/></img>
+         </div>
+         <div ng-show='item.rw == "false"'>
+            <input type="checkbox" class="bool" disabled="true" ng-model="item.state"/>
+         </div>
+      </td>
+    </tr>
+  </table>
+</div>
+

@@ -23,7 +23,7 @@ body {
   margin: 0;
 }
 
-a:hover {
+a:hover, a:visited, a:focus {
     text-decoration: none;
 }
 
@@ -155,6 +155,7 @@ label.info {
     background-image: -o-linear-gradient( #3c3c3c,#111 );
     background-image: linear-gradient( #3c3c3c,#111 );
     zoom: 1;
+    padding-left: 50px;
 }
 
 .btn-left {
@@ -196,7 +197,7 @@ label.info {
 }
 
 .btn-calaos {
-    border: 4px solid rgba(58, 180, 215, 0.5);
+    border: 3px solid rgba(58, 180, 215, 0.5);
     background: none;
     color: rgba(58, 180, 215, 1.0);
 }
@@ -205,3 +206,230 @@ label.info {
     color: rgba(58, 180, 215, 1.0);
     background: rgba(58, 180, 215, 0.15);
 }
+
+
+.calaos-footer {
+    height: 78px;
+    bottom: 0;
+    border-left-width: 0;
+    border-right-width: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    position: fixed;
+    z-index: 1000;
+    border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+    background-image: url("../images/menu_footer.png");
+    color: #eee;
+}
+
+
+
+.calaos-footer-content, ul.calaos-footer-content, li.calaos-footer-content
+{
+    top: 12px;
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 30px; /* Hack like I like it in CSS */
+    padding: 0;
+    margin: 0 0 0 0;
+}
+
+.menu
+{
+    display: inline-block;
+    width: 100px;
+    height: 66px;
+    line-height: 100px;
+    cursor: pointer;
+}
+
+.home-menu
+{
+    background-image: url("../images/button_home.png");
+}
+
+.media-menu
+{
+    background-image: url("../images/button_media.png");
+}
+
+.security-menu
+{
+    background-image: url("../images/button_security.png");
+}
+
+/* Add a specific class when the menu is selected */
+.home_selected /* ng-class seems not support - in class name ? */
+{
+    background-image: url("../images/button_home_glow.png") !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+.media_selected /* ng-class seems not support - in class name ? */
+{
+    background-image: url("../images/button_media_glow.png") !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+.security_selected /* ng-class seems not support - in class name ? */
+{
+    background-image: url("../images/button_security_glow.png") !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+div.roomlist {
+    margin: 2px;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    border: 2px solid #174856;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+}
+.block {
+  text-align: center;
+}
+
+.block:before {
+  content: '';
+  display: inline-block;
+  height: 100%;
+  vertical-align: middle;
+  margin-right: -0.25em; /* Adjusts for spacing */
+
+ }
+
+.centered {
+  display: inline-block;
+  vertical-align: middle;
+  width: 300px;
+  padding: 10px 15px;
+ }
+div.roomlist-desktop {
+    margin: 2px;
+    padding: 8px;
+    width: 220px;
+    height: 160px;
+    text-align: center;
+    padding: 5px 10px;
+    margin: 0 20px;
+     -webkit-filter: drop-shadow(12px 12px 25px rgba(0,0,0,0.95));
+}
+
+input.roomlist {
+    display: inline-block;
+    height: 24px;
+    font-size: 13px;
+    line-height: 18px;
+    color: #DDD;
+    background-color: rgba(0, 0, 0, 0.25);
+    border: 1px solid #222;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    padding: 4px;
+    margin: 0;
+}
+
+.active {
+    color: #EEE62F !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+.bool_active {
+    color: #38b0d3 !important;
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+h3.roomlist {
+    font: CalaosContent, Helvetica, Arial, Sans-Serif;
+    font-size: 100%;
+    color: #e7e7e7;
+    text-shadow: 0 0 10px rgba(231,231,231, 0.2);
+}
+
+img.roomlist {
+    width: 80px;
+    height: 44px;
+
+}
+
+hr {
+    border: none;
+    background-color: #aaa;
+    color: #ccc;
+    height: 1px;
+    margin: 0;
+}
+
+img.cameralist {
+    width: 106px;
+    height: 80px;
+
+}
+
+h3.audiolist {
+    font: CalaosContent, Helvetica, Arial, Sans-Serif;
+    color: #EEE;
+    font-size: 14px;
+    text-align: right;
+}
+
+h4.audiolist {
+    font: CalaosContent, Helvetica, Arial, Sans-Serif;
+    color: #AAA;
+    font-size: 12px;
+    text-align: right;
+}
+
+p.audiolist {
+    color: #AAA;
+    text-align: right;
+}
+
+img.shutter {
+    width: 48px;
+    height: 39px;
+}
+
+img.io-icon-light {
+    width: 22px;
+    height: 16px;
+    margin: 5px;
+}
+
+
+img.io-icon {
+    width: 43px;
+    height: 33px;
+    margin: 5px;
+}
+
+img.io-icon-temp {
+    width: 18px;
+    height: 35px;
+    margin: 5px;
+}
+

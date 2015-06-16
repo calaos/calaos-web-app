@@ -1,0 +1,17 @@
+<div class="roomlist" ng-controller="LightRGBCtrl" ng-if="item.visible == 'true'">
+  <table class="array-header">
+    <tr>
+      <td class="array-left">
+        <h3 class="roomlist" ng-class="{active: item.state==true}">
+        <input type="checkbox" class="light" disabled="true" ng-model="item.state"/> {{name}}
+      </td>
+        <td class="array-right">
+          <img class="shutter" ng-src="images/button_light_on.png" ng-click="CalaosApp.setState(item, 'true')"/></img>
+          <img class="shutter" ng-src="images/button_light_off.png" ng-click="CalaosApp.setState(item, 'false')"/></img>
+        </td>
+    </tr>
+    <tr>
+      <td colspan="2" class="array-right"><div style="background-color: {{color}};" class="color-picker" ng-click="colorPicker()"></div></td>
+    </tr>
+  </table>
+</div>
