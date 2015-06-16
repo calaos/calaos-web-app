@@ -3,8 +3,8 @@
  */
 
 @font-face {
-  font-family: 'CalaosContent';
-  src: url('../fonts/calaos_content.ttf') format('truetype');
+  src: url('../fonts/Ubuntu-Regular.ttf') format('truetype');
+  font-family: 'Ubuntu', sans-serif;
 }
 
 /* Move down content because we have a fixed navbar that is 50px tall */
@@ -12,7 +12,7 @@ body {
   padding: 0px;
   padding-top: 50px;
 
-  font-family: CalaosContent, Lucida Sans, Helvetica, sans-serif;
+  font-family: Ubuntu, Lucida Sans, Helvetica, sans-serif;
 
   background: url('../images/background.png');
   background-color:#000;
