@@ -37,31 +37,43 @@ angular
             .state('home.list', {
                 url: '',
                 templateUrl: 'views/home.html',
-                data: {
-                    requireLogin: true
-                }
             })
             .state('home.room', {
                 url: '/{roomId:int}',
                 templateUrl: 'views/room.html',
                 controller: 'RoomCtrl',
-                data: {
-                    requireLogin: true
-                }
             })
             .state('audio', {
+                abstract: true,
                 url: '/audio',
-                templateUrl: 'views/audiolist.html',
+                template: '<div ui-view></div>',
                 data: {
                     requireLogin: true
                 }
             })
+            .state('audio.list', {
+                url: '',
+                templateUrl: 'views/audiolist.html',
+            })
+            .state('audio.player', {
+                url: '/{playerId}',
+                templateUrl: 'views/audio_player.html',
+            })
             .state('security', {
+                abstract: true,
                 url: '/security',
-                templateUrl: 'views/cameralist.html',
+                template: '<div ui-view></div>',
                 data: {
                     requireLogin: true
                 }
+            })
+            .state('security.list', {
+                url: '',
+                templateUrl: 'views/cameralist.html',
+            })
+            .state('security.camera', {
+                url: '/{cameraId}',
+                templateUrl: 'views/camera.html',
             });
     })
     .run(function($rootScope, $location, $timeout, CalaosApp, $state) {

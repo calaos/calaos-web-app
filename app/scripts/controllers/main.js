@@ -15,7 +15,9 @@ angular.module('calaosApp')
     };
 
     $scope.canGoBack = function () {
-        if ($state.is('home.room'))
+        if ($state.is('home.room') ||
+            $state.is('audio.player') ||
+            $state.is('security.camera'))
             return true;
 
         return false;

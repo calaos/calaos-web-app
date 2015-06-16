@@ -1,1 +1,15 @@
-cameras
+
+<div class="container" ng-controller="CameraListCtrl">
+    <div class="row-fluid" ng-repeat="cam in camerasRaw">
+        <div ng-controller="CameraItemCtrl">
+            <a ui-sref="security.camera({cameraId:cam.id})">
+                <div class="roomlist ">
+                    <img class="cameralist" ng-src='{{ cam_src }}'/>
+                    <div class="pull-right">
+                        <h3 class="audiolist">{{cam.name}}</h3>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>

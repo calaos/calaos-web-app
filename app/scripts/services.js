@@ -137,7 +137,7 @@ angular.module('calaosApp').factory('CalaosApp',
         else if (obj.msg == 'event') {
             var event = obj.data;
 
-            console.debug("Received event: ", event.event_raw);
+            console.debug("Received event: ", event);
 
             if (event.type_str == 'input_changed' &&
                 inputCache.hasOwnProperty(event.data.id)) {

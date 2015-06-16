@@ -47,8 +47,8 @@
     <div class="calaos-footer" ng-show="CalaosApp.isAuth()">
         <ul class="calaos-footer-content">
             <li class="menu home-menu" ng-class="{home_selected: $state.includes('home')}" ui-sref="home.list">Home</li>
-            <li class="menu media-menu" ui-sref-active="media_selected" ui-sref="audio">Audio</li>
-            <li class="menu security-menu" ui-sref-active="security_selected" ui-sref="security">Security</li>
+            <li class="menu media-menu" ng-class="{media_selected: $state.includes('audio')}" ui-sref="audio.list">Audio</li>
+            <li class="menu security-menu" ng-class="{security_selected: $state.includes('security')}" ui-sref="security.list">Security</li>
         </ul>
     </div>
 
@@ -91,6 +91,8 @@
     <script src="scripts/controllers/home.js"></script>
     <script src="scripts/controllers/room.js"></script>
     <script src="scripts/controllers/io.js"></script>
+    <script src="scripts/controllers/audio.js"></script>
+    <script src="scripts/controllers/camera.js"></script>
     <!-- endbuild -->
 
 </body>
