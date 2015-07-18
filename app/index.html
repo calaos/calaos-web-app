@@ -12,7 +12,8 @@
     <!-- build:css(.) styles/vendor.css -->
     <!-- bower:css -->
     <link rel="stylesheet" href="bower_components/angular-motion/dist/angular-motion.css" />
-    <!-- bower:css -->
+    <link rel="stylesheet" href="bower_components/font-awesome/css/font-awesome.css" />
+    <link rel="stylesheet" href="bower_components/angular-hero/angular-hero.css" />
     <!-- endbower -->
     <!-- endbuild -->
     <!-- build:css(.tmp) styles/main.css -->
@@ -26,24 +27,18 @@
       <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
     <![endif]-->
 
-    <nav class="navbar navbar-inverse navbar-fixed-top calaos-navbar">
-      <div class="container-fluid">
-        <div class="navbar-header">
-          <a class="navbar-brand" href="#">Calaos Web App</a>
+    <nav class="navbar">
+          <a class="logo" href="#">Calaos Web App</a>
         </div>
-        <button class="btn-navbar btn-left" ng-click="goBack()" ng-show="canGoBack()"><i class="glyphicon glyphicon-arrow-left" aria-hidden="true"></i></button>
-        <button class="btn-navbar btn-right" ng-click="signOut()" ng-show="CalaosApp.isAuth()"><i class="glyphicon glyphicon-log-out" aria-hidden="true"></i></button>
-      </div>
+        <button class="btn-navbar btn-left" ng-click="goBack()" ng-show="canGoBack()"><i class="fa fa-arrow-left fa-2x fa-fw"></i></button>
+        <button class="btn-navbar btn-right" ng-click="signOut()" ng-show="CalaosApp.isAuth()"><i class="fa fa-user fa-fw fa-2x"></i></button>
     </nav>
 
-    <div class="container-fluid">
-
+    <div class="view-container" ng-animate-children>
         <div ng-hide="CalaosApp.isConnected()" class="alert alert-danger" role="alert">
             <strong>Warning!</strong> Not connected to calaos_server!
         </div>
-
-        <div ui-view></div>
-
+        <div ui-view class="view-animation" ></div>
     </div>
 
     <div class="calaos-footer" ng-show="CalaosApp.isAuth()">
@@ -65,16 +60,13 @@
     <!-- bower:js -->
     <script src="bower_components/jquery/dist/jquery.js"></script>
     <script src="bower_components/angular/angular.js"></script>
+    <script src="bower_components/bootstrap/dist/js/bootstrap.js"></script>
     <script src="bower_components/angular-animate/angular-animate.js"></script>
-    <script src="bower_components/angular-aria/angular-aria.js"></script>
     <script src="bower_components/angular-cookies/angular-cookies.js"></script>
     <script src="bower_components/angular-messages/angular-messages.js"></script>
     <script src="bower_components/angular-resource/angular-resource.js"></script>
     <script src="bower_components/angular-route/angular-route.js"></script>
     <script src="bower_components/angular-sanitize/angular-sanitize.js"></script>
-    <script src="bower_components/angular-touch/angular-touch.js"></script>
-    <script src="bower_components/angular-strap/dist/angular-strap.js"></script>
-    <script src="bower_components/angular-strap/dist/angular-strap.tpl.js"></script>
     <script src="bower_components/angular-ui-router/release/angular-ui-router.js"></script>
     <!-- endbower -->
     <!-- endbuild -->
