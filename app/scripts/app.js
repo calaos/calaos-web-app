@@ -3,13 +3,10 @@
 angular
     .module('calaosApp', [
         'ngAnimate',
-        'ngAria',
         'ngCookies',
         'ngMessages',
         'ngResource',
         'ngSanitize',
-        'ngTouch',
-        'mgcrea.ngStrap',
         'ui.router',
     ])
     .config(function ($stateProvider, $urlRouterProvider) {
