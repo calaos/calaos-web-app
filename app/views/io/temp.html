@@ -1,6 +1,4 @@
-<div class="roomlist" ng-if="item.visible == 'true'">
-    <h3 class="roomlist">
-        <img class="io-icon-temp" ng-src="images/icon_temp.png"/> {{item.name}}
-        <span class="roomlist pull-right">{{item.state}} °C</span>
-    </h3>
+<div class="io" ng-if="item.visible == 'true'">
+        <img class="left" ng-src="images/icon_temp.png"></img>
+        <span>{{item.name}}</span> <span class="right">{{item.state}} °C</span>
 </div>

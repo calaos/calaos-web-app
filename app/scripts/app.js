@@ -26,7 +26,7 @@ angular
             .state('home', {
                 abstract: true,
                 url: '/home',
-                template: '<div ui-view></div>',
+                template: '<div ui-view class="fade"></div>',
                 data: {
                     requireLogin: true
                 }
@@ -43,7 +43,7 @@ angular
             .state('audio', {
                 abstract: true,
                 url: '/audio',
-                template: '<div ui-view></div>',
+                template: '<div ui-view class="fade"></div>',
                 data: {
                     requireLogin: true
                 }
@@ -59,7 +59,7 @@ angular
             .state('security', {
                 abstract: true,
                 url: '/security',
-                template: '<div ui-view></div>',
+                template: '<div ui-view class="fade"></div>',
                 data: {
                     requireLogin: true
                 }

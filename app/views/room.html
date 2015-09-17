@@ -1,5 +1,5 @@
-<div class="row">
-  <div class="span6">
+<div class="grid">
+  <div class="col-2-3">
     <div ng-repeat="item in room.items.inputs" content="item" >
       <div ng-switch="item.gui_type" ng-if="item.visible == 'true'">
         <div ng-switch-when="temp"><ng-include src="'views/io/temp.html'"></ng-include></div>
@@ -24,10 +24,10 @@
       </div>
     </div>
   </div>
-  <div class="span6">
-    <div class="block">
-      <div class="centered">
-        <p><h1>{{room.name}}</h1></p>
+  <div class="grid">
+    <div class="col-1-3">
+      <div class="room icon-anchor" ng-animate-ref="{{room.icon}}">
+        <h3>{{room.name}}</h3>
         <img class="roomlist-desktop" ng-src="images/{{room.icon}}"/></div>
     </div>
   </div>
