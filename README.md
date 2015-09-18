@@ -3,7 +3,7 @@ Webapp for Calaos
 
 To build, install nodejs, and:
 ```
-npm install -g bower grunt-cli
+npm install -g bower gulp
 ```
 Then install dependencies:
 ```
@@ -12,10 +12,9 @@ bower install
 ```
 Then to build the app:
 ```
-grunt clean
-grunt build
+gulp
 ```
 To develop with livereload:
 ```
-grunt serve
+gulp serve
 ```

@@ -3,24 +3,14 @@
   "version": "3.0.0",
   "dependencies": {
     "angular": "~1.4.3",
-    "json3": "~3.3.0",
-    "es5-shim": "~4.0.0",
-    "bootstrap": "~3.3.0",
     "angular-animate": "~1.4.3",
-    "angular-aria": "~1.4.3",
-    "angular-cookies": "~1.4.3",
-    "angular-messages": "~1.4.3",
-    "angular-resource": "~1.4.3",
-    "angular-route": "~1.4.3",
+    "angular-motion": "~0.4.2",
     "angular-sanitize": "~1.4.3",
-    "angular-touch": "~1.4.3",
-    "angular-strap": "~2.1.6",
     "angular-ui-router": "~0.2.15",
-    "font-awesome": "~4.3.0"
-  },
-  "devDependencies": {
-    "angular-mocks": "~1.4.3",
-    "angular-scenario": "~1.4.3"
-  },
-  "appPath": "app"
+    "es5-shim": "~4.0.0",
+    "font-awesome": "~4.4.0",
+    "font-awesome-animation": "~0.0.6",
+    "jquery": "~2.1.4",
+    "json3": "~3.3.0"
+  }
 }

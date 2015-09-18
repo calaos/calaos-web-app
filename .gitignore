@@ -3,4 +3,5 @@ dist
 .tmp
 .sass-cache
 bower_components
-app/scripts/dev_config.js
+src/scripts/dev_config.js
+src/bower_components
