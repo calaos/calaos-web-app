@@ -199,6 +199,11 @@ angular.module('calaosApp').factory('CalaosApp',
         console.log('websocket error');
         $rootScope.$apply(function() {
             connected = false;
+
+            $timeout(function () {
+                service.signOut();
+                $state.go('login');
+            }, 200);
         });
     };
     ws.onmessage = function(evt) {

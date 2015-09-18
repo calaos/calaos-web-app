@@ -7,4 +7,9 @@
         <input type="password" ng-model="cn_pass" placeholder="Calaos Password" required>
         <button ng-click="sign_in()" ng-class="{'shake': CalaosApp.hasAuthFailed()}">Sign in</button>
     </form>
+
+    <span ng-show="!CalaosApp.isConnected()">
+        <i class="fa fa-exclamation-triangle faa-tada animated"></i> No connection to Calaos
+    </span>
+
 </div>
