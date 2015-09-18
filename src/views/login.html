@@ -1,18 +1,10 @@
-
-<div class="loading" ng-show="CalaosApp.isLoading()">
-    <img class="rotate_anim" src="images/loading_top.png" alt="loading"/>
-</div>
-
 <div class="container" ng-controller="LoginCtrl">
 
-    <div ng-show="CalaosApp.hasAuthFailed()" class="alert alert-danger" role="alert">
-        <strong>Error!</strong> Authentication failed, please check your credentials.
-    </div>
+    <h1 ng-class="{'form-success': CalaosApp.isAuth()}">Welcome</h1>
 
-    <form class="form-signin" name="login-form">
-        <h1 class="form-signin-heading">Please Sign in </h1>
-        <input type="text" name="login" ng-model="cn_user" class="form-control" placeholder="Calaos Username" autofocus required>
-        <input type="password" name="password" ng-model="cn_pass" class="form-control" placeholder="Calaos Password" required>
-        <button class="form-control" ng-click="sign_in()">Sign in</button>
+    <form class="form-signin" ng-class="{'form-success': CalaosApp.isAuth()}">
+        <input type="text" ng-model="cn_user" placeholder="Calaos Username" autofocus required>
+        <input type="password" ng-model="cn_pass" placeholder="Calaos Password" required>
+        <button ng-click="sign_in()" ng-class="{'shake': CalaosApp.hasAuthFailed()}">Sign in</button>
     </form>
 </div>

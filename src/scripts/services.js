@@ -1,7 +1,7 @@
 'use strict';
 
 angular.module('calaosApp').factory('CalaosApp',
-    ['$rootScope', '$state', function($rootScope, $state) {
+    ['$rootScope', '$state', '$timeout', function($rootScope, $state, $timeout) {
 
     var connected = false;
     var loading = false;
@@ -124,7 +124,12 @@ angular.module('calaosApp').factory('CalaosApp',
                 homeSortedByRow.push(a);
 
             loading = false;
-            $state.go('home.list');
+
+            //delay a bit the change of page to show login animation
+            $timeout(function () {
+                $state.go('home.list');
+            }, 1500);
+
         }
         else if (obj.msg == 'event') {
             var event = obj.data;
