@@ -3,9 +3,6 @@
 angular
     .module('calaosApp', [
         'ngAnimate',
-        'ngCookies',
-        'ngMessages',
-        'ngResource',
         'ngSanitize',
         'ui.router',
     ])

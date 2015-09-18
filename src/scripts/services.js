@@ -13,11 +13,10 @@ angular.module('calaosApp').factory('CalaosApp',
     var homeData = {};
     var homeSortedByRow = [];
 
-    //those are the cache input and output tables
+    //this is the cache for IOs
     //they are used to quickly query for an IO without
     //having to look over all rooms
-    var inputCache = [];
-    var outputCache = [];
+    var ioCache = [];
 
     var service = {
         isConnected: function() { return connected; },
@@ -40,7 +39,6 @@ angular.module('calaosApp').factory('CalaosApp',
             service.send({
                 msg: 'set_state',
                 data: {
-                    type: 'output',
                     id: item.id,
                     value: state,
                 },
@@ -110,15 +108,9 @@ angular.module('calaosApp').factory('CalaosApp',
                 homeData.home[i].icon = getRoomTypeIcon(homeData.home[i].type);
                 homeData.home[i].roomId = i;
 
-                if (homeData.home[i].items.inputs) {
-                    for (var io = 0;io < homeData.home[i].items.inputs.length;io++) {
-                        inputCache[homeData.home[i].items.inputs[io].id] = homeData.home[i].items.inputs[io];
-                    }
-                }
-
-                if (homeData.home[i].items.outputs) {
-                    for (var io = 0;io < homeData.home[i].items.outputs.length;io++) {
-                        outputCache[homeData.home[i].items.outputs[io].id] = homeData.home[i].items.outputs[io];
+                if (homeData.home[i].items) {
+                    for (var io = 0;io < homeData.home[i].items.length;io++) {
+                        ioCache[homeData.home[i].items[io].id] = homeData.home[i].items[io];
                     }
                 }
 
@@ -139,28 +131,19 @@ angular.module('calaosApp').factory('CalaosApp',
 
             console.debug("Received event: ", event);
 
-            if (event.type_str == 'input_changed' &&
-                inputCache.hasOwnProperty(event.data.id)) {
+            if (event.type_str == 'io_changed' &&
+                ioCache.hasOwnProperty(event.data.id)) {
 
                 if (event.data.hasOwnProperty('state'))
-                    inputCache[event.data.id].state = event.data.state;
+                    ioCache[event.data.id].state = event.data.state;
 
                 if (event.data.hasOwnProperty('name'))
-                    inputCache[event.data.id].name = event.data.name;
-            }
-            else if (event.type_str == 'output_changed' &&
-                outputCache.hasOwnProperty(event.data.id)) {
-
-                if (event.data.hasOwnProperty('state'))
-                    outputCache[event.data.id].state = event.data.state;
-
-                if (event.data.hasOwnProperty('name'))
-                    outputCache[event.data.id].name = event.data.name;
+                    ioCache[event.data.id].name = event.data.name;
             }
             else {
                 //TODO: implement other events here:
-                //new_input, new_output
-                //delete_input, delete_output
+                //new_io
+                //delete_io
                 //modify_room, delete_room, new_room
                 //audio_volume, audio_status
                 //audio songchanged

@@ -7,10 +7,7 @@ angular.module('calaosApp')
     $scope.room = {
         name: '',
         icon: '',
-        items: {
-            inputs: [],
-            outputs: [],
-        }
+        items: []
     };
 
     if ($stateParams.roomId < 0 || $stateParams.roomId >= home.length) {
