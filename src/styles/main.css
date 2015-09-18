@@ -21,6 +21,10 @@ body {
   margin: 0;
 }
 
+/* remove selection in firefox */
+:focus {outline:none;}
+::-moz-focus-inner {border:0;}
+
 /* Remove text decorations and use Ubutun as default font familly */
 ul, li, h1, h2, h3, h4, h5, h6, p, a {
   font-family: "Ubuntu","Verdana",sans-serif;

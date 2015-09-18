@@ -2,7 +2,6 @@
 
 angular
     .module('calaosApp', [
-        'ngAnimate',
         'ngSanitize',
         'ui.router',
     ])
