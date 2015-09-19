@@ -216,8 +216,6 @@ div.content {
 
 /* Login form */
 
-@import url(http://fonts.googleapis.com/css?family=Source+Sans+Pro:200,300);
-
 h1.form-success {
   -webkit-transform: translateY(145px);
       -ms-transform: translateY(145px);

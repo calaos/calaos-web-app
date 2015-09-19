@@ -15,6 +15,7 @@
     <!-- endbuild -->
 
     <link href="http://fonts.googleapis.com/css?family=Ubuntu" rel="stylesheet" type="text/css">
+    <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:200,300,400' rel='stylesheet' type='text/css'>
   </head>
   <body ng-app="calaosApp" ng-controller="MainCtrl">
     <!--[if lt IE 7]>
@@ -32,7 +33,7 @@
         <div ui-view class="fade" ></div>
     </div>
 
-    <div class="calaos-footer" ng-show="CalaosApp.isAuth() && !$state.includes('login')">
+    <div ng-class="{'calaos-footer': CalaosApp.isAuth() && !$state.includes('login')}" ng-show="CalaosApp.isAuth() && !$state.includes('login')">
         <ul class="calaos-footer-content">
             <li class="menu home-menu" ng-class="{home_selected: $state.includes('home')}" ui-sref="home.list">Home</li>
             <li class="menu media-menu" ng-class="{media_selected: $state.includes('audio')}" ui-sref="audio.list">Audio</li>
