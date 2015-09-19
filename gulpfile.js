@@ -62,7 +62,7 @@ gulp.task('connect', function (done) {
     port: 8000,
     livereload: true
   });
-  opn('http://localhost:9000', done);
+  opn('http://localhost:8000', done);
 });
 
 gulp.task('watch', function () {

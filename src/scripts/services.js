@@ -164,7 +164,7 @@ angular.module('calaosApp').factory('CalaosApp',
 
         var h = window.location.protocol === 'http:'?'ws://':'wss://';
         h += window.location.hostname + ':' +
-             window.location.port + '/api/v3';
+             window.location.port + '/api';
 
         console.log('Connecting to ' + h);
         return h;
