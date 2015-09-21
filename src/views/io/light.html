@@ -1,9 +1,13 @@
-<div class="roomlist" ng-if="item.visible == 'true'">
-  <h3 class="roomlist" ng-class="{active: item.state==true}">
-  <input type="checkbox" class="light" disabled="true" ng-model="item.state"/> {{name}}
-  <div class="pull-right">
-    <img class="shutter" ng-src="images/button_light_on.png" ng-click="CalaosApp.setState(item, 'true')"/></img>
-    <img class="shutter" ng-src="images/button_light_off.png" ng-click="CalaosApp.setState(item, 'false')"/></img>
-  </div>
-  </h3>
+
+<div class="io" ng-if="item.visible == 'true'">
+    <input type="checkbox" class="light icon" disabled="true" ng-model="item.state" ng-true-value="'true'" ng-false-value="'false'"/>
+    <span class="expand title">
+        <span>{{item.name}}</span>
+    </span>
+    <a href="" ng-click="CalaosApp.setState(item, 'true')">
+        <img class="action_button" ng-src="images/button_light_on.png"/>
+    </a>
+    <a href="" ng-click="CalaosApp.setState(item, 'false')">
+        <img class="action_button" ng-src="images/button_light_off.png"/>
+    </a>
 </div>

@@ -1,17 +1,9 @@
-<div class="roomlist" ng-if="item.visible == 'true'">
-  <table class="array-header">
-    <tr>
-      <td class="array-left">
-         <h3 class="roomlist" ng-class="{bool_active: item.state==true}"> {{item.name}}</h3>
-      </td>
-      <td class="array-right">
-         <div ng-show='item.rw == "true"'>
-             <input class="roomlist" ng-model="item.state">
-         </div>
-         <div ng-show='item.rw == "false"'>
-             <h3 class="roomlist" ng-model="item.state">{{item.state}}</h3>
-         </div>
-      </td>
-    </tr>
-  </table>
+<div class="io" ng-if="item.visible == 'true'">
+    <img class="icon" ng-src="images/icon_text.png"/>
+    <span class="expand title">
+        <span>{{item.state == ''?item.name:item.state}}</span>
+    </span>
+    <a href="" ng-click="alert('todo')">
+        <img class="action_button" ng-show='item.rw == "true"' ng-src="images/button_keyboard.png"/>
+    </a>
 </div>

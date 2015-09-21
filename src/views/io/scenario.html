@@ -1,9 +1,10 @@
-<div class="roomlist" ng-if="item.visible == 'true'">
 
-  <h3 class="roomlist"><img class="io-icon" ng-src="images/icon_scenario.png"/> {{item.name}}
-    <div class="pull-right">
-      <a href=""><img class="shutter" ng-src="images/button_play.png" ng-click="CalaosApp.setState(item, 'true')"/></a>
-    </div>
-  </h3>
-
+<div class="io" ng-if="item.visible == 'true'">
+    <img class="icon" ng-src="images/icon_scenario.png"/>
+    <span class="expand title">
+        <span>{{item.name}}</span>
+    </span>
+    <a href="" ng-click="CalaosApp.setState(item, 'true')">
+        <img class="action_button" ng-show='item.rw == "true"' ng-src="images/button_play.png"/>
+    </a>
 </div>

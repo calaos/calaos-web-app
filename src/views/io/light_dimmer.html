@@ -15,3 +15,19 @@
     </tr>
   </table>
 </div>
+
+<div class="io" ng-if="item.visible == 'true'">
+    <input type="checkbox" class="light icon" disabled="true" ng-model="item.state" ng-true-value="'true'" ng-false-value="'false'"/>
+    <span class="expand title">
+        <span>{{item.name}}</span>
+    </span>
+    <a href="" ng-click="CalaosApp.setState(item, 'true')">
+        <img class="action_button" ng-src="images/button_light_on.png"/>
+    </a>
+    <a href="" ng-click="CalaosApp.setState(item, 'false')">
+        <img class="action_button" ng-src="images/button_light_off.png"/>
+    </a>
+</div>
+
+
+<!-- <input type="range" min="0" max="100" step="1" ng-model="percent_value_rw" ng-mouseup="changeValueDimmer()" class="ng-pristine ng-valid"> -->
