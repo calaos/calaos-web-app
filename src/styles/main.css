@@ -349,21 +349,6 @@ form button:hover {
 
 /* IO */
 
-/*input.io {
-
-    height: 24px;
-    font-size: 13px;
-    line-height: 18px;
-    color: #DDD;
-    background-color: rgba(0, 0, 0, 0.25);
-    border: 1px solid #222;
-    -webkit-border-radius: 4px;
-    -moz-border-radius: 4px;
-    border-radius: 4px;
-    padding: 4px;
-    margin: 0;
-}*/
-
 .io {
     border-radius: 8px;
     border: 2px solid #174856;
@@ -420,6 +405,11 @@ ul, li, h1, h2, h3, h4, h5, h6, p, a, .io {
     -o-transition: all .5s ease;
     -ms-transition: all .5s ease;
     transition: all .5s ease;
+}
+
+.value_temp {
+    color: #EEE62F !important;
+    font-size: 20px;
 }
 
 .io > input[type="checkbox"] {
