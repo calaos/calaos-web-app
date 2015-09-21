@@ -349,7 +349,7 @@ form button:hover {
 
 /* IO */
 
-input.io {
+/*input.io {
 
     height: 24px;
     font-size: 13px;
@@ -362,17 +362,45 @@ input.io {
     border-radius: 4px;
     padding: 4px;
     margin: 0;
-}
+}*/
 
-div.io {
-    padding: 20px;
+.io {
     border-radius: 8px;
     border: 2px solid #174856;
-    line-height: 24px;
+    padding: 4px;
+    display: flex;
+	max-width: 100%;
+}
+
+/*add space between all items in IO*/
+.io > * {
+	margin-left: 0.5em;
+}
+/*Do not set margin for first item*/
+.io > *:first-child {
+    margin-left: 0.5em;
+}
+/*Expand the item with expand class (typically the text span)*/
+.io > .expand {
+	margin-right: auto;
+}
+
+.io > span {
+    line-height: 39px;
+}
+.io > span > span {
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1em;
 }
 
 ul, li, h1, h2, h3, h4, h5, h6, p, a, .io {
   color: #fff;
+}
+
+.action_button {
+    width: 48px;
+    height: 39px;
 }
 
 
@@ -393,6 +421,32 @@ ul, li, h1, h2, h3, h4, h5, h6, p, a, .io {
     -ms-transition: all .5s ease;
     transition: all .5s ease;
 }
+
+.io > input[type="checkbox"] {
+    -webkit-appearance:none;	/* Remove Safari default */
+    outline: none;
+    width: 34px;
+    height: 31px;
+    border: 0;
+}
+
+/* unchecked */
+.io > input[type="checkbox"]
+{
+    background: url('../images/icon_bool_off.png');
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+}
+
+/* checked */
+.io > input[type="checkbox"]:checked {
+    background: url('../images/icon_bool_on.png');
+    border: 0;
+}
+
 
 div.roomlist {
     margin: 2px;

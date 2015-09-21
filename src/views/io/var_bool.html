@@ -1,16 +1,13 @@
+
 <div class="io" ng-if="item.visible == 'true'">
-
-    <h3 ng-class="{bool_active: state==true}">
-       <input type="checkbox" class="bool" disabled="true" ng-model="item.state" ng-show='item.rw == "true"'/> {{item.name}}
-    </h3>
-
-    <div ng-show='item.rw == "true"'>
-       <img class="shutter" ng-src="images/button_bool_on.png" ng-click="CalaosApp.setState(item, 'true')"/></img>
-       <img class="shutter" ng-src="images/button_bool_off.png" ng-click="CalaosApp.setState(item, 'false')"/></img>
-    </div>
-    <div ng-show='item.rw == "false"'>
-       <input type="checkbox" class="bool" disabled="true" ng-model="item.state"/>
-    </div>
-
-        {{item.name}}<div class="right">{{item.state}} {{item.unit}}</div>
+    <input type="checkbox" class="boolean" disabled="true" ng-model="item.state" ng-true-value="'true'" ng-false-value="'false'"/>
+    <span class="expand title" ng-class="{bool_active: item.state=='true'}">
+        <span>{{item.name}}</span>
+    </span>
+    <a href="" ng-click="CalaosApp.setState(item, 'true')">
+        <img class="action_button" ng-show='item.rw == "true"' ng-src="images/button_bool_on.png"/>
+    </a>
+    <a href="" ng-click="CalaosApp.setState(item, 'false')">
+        <img class="action_button" ng-show='item.rw == "true"' ng-src="images/button_bool_off.png"/>
+    </a>
 </div>
