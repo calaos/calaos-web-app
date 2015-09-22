@@ -22,18 +22,18 @@
       <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
     <![endif]-->
 
-    <nav class="navbar" ng-show="CalaosApp.isAuth() && !$state.includes('login')">
-          <a class="logo" href="#">Calaos Web App</a>
+    <nav class="navbar animated" ng-class="{fadeInDown: CalaosApp.isAuth()}">
+        <a class="logo" href="#">Calaos Web App</a>
         </div>
         <button class="btn-navbar left" ng-click="goBack()" ng-show="canGoBack()"><i class="fa fa-arrow-left fa-2x fa-fw"></i></button>
         <button class="btn-navbar right" ng-click="signOut()" ng-show="CalaosApp.isAuth()"><i class="fa fa-sign-out fa-fw fa-2x"></i></button>
     </nav>
 
     <div class="content">
-        <div ui-view class="fade" ></div>
+        <div ui-view ></div>
     </div>
 
-    <div ng-class="{'calaos-footer': CalaosApp.isAuth() && !$state.includes('login')}" ng-show="CalaosApp.isAuth() && !$state.includes('login')">
+    <div class="calaos-footer animated" ng-class="{fadeInUp: CalaosApp.isAuth()}">
         <ul class="calaos-footer-content">
             <li class="menu home-menu" ng-class="{home_selected: $state.includes('home')}" ui-sref="home.list">Home</li>
             <li class="menu media-menu" ng-class="{media_selected: $state.includes('audio')}" ui-sref="audio.list">Audio</li>

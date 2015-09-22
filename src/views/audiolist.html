@@ -1,5 +1,5 @@
 
-<div class="container" ng-controller="AudioListCtrl">
+<div class="container animatedFast fadeIn" ng-controller="AudioListCtrl">
     <div class="row-fluid" ng-repeat="audio in audioRaw">
         <a ui-sref="audio.player({playerId:audio.id})">
         <div ng-controller="AudioPlayerCtrl">

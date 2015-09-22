@@ -1,4 +1,4 @@
-<div ng-controller="HomeCtrl">
+<div ng-controller="HomeCtrl" class="animatedFast" ng-class="{fadeIn: CalaosApp.isAuth()}">
     <!-- <div ui-view > -->
         <div class="grid" ng-repeat="row in homeByRow">
             <div class="col-1-3" ng-repeat="it in row">

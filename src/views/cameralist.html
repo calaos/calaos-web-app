@@ -1,5 +1,5 @@
 
-<div class="container" ng-controller="CameraListCtrl">
+<div class="container animatedFast fadeIn" ng-controller="CameraListCtrl">
     <div class="row-fluid" ng-repeat="cam in camerasRaw">
         <div ng-controller="CameraItemCtrl">
             <a ui-sref="security.camera({cameraId:cam.id})">
