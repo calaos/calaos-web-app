@@ -467,6 +467,9 @@ label.checkbox span:after { opacity: 0; }
 label.checkbox input:checked ~ span:after {
     opacity: 1;
 }
+label.checkbox input:checked ~ span:before {
+    opacity: 0;
+}
 
 /* light */
 label.light span:before {
