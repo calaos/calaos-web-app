@@ -377,6 +377,7 @@ form button:hover {
 .io_line {
     display: flex;
     max-width: 100%;
+    margin-left: 0 !important;
 }
 
 .io_line:not(:first-child) {
