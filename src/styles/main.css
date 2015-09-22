@@ -69,6 +69,17 @@ div.home {
 ul, li, h1, h2, h3, h4, h5, h6, p, a, .roomlist {
   color: rgba(58, 180, 215, 1.0);
 }
+
+.room {
+    padding-left: 45px;
+    text-align: center;
+}
+
+.io_list {
+    padding: 40px;
+    width: 53%;
+}
+
 /* Navbar */
 
 .navbar
@@ -355,6 +366,7 @@ form button:hover {
     padding: 4px;
     display: flex;
 	max-width: 100%;
+    margin-bottom: 8px;
 }
 
 /* multiline IOs */
