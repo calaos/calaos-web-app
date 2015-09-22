@@ -448,6 +448,21 @@ ul, li, h1, h2, h3, h4, h5, h6, p, a, .io {
 }
 
 .action_button {
+    -webkit-transition: all .15s ease;
+    -moz-transition: all .15s ease;
+    -o-transition: all .15s ease;
+    -ms-transition: all .15s ease;
+    transition: all .15s ease;
+}
+
+.action_button:active {
+    -webkit-transform: scale(0.94);
+    -o-transform: scale(0.94);
+    -ms-transform: scale(0.94);
+    transform: scale(0.94);
+}
+
+.action_button > img {
     width: 48px;
     height: 39px;
 }

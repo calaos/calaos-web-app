@@ -7,10 +7,10 @@
     <span class="value_temp">
         <span>{{item.state}} {{item.unit}}</span>
     </span>
-    <a href="" ng-click="CalaosApp.setState(item, 'inc')">
-        <img class="action_button" ng-show='item.rw == "true"' ng-src="images/button_plus.png"/>
+    <a class="action_button" href="" ng-click="CalaosApp.setState(item, 'inc')">
+        <img ng-show='item.rw == "true"' ng-src="images/button_plus.png"/>
     </a>
-    <a href="" ng-click="CalaosApp.setState(item, 'dec')">
-        <img class="action_button" ng-show='item.rw == "true"' ng-src="images/button_min.png"/>
+    <a class="action_button" href="" ng-click="CalaosApp.setState(item, 'dec')">
+        <img ng-show='item.rw == "true"' ng-src="images/button_min.png"/>
     </a>
 </div>

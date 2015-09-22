@@ -5,18 +5,18 @@
         <span class="expand title">
             <span>{{item.name}}</span>
         </span>
-        <a href="" ng-click="CalaosApp.setState(item, 'true')">
-            <img class="action_button" ng-src="images/button_light_on.png"/>
+        <a class="action_button" href="" ng-click="CalaosApp.setState(item, 'true')">
+            <img ng-src="images/button_light_on.png"/>
         </a>
-        <a href="" ng-click="CalaosApp.setState(item, 'false')">
-            <img class="action_button" ng-src="images/button_light_off.png"/>
+        <a class="action_button" href="" ng-click="CalaosApp.setState(item, 'false')">
+            <img ng-src="images/button_light_off.png"/>
         </a>
     </div>
 
     <div class="io_line">
         <span class="expand title"><span> </span></span>
-        <a href="" ng-click="colorPicker()">
-            <img class="action_button" ng-src="images/button_keyboard.png"/>
+        <a class="action_button" href="" ng-click="colorPicker()">
+            <img ng-src="images/button_keyboard.png"/>
         </a>
         <div style="background-color: {{color}};" class="color-picker"></div>
     </div>

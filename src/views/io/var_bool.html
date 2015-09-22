@@ -4,10 +4,10 @@
     <span class="expand title" ng-class="{bool_active: item.state=='true'}">
         <span>{{item.name}}</span>
     </span>
-    <a href="" ng-click="CalaosApp.setState(item, 'true')">
-        <img class="action_button" ng-show='item.rw == "true"' ng-src="images/button_bool_on.png"/>
+    <a class="action_button" href="" ng-click="CalaosApp.setState(item, 'true')">
+        <img ng-show='item.rw == "true"' ng-src="images/button_bool_on.png"/>
     </a>
-    <a href="" ng-click="CalaosApp.setState(item, 'false')">
-        <img class="action_button" ng-show='item.rw == "true"' ng-src="images/button_bool_off.png"/>
+    <a class="action_button" href="" ng-click="CalaosApp.setState(item, 'false')">
+        <img ng-show='item.rw == "true"' ng-src="images/button_bool_off.png"/>
     </a>
 </div>
