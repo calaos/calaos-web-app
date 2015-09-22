@@ -438,6 +438,13 @@ ul, li, h1, h2, h3, h4, h5, h6, p, a, .io {
     border: 0;
 }
 
+.color-picker {
+    border-radius: 5px;
+    border: 1px solid #174856;
+    background-color: #000;
+    width: 100px;
+}
+
 /* unchecked */
 
 label.checkbox input[type="checkbox"] {display:none;}
