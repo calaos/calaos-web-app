@@ -79,7 +79,7 @@ angular.module('calaosApp')
 }]);
 
 angular.module('calaosApp')
-.controller('VarStringCtrl', ['$scope', 'CalaosApp', 'ngDialog', '$rootScope', function ($scope, CalaosApp, ngDialog, $rootScope) {
+.controller('VarStringCtrl', ['$scope', 'CalaosApp', 'ngDialog', function ($scope, CalaosApp, ngDialog) {
 
     var updateState = function (item) {
         console.log(item);
@@ -115,5 +115,38 @@ angular.module('calaosApp')
         ngDialog.close();
         CalaosApp.setState($scope.item, $scope.text);
     }
+
+}]);
+
+angular.module('calaosApp')
+.controller('ShutterCtrl', ['$scope', 'CalaosApp', 'ngDialog', function ($scope, CalaosApp, ngDialog) {
+
+    var updateState = function (item) {
+
+        if (item.gui_type == 'shutter') {
+            $scope.shutter_state = item.state == 'true';
+        }
+        else if (item.gui_type == 'shutter_smart') {
+            var v = '0';
+            if (item.state.startsWith('stop')) {
+                v = item.state.substring(5);
+            }
+            else if (item.state.startsWith('up')) {
+                v = item.state.substring(3);
+            }
+            else if (item.state.startsWith('down')) {
+                v = item.state.substring(5);
+            }
+
+            var vint = parseInt(v);
+            $scope.shutter_state = v < 100;
+        }
+
+    }
+
+    updateState($scope.item);
+    $scope.$watch("item", function() {
+        updateState($scope.item);
+    }, true);
 
 }]);

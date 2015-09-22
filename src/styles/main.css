@@ -522,6 +522,16 @@ label.boolean span:after {
     background: url('../images/icon_bool_on.png');
 }
 
+/* shutter */
+label.shutter span:before {
+    background: url('../images/icon_shutter_off.png');
+}
+label.shutter span:after {
+    z-index: 1;
+    transition: opacity .5s;
+    background: url('../images/icon_shutter_on.png');
+}
+
 
 input[type="range"].light_dimmer {
     width: 100%;

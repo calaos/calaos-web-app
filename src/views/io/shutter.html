@@ -1,6 +1,6 @@
 
-<div class="io">
-    <img class="icon" ng-src="images/icon_shutter_on.png"/>
+<div class="io" ng-controller="ShutterCtrl">
+    <label class="shutter icon checkbox"><input type="checkbox" disabled="true" ng-model="shutter_state" /><span></span></label>
     <span class="expand title">
         <span>{{item.name}}</span>
     </span>
