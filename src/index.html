@@ -29,7 +29,7 @@
         <button class="btn-navbar right" ng-click="signOut()" ng-show="CalaosApp.isAuth()"><i class="fa fa-sign-out fa-fw fa-2x"></i></button>
     </nav>
 
-    <div class="content">
+    <div class="content" ng-class="{'content-max': !CalaosApp.isAuth()}">
         <div ui-view ></div>
     </div>
 

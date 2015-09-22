@@ -175,6 +175,10 @@ div.content {
     overflow-y: auto;
 }
 
+div.content-max {
+    height: 100%;
+}
+
  /* Footer menu */
 
 .menu
