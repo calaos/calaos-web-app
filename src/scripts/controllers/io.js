@@ -1,7 +1,7 @@
 'use strict';
 
 angular.module('calaosApp')
-.controller('LightDimmerCtrl', ['$scope', '$state', 'CalaosApp', function ($scope, $state, CalaosApp) {
+.controller('LightDimmerCtrl', ['$scope', 'CalaosApp', function ($scope, CalaosApp) {
 
     var updateState = function (item) {
         $scope.percent_value = 0.0;
@@ -33,7 +33,48 @@ angular.module('calaosApp')
 }]);
 
 angular.module('calaosApp')
-.controller('LightRGBCtrl', ['$scope', '$state', 'CalaosApp', function ($scope, $state, CalaosApp) {
+.controller('LightRGBCtrl', ['$scope', 'CalaosApp', 'ngDialog', '$rootScope', function ($scope, CalaosApp, ngDialog, $rootScope) {
 
+    var updateState = function (item) {
+        $scope.color = item.state == '0'?'#000':item.state;
+        console.log("updateState color: " + $scope.color);
+        $scope.bool_status = item.state == '0' || item.state == '#000000'?false:true;
+    }
+
+    $scope.colorPicker = function() {
+        console.log("ColorPicker click");
+        $rootScope.theme = 'ngdialog-theme-plain';
+
+        ngDialog.open({
+			template: 'views/color-picker.html',
+			controller: 'ColorPickerCtrl',
+			className: 'ngdialog-theme-default',
+			closeByDocument: false,
+            scope: $scope
+        });
+    };
+
+    updateState($scope.item);
+    $scope.$watch("item", function() {
+        updateState($scope.item);
+    }, true);
+
+}]);
+
+angular.module('calaosApp')
+.controller('ColorPickerCtrl', ['$scope', 'CalaosApp', 'ngDialog', function ($scope, CalaosApp, ngDialog) {
+
+    console.log("currentColor: " + $scope.color)
+
+    $scope.close = function() {
+       ngDialog.close();
+    }
+
+    $scope.validColor = function() {
+        console.log("Valid color clicked");
+        ngDialog.close();
+
+        CalaosApp.setState($scope.item, "set " + $scope.color);
+    }
 
 }]);

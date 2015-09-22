@@ -32,7 +32,6 @@ function getRoomTypeString(room) {
     return rname;
 }
 
-
 function getRoomTypeIcon(room) {
     if (room == "salon") rname = "room_salon.png";
     if (room == "lounge") rname = "room_salon.png";

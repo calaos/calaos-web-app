@@ -753,3 +753,12 @@ img.io-icon-temp {
     -webkit-animation-name: fadeIn;
     animation-name: fadeIn;
 }
+
+.ngdialog.ngdialog-theme-plain .ngdialog-content,
+.ngdialog.ngdialog-theme-default .ngdialog-content {
+    width: 340px;
+}
+
+.ngdialog h3 {
+    color: black;
+}

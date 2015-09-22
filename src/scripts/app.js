@@ -4,6 +4,8 @@ angular
     .module('calaosApp', [
         'ngSanitize',
         'ui.router',
+        'ngDialog',
+        'farbtastic'
     ])
     .config(function ($stateProvider, $urlRouterProvider) {
 
