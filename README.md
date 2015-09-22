@@ -18,3 +18,4 @@ To develop with livereload:
 ```
 gulp serve
 ```
+Don't forget to set the ws://xxx/api URL in src/scripts/dev_config.js
