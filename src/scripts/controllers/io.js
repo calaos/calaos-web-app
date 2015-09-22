@@ -43,7 +43,6 @@ angular.module('calaosApp')
 
     $scope.colorPicker = function() {
         console.log("ColorPicker click");
-        $rootScope.theme = 'ngdialog-theme-plain';
 
         ngDialog.open({
 			template: 'views/color-picker.html',
@@ -75,6 +74,46 @@ angular.module('calaosApp')
         ngDialog.close();
 
         CalaosApp.setState($scope.item, "set " + $scope.color);
+    }
+
+}]);
+
+angular.module('calaosApp')
+.controller('VarStringCtrl', ['$scope', 'CalaosApp', 'ngDialog', '$rootScope', function ($scope, CalaosApp, ngDialog, $rootScope) {
+
+    var updateState = function (item) {
+        console.log(item);
+        $scope.display_text = item.state == ''?item.name:item.state;
+        $scope.text = item.state;
+    }
+
+    $scope.dialogText = function() {
+        ngDialog.open({
+			template: 'views/dialog-text.html',
+			controller: 'StringDialogCtrl',
+			className: 'ngdialog-theme-default',
+			closeByDocument: false,
+            scope: $scope
+        });
+    };
+
+    updateState($scope.item);
+    $scope.$watch("item", function() {
+        updateState($scope.item);
+    }, true);
+
+}]);
+
+angular.module('calaosApp')
+.controller('StringDialogCtrl', ['$scope', 'CalaosApp', 'ngDialog', function ($scope, CalaosApp, ngDialog) {
+
+    $scope.close = function() {
+       ngDialog.close();
+    }
+
+    $scope.validText = function() {
+        ngDialog.close();
+        CalaosApp.setState($scope.item, $scope.text);
     }
 
 }]);
