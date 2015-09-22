@@ -1,33 +1,21 @@
-<div class="roomlist" ng-controller="LightDimmerCtrl" ng-if="item.visible == 'true'">
-  <table class="array-header">
-    <tr>
-      <td class="array-left"><h3 class="roomlist" ng-class="{active: item.state==true}">
-        <input type="checkbox" class="light" disabled="true" ng-model="item.state"/> {{item.name}}
-      </td>
-      <td class="array-right">
-          <img class="shutter" ng-src="images/button_light_on.png" ng-click="CalaosApp.setState(item, 'true')"/></img>
-          <img class="shutter" ng-src="images/button_light_off.png" ng-click="CalaosApp.setState(item, 'false')"/></img>
-      </td>
-    </tr>
-    <tr>
-      <td class="array-left"> <input type="range" min="0" max="100" step="1" ng-model="percent_value_rw" ng-mouseup="changeValueDimmer()"/></td>
-      <td class="array-right"><h3 class="roomlist">{{percent_value}}%</h3></td>
-    </tr>
-  </table>
+
+<div class="io io_multiline" ng-if="item.visible == 'true'">
+    <div class="io_line">
+        <label class="light icon checkbox"><input type="checkbox" disabled="true" ng-model="item.state" ng-true-value="'100'" ng-false-value="'0'"/><span></span></label>
+        <span class="expand title">
+            <span>{{item.name}}</span>
+        </span>
+        <a href="" ng-click="CalaosApp.setState(item, 'true')">
+            <img class="action_button" ng-src="images/button_light_on.png"/>
+        </a>
+        <a href="" ng-click="CalaosApp.setState(item, 'false')">
+            <img class="action_button" ng-src="images/button_light_off.png"/>
+        </a>
+    </div>
+
+    <div class="io_line">
+        <span style="margin-left: 20px;"></span>
+        <input type="range" class="light_dimmer" min="0" max="100" step="1" ng-model="percent_value_rw" ng-mouseup="changeValueDimmer()" class="ng-pristine ng-valid">
+        <span>{{percent_value}}%</span>
+    </div>
 </div>
-
-<div class="io" ng-if="item.visible == 'true'">
-    <input type="checkbox" class="light icon" disabled="true" ng-model="item.state" ng-true-value="'true'" ng-false-value="'false'"/>
-    <span class="expand title">
-        <span>{{item.name}}</span>
-    </span>
-    <a href="" ng-click="CalaosApp.setState(item, 'true')">
-        <img class="action_button" ng-src="images/button_light_on.png"/>
-    </a>
-    <a href="" ng-click="CalaosApp.setState(item, 'false')">
-        <img class="action_button" ng-src="images/button_light_off.png"/>
-    </a>
-</div>
-
-
-<!-- <input type="range" min="0" max="100" step="1" ng-model="percent_value_rw" ng-mouseup="changeValueDimmer()" class="ng-pristine ng-valid"> -->

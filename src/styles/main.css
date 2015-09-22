@@ -357,23 +357,38 @@ form button:hover {
 	max-width: 100%;
 }
 
+/* multiline IOs */
+.io_multiline {
+    flex-direction: column;
+}
+
+.io_line {
+    display: flex;
+    max-width: 100%;
+}
+
+.io_line:not(:first-child) {
+    margin-top: 0.5em;
+}
+
 /*add space between all items in IO*/
-.io > * {
+.io > *,
+.io_line > * {
 	margin-left: 0.5em;
 }
-/*Do not set margin for first item*/
-.io > *:first-child {
-    margin-left: 0.5em;
-}
+
 /*Expand the item with expand class (typically the text span)*/
-.io > .expand {
+.io > .expand,
+.io_line > .expand {
 	margin-right: auto;
 }
 
-.io > span {
+.io > span,
+.io_line > span {
     line-height: 39px;
 }
-.io > span > span {
+.io > span > span,
+.io_line > span > span {
     display: inline-block;
     vertical-align: middle;
     line-height: 1em;
@@ -424,33 +439,59 @@ ul, li, h1, h2, h3, h4, h5, h6, p, a, .io {
 }
 
 /* unchecked */
-.io > input[type="checkbox"].boolean {
-    background: url('../images/icon_bool_off.png');
-    -webkit-transition: all .5s ease;
-    -moz-transition: all .5s ease;
-    -o-transition: all .5s ease;
-    -ms-transition: all .5s ease;
-    transition: all .5s ease;
-}
-.io > input[type="checkbox"].boolean:checked {
-    background: url('../images/icon_bool_on.png');
-    border: 0;
+
+label.checkbox input[type="checkbox"] {display:none;}
+label.checkbox span {
+    width: 38px;
+    height: 38px;
+    vertical-align:middle;
+    display:inline-block;
+    position: relative;
 }
 
-.io > input[type="checkbox"].light {
+/* checkbox animation hack for firefox
+    Use before/after and animate using opacity when checkbox :checked
+ */
+label.checkbox span:before,
+label.checkbox span:after {
+    content: "";
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+}
+label.checkbox span:before { opacity: 1; }
+label.checkbox span:after { opacity: 0; }
+
+label.checkbox input:checked ~ span:after {
+    opacity: 1;
+}
+
+/* light */
+label.light span:before {
     background: url('../images/icon_light_off.png');
-    -webkit-transition: all .5s ease;
-    -moz-transition: all .5s ease;
-    -o-transition: all .5s ease;
-    -ms-transition: all .5s ease;
-    transition: all .5s ease;
 }
-
-.io > input[type="checkbox"].light:checked {
+label.light span:after {
+    z-index: 1;
+    transition: opacity .5s;
     background: url('../images/icon_light_on.png');
-    border: 0;
 }
 
+/* boolean */
+label.boolean span:before {
+    background: url('../images/icon_bool_off.png');
+}
+label.boolean span:after {
+    z-index: 1;
+    transition: opacity .5s;
+    background: url('../images/icon_bool_on.png');
+}
+
+
+input[type="range"].light_dimmer {
+    width: 100%;
+}
 
 div.roomlist {
     margin: 2px;

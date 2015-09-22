@@ -1,6 +1,6 @@
 
 <div class="io" ng-if="item.visible == 'true'">
-    <input type="checkbox" class="boolean icon" disabled="true" ng-model="item.state" ng-true-value="'true'" ng-false-value="'false'"/>
+    <label class="boolean icon checkbox"><input type="checkbox" disabled="true" ng-model="item.state" ng-true-value="'true'" ng-false-value="'false'"/><span></span></label>
     <span class="expand title" ng-class="{bool_active: item.state=='true'}">
         <span>{{item.name}}</span>
     </span>
