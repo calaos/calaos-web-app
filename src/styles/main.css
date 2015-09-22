@@ -80,6 +80,21 @@ ul, li, h1, h2, h3, h4, h5, h6, p, a, .roomlist {
     width: 53%;
 }
 
+.temperature {
+    text-align: center;
+    width: 34%;
+    position: relative;
+    left: 60%;
+    top: -20px;
+    background-image: url("../images/icon_temp.png");
+    height: 38px;
+    background-repeat: no-repeat, no-repeat;
+}
+
+.temperature span {
+    font-size: 20px;
+}
+
 /* Navbar */
 
 .navbar

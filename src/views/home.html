@@ -1,5 +1,4 @@
 <div ng-controller="HomeCtrl" class="animatedFast" ng-class="{fadeIn: CalaosApp.isAuth()}">
-    <!-- <div ui-view > -->
         <div class="grid" ng-repeat="row in homeByRow">
             <div class="col-1-3" ng-repeat="it in row">
                 <a ui-sref="home.room({roomId:homeRaw[it].roomId})">
@@ -7,8 +6,11 @@
                         <h3>{{homeRaw[it].name}}</h3>
                         <img ng-src="images/{{homeRaw[it].icon}}" />
                     </div>
+
+                    <div class="temperature" ng-show="homeRaw[it].hasTemp">
+                        <span>{{homeRaw[it].temp.state}} °C</span>
+                    </div>
                 </a>
             </div>
         </div>
-    <!-- </div> -->
 </div>

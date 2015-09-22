@@ -111,6 +111,12 @@ angular.module('calaosApp').factory('CalaosApp',
                 if (homeData.home[i].items) {
                     for (var io = 0;io < homeData.home[i].items.length;io++) {
                         ioCache[homeData.home[i].items[io].id] = homeData.home[i].items[io];
+
+                        if (homeData.home[i].items[io].gui_type == "temp" &&
+                            !homeData.home[i].hasTemp) {
+                            homeData.home[i].hasTemp = true;
+                            homeData.home[i].temp = homeData.home[i].items[io];
+                        }
                     }
                 }
 
