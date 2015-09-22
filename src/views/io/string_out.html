@@ -1,20 +1,10 @@
-<div class="roomlist">
-  <table class="array-header">
-    <tr>
-      <td class="array-left">
-         <h3 class="roomlist">
-            <img class="io-icon-temp" ng-src="images/icon_text.png"/> {{item.name}}
-         </h3>
-      </td>
-      <td class="array-right">
-        <div class="input-group">
-          <input type="text" class="form-control" ng-model="item.state">
-          <span class="input-group-btn">
-            <a href=""><img class="shutter" ng-src="images/button_play.png"></img></a></span>
-          </span>
-        </div>
-    </div>
-      </td>
-    </tr>
-  </table>
+
+<div class="io" ng-controller="VarStringCtrl">
+    <img class="icon" ng-src="images/icon_text.png"/>
+    <span class="expand title">
+        <span>{{display_text}}</span>
+    </span>
+    <a href="" ng-click="dialogText()">
+        <img class="action_button" ng-show='item.rw == "true"' ng-src="images/button_keyboard.png"/>
+    </a>
 </div>
