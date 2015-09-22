@@ -1,0 +1,21 @@
+
+@font-face {
+  font-family: 'Source Sans Pro';
+  src: url('SourceSansPro-Regular.eot?#iefix') format('embedded-opentype'),  url('SourceSansPro-Regular.woff') format('woff'), url('SourceSansPro-Regular.ttf')  format('truetype'), url('SourceSansPro-Regular.svg#SourceSansPro-Regular') format('svg');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+    font-family: 'Source Sans Pro';
+    src: url('SourceSansPro-ExtraLight.eot?#iefix') format('embedded-opentype'),  url('SourceSansPro-ExtraLight.woff') format('woff'), url('SourceSansPro-ExtraLight.ttf')  format('truetype'), url('SourceSansPro-ExtraLight.svg#SourceSansPro-ExtraLight') format('svg');
+    font-weight: 200;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Source Sans Pro';
+    src: url('SourceSansPro-Light.eot?#iefix') format('embedded-opentype'),  url('SourceSansPro-Light.woff') format('woff'), url('SourceSansPro-Light.ttf')  format('truetype'), url('SourceSansPro-Light.svg#SourceSansPro-Light') format('svg');
+    font-weight: 300;
+    font-style: normal;
+}

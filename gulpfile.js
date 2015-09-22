@@ -11,7 +11,7 @@ var gulp = require('gulp'),
     concat = require('gulp-concat'),
     opn = require('opn'),
     ngAnnotate = require('gulp-ng-annotate'),
-    jsonminify = require('gulp-jsonminify')
+    jsonminify = require('gulp-jsonminify'),
     del = require('del');
 
 gulp.task('views', function () {
@@ -33,7 +33,7 @@ gulp.task('usemin', function() {
             jsoldie: [uglify()],
             jsvendor: [uglify()],
             inlinejs: [uglify()],
-            inlinecss: [minifyCss(), 'concat'],
+            inlinecss: [minifyCss(), 'concat']
         }))
         .pipe(gulp.dest('dist'));
 });
