@@ -16,7 +16,7 @@
     "gulp-notify": "^2.2.0",
     "gulp-rev": "^6.0.1",
     "gulp-uglify": "^1.2.0",
-    "gulp-usemin": "^0.3.11",
+    "gulp-usemin": "0.3.12",
     "gulp-util": "^3.0.2",
     "imagemin-jpegtran": "^4.3.0",
     "jpegtran-bin": "^3.0.4",
