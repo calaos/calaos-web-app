@@ -11,6 +11,7 @@
     "font-awesome-animation": "~0.0.6",
     "jquery": "~2.1.4",
     "json3": "~3.3.0",
-    "ngDialog": "~0.5.1"
+    "ngDialog": "~0.5.1",
+    "magnific-popup": "~1.0.0"
   }
 }
