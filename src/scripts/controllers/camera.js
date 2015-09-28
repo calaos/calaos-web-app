@@ -35,7 +35,7 @@ angular.module('calaosApp')
 
     if ($stateParams.cameraId < 0 || $stateParams.cameraId >= $scope.cameras.length) {
         console.log('unkown camera ' + $stateParams.cameraId);
-        $state.go('security');
+        $state.go('security.list');
     }
     else {
         $scope.camera = $scope.cameras[$stateParams.cameraId];
