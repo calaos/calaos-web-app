@@ -67,7 +67,7 @@ angular
                 templateUrl: 'views/cameralist.html',
             })
             .state('security.camera', {
-                url: '/{cameraId}',
+                url: '/{cameraId:int}',
                 templateUrl: 'views/camera.html',
             });
     })

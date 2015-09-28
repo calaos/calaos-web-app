@@ -812,3 +812,44 @@ img.io-icon-temp {
 .ngdialog h3 {
     color: black;
 }
+
+div.camera {
+    width: 218px;
+    height: 197px;
+    background-image: url(../images/camera_border.png);
+    background-position: 0px 25px;
+    background-repeat: no-repeat;
+}
+
+.camera h3 {
+    margin-left: 10px;
+}
+
+.camera img {
+    width: 192px;
+    height: 146px;
+    position: relative;
+    left: 14px;
+    top: -5px;
+}
+
+.camera_single {
+    text-align: center;
+}
+
+.camera_single div {
+    margin: 0 auto;
+    width: 694px;
+    height: 534px;
+    background-image: url(../images/camera_big_border.png);
+    background-position: 14px 15px;
+    background-repeat: no-repeat;
+}
+
+.camera_single img {
+    width: 640px;
+    height: 480px;
+    position: relative;
+    left: 6px;
+    top: -5px;
+}

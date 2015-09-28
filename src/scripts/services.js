@@ -12,6 +12,7 @@ angular.module('calaosApp').factory('CalaosApp',
 
     var homeData = {};
     var homeSortedByRow = [];
+    var cameraSortedByRow = [];
 
     //this is the cache for IOs
     //they are used to quickly query for an IO without
@@ -25,6 +26,7 @@ angular.module('calaosApp').factory('CalaosApp',
         isLoading: function() { return loading; },
         getHomeData: function() { return homeData; },
         getSortedHomeByRow: function() { return homeSortedByRow; },
+        getSortedCameraByRow: function() { return cameraSortedByRow; },
 
         send: function(data) {
             if (angular.isString(data)) {
@@ -126,8 +128,51 @@ angular.module('calaosApp').factory('CalaosApp',
                     a = [];
                 }
             }
-            if (a.length > 0)
+            if (a.length > 0) {
                 homeSortedByRow.push(a);
+            }
+
+            cameraSortedByRow = [];
+            var a = [];
+
+            //fill cache
+            for (var i = 0;i < homeData.cameras.length;i++) {
+
+                homeData.cameras[i].cameraId = i;
+
+                //get camera url from dev or real url
+                var camurl = '';
+                if (calaosDevConfig.calaosServerHost !== '') {
+                    var s = calaosDevConfig.calaosServerHost;
+                    if (s.startsWith('ws://')) {
+                        s = s.slice(5, s.length);
+                    }
+                    camurl = "http://" + s.slice(0, s.indexOf('/')) + "/api";
+                }
+                else {
+                    var h = window.location.protocol + '//';
+                    h += window.location.hostname + ':' +
+                         window.location.port + '/api';
+
+                    camurl = h
+                }
+
+                camurl += '?cn_user=' + encodeURIComponent(calaos_user);
+                camurl += '&cn_pass=' + encodeURIComponent(calaos_pass);
+                camurl += '&action=camera';
+                camurl += '&type=get_picture';
+                camurl += '&id=' + encodeURIComponent(homeData.cameras[i].id);
+
+                homeData.cameras[i].cam_src = camurl;
+                a.push(i);
+                if (a.length >= 3) {
+                    cameraSortedByRow.push(a);
+                    a = [];
+                }
+            }
+            if (a.length > 0) {
+                cameraSortedByRow.push(a);
+            }
 
             loading = false;
 

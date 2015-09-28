@@ -1,8 +1,8 @@
-<div class="row-fluid animatedFast fadeIn">
-<div>
-    <div style="text-align: center; margin-bottom: 2em;">
-        <h3 class="">{{cam.name}}</h3>
-        <img ng-src='{{ cam_src }}'/>
+<div class="row-fluid animatedFast fadeIn" ng-controller="CameraSingleCtrl">
+    <div class="camera_single">
+    <div>
+        <h3>{{camera.name}}</h3>
+        <img ng-src='{{ cam_url }}' />
     </div>
-</div>
+    </div>
 </div>
