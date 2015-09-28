@@ -12,6 +12,7 @@ var gulp = require('gulp'),
     opn = require('opn'),
     ngAnnotate = require('gulp-ng-annotate'),
     jsonminify = require('gulp-jsonminify'),
+    file = require('gulp-file'),
     del = require('del');
 
 gulp.task('views', function () {
@@ -46,7 +47,8 @@ gulp.task('images', function () {
 
 gulp.task('fonts', function () {
     return gulp.src([
-        'src/fonts/**/*',
+        'src/fonts/Source_Sans_Pro/fonts/**/*',
+        'src/fonts/Ubuntu/fonts/**/*',
         'src/bower_components/font-awesome/fonts/**/*'])
         .pipe(gulp.dest('dist/fonts'));
 });
@@ -73,8 +75,14 @@ gulp.task('clean', function (cb) {
     del(['dist'], cb);
 });
 
+gulp.task('devjs', function (cb) {
+    //create a correct dev_config.js file for deployment
+    return file('dev_config.js', "var calaosDevConfig = { calaosServerHost: '' };")
+        .pipe(gulp.dest('dist/scripts'));
+});
+
 gulp.task('serve', ['connect', 'watch']);
-gulp.task('build', ['usemin', 'images', 'fonts', 'views']);
+gulp.task('build', ['usemin', 'images', 'fonts', 'views', 'devjs']);
 
 gulp.task('default', ['clean'], function () {
     gulp.start('build');
