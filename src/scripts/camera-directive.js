@@ -1,51 +1,41 @@
 "use strict";
 
-angular.module('calaosApp').directive('magnificPopup',
-    [
-        "$compile",
-        function($compile) {
-            return {
-                restrict: 'A',
-                scope: {},
-                link: function($scope, element, attr) {
-                    attr.callbacks = {
-                        ajaxContentAdded: function() {
-                            var content = this.content;
+angular.module('calaosApp').directive('calaosCamera',
+[ '$timeout', function($timeout) {
 
-                            var scope =  content.scope();
-                            $compile(content)(scope);
-                            scope.$digest();
-                        }
-                    };
+    return {
+        restrict: 'AE',
+        replace: true,
+        template: '<div></div>',
+        link: function($scope, elem, attrs) {
 
-                    attr.closeOnContentClick = true;
+            var canvas = document.createElement('canvas');
+            canvas.width = elem.width();
+            canvas.height = elem.height();
+            elem.append(canvas);
+            var ctx = canvas.getContext('2d');
+            var img = new Image();
+            img.src = attrs.src;
 
-                    attr.type = "inline";
-                    attr.mainClass = 'mfp-fade';
-                    //attr.mainClass = 'mfp-with-zoom';
-                    attr.closeBtnInside = false;
-                    // attr.zoom = {
-                    //     enabled: true, // By default it's false, so don't forget to enable it
-                    //
-                    //     duration: 300, // duration of the effect, in milliseconds
-                    //     easing: 'ease-in-out', // CSS transition easing function
-                    //
-                    //     // The "opener" function should return the element from which popup will be zoomed in
-                    //     // and to which popup will be scaled down
-                    //     // By defailt it looks for an image tag:
-                    //     opener: function(openerElement) {
-                    //         // openerElement is the element on which popup was initialized, in this case its <a> tag
-                    //         // you don't need to add "opener" option if this code matches your needs, it's defailt one.
-                    //         return openerElement.is('img') ? openerElement : openerElement.find('img');
-                    //     }
-                    // };
-                    attr.callbacks.close = function() {
-                        $(element.href).removeClass('mfp-hide');
-                    };
+            var draw = function () {
+                //clear canvas
+                canvas.width = canvas.width;
 
-                    element.magnificPopup(attr);
+                if (img.width * img.height > 0) {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 }
-            }
+            };
+
+            var picLoaded = function (e) {
+                draw();
+                $timeout(function() {
+                    //reload image with random parameter to force cache update
+                    img.src = attrs.src + '&' + new Date().getTime();
+                }, 10);
+            };
+
+            img.onload = picLoaded;
         }
-    ]
-);
+    };
+
+}]);

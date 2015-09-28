@@ -813,11 +813,11 @@ img.io-icon-temp {
     color: black;
 }
 
-div.camera {
+.camera_border {
     width: 218px;
-    height: 197px;
+    height: 172px;
     background-image: url(../images/camera_border.png);
-    background-position: 0px 25px;
+    background-position: 0px 0px;
     background-repeat: no-repeat;
 }
 
@@ -825,31 +825,31 @@ div.camera {
     margin-left: 10px;
 }
 
-.camera img {
-    width: 192px;
-    height: 146px;
+.camera_border div {
+    width: 182px;
+    height: 136px;
     position: relative;
-    left: 14px;
-    top: -5px;
+    left: 18px;
+    top:  18px;
 }
 
 .camera_single {
     text-align: center;
 }
 
-.camera_single div {
+.camera_border_big {
     margin: 0 auto;
-    width: 694px;
-    height: 534px;
+    width: 680px;
+    height: 518px;
     background-image: url(../images/camera_big_border.png);
-    background-position: 14px 15px;
+    background-position: 0px 0px;
     background-repeat: no-repeat;
 }
 
-.camera_single img {
+.camera_border_big div {
     width: 640px;
     height: 480px;
     position: relative;
-    left: 6px;
-    top: -5px;
+    left: 20px;
+    top:  20px;
 }

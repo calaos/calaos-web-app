@@ -1,15 +1,15 @@
 
 <div ng-controller="CameraListCtrl" class="animatedFast" ng-class="{fadeIn: CalaosApp.isAuth()}">
-        <div class="grid" ng-repeat="row in cameraSorted">
-            <div class="col-1-3" ng-repeat="it in row">
-                <div ng-controller="CameraItemCtrl" ng-init="camera_reloader(it)">
-                <a ui-sref="security.camera({cameraId:cameras[it].cameraId})">
-                    <div class="camera">
-                        <h3>{{cameras[it].name}}</h3>
-                        <img ng-src="{{cam_url}}" />
+    <div class="grid" ng-repeat="row in cameraSorted">
+        <div class="col-1-3" ng-repeat="it in row">
+            <a ui-sref="security.camera({cameraId:cameras[it].cameraId})">
+                <div class="camera">
+                    <h3>{{cameras[it].name}}</h3>
+                    <div class="camera_border">
+                        <calaos-camera src='{{ cameras[it].cam_src }}' />
                     </div>
-                </a>
                 </div>
-            </div>
+            </a>
         </div>
+    </div>
 </div>
