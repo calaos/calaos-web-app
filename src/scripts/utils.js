@@ -45,16 +45,16 @@ function getRoomTypeIcon(room) {
     if (room == "diningroom") rname = "room_sam.png";
     if (room == "cave") rname = "room_cave.png";
     if (room == "cellar") rname = "room_cave.png";
-    if (room == "divers") rname = "room_misc.png";
-    if (room == "various") rname = "room_misc.png";
-    if (room == "misc") rname = "room_misc.png";
+    if (room == "divers") rname = "room.png";
+    if (room == "various") rname = "room.png";
+    if (room == "misc") rname = "room.png";
     if (room == "exterieur") rname = "room_exterieur.png";
     if (room == "outside") rname = "room_exterieur.png";
     if (room == "sdb") rname = "room_sdb.png";
     if (room == "bathroom") rname = "room_sdb.png";
-    if (room == "hall") rname = "room_hall.png";
-    if (room == "couloir") rname = "room_hall.png";
-    if (room == "corridor") rname = "room_hall.png";
+    if (room == "hall") rname = "room_corridor.png";
+    if (room == "couloir") rname = "room_corridor.png";
+    if (room == "corridor") rname = "room_corridor.png";
     if (room == "garage") rname = "room_garage.png";
     if (room == "Internal") rname = "room.png";
 
