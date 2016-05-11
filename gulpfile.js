@@ -13,6 +13,7 @@ var gulp = require('gulp'),
     ngAnnotate = require('gulp-ng-annotate'),
     jsonminify = require('gulp-jsonminify'),
     file = require('gulp-file'),
+    debug = require('gulp-debug'),
     del = require('del');
 
 gulp.task('views', function () {
@@ -41,7 +42,8 @@ gulp.task('usemin', function() {
 
 gulp.task('images', function () {
     return gulp.src('src/images/**/*')
-        .pipe(cache(imagemin({ optimizationLevel: 3, progressive: true, interlaced: true })))
+  //      .pipe(cache(imagemin({ optimizationLevel: 3, progressive: true, interlaced: true })))
+        .pipe(debug({title: 'image:'}))
         .pipe(gulp.dest('dist/images'));
 });
 
