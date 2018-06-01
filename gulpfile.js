@@ -1,7 +1,7 @@
 var gulp = require('gulp'),
     gutil = require('gulp-util'),
     usemin = require('gulp-usemin'),
-    uglify = require('gulp-uglify'),
+    uglify = require('gulp-uglify-es').default,
     minifyCss = require('gulp-minify-css'),
     connect = require('gulp-connect'),
     imagemin = require('gulp-imagemin'),
@@ -51,30 +51,31 @@ gulp.task('fonts', function () {
     return gulp.src([
         'src/fonts/Source_Sans_Pro/fonts/**/*',
         'src/fonts/Ubuntu/fonts/**/*',
-        'src/bower_components/font-awesome/fonts/**/*'])
+        'src/bower_components/font-awesome/web-fonts-with-css/webfonts/**/*'])
         .pipe(gulp.dest('dist/fonts'));
 });
 
 gulp.task('reload', function () {
   return gulp.src('src/**/**.*')
+    .pipe(gulp.dest('./src'))
     .pipe(connect.reload());
 });
 
 gulp.task('connect', function (done) {
   connect.server({
     root: 'src',
-    port: 8000,
-    livereload: true
+    port: 8000
+//    livereload: true
   });
-  opn('http://localhost:8000', done);
+//  opn('http://localhost:8000', done);
 });
 
 gulp.task('watch', function () {
-  gulp.watch('src/**/**.*', ['reload']);
+  gulp.watch(['src/**/**.js', 'src/**/**.png', 'src/**/**.html', 'src/**/**.css'], ['reload']);
 });
 
 gulp.task('clean', function (cb) {
-    del(['dist'], cb);
+    del(['dist']).then(cb());
 });
 
 gulp.task('devjs', function (cb) {
@@ -83,7 +84,8 @@ gulp.task('devjs', function (cb) {
         .pipe(gulp.dest('dist/scripts'));
 });
 
-gulp.task('serve', ['connect', 'watch']);
+//gulp.task('serve', ['connect', 'watch']);
+gulp.task('serve', ['connect']);
 gulp.task('build', ['usemin', 'images', 'fonts', 'views', 'devjs']);
 
 gulp.task('default', ['clean'], function () {

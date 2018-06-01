@@ -71,27 +71,23 @@ angular
                 templateUrl: 'views/camera.html',
             });
     })
-    .run(function($rootScope, $location, $timeout, CalaosApp, $state) {
+    .run(function($rootScope, $location, $timeout, CalaosApp, $transitions) {
 
-        $rootScope.$state = $state;
+        //Here we capture state changes (using Transition Hooks https://ui-router.github.io/guide/transitionhooks)
+        //and inspect the wanted state for requireLogin property. If we try to access a page
+        //which the user does not have access to (not login yet), we redirect to login state
 
-        //Here we capture state changes (from defined states in $stateProvider)
-        //and inspect them for requireLogin property. If we try to access a page
-        //wich the user does not have access (not login yet), we redirect to /login
+        const criteriaObj = {
+            to: (state) => !!state.data.requireLogin
+        }
 
-        //subsrcibe to state change events
-        $rootScope.$on('$stateChangeStart', function (event, toState, toParams) {
-
-            var requireLogin = toState.data.requireLogin;
-
-            if (requireLogin && !CalaosApp.isAuth()) {
-
+        $transitions.onStart(criteriaObj, function(transition) {
+            console.log("checking login state");
+            if (!CalaosApp.isAuth()) {
                 console.log("not logged in, redirect");
-
-                //using $state.go('login') here make a digest loop in angular...
-                $location.path('/login');
+                return transition.router.stateService.target('login');
             }
-        });
+        })
     })
     .config(function($sceDelegateProvider) {
         $sceDelegateProvider.resourceUrlWhitelist([

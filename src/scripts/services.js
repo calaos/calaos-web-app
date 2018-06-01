@@ -76,6 +76,7 @@ angular.module('calaosApp').factory('CalaosApp',
             calaos_pass = '';
             homeData = '';
             homeSortedByRow = '';
+            $rootScope.needGoToHome = false;
         },
     };
 
@@ -178,7 +179,11 @@ angular.module('calaosApp').factory('CalaosApp',
 
             //delay a bit the change of page to show login animation
             $timeout(function () {
-                $state.go('home.list');
+                if ($rootScope.isLoading) {
+                    $rootScope.needGoToHome = true;
+                } else {
+                    $state.go('home.list');
+                }
             }, 1500);
 
         }

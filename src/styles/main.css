@@ -12,13 +12,23 @@ html, body {
 
 /* Body background */
 body {
-  background: url('../images/background.png');
   background-color:#000;
   background-attachment:fixed;
   width : 100%;
   height: 100%;
   font-family: Ubuntu, Lucida Sans, Helvetica, sans-serif;
   margin: 0;
+}
+
+div.mainBackground {
+    background-attachment:fixed;
+    background-image: url("../images/background.png");
+    min-height: 100%;
+    min-width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -999;
 }
 
 /* remove selection in firefox */
@@ -852,4 +862,29 @@ img.io-icon-temp {
     position: relative;
     left: 20px;
     top:  20px;
+}
+
+.progressHolder {
+    width: 250px;
+    margin: auto;
+}
+
+.progress {
+  width: 250px;
+  height: 2px;
+  border-radius: 10px;
+}
+
+.progress-wrap {
+  background: #2EB3D0;
+  margin: 20px 0;
+  overflow: hidden;
+  position: relative;
+}
+.progress-wrap .progress-bar {
+  border-radius: 0 0 10px;
+  background: #B9C0C9;
+  left: 0;
+  position: absolute;
+  top: 0;
 }

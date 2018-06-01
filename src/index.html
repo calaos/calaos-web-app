@@ -9,7 +9,7 @@
     <meta name="author" content="Calaos Team">
 
     <!-- build:css styles/vendor.css -->
-    <link rel="stylesheet" href="bower_components/font-awesome/css/font-awesome.css" />
+    <link rel="stylesheet" href="bower_components/font-awesome/web-fonts-with-css/css/fontawesome-all.css" />
     <link rel="stylesheet" href="bower_components/font-awesome-animation/dist/font-awesome-animation.min.css">
     <link rel="stylesheet" href="bower_components/ngDialog/css/ngDialog.min.css">
     <link rel="stylesheet" href="bower_components/ngDialog/css/ngDialog-theme-default.min.css">
@@ -25,6 +25,8 @@
     <!--[if lt IE 7]>
       <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
     <![endif]-->
+
+    <div class="mainBackground"></div>
 
     <nav class="navbar animated" ng-class="{fadeInDown: CalaosApp.isAuth()}">
         <a class="logo" href="#">Calaos Web App</a>
@@ -70,6 +72,7 @@
     <script src="scripts/app.js"></script>
     <script src="scripts/camera-directive.js"></script>
     <script src="scripts/services.js"></script>
+    <script src="scripts/preloader.js"></script>
     <script src="scripts/controllers/main.js"></script>
     <script src="scripts/controllers/login.js"></script>
     <script src="scripts/controllers/home.js"></script>

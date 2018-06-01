@@ -12,4 +12,10 @@
         <i class="fa fa-exclamation-triangle faa-tada animated"></i> No connection to Calaos
     </span>
 
+    <div class="progressHolder" ng-show="isLoading">
+    <div class="progress-wrap progress" data-progress-percent="50">
+      <div class="progress-bar progress" style="left: {{ percentLoaded / 100 * 250 }}px;"></div>
+    </div>
+  </div>
+
 </div>
