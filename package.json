@@ -9,6 +9,7 @@
     "gulp-connect": "^5.5.0",
     "gulp-debug": "^4.0.0",
     "gulp-file": "^0.4.0",
+    "gulp-filelist": "^1.0.2",
     "gulp-imagemin": "^4.1.0",
     "gulp-jsonminify": "^1.1.0",
     "gulp-minify-css": "^1.2.4",

@@ -14,6 +14,8 @@ var gulp = require('gulp'),
     jsonminify = require('gulp-jsonminify'),
     file = require('gulp-file'),
     debug = require('gulp-debug'),
+    grename = require('gulp-rename'),
+    filelist = require('gulp-filelist'),
     del = require('del');
 
 gulp.task('views', function () {
@@ -50,9 +52,14 @@ gulp.task('images', function () {
 gulp.task('fonts', function () {
     return gulp.src([
         'src/fonts/Source_Sans_Pro/fonts/**/*',
-        'src/fonts/Ubuntu/fonts/**/*',
-        'src/bower_components/font-awesome/web-fonts-with-css/webfonts/**/*'])
+        'src/fonts/Ubuntu/fonts/**/*'])
         .pipe(gulp.dest('dist/fonts'));
+});
+
+gulp.task('webfonts', function () {
+    return gulp.src([
+        'src/bower_components/font-awesome/web-fonts-with-css/webfonts/**/*'])
+        .pipe(gulp.dest('dist/webfonts'));
 });
 
 gulp.task('reload', function () {
@@ -84,9 +91,16 @@ gulp.task('devjs', function (cb) {
         .pipe(gulp.dest('dist/scripts'));
 });
 
+gulp.task('piclist', function (cb) {
+    return gulp.src(['src/images/**/*'])
+        .pipe(grename(function (path) { path.dirname = 'images';  }))
+        .pipe(filelist('assets.json', { relative: true }))
+        .pipe(gulp.dest('dist/scripts'));
+});
+
 //gulp.task('serve', ['connect', 'watch']);
 gulp.task('serve', ['connect']);
-gulp.task('build', ['usemin', 'images', 'fonts', 'views', 'devjs']);
+gulp.task('build', ['usemin', 'images', 'fonts', 'webfonts', 'views', 'devjs', 'piclist']);
 
 gulp.task('default', ['clean'], function () {
     gulp.start('build');
