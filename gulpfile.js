@@ -81,8 +81,8 @@ gulp.task('watch', function () {
   gulp.watch(['src/**/**.js', 'src/**/**.png', 'src/**/**.html', 'src/**/**.css'], ['reload']);
 });
 
-gulp.task('clean', function (cb) {
-    del(['dist']).then(cb());
+gulp.task('clean', function () {
+    return del(['dist']);
 });
 
 gulp.task('devjs', function (cb) {
@@ -98,8 +98,15 @@ gulp.task('piclist', function (cb) {
         .pipe(gulp.dest('dist/scripts'));
 });
 
+gulp.task('piclist-dev', function (cb) {
+    return gulp.src(['src/images/**/*'])
+        .pipe(grename(function (path) { path.dirname = 'images';  }))
+        .pipe(filelist('assets.json', { relative: true }))
+        .pipe(gulp.dest('src/scripts'));
+});
+
 //gulp.task('serve', ['connect', 'watch']);
-gulp.task('serve', ['connect']);
+gulp.task('serve', ['piclist-dev', 'connect']);
 gulp.task('build', ['usemin', 'images', 'fonts', 'webfonts', 'views', 'devjs', 'piclist']);
 
 gulp.task('default', ['clean'], function () {

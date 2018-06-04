@@ -5,6 +5,7 @@ angular.module('calaosApp')
 
     $rootScope.isLoading = true;
     $scope.loadPercent = 0;
+    $scope.isBackgroundLoaded = false;
 
     $http.get('scripts/assets.json').then(function(res) {
         $scope.imageLocations = res.data;
@@ -27,6 +28,8 @@ angular.module('calaosApp')
             function handleProgress(event) {
                 $scope.percentLoaded = event.percent;
                 console.log('loading progress: ' + event.percent + '  ' + event.imageLocation);
+                if (event.imageLocation.endsWith('images/background.png'))
+                    $scope.isBackgroundLoaded = true;
             });
     });
 

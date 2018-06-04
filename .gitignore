@@ -3,4 +3,5 @@ node_modules
 .sass-cache
 bower_components
 src/scripts/dev_config.js
+src/scripts/assets.json
 src/bower_components
