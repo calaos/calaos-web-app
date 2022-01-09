@@ -3,7 +3,6 @@ name: Build
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
   build:
@@ -16,4 +15,4 @@ jobs:
           token: ${{ secrets.ACTION_DISPATCH }}
           repository: calaos/calaos-build
           event-type: build_pkg
-          client-payload: '{"pkgname": "calaos-web-app" }'
+          client-payload: '{"pkgname": "calaos-web-app", "commit": "${{ github.sha }}" }'
