@@ -6,7 +6,7 @@
     "gulp": "^3.9.1",
     "gulp-cache": "^1.0.2",
     "gulp-concat": "^2.6.1",
-    "gulp-connect": "^5.5.0",
+    "gulp-connect": "^5.7.0",
     "gulp-debug": "^4.0.0",
     "gulp-file": "^0.4.0",
     "gulp-filelist": "^1.0.2",
