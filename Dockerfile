@@ -1,7 +1,7 @@
-FROM nginx:latest
+FROM joseluisq/static-web-server:2
 
-COPY dist /usr/share/nginx/html
+ENV SERVER_PORT 3000
 
-EXPOSE 80
+COPY dist /public
 
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 3000
