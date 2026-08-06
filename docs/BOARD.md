@@ -34,13 +34,13 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 |---|---|---|---|---|---|
 | [T15](tasks/T15-cameras.md) | Camera polling + views + E2E | ✅ | T09,T08 | opus/high | c1f1b47 |
 | [T16](tasks/T16-audio-protocol.md) | Research calaos_server audio protocol → spec + mock | ✅ | T04 | fable/high | de6f0e4 |
-| [T17](tasks/T17-audio-player.md) | Full audio player (store, views, transport, volume) | 🟨 | T16,T09 | opus/high + frontend-design | |
+| [T17](tasks/T17-audio-player.md) | Full audio player (store, views, transport, volume) | ✅ | T16,T09 | opus/high + frontend-design | 5827065 |
 
 ## M4 — Polish (demo: release candidate)
 
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
-| [T18](tasks/T18-responsive-a11y.md) | Responsive + a11y + visual polish | ⬜ | T14,T17 | opus/high + frontend-design + playwright | |
+| [T18](tasks/T18-responsive-a11y.md) | Responsive + a11y + visual polish | 🟨 | T14,T17 | opus/high + frontend-design + playwright | |
 | [T19](tasks/T19-i18n.md) | i18n completion en+fr | ⬜ | T18 | sonnet/medium | |
 
 ## M5 — Cutover
