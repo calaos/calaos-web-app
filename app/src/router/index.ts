@@ -8,12 +8,14 @@
 // The guard reads the stores lazily (inside the callback), so this module can
 // be imported before `app.use(createPinia())`.
 
-import { defineComponent, h, watch } from 'vue';
+import { watch } from 'vue';
 import { createRouter, createWebHashHistory } from 'vue-router';
 import type { WatchStopHandle } from 'vue';
 import type { Router, RouterHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useHomeStore } from '../stores/home';
+import AudioListView from '../views/AudioListView.vue';
+import AudioPlayerView from '../views/AudioPlayerView.vue';
 import CameraListView from '../views/CameraListView.vue';
 import CameraView from '../views/CameraView.vue';
 import HomeView from '../views/HomeView.vue';
@@ -27,37 +29,6 @@ declare module 'vue-router' {
         /** Detail route: NavBar shows the back button (old `canGoBack()`). */
         detail?: boolean;
     }
-}
-
-/**
- * Scaffolding for the views that land in T07–T18. Each one is a single line
- * to delete: swap the placeholder for the real `views/*.vue` import.
- * The rendered text is a route id, not UI copy — it is never translated
- * because it never ships.
- */
-function placeholderView(routeName: string) {
-    return defineComponent({
-        name: `${routeName}Placeholder`,
-        setup() {
-            // Styled inline rather than in styles/*.css: scaffolding should
-            // leave nothing behind when these lines are deleted.
-            return () =>
-                h(
-                    'div',
-                    {
-                        class: 'route-placeholder',
-                        style: {
-                            display: 'grid',
-                            placeItems: 'center',
-                            minHeight: '100%',
-                            padding: '2rem',
-                            color: 'var(--c-text-muted)',
-                        },
-                    },
-                    routeName,
-                );
-        },
-    });
 }
 
 /**
@@ -96,16 +67,20 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
             {
                 path: '/audio',
                 name: 'audio',
-                component: placeholderView('audio'),
+                component: AudioListView,
                 meta: { requiresAuth: true },
             },
             {
-                // No \d+ constraint, unlike rooms and cameras: the real audio
-                // protocol (T16) may key players by id string, so this param
-                // is opaque and gets no bounds check.
+                // No \d+ constraint, unlike rooms and cameras: T16 confirmed
+                // players ARE keyed by id string (`audio_1`), and T17 routes
+                // by that id rather than by list position — the audio list is
+                // unsorted and a house can gain a player, either of which
+                // would silently repoint a bookmarked index at someone else's
+                // player. The param stays opaque and gets no bounds check;
+                // AudioPlayerView renders nothing when no player matches.
                 path: '/audio/:playerId',
                 name: 'audioPlayer',
-                component: placeholderView('audioPlayer'),
+                component: AudioPlayerView,
                 meta: { requiresAuth: true, detail: true },
             },
             {

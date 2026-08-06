@@ -182,12 +182,46 @@ describe('toRoom', () => {
 describe('toCameraItem / toAudioPlayerItem', () => {
     it('converts id and name', () => {
         expect(toCameraItem({ id: '0', name: 'Entrée' })).toEqual({ id: '0', name: 'Entrée' });
-        expect(toAudioPlayerItem({ id: '3', name: 'Squeezebox' })).toEqual({ id: '3', name: 'Squeezebox' });
+    });
+
+    // buildJsonAudio's full entry: capability flags in the 'true'/'false' wire
+    // spelling, and `avr` present only when the player has a linked receiver.
+    it('converts a player entry, capability flags included', () => {
+        expect(
+            toAudioPlayerItem({
+                id: '3',
+                name: 'Squeezebox',
+                type: 'slim',
+                playlist: 'true',
+                database: 'false',
+                avr: 'avr_1',
+            }),
+        ).toEqual({
+            id: '3',
+            name: 'Squeezebox',
+            type: 'slim',
+            canPlaylist: true,
+            canDatabase: false,
+            avr: 'avr_1',
+        });
+    });
+
+    it('leaves avr empty for a player with no receiver', () => {
+        expect(toAudioPlayerItem({ id: '3', name: 'Salon' }).avr).toBe('');
     });
 
     it.each(GARBAGE.map((g) => [g]))('never throws on garbage input %o', (garbage) => {
         expect(toCameraItem(garbage)).toEqual({ id: '', name: '' });
-        expect(toAudioPlayerItem(garbage)).toEqual({ id: '', name: '' });
+        // Capability flags default to false: only the exact string 'true'
+        // enables anything, exactly as visible/rw behave.
+        expect(toAudioPlayerItem(garbage)).toEqual({
+            id: '',
+            name: '',
+            type: '',
+            canPlaylist: false,
+            canDatabase: false,
+            avr: '',
+        });
     });
 });
 
@@ -199,11 +233,20 @@ describe('toHomeData', () => {
                 { name: 'A', type: 'lounge', hits: '9', items: [] },
             ],
             cameras: [{ id: '0', name: 'Cam' }],
-            audio: [{ id: '1', name: 'Player' }],
+            audio: [{ id: '1', name: 'Player', type: 'slim', playlist: 'true', database: 'true' }],
         });
         expect(home.rooms.map((r) => r.name)).toEqual(['B', 'A']);
         expect(home.cameras).toEqual([{ id: '0', name: 'Cam' }]);
-        expect(home.audio).toEqual([{ id: '1', name: 'Player' }]);
+        expect(home.audio).toEqual([
+            {
+                id: '1',
+                name: 'Player',
+                type: 'slim',
+                canPlaylist: true,
+                canDatabase: true,
+                avr: '',
+            },
+        ]);
     });
 
     it('turns missing home/cameras/audio arrays into []', () => {

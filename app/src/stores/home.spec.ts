@@ -158,7 +158,17 @@ describe('get_home normalization', () => {
             { cameraId: 0, id: 'camera_1', name: 'Entrée' },
             { cameraId: 1, id: 'camera_2', name: 'Jardin' },
         ]);
-        expect(store.audioPlayers).toEqual([{ playerId: 0, id: 'audio_1', name: 'Salon' }]);
+        expect(store.audioPlayers).toEqual([
+            {
+                playerId: 0,
+                id: 'audio_1',
+                name: 'Salon',
+                type: '',
+                canPlaylist: false,
+                canDatabase: false,
+                avr: '',
+            },
+        ]);
         expect(store.cameraCount).toBe(2);
         expect(store.audioPlayerCount).toBe(1);
     });
@@ -224,15 +234,16 @@ describe('handleEvent — io_changed', () => {
 });
 
 describe('handleEvent — dispatch table stubs', () => {
+    // The audio types are NOT in this list any more: T16 found the old TODO's
+    // `audio_status`/`audio_volume`/`audio_songchanged` never existed under
+    // those names upstream, and T17 implemented the real ones — see the
+    // "audio events" suite below.
     it.each([
         'new_io',
         'delete_io',
         'new_room',
         'modify_room',
         'delete_room',
-        'audio_status',
-        'audio_volume',
-        'audio_songchanged',
     ])('stubs the documented event type %s', (typeStr) => {
         const store = useHomeStore();
         store.setHome(homeFixture());
@@ -259,6 +270,100 @@ describe('handleEvent — dispatch table stubs', () => {
             'calaos home: event "quantum_flux" not implemented yet',
             undefined,
         );
+    });
+});
+
+describe('handleEvent — audio events', () => {
+    // T16 corrected all three names off EventManager.h; the old app's TODO
+    // spelled them audio_status / audio_volume / audio songchanged, which
+    // never existed in any released calaos_base source.
+    const AUDIO_EVENTS = ['audio_status_changed', 'audio_volume_changed', 'audio_song_changed'];
+
+    it.each(AUDIO_EVENTS)('forwards %s to the attached audio handler, untouched', (typeStr) => {
+        const store = useHomeStore();
+        const handler = vi.fn();
+        store.attachAudioEvents(handler);
+
+        store.handleEvent({
+            kind: 'unknown_event',
+            typeStr,
+            data: { player_id: 'audio_1', state: 'play' },
+        });
+
+        expect(handler).toHaveBeenCalledWith(typeStr, { player_id: 'audio_1', state: 'play' });
+    });
+
+    it.each(AUDIO_EVENTS)('says so rather than throwing when %s arrives unattached', (typeStr) => {
+        const store = useHomeStore();
+
+        expect(() =>
+            store.handleEvent({ kind: 'unknown_event', typeStr, data: { player_id: 'audio_1' } }),
+        ).not.toThrow();
+        expect(console.debug).toHaveBeenCalledWith(
+            `calaos home: audio event "${typeStr}" with no audio store attached`,
+            { player_id: 'audio_1' },
+        );
+    });
+
+    it('routes a handler attached after the fact', () => {
+        const store = useHomeStore();
+        const handler = vi.fn();
+
+        store.handleEvent({ kind: 'unknown_event', typeStr: 'audio_song_changed', data: {} });
+        store.attachAudioEvents(handler);
+        store.handleEvent({ kind: 'unknown_event', typeStr: 'audio_song_changed', data: {} });
+
+        expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    // A player emits io_changed too — the raw command echo and the on<state>
+    // mirrors. They are ordinary io_changed frames and must stay that way:
+    // forwarding them as well would apply every change twice.
+    it.each([['volume set 55'], ['onplay'], ['onpause'], ['onsongchange']])(
+        'does not forward a player io_changed carrying state %o',
+        (state) => {
+            const store = useHomeStore();
+            const handler = vi.fn();
+            store.attachAudioEvents(handler);
+
+            expect(() =>
+                store.handleEvent({ kind: 'io_changed', id: 'audio_1', state }),
+            ).not.toThrow();
+            expect(handler).not.toHaveBeenCalled();
+        },
+    );
+
+    // A player configured inside a room IS serialised into that room's items
+    // (buildJsonRoomIO filters nothing), with visible:"false" so nothing
+    // renders it. Its echoes land on it like any other io state.
+    it('patches a player that happens to sit in a room, without complaint', () => {
+        const store = useHomeStore();
+        store.setHome(
+            toHomeData({
+                home: [
+                    {
+                        name: 'Salon',
+                        hits: '1',
+                        items: [
+                            {
+                                id: 'audio_1',
+                                name: 'Salon',
+                                gui_type: 'audio_player',
+                                visible: 'false',
+                                state: '',
+                            },
+                        ],
+                    },
+                ],
+                cameras: [],
+                audio: [],
+            }),
+        );
+
+        store.handleEvent({ kind: 'io_changed', id: 'audio_1', state: 'onplay' });
+        expect(store.getIo('audio_1')?.state).toBe('onplay');
+        // gui_type audio_player is not one of the 14 the room grid renders.
+        expect(store.getIo('audio_1')?.guiType).toBe('unknown');
     });
 });
 

@@ -21,7 +21,7 @@
 // last one is not a gap — it is how the pending indicator's other end (the
 // 5 s timeout) is reachable at all.
 
-import { MESSAGES, expect, loginAs, test } from './fixtures';
+import { MESSAGES, SIGN_IN_FRAMES, expect, loginAs, test } from './fixtures';
 import type { LoggedFrame, MockControl } from './fixtures';
 import type { Locator, Page } from '@playwright/test';
 
@@ -382,7 +382,9 @@ test('a push from the server repaints the room with nobody touching it', async (
 
     // No re-fetch of the house and no answering frame: the event patched the
     // two IOs in place, which is the whole point of the normalized store.
-    expect(await mock.frameKinds()).toEqual(['login', 'get_home']);
+    // (The audio follow-up of the sign-in is the only other traffic — see
+    // SIGN_IN_FRAMES.)
+    await expect.poll(async () => await mock.frameKinds()).toEqual(SIGN_IN_FRAMES);
 });
 
 test('an IO the server marked invisible has no row to press', async ({ page, mock }) => {

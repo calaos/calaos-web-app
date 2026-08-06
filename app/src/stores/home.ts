@@ -79,16 +79,31 @@ const notImplemented: EventHandler = (typeStr, data) => {
     console.debug(`calaos home: event "${typeStr}" not implemented yet`, data);
 };
 
-const EVENT_HANDLERS: Record<string, EventHandler> = {
+const NOT_IMPLEMENTED_EVENTS: Record<string, EventHandler> = {
     new_io: notImplemented,
     delete_io: notImplemented,
     new_room: notImplemented,
     modify_room: notImplemented,
     delete_room: notImplemented,
-    audio_status: notImplemented,
-    audio_volume: notImplemented,
-    audio_songchanged: notImplemented,
 };
+
+/**
+ * The three audio event types, spelled the way calaos_server actually spells
+ * them (docs/audio-protocol.md "Events"). The old app's TODO listed
+ * `audio_status` / `audio_volume` / `audio songchanged`, which never existed
+ * under those names in any released source — T16 read them off
+ * `EventManager.h` and corrected all three.
+ *
+ * They are forwarded, not handled: the state they describe lives in
+ * stores/audio.ts (see its header for why it is a store of its own), and the
+ * handler is injected rather than imported so the two store modules stay free
+ * of cross-imports — the same arrangement `attachTransport` uses for the socket.
+ */
+export const AUDIO_EVENT_TYPES = [
+    'audio_status_changed',
+    'audio_volume_changed',
+    'audio_song_changed',
+] as const;
 
 export const useHomeStore = defineStore('home', () => {
     const rooms = ref<RoomVM[]>([]);
@@ -107,6 +122,16 @@ export const useHomeStore = defineStore('home', () => {
         console.warn('calaos home: no transport attached, dropping frame:', frame);
         return false;
     };
+    let audioEvents: EventHandler = (typeStr, data) => {
+        console.debug(`calaos home: audio event "${typeStr}" with no audio store attached`, data);
+    };
+
+    const eventHandlers: Record<string, EventHandler> = { ...NOT_IMPLEMENTED_EVENTS };
+    for (const typeStr of AUDIO_EVENT_TYPES) {
+        // Read through the slot at call time, not at build time, so attaching
+        // the audio store later still routes every entry.
+        eventHandlers[typeStr] = (type, data) => audioEvents(type, data);
+    }
 
     const roomCount = computed(() => rooms.value.length);
     const cameraCount = computed(() => cameras.value.length);
@@ -115,6 +140,11 @@ export const useHomeStore = defineStore('home', () => {
     /** Called once by services/calaos.ts with the socket's send(). */
     function attachTransport(sender: FrameSender): void {
         send = sender;
+    }
+
+    /** Called once by services/calaos.ts with the audio store's event handler. */
+    function attachAudioEvents(handler: EventHandler): void {
+        audioEvents = handler;
     }
 
     function getIo(id: string): IoItem | undefined {
@@ -165,6 +195,19 @@ export const useHomeStore = defineStore('home', () => {
     // events
     // -----------------------------------------------------------------------
 
+    /**
+     * Audio players emit `io_changed` too — the raw command echo
+     * (`state:"volume set 55"`) and the `onplay`/`onpause`/`onsongchange`
+     * mirrors of their internal status (docs/audio-protocol.md "Events").
+     * They land here like any other io_changed and are handled the ordinary
+     * way: patch the io if the house happens to contain it (a player
+     * configured inside a room is serialised into that room's items with
+     * `visible:"false"`, so it is never rendered), log and move on if not.
+     *
+     * They are deliberately NOT forwarded to the audio store: the same change
+     * always arrives there as a typed `audio_*` event, and acting on both
+     * would apply it twice.
+     */
     function applyIoChanged(msg: IoChangedMessage): void {
         // The answer landed (or the IO changed for another reason) — either
         // way the indicator has served its purpose.
@@ -189,7 +232,7 @@ export const useHomeStore = defineStore('home', () => {
             applyIoChanged(msg);
             return;
         }
-        const handler = EVENT_HANDLERS[msg.typeStr] ?? notImplemented;
+        const handler = eventHandlers[msg.typeStr] ?? notImplemented;
         handler(msg.typeStr, msg.data);
     }
 
@@ -262,6 +305,7 @@ export const useHomeStore = defineStore('home', () => {
         cameraCount,
         audioPlayerCount,
         attachTransport,
+        attachAudioEvents,
         getIo,
         getRoom,
         isPending,

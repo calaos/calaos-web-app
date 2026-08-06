@@ -20,6 +20,30 @@
     "room": {
         "empty": "This room has nothing to control."
     },
+    "audio": {
+        "label": "Audio",
+        "cover": "Album art for {name}",
+        "noCover": "No album art",
+        "nothingPlaying": "Nothing playing",
+        "status": {
+            "playing": "Playing",
+            "pause": "Paused",
+            "stop": "Stopped",
+            "error": "Player error",
+            "song_change": "Changing track",
+            "unknown": ""
+        },
+        "play": "Play {name}",
+        "pause": "Pause {name}",
+        "stop": "Stop {name}",
+        "next": "Next track on {name}",
+        "previous": "Previous track on {name}",
+        "position": "Position in {name}",
+        "volume": "Volume for {name}",
+        "percent": "{value}%",
+        "empty": "No players yet",
+        "emptyHint": "This account has no audio player configured on the server."
+    },
     "camera": {
         "label": "Camera",
         "live": "Live",

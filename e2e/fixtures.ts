@@ -33,11 +33,36 @@ export type ScenarioName = 'login_fail_once' | 'silent_login' | 'reject_all_logi
 /** Every `/control` POST body, exhaustively. */
 export type ControlOp =
     | { op: 'push_io'; id: string; state: string }
+    | {
+          op: 'push_audio';
+          id: string;
+          /** EVENT vocabulary ('play'|'pause'|'stop'), not get_state's 'playing'. */
+          status?: string;
+          volume?: number;
+          /** A current_track object — whatever keys the medium would carry. */
+          track?: Record<string, string>;
+      }
     | { op: 'drop' }
     | { op: 'scenario'; name: ScenarioName }
     | { op: 'latency'; ms: number }
     | { op: 'log' }
     | { op: 'reset' };
+
+/**
+ * Every frame a cold sign-in produces against the fixture house, in order.
+ *
+ * `login` and `get_home` are the whole conversation the app had until T17.
+ * The three that follow are the audio section's: a player's status, volume,
+ * track and position are deliberately NOT in get_home (docs/audio-protocol.md),
+ * so the service asks for all of them in one batched `get_state`, and then one
+ * `get_cover_url` per player once their tracks are known. The fixture house
+ * has two players, hence two `audio` frames.
+ *
+ * Specs assert this with `expect.poll`: the cover queries are sent from the
+ * get_state ANSWER, one round trip after the house lands, so a spec that
+ * reads the log the instant it arrives on /#/home would race them.
+ */
+export const SIGN_IN_FRAMES = ['login', 'get_home', 'get_state', 'audio', 'audio'];
 
 /** One frame the mock received, as recorded by `{op:'log'}`. */
 export interface LoggedFrame {
@@ -79,6 +104,15 @@ export interface MockControl {
     loginFrames(): Promise<LoggedFrame[]>;
     /** Forces an IO state server-side and broadcasts `io_changed`. */
     pushIo(id: string, state: string): Promise<{ known: boolean }>;
+    /**
+     * Forces an audio player's state server-side and broadcasts the matching
+     * `audio_*` events — the only way to make something happen to a player
+     * that the app did not ask for (someone pressing play on the amp itself).
+     */
+    pushAudio(
+        id: string,
+        changes: { status?: string; volume?: number; track?: Record<string, string> },
+    ): Promise<{ known: boolean }>;
     /** Arms a login scenario; `'reset'` is the off switch. */
     scenario(name: ScenarioName): Promise<void>;
     /** Delays every outgoing WS frame (and camera snapshot) by `ms`. */
@@ -142,6 +176,10 @@ export function createMockControl(
 
         async pushIo(id, state) {
             return await send<{ known: boolean }>({ op: 'push_io', id, state });
+        },
+
+        async pushAudio(id, changes) {
+            return await send<{ known: boolean }>({ op: 'push_audio', id, ...changes });
         },
 
         async scenario(name) {

@@ -24,6 +24,7 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { encodeLogin } from '../protocol/messages';
+import { useAudioStore } from './audio';
 import { useHomeStore } from './home';
 
 export type AuthState = 'idle' | 'pending' | 'authed' | 'failed';
@@ -155,6 +156,10 @@ export const useAuthStore = defineStore('auth', () => {
      */
     function signOut(): void {
         useHomeStore().clear();
+        // Same reason the home store is emptied: what one account was
+        // listening to is not the next account's business, and a cover reply
+        // still in flight must not attach artwork to a new session's player.
+        useAudioStore().clear();
         user.value = '';
         pass.value = '';
         state.value = 'idle';

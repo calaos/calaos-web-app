@@ -83,11 +83,18 @@ export function toCameraItem(raw: unknown): CameraItem {
     };
 }
 
+// get_home's audio entry. `playlist`/`database` are capability flags in the
+// same 'true'/'false' wire spelling as visible/rw, so they convert once here;
+// `avr` is absent for every player without a linked receiver, hence ''.
 export function toAudioPlayerItem(raw: unknown): AudioPlayerItem {
     const obj = isRecord(raw) ? raw : {};
     return {
         id: toWireString(obj.id),
         name: toWireString(obj.name),
+        type: toWireString(obj.type),
+        canPlaylist: wireBool(obj.playlist),
+        canDatabase: wireBool(obj.database),
+        avr: toWireString(obj.avr),
     };
 }
 

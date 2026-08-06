@@ -37,6 +37,10 @@ export interface WireCamera {
 export interface WireAudioPlayer {
     id?: string;
     name?: string;
+    type?: string;
+    playlist?: string;
+    database?: string;
+    avr?: string;
 }
 
 export interface WireHome {
@@ -136,11 +140,68 @@ export interface CameraItem {
     name: string;
 }
 
-// Minimal for now — the real audio protocol is researched in T16 and this
-// type grows there (status, volume, current_track, ...).
+/**
+ * One entry of `get_home.audio` — basic info ONLY (docs/audio-protocol.md
+ * "get_home: the `audio` array", JsonApi::buildJsonAudio).
+ *
+ * There is deliberately no status, volume, position or current_track here:
+ * upstream keeps them out of get_home so the house does not wait on round
+ * trips to the media server. Runtime detail arrives separately as
+ * `AudioPlayerState` (get_state), which is why the audio store exists.
+ */
 export interface AudioPlayerItem {
     id: string;
     name: string;
+    /** Backend io type — `slim` (Squeezebox), `Roon`, or something newer. */
+    type: string;
+    /** `canPlaylist()`. */
+    canPlaylist: boolean;
+    /** `canDatabase()` — false means the music-library browser is unavailable. */
+    canDatabase: boolean;
+    /** Linked AV receiver io id; '' when the player has no `amp` param. */
+    avr: string;
+}
+
+/**
+ * Normalized player status. calaos speaks two vocabularies for one concept —
+ * get_state answers `playing`, `audio_status_changed` answers `play` — and
+ * protocol/audio.ts `normalizeAudioStatus` is the single place that bridges
+ * them. `unknown` is both "the server said something new" and "detail has not
+ * landed yet"; the views show no status rather than guessing.
+ */
+export type AudioStatus = 'playing' | 'pause' | 'stop' | 'error' | 'song_change' | 'unknown';
+
+/**
+ * The four `current_track` keys every backend agrees on. Anything beyond them
+ * (LMS's id/genre/bitrate/type/coverart) is media-dependent and unverified
+ * against a real library, so it is not typed and not read.
+ */
+export interface AudioTrack {
+    title: string;
+    artist: string;
+    album: string;
+    /** Seconds; 0 when absent or unbounded (radio streams send `"0"`). */
+    duration: number;
+}
+
+/** One player's `get_state` expansion (docs/audio-protocol.md "get_state"). */
+export interface AudioPlayerState {
+    status: AudioStatus;
+    /** 0-100; 0 when the server sent no `volume`. */
+    volume: number;
+    playlistSize: number;
+    playlistCurrentTrack: number;
+    /**
+     * Seconds, as read at `anchoredAt`. NOT the current position — there is
+     * no position event and no seek, so the app advances this locally
+     * (protocol/audio.ts `elapsedAt`).
+     */
+    timeElapsed: number;
+    /** Date.now() at which `timeElapsed` was last set from the server. */
+    anchoredAt: number;
+    track: AudioTrack;
+    /** False until a get_state for this player has landed. */
+    known: boolean;
 }
 
 export interface HomeData {
@@ -164,6 +225,42 @@ export interface GetHomeMessage {
     home: HomeData;
 }
 
+/**
+ * A `get_state` answer. The wire `data` is one flat map mixing both kinds of
+ * entry — a plain IO maps to its state string, an id whose IO is an
+ * `audio_player` maps to a detail object (JsonApi::buildJsonState) — so the
+ * decoder splits them by shape and hands over two maps.
+ *
+ * `msgId` is '' unless the request carried one; the app does not need it,
+ * because every entry names the io it belongs to.
+ */
+export interface GetStateMessage {
+    kind: 'get_state';
+    msgId: string;
+    /** id → raw state string, for non-player ios. */
+    ios: Record<string, string>;
+    /** id → detail, for audio players. */
+    players: Record<string, AudioPlayerState>;
+}
+
+/**
+ * An `{msg:"audio"}` query answer.
+ *
+ * The reply carries NO player id — `{"msg":"audio","data":{"cover":"…"}}` is
+ * all there is — so the echoed `msgId` is the only thing that says which
+ * request it answers. That is why every audio query the app sends carries one.
+ */
+export interface AudioQueryMessage {
+    kind: 'audio_query';
+    msgId: string;
+    /** Upstream's error string, typos included ('unkown player_id'); '' on success. */
+    error: string;
+    /** `get_cover_url`: absolute URL, or '' when the backend has no artwork. */
+    cover: string;
+    /** `get_time`: seconds, or null when the reply carried no `time_elapsed`. */
+    timeElapsed: number | null;
+}
+
 export interface IoChangedMessage {
     kind: 'io_changed';
     id: string;
@@ -173,9 +270,11 @@ export interface IoChangedMessage {
     name?: string;
 }
 
-// Well-formed event frame whose type_str the app does not implement yet
-// (new_io, delete_io, modify_room, new_room, delete_room, audio_*...). The
-// home store's dispatch table logs/stubs these.
+// Any well-formed `event` frame that is not an io_changed — the ones the app
+// implements (audio_status_changed, audio_volume_changed, audio_song_changed)
+// as well as the ones it does not (new_io, delete_io, modify_room…). The name
+// is historical: the home store's dispatch table decides which is which, so
+// the decoder does not have to grow a case per event type.
 export interface UnknownEventMessage {
     kind: 'unknown_event';
     typeStr: string;
@@ -191,6 +290,8 @@ export interface UnknownMessage {
 export type ServerMessage =
     | LoginResultMessage
     | GetHomeMessage
+    | GetStateMessage
+    | AudioQueryMessage
     | IoChangedMessage
     | UnknownEventMessage
     | UnknownMessage;

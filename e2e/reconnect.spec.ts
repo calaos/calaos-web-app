@@ -10,6 +10,7 @@
 import {
     CREDENTIALS,
     HOME_URL,
+    SIGN_IN_FRAMES,
     appChrome,
     connectionBanner,
     expect,
@@ -37,7 +38,7 @@ test('a dropped socket banners, reconnects, re-logs in, and keeps the session', 
 
     const banner = connectionBanner(page);
     await expect(banner).toBeHidden();
-    expect(await mock.frameKinds()).toEqual(['login', 'get_home']);
+    await expect.poll(async () => await mock.frameKinds()).toEqual(SIGN_IN_FRAMES);
 
     // --- the outage ------------------------------------------------------
     //
@@ -76,8 +77,11 @@ test('a dropped socket banners, reconnects, re-logs in, and keeps the session', 
     await expect(appChrome(page).footerNav).toBeVisible();
 
     // The app re-authenticated itself and re-fetched the house, with no help
-    // from the user and no second form.
-    expect(await mock.frameKinds()).toEqual(['login', 'get_home', 'login', 'get_home']);
+    // from the user and no second form — and re-read the audio players with
+    // it, because a player can have changed song while the socket was down.
+    await expect
+        .poll(async () => await mock.frameKinds())
+        .toEqual([...SIGN_IN_FRAMES, ...SIGN_IN_FRAMES]);
 
     const logins = await mock.loginFrames();
     expect(logins).toHaveLength(2);

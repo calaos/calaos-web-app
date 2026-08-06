@@ -19,6 +19,7 @@
 import { CalaosSocket } from '../protocol/socket';
 import { wsUrl } from '../protocol/server-url';
 import { encodeGetHome } from '../protocol/messages';
+import { useAudioStore } from '../stores/audio';
 import { useAuthStore } from '../stores/auth';
 import { useConnectionStore } from '../stores/connection';
 import { useHomeStore } from '../stores/home';
@@ -50,10 +51,17 @@ export function createCalaosService(
     const connection = useConnectionStore();
     const auth = useAuthStore();
     const home = useHomeStore();
+    const audio = useAudioStore();
 
     const sendFrame = (frame: string): boolean => socket.send(frame);
     auth.attachTransport(sendFrame);
     home.attachTransport(sendFrame);
+    audio.attachTransport(sendFrame);
+    // The home store owns the event dispatch table; the audio state it would
+    // otherwise have to carry lives in its own store, so the three audio
+    // event types are routed across here rather than by a store-to-store
+    // import (see stores/home.ts AUDIO_EVENT_TYPES).
+    home.attachAudioEvents(audio.handleAudioEvent);
 
     const onStatusChange = (info: SocketStatusInfo): void => {
         connection.applyStatus(info);
@@ -77,10 +85,28 @@ export function createCalaosService(
 
             case 'get_home':
                 home.setHome(msg.home);
+                // The audio section's detail is NOT in this frame: upstream
+                // keeps status/volume/track out of get_home so the house is
+                // not delayed by round trips to the media server
+                // (docs/audio-protocol.md). It takes a get_state to learn any
+                // of it — ONE frame for every player, issued here rather than
+                // from the list view so the section is already warm when the
+                // Audio tab is first pressed, and re-issued after every
+                // reconnect because get_home is what a reconnect replays.
+                audio.clear();
+                audio.requestDetails(msg.home.audio.map((player) => player.id));
                 // Raises the 'home' navigation intent for interactive
                 // sign-ins only — and with no artificial delay (the old app
                 // waited 1.5 s here to let the login animation play).
                 auth.notifyHomeLoaded();
+                break;
+
+            case 'get_state':
+                audio.applyGetState(msg);
+                break;
+
+            case 'audio_query':
+                audio.applyAudioQuery(msg);
                 break;
 
             case 'io_changed':

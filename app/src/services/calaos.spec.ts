@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { createCalaosService, getCalaosService, resetCalaosService } from './calaos';
 import { CalaosSocket } from '../protocol/socket';
+import { useAudioStore } from '../stores/audio';
 import { useAuthStore } from '../stores/auth';
 import { useConnectionStore } from '../stores/connection';
 import { useHomeStore } from '../stores/home';
@@ -381,4 +382,154 @@ describe('lifecycle', () => {
         resetCalaosService();
         expect(getCalaosService()).not.toBe(first);
     });
+});
+
+// ---------------------------------------------------------------------------
+// audio (docs/audio-protocol.md)
+// ---------------------------------------------------------------------------
+
+/** A house with two players, so the batching is visible in the frame log. */
+const HOME_WITH_AUDIO = JSON.stringify({
+    msg: 'get_home',
+    data: {
+        home: [],
+        cameras: [],
+        audio: [
+            { id: 'audio_1', name: 'Salon', type: 'slim', playlist: 'true', database: 'true' },
+            { id: 'audio_2', name: 'Cuisine', type: 'Roon', playlist: 'true', database: 'false' },
+        ],
+    },
+});
+
+function signInAndLoadAudio(): void {
+    useAuthStore().signIn('demo', 'demo');
+    FakeWebSocket.last.fireMessage(LOGIN_OK);
+    FakeWebSocket.last.fireMessage(HOME_WITH_AUDIO);
+}
+
+describe('audio detail follow-up', () => {
+    // get_home carries no status/volume/track for a player — upstream keeps
+    // them out so the house is not delayed by the media server. Learning any
+    // of it takes a get_state, and this is where it is issued.
+    it('asks for every player in ONE get_state right after the house lands', () => {
+        startAndOpen();
+        signInAndLoadAudio();
+
+        expect(sent()).toEqual([
+            LOGIN_FRAME,
+            GET_HOME_FRAME,
+            '{"msg":"get_state","data":{"items":["audio_1","audio_2"]}}',
+        ]);
+    });
+
+    it('asks for nothing when the house has no player at all', () => {
+        startAndOpen();
+        signInAndLoad();
+
+        expect(sent().filter((frame) => frame.includes('get_state'))).toEqual([]);
+    });
+
+    it('files the answer under the players it names', () => {
+        startAndOpen();
+        signInAndLoadAudio();
+
+        FakeWebSocket.last.fireMessage(
+            JSON.stringify({
+                msg: 'get_state',
+                data: {
+                    audio_1: {
+                        status: 'playing',
+                        volume: '35',
+                        current_track: { title: 'Sunrise' },
+                    },
+                },
+            }),
+        );
+
+        const audio = useAudioStore();
+        expect(audio.stateFor('audio_1').status).toBe('playing');
+        expect(audio.stateFor('audio_1').volume).toBe(35);
+        expect(audio.stateFor('audio_1').track.title).toBe('Sunrise');
+    });
+
+    it('files a cover answer against the request it echoes', () => {
+        startAndOpen();
+        signInAndLoadAudio();
+        FakeWebSocket.last.fireMessage(
+            JSON.stringify({
+                msg: 'get_state',
+                data: { audio_1: { status: 'playing', current_track: { title: 'Sunrise' } } },
+            }),
+        );
+
+        const query = sent().find((frame) => frame.includes('get_cover_url'));
+        expect(query).toBeDefined();
+        const msgId = String(JSON.parse(query as string).msg_id);
+
+        FakeWebSocket.last.fireMessage(
+            JSON.stringify({ msg: 'audio', msg_id: msgId, data: { cover: 'http://lms/17.jpg' } }),
+        );
+        expect(useAudioStore().coverUrlFor('audio_1')).toBe('http://lms/17.jpg');
+    });
+
+    // A reconnect replays get_home, and the audio detail has to be replayed
+    // with it — the player may have changed song while the socket was down.
+    it('re-reads the players after a reconnect, from a clean slate', () => {
+        startAndOpen();
+        signInAndLoadAudio();
+        FakeWebSocket.last.fireMessage(
+            JSON.stringify({ msg: 'get_state', data: { audio_1: { status: 'playing' } } }),
+        );
+        expect(useAudioStore().stateFor('audio_1').status).toBe('playing');
+
+        FakeWebSocket.last.fireClose();
+        vi.advanceTimersByTime(1000);
+        FakeWebSocket.last.fireOpen();
+        FakeWebSocket.last.fireMessage(LOGIN_OK);
+        FakeWebSocket.last.fireMessage(HOME_WITH_AUDIO);
+
+        // Stale detail is dropped, not carried across the gap.
+        expect(useAudioStore().stateFor('audio_1').known).toBe(false);
+        expect(sent()).toContain('{"msg":"get_state","data":{"items":["audio_1","audio_2"]}}');
+    });
+});
+
+describe('audio events reach the audio store', () => {
+    function fireEvent(typeStr: string, data: Record<string, string>): void {
+        FakeWebSocket.last.fireMessage(
+            JSON.stringify({ msg: 'event', data: { type_str: typeStr, data } }),
+        );
+    }
+
+    it('routes a status event through the home store dispatch table', () => {
+        startAndOpen();
+        signInAndLoadAudio();
+
+        fireEvent('audio_status_changed', { player_id: 'audio_1', state: 'play' });
+        expect(useAudioStore().stateFor('audio_1').status).toBe('playing');
+    });
+
+    it('routes a volume event', () => {
+        startAndOpen();
+        signInAndLoadAudio();
+
+        fireEvent('audio_volume_changed', { player_id: 'audio_2', volume: '70' });
+        expect(useAudioStore().stateFor('audio_2').volume).toBe(70);
+    });
+
+    // A player's own io_changed frames — the raw command echo and the
+    // on<state> mirrors — must be tolerated, not applied twice.
+    it.each([['volume set 55'], ['onplay'], ['onsongchange']])(
+        'tolerates a player io_changed carrying state %o',
+        (state) => {
+            startAndOpen();
+            signInAndLoadAudio();
+
+            expect(() => fireEvent('io_changed', { id: 'audio_1', state })).not.toThrow();
+            // Not applied by the audio store: the typed audio_* event is the
+            // one source of that change.
+            expect(useAudioStore().stateFor('audio_1').known).toBe(false);
+            expect(useAudioStore().stateFor('audio_1').volume).toBe(0);
+        },
+    );
 });

@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { decodeServerMessage, encodeGetHome, encodeLogin, encodeSetState } from './messages';
+import {
+    decodeServerMessage,
+    encodeAudioQuery,
+    encodeGetHome,
+    encodeGetState,
+    encodeLogin,
+    encodeSetState,
+} from './messages';
 import { setColor, setPercent, setText } from './io-states';
+import { AUDIO_PREVIOUS, volumeSet } from './audio';
 
 beforeEach(() => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -239,4 +247,187 @@ describe('decodeServerMessage — malformed frames never throw', () => {
             success: true,
         });
     });
+});
+
+// ---------------------------------------------------------------------------
+// audio (docs/audio-protocol.md)
+// ---------------------------------------------------------------------------
+
+describe('encodeGetState', () => {
+    it('asks about a whole batch in ONE frame', () => {
+        expect(encodeGetState(['audio_1', 'audio_2'])).toBe(
+            '{"msg":"get_state","data":{"items":["audio_1","audio_2"]}}',
+        );
+    });
+
+    // No msg_id: the answer is a map keyed by io id, so every entry already
+    // says what it answers.
+    it('carries no msg_id', () => {
+        expect(encodeGetState(['audio_1'])).not.toContain('msg_id');
+    });
+});
+
+describe('encodeAudioQuery', () => {
+    // The msg_id is load-bearing here, not politeness: an `audio` reply has no
+    // player id in it, so the echo is the only link back to the request.
+    it('carries the correlating msg_id and the action/id pair', () => {
+        expect(encodeAudioQuery('get_cover_url', 'audio_1', 'cover-7')).toBe(
+            '{"msg":"audio","msg_id":"cover-7","data":{"audio_action":"get_cover_url","id":"audio_1"}}',
+        );
+    });
+
+    it('builds a get_time query the same way', () => {
+        expect(encodeAudioQuery('get_time', 'audio_2', 't-1')).toBe(
+            '{"msg":"audio","msg_id":"t-1","data":{"audio_action":"get_time","id":"audio_2"}}',
+        );
+    });
+});
+
+describe('encodeSetState — audio commands ride the ordinary set_state', () => {
+    it('sends a transport verb as a plain value', () => {
+        expect(encodeSetState('audio_1', AUDIO_PREVIOUS)).toBe(
+            '{"msg":"set_state","data":{"id":"audio_1","value":"previous"}}',
+        );
+    });
+
+    it('sends volume as one string, not as a structured field', () => {
+        expect(encodeSetState('audio_1', volumeSet(55))).toBe(
+            '{"msg":"set_state","data":{"id":"audio_1","value":"volume set 55"}}',
+        );
+    });
+});
+
+describe('decodeServerMessage — get_state', () => {
+    it('splits the flat map into plain ios and expanded players', () => {
+        const msg = decodeServerMessage({
+            msg: 'get_state',
+            msg_id: '1',
+            data: {
+                output_1: 'true',
+                audio_1: {
+                    playlist_current_track: '1',
+                    volume: '35',
+                    playlist_size: '3',
+                    time_elapsed: '42.5',
+                    status: 'playing',
+                    current_track: { title: 'T', artist: 'A', album: 'B', duration: '187.2' },
+                },
+            },
+        });
+
+        expect(msg.kind).toBe('get_state');
+        if (msg.kind !== 'get_state') return;
+        expect(msg.msgId).toBe('1');
+        // Split by SHAPE: the frame carries no marker saying which is which.
+        expect(msg.ios).toEqual({ output_1: 'true' });
+        expect(Object.keys(msg.players)).toEqual(['audio_1']);
+        expect(msg.players.audio_1.status).toBe('playing');
+        expect(msg.players.audio_1.volume).toBe(35);
+        expect(msg.players.audio_1.track.title).toBe('T');
+    });
+
+    it('anchors every player in the batch to one clock reading', () => {
+        const msg = decodeServerMessage({
+            msg: 'get_state',
+            data: { audio_1: { status: 'playing' }, audio_2: { status: 'stop' } },
+        });
+        if (msg.kind !== 'get_state') throw new Error('expected get_state');
+        expect(msg.players.audio_1.anchoredAt).toBe(msg.players.audio_2.anchoredAt);
+    });
+
+    // The server answers a data-less get_state without data (processGetState).
+    it('decodes the data-less answer to two empty maps', () => {
+        const msg = decodeServerMessage({ msg: 'get_state' });
+        expect(msg).toEqual({ kind: 'get_state', msgId: '', ios: {}, players: {} });
+    });
+});
+
+describe('decodeServerMessage — audio queries', () => {
+    it('reads a get_cover_url answer, keeping the correlating msg_id', () => {
+        expect(
+            decodeServerMessage({
+                msg: 'audio',
+                msg_id: 'cover-3',
+                data: { cover: 'http://lms:9000/music/17/cover.jpg' },
+            }),
+        ).toEqual({
+            kind: 'audio_query',
+            msgId: 'cover-3',
+            error: '',
+            cover: 'http://lms:9000/music/17/cover.jpg',
+            timeElapsed: null,
+        });
+    });
+
+    it('reads an empty cover as an answer, not as a failure', () => {
+        const msg = decodeServerMessage({ msg: 'audio', msg_id: 'c', data: { cover: '' } });
+        if (msg.kind !== 'audio_query') throw new Error('expected audio_query');
+        expect(msg.cover).toBe('');
+        expect(msg.error).toBe('');
+    });
+
+    // Upstream's error strings, typos included — they are passed through
+    // rather than re-spelled, so a live diff against the server is possible.
+    it.each([['unkown audio_action'], ['empty player id'], ['unkown player_id'], ['wrong item']])(
+        'passes the upstream error %o straight through',
+        (error) => {
+            const msg = decodeServerMessage({ msg: 'audio', data: { error } });
+            if (msg.kind !== 'audio_query') throw new Error('expected audio_query');
+            expect(msg.error).toBe(error);
+        },
+    );
+
+    it('distinguishes "no time in this reply" from "at the start"', () => {
+        const absent = decodeServerMessage({ msg: 'audio', data: { cover: '' } });
+        const zero = decodeServerMessage({ msg: 'audio', data: { time_elapsed: '0' } });
+        if (absent.kind !== 'audio_query' || zero.kind !== 'audio_query') {
+            throw new Error('expected audio_query');
+        }
+        expect(absent.timeElapsed).toBeNull();
+        expect(zero.timeElapsed).toBe(0);
+    });
+
+    it('reads a get_time answer as a number', () => {
+        const msg = decodeServerMessage({ msg: 'audio', data: { time_elapsed: '42.5' } });
+        if (msg.kind !== 'audio_query') throw new Error('expected audio_query');
+        expect(msg.timeElapsed).toBe(42.5);
+    });
+});
+
+describe('decodeServerMessage — audio events', () => {
+    // Audio events stay generic event frames: the home store's dispatch table
+    // decides what to do with them, so the decoder needs no case per type.
+    it.each([['audio_status_changed'], ['audio_volume_changed'], ['audio_song_changed']])(
+        'decodes %s to an event carrying its raw payload',
+        (typeStr) => {
+            const msg = decodeServerMessage({
+                msg: 'event',
+                data: {
+                    event_raw: `${typeStr} player_id:audio_1`,
+                    type: '19',
+                    type_str: typeStr,
+                    data: { player_id: 'audio_1', state: 'play' },
+                },
+            });
+            expect(msg).toEqual({
+                kind: 'unknown_event',
+                typeStr,
+                data: { player_id: 'audio_1', state: 'play' },
+            });
+        },
+    );
+
+    // A player's own io_changed frames — the raw command echo and the
+    // on<state> mirrors — must still decode as ordinary io_changed.
+    it.each([['volume set 55'], ['onplay'], ['onsongchange'], ['onvolumechange']])(
+        'decodes a player io_changed carrying state %o',
+        (state) => {
+            expect(
+                decodeServerMessage({
+                    msg: 'event',
+                    data: { type_str: 'io_changed', data: { id: 'audio_1', state } },
+                }),
+            ).toEqual({ kind: 'io_changed', id: 'audio_1', state });
+        },
+    );
 });

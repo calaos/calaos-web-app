@@ -11,6 +11,7 @@ import {
     HOME_URL,
     LOGIN_URL,
     MESSAGES,
+    SIGN_IN_FRAMES,
     appChrome,
     expect,
     loginAs,
@@ -100,7 +101,7 @@ test('a good sign-in lands on /#/home with the chrome mounted', async ({ page, m
     // longer only makes this pass more comfortably.
     expect(elapsedMs).toBeGreaterThanOrEqual(400);
 
-    // The whole conversation: authenticate, then ask for the house. Nothing
-    // else, and in that order.
-    expect(await mock.frameKinds()).toEqual(['login', 'get_home']);
+    // The whole conversation, in order and with nothing else in it: see
+    // SIGN_IN_FRAMES for what the audio follow-up is doing there.
+    await expect.poll(async () => await mock.frameKinds()).toEqual(SIGN_IN_FRAMES);
 });

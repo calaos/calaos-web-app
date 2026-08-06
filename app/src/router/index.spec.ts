@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { createMemoryHistory } from 'vue-router';
 import { createAppRouter, startNavigationIntents } from './index';
+import AudioListView from '../views/AudioListView.vue';
+import AudioPlayerView from '../views/AudioPlayerView.vue';
 import CameraListView from '../views/CameraListView.vue';
 import CameraView from '../views/CameraView.vue';
 import HomeView from '../views/HomeView.vue';
@@ -78,12 +80,39 @@ describe('routes', () => {
         expect(router.currentRoute.value.matched[0]?.components?.default).toBe(CameraView);
     });
 
+    it('mounts the real audio views, not the T06 placeholders', async () => {
+        signedIn();
+        loadHouse();
+
+        await router.push('/audio');
+        expect(router.currentRoute.value.matched[0]?.components?.default).toBe(AudioListView);
+
+        await router.push('/audio/audio_1');
+        expect(router.currentRoute.value.matched[0]?.components?.default).toBe(AudioPlayerView);
+    });
+
+    // T16 confirmed players are keyed by id string, and T17 routes by that id
+    // rather than by list position — so this param must stay unconstrained and
+    // unbounded, unlike the room and camera indexes.
     it('accepts an opaque (non-numeric) audio player id', async () => {
         signedIn();
 
         await router.push('/audio/zone-kitchen');
         expect(router.currentRoute.value.name).toBe('audioPlayer');
         expect(router.currentRoute.value.params.playerId).toBe('zone-kitchen');
+    });
+
+    it('passes a real player id through untouched, house or no house', async () => {
+        signedIn();
+        loadHouse();
+
+        await router.push('/audio/audio_1');
+        expect(router.currentRoute.value.params.playerId).toBe('audio_1');
+
+        // Out of bounds is not a thing for an opaque id: the view answers a
+        // stale deep link by rendering nothing, and the guard stays out of it.
+        await router.push('/audio/audio_404');
+        expect(router.currentRoute.value.name).toBe('audioPlayer');
     });
 
     it('sends / and unknown paths to home', async () => {

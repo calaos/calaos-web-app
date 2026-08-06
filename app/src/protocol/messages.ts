@@ -5,8 +5,9 @@
 // app did ws.send(JSON.stringify(obj)) — key order is preserved here so tests
 // can assert byte-exact frames). All wire values are STRINGS.
 
+import { toAudioPlayerState, toSeconds } from './audio';
 import { isRecord, toHomeData, toWireString } from './guards';
-import type { IoChangedMessage, ServerMessage } from './types';
+import type { AudioPlayerState, IoChangedMessage, ServerMessage } from './types';
 
 export function encodeLogin(user: string, pass: string): string {
     return JSON.stringify({ msg: 'login', data: { cn_user: user, cn_pass: pass } });
@@ -21,6 +22,34 @@ export function encodeGetHome(): string {
 // string IOs (NO 'set ' prefix). Builders live in io-states.ts.
 export function encodeSetState(id: string, value: string): string {
     return JSON.stringify({ msg: 'set_state', data: { id, value } });
+}
+
+/**
+ * Detailed state for a batch of ios — ONE frame for the whole audio list, not
+ * one per player (docs/audio-protocol.md "get_state"). Audio players expand
+ * to an object here, which is the only way to learn a player's status, volume,
+ * position and current track: get_home carries none of it.
+ *
+ * No `msg_id`: the answer is a map keyed by io id, so every entry already says
+ * what it answers and there is nothing to correlate.
+ */
+export function encodeGetState(items: string[]): string {
+    return JSON.stringify({ msg: 'get_state', data: { items } });
+}
+
+/** The `audio_action`s the app sends. The rest of the table is out of scope. */
+export type AudioAction = 'get_cover_url' | 'get_time';
+
+/**
+ * An `{msg:"audio"}` query.
+ *
+ * `msgId` is mandatory, and not out of politeness: the answer is
+ * `{"msg":"audio","data":{"cover":"…"}}` with no player id anywhere in it, so
+ * the verbatim msg_id echo is the only link back to the request. The value is
+ * an opaque client token — the server never interprets it.
+ */
+export function encodeAudioQuery(action: AudioAction, id: string, msgId: string): string {
+    return JSON.stringify({ msg: 'audio', msg_id: msgId, data: { audio_action: action, id } });
 }
 
 // Decode any frame received from the server. Accepts the raw websocket string
@@ -53,6 +82,38 @@ export function decodeServerMessage(raw: unknown): ServerMessage {
 
         case 'get_home':
             return { kind: 'get_home', home: toHomeData(obj.data) };
+
+        case 'get_state': {
+            // One flat map holding two kinds of entry: a plain io maps to its
+            // state string, an audio player maps to a detail object
+            // (JsonApi::buildJsonState). Split by shape — the frame carries no
+            // marker saying which is which. A data-less answer (the server's
+            // reply to a data-less request) decodes to two empty maps.
+            const data = isRecord(obj.data) ? obj.data : {};
+            const ios: Record<string, string> = {};
+            const players: Record<string, AudioPlayerState> = {};
+            // One clock reading for the whole batch: every player's position
+            // was measured server-side at the same moment.
+            const at = Date.now();
+            for (const [id, value] of Object.entries(data)) {
+                if (isRecord(value)) players[id] = toAudioPlayerState(value, at);
+                else ios[id] = toWireString(value);
+            }
+            return { kind: 'get_state', msgId: toWireString(obj.msg_id), ios, players };
+        }
+
+        case 'audio': {
+            const data = isRecord(obj.data) ? obj.data : {};
+            return {
+                kind: 'audio_query',
+                msgId: toWireString(obj.msg_id),
+                error: toWireString(data.error),
+                cover: toWireString(data.cover),
+                // null vs 0 matters: 'the reply was not about time' is not the
+                // same claim as 'the player is at the start'.
+                timeElapsed: 'time_elapsed' in data ? toSeconds(data.time_elapsed) : null,
+            };
+        }
 
         case 'event': {
             const data = isRecord(obj.data) ? obj.data : {};
