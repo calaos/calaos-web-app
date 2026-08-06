@@ -33,6 +33,10 @@ const home = useHomeStore();
 
 <template>
     <div class="cameras">
+        <!-- Named for assistive tech only, like the room grid: the pictures
+             say what this screen is far better than a heading could. -->
+        <h1 class="visually-hidden">{{ t('camera.title') }}</h1>
+
         <ul v-if="home.cameras.length > 0" class="cameras__grid fade-in">
             <li v-for="camera in home.cameras" :key="camera.id" class="cameras__cell">
                 <RouterLink :to="`/security/${camera.cameraId}`" class="camera-tile pressable">
@@ -62,8 +66,13 @@ const home = useHomeStore();
     display: grid;
     /* Wider tracks than the room grid's 9.5rem: a room tile holds two words,
        a camera tile holds a picture, and a picture that small is not a
-       picture. One column on a phone, two on a tablet, four on a panel. */
-    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+       picture. One column on a phone, two on a tablet, four on a panel.
+       `auto-fit` for the same reason as the room grid: a two-camera house
+       left auto-fill holding empty tracks in the corner of a wall panel. The
+       ceiling that stops the two real ones inflating into posters lives on
+       the tile, not here — a length in the `max` slot would make auto-fit
+       count repetitions from it and drop a 768px tablet to one per row. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
     gap: var(--space-3);
 }
 
@@ -79,6 +88,8 @@ const home = useHomeStore();
 
 .cameras__cell {
     display: flex;
+    /* See the room grid: the tile's ceiling, centred in its track. */
+    justify-content: center;
 }
 
 /* ---- tile -------------------------------------------------------------- */
@@ -89,6 +100,9 @@ const home = useHomeStore();
     grid-template-rows: auto 1fr;
     gap: var(--space-3);
     inline-size: 100%;
+    /* Past this a "live picture from the front door" is a poster of the
+       front door. The old screen's bezel was 680px; this is close to it. */
+    max-inline-size: 30rem;
     padding: var(--space-3);
     background-color: var(--c-surface);
     border: 1px solid var(--c-border);
@@ -146,6 +160,16 @@ const home = useHomeStore();
 .camera-tile:active::after {
     transform: scaleX(1);
     opacity: 1;
+}
+
+/* The tile itself is `.pressable`, which animations.css already silences; a
+   pseudo-element is not, so the band of light has to be named here. It still
+   appears on hover and focus — it just arrives instead of sliding open. */
+@media (prefers-reduced-motion: reduce) {
+    .camera-tile,
+    .camera-tile::after {
+        transition: none;
+    }
 }
 
 /* ---- no cameras -------------------------------------------------------- */

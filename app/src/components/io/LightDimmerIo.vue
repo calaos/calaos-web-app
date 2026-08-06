@@ -84,9 +84,10 @@ function commitPercent(percent: number) {
 }
 
 .light-dimmer-io__slider {
-    /* Compact: it shares the actions slot with two 40px buttons, and the
-       row's name column is what should give way on a narrow screen, not
-       this. */
-    inline-size: 6rem;
+    /* Wide enough that 1% and 99% are different places to put a thumb. It
+       shares the actions slot with two 44px buttons, and on a phone the three
+       of them drop to a line of their own rather than shrinking (IoRowFrame):
+       a 96px dimmer with 100 stops on it was a control in name only. */
+    inline-size: 8rem;
 }
 </style>

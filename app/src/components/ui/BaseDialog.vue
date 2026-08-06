@@ -166,10 +166,15 @@ watch(
                 :aria-labelledby="titleId"
                 tabindex="-1"
             >
-                <header class="base-dialog__head">
+                <!-- A plain div, not <header>: the panel is teleported to
+                     <body>, and a <header> with no sectioning ancestor maps
+                     to the `banner` landmark — so an open dialog gave the
+                     page a second banner alongside the navbar. The <h2> is
+                     what carries the structure here anyway. -->
+                <div class="base-dialog__head">
                     <p v-if="eyebrow !== ''" class="base-dialog__eyebrow">{{ eyebrow }}</p>
                     <h2 :id="titleId" class="base-dialog__title">{{ title }}</h2>
-                </header>
+                </div>
 
                 <!-- A real form, so Enter in a field confirms. -->
                 <form class="base-dialog__form" @submit.prevent="emit('confirm')">

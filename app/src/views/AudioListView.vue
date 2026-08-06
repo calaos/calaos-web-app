@@ -49,6 +49,11 @@ function playing(id: string): boolean {
 
 <template>
     <div class="players">
+        <!-- Named for assistive tech only, like the room and camera grids:
+             each tile already announces its player, and the h1 is what tells
+             a screen reader which of the three screens it is on. -->
+        <h1 class="visually-hidden">{{ t('audio.title') }}</h1>
+
         <ul v-if="home.audioPlayers.length > 0" class="players__grid fade-in">
             <li v-for="player in home.audioPlayers" :key="player.id" class="players__cell">
                 <RouterLink :to="`/audio/${player.id}`" class="player-tile pressable">
@@ -113,8 +118,12 @@ function playing(id: string): boolean {
     /* Wider tracks than the camera grid's 15rem: a tile carries a square
        cover AND four lines of text beside it, and squeezing those into one
        phone column would wrap every title. One column on a phone, two on a
-       tablet, three on a wall panel. */
-    grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+       tablet, three on a wall panel.
+       `auto-fit`, as on the other two grids: auto-fill left a two-player
+       house parked in the corner of a wall panel behind a row of empty
+       tracks. The tile carries the ceiling (a length in the `max` slot would
+       make auto-fit count repetitions from it and cost a column). */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
     gap: var(--space-3);
 }
 
@@ -130,6 +139,8 @@ function playing(id: string): boolean {
 
 .players__cell {
     display: flex;
+    /* See the room grid: the tile's ceiling, centred in its track. */
+    justify-content: center;
 }
 
 /* ---- tile -------------------------------------------------------------- */
@@ -140,6 +151,9 @@ function playing(id: string): boolean {
     align-items: center;
     gap: var(--space-4);
     inline-size: 100%;
+    /* Past this the cover and the track title are at opposite ends of the
+       tile and stop reading as one thing. */
+    max-inline-size: 30rem;
     padding: var(--space-3);
     background-color: var(--c-surface);
     border: 1px solid var(--c-border);
@@ -216,6 +230,15 @@ function playing(id: string): boolean {
 .player-tile__artist {
     font-size: 0.8125rem;
     color: var(--c-text-muted);
+}
+
+/* `.pressable` already silences the tile's transform under reduced motion;
+   naming the tile here covers the colour fades in the same declaration, so
+   the rule does not depend on which class happens to win. */
+@media (prefers-reduced-motion: reduce) {
+    .player-tile {
+        transition: none;
+    }
 }
 
 /* ---- empty ------------------------------------------------------------- */

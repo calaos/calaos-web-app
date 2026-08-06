@@ -58,8 +58,10 @@ function goBack(): void {
     position: relative;
     display: grid;
     /* Equal side slots keep the wordmark optically centred whether or not
-       the back button is mounted. */
-    grid-template-columns: 3.5rem 1fr 3.5rem;
+       the back button is mounted. 3.75rem = a 44px button plus its 2×8px
+       inset; at 3.5rem the slot was narrower than the button and squeezed it
+       back to 40px wide. */
+    grid-template-columns: 3.75rem 1fr 3.75rem;
     align-items: center;
     block-size: var(--h-navbar);
     /* content-box (overriding the global border-box) so the notch inset is

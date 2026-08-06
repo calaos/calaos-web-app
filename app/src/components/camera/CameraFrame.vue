@@ -206,7 +206,8 @@ const { src, error, loaded, onLoad, onError, retry } = useCameraPoll(() =>
 }
 
 .camera-frame__retry {
-    min-block-size: 2.25rem;
+    /* 44px, the app's floor for a tap target. */
+    min-block-size: 2.75rem;
     padding: var(--space-2) var(--space-4);
     background-color: var(--c-surface-raised);
     border: 1px solid var(--c-border);
@@ -224,5 +225,12 @@ const { src, error, loaded, onLoad, onError, retry } = useCameraPoll(() =>
 .camera-frame__retry:focus-visible {
     color: var(--c-accent);
     border-color: var(--c-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .camera-frame__picture,
+    .camera-frame__retry {
+        transition: none;
+    }
 }
 </style>

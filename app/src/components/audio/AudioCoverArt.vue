@@ -83,9 +83,13 @@ const isHero = computed(() => props.variant === 'hero');
                 decoding="async"
                 @error="onError"
             />
+            <!-- `role="img"` alongside the label: an <svg> carrying only an
+                 aria-label is not reliably announced as an image, which is
+                 the same reason StateIcon sets the role on its wrapper. -->
             <IconMusic
                 v-else
                 class="cover__placeholder"
+                :role="isHero ? 'img' : undefined"
                 :aria-label="isHero ? t('audio.noCover') : undefined"
                 :aria-hidden="isHero ? undefined : 'true'"
             />

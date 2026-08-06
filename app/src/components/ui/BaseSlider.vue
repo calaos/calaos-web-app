@@ -115,7 +115,10 @@ function onChange() {
     appearance: none;
     -webkit-appearance: none;
     inline-size: 100%;
-    block-size: 1.75rem;
+    /* 44px of grabbable height for a 4px rail: the box is the tap target, the
+       track is only what you see. Both browser engines centre the runnable
+       track in the box, so growing the box does not move the rail. */
+    block-size: 2.75rem;
     background: transparent;
     cursor: pointer;
 }
@@ -123,13 +126,13 @@ function onChange() {
 .base-slider::-webkit-slider-runnable-track {
     block-size: 0.25rem;
     border-radius: var(--radius-sm);
-    background: var(--c-border);
+    background: var(--c-track);
 }
 
 .base-slider::-moz-range-track {
     block-size: 0.25rem;
     border-radius: var(--radius-sm);
-    background: var(--c-border);
+    background: var(--c-track);
 }
 
 .base-slider::-webkit-slider-thumb {

@@ -9,6 +9,12 @@
     --c-surface: #1a1a1a;
     --c-surface-raised: #242424;
     --c-border: #2e2e2e;
+    /* Slider rails, and only slider rails. --c-border is right for the edge of
+       a surface (which the fill either side of it already identifies) and
+       wrong for the one part of a control that has nothing else to identify
+       it: at 1.28:1 against --c-surface the rail was invisible. This clears
+       WCAG 1.4.11's 3:1 for non-text UI parts (3.22:1). */
+    --c-track: #6a6a6a;
     --c-text: #f2f2f2;
     --c-text-muted: #9a9a9a;
 

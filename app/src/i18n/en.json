@@ -13,6 +13,7 @@
         "offlineHint": "Sign in becomes available as soon as the server answers."
     },
     "home": {
+        "title": "Rooms",
         "temperature": "Temperature",
         "empty": "No rooms yet",
         "emptyHint": "This account has no room configured on the server."
@@ -22,6 +23,7 @@
     },
     "audio": {
         "label": "Audio",
+        "title": "Audio players",
         "cover": "Album art for {name}",
         "noCover": "No album art",
         "nothingPlaying": "Nothing playing",
@@ -46,6 +48,7 @@
     },
     "camera": {
         "label": "Camera",
+        "title": "Cameras",
         "live": "Live",
         "snapshot": "Live picture from {name}",
         "unavailable": "No picture from this camera",
@@ -75,7 +78,8 @@
         "cancel": "Cancel",
         "color": {
             "title": "Set color",
-            "confirm": "Set color"
+            "confirm": "Set color",
+            "hue": "Hue"
         },
         "text": {
             "title": "Set text",

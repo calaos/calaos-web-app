@@ -62,12 +62,17 @@ withDefaults(
 .io-row {
     display: flex;
     align-items: center;
+    /* Wraps rather than crushes. `.io-row__text` below holds a floor, so a
+       row whose controls and name cannot share one line puts the controls on
+       a second line instead of hyphenating the name into "Appl / ique" — the
+       phone-width failure the old fixed layout had no answer for at all. */
+    flex-wrap: wrap;
     gap: var(--space-3);
     inline-size: 100%;
-    /* The height of a row that HAS a 40px button, applied to every row: rows
+    /* The height of a row that HAS a 44px button, applied to every row: rows
        that differ in height by the 8px their controls happen to need read as
        a ragged list rather than as one instrument panel. */
-    min-block-size: 4rem;
+    min-block-size: 4.25rem;
     padding: var(--space-3);
     background-color: var(--c-surface);
     border: 1px solid var(--c-border);
@@ -105,10 +110,16 @@ withDefaults(
     display: flex;
     flex-direction: column;
     gap: 0.125rem;
-    /* Takes the slack, and may shrink below its content: server names can be
-       one very long word. */
+    /* Takes the slack, down to a floor of 6rem — about ten characters, which
+       is where a name stops being a name and starts being fragments. Below
+       that the row wraps and the controls take a line of their own rather
+       than squeezing further: no name is broken mid-word ("Appl / ique") to
+       make room for a slider. The floor is set low on purpose, so that
+       wrapping stays the escape hatch for the rows that genuinely cannot fit
+       (a dimmer, a shutter that also reports a percentage) instead of
+       becoming the house style at 360px. */
     flex: 1;
-    min-inline-size: 0;
+    min-inline-size: 6rem;
 }
 
 .io-row__name {
@@ -151,6 +162,10 @@ withDefaults(
     align-items: center;
     gap: var(--space-2);
     flex: none;
+    /* No-op while the controls share the name's line (the name has already
+       eaten the slack); it is what right-aligns them once they wrap onto a
+       line of their own. */
+    margin-inline-start: auto;
 }
 
 /* On the narrowest phones the two action buttons and a long name are fighting

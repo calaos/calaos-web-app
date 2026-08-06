@@ -496,4 +496,45 @@ function toggle(): void {
     min-inline-size: 2.75rem;
     text-align: end;
 }
+
+/*
+ * Short viewport — a phone in portrait, or a 768px laptop window.
+ *
+ * The same six blocks have to fit into less height, and the artwork is the
+ * only one that can give ground: the transport and the volume are why this
+ * screen exists, and on a 360×780 phone the volume panel used to sit under
+ * the footer with nothing on screen to suggest it was there at all.
+ *
+ * Last in the file because these selectors are no more specific than the ones
+ * they override — a media query does not add specificity, only source order
+ * decides.
+ */
+@media (max-height: 800px) {
+    .player__cover {
+        max-inline-size: 13rem;
+    }
+
+    .player__stage,
+    .player__meta,
+    .player__position {
+        margin-block-end: var(--space-4);
+    }
+
+    .player__transport {
+        margin-block-end: var(--space-6);
+    }
+}
+
+/* The filament is the one thing on this screen that MOVES on its own — it
+   creeps for the length of a track, every 500 ms, whether or not anyone is
+   touching the page. Under reduced motion it jumps to the new position
+   instead. The transport's own fades follow, so the whole screen answers the
+   preference in one place. */
+@media (prefers-reduced-motion: reduce) {
+    .player__filament-fill,
+    .player__step,
+    .player__toggle {
+        transition: none;
+    }
+}
 </style>

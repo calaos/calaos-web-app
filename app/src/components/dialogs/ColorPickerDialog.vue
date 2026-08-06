@@ -98,6 +98,23 @@ watch(
 function onPick(payload: { hex: string }): void {
     draft.value = normalizeHex(payload.hex);
 }
+
+const picker = ref<HTMLElement | null>(null);
+
+/**
+ * Names the widget's hue bar.
+ *
+ * @ckpack renders it as a `<div role="slider">` with value attributes and no
+ * accessible name, which is an ARIA input field with nothing to announce —
+ * the one a11y defect the library brings in. It cannot be labelled from the
+ * template because it is the library's own markup, so it is labelled here,
+ * once, when the widget mounts. Nothing else about the picker is touched.
+ */
+function nameSliders(): void {
+    picker.value?.querySelectorAll('[role="slider"]').forEach((node) => {
+        node.setAttribute('aria-label', t('dialog.color.hue'));
+    });
+}
 </script>
 
 <template>
@@ -121,11 +138,12 @@ function onPick(payload: { hex: string }): void {
             <span class="color-dialog__hex">{{ draft }}</span>
         </div>
 
-        <div class="color-dialog__picker">
+        <div ref="picker" class="color-dialog__picker">
             <Chrome
                 :model-value="seed"
                 :disable-alpha="true"
                 :disable-fields="true"
+                @vue:mounted="nameSliders"
                 @update:model-value="onPick"
             />
         </div>

@@ -65,6 +65,11 @@ const tiles = computed(() =>
 
 <template>
     <div class="home">
+        <!-- The screen names itself for assistive tech only: on screen the
+             tiles are self-evidently the house, and a "Rooms" banner over
+             them would be a label with nothing to label. -->
+        <h1 class="visually-hidden">{{ t('home.title') }}</h1>
+
         <ul v-if="tiles.length > 0" class="home__grid fade-in">
             <li v-for="tile in tiles" :key="tile.room.roomId" class="home__cell">
                 <RouterLink :to="`/home/${tile.room.roomId}`" class="room-tile pressable">
@@ -107,9 +112,17 @@ const tiles = computed(() =>
 
 .home__grid {
     /* Replaces the old controller's 3-per-row chunking: the browser decides
-       how many tiles fit, down to two on a 412 px phone. */
+       how many tiles fit, down to two on a 412 px phone.
+       `auto-fit`, not `auto-fill`: a four-room house on a wall panel left
+       auto-fill holding four EMPTY tracks, so the whole house sat in the top
+       left corner of a 1280px screen with two thirds of it blank. auto-fit
+       collapses the empty ones and the real tiles share the width.
+       The max stays `1fr` on purpose: with a length there, auto-fit counts
+       repetitions from the MAX, and a 14rem ceiling silently dropped a phone
+       to one column and a tablet to one camera per row. The ceiling belongs
+       on the tile (below), where it costs nothing. */
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
     gap: var(--space-3);
     /* A room grid stretched across a 27" screen is a scavenger hunt. */
     inline-size: 100%;
@@ -129,6 +142,10 @@ const tiles = computed(() =>
 
 .home__cell {
     display: flex;
+    /* Where the tile's ceiling is spent: a two-room house on a wall panel
+       gets two tiles the size of a tile, centred in their tracks, rather
+       than two 600px slabs each holding one word. */
+    justify-content: center;
 }
 
 /* ---- the tile --------------------------------------------------------- */
@@ -139,6 +156,7 @@ const tiles = computed(() =>
     grid-template-rows: auto 1fr;
     gap: var(--space-3);
     inline-size: 100%;
+    max-inline-size: 22rem;
     min-block-size: 7rem;
     padding: var(--space-3);
     /* First claim on the surface tokens: the login screen deliberately has no

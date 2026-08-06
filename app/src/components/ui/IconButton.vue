@@ -36,10 +36,15 @@ withDefaults(
 .icon-button {
     display: inline-grid;
     place-items: center;
-    /* 40px was the old .btn-navbar height; it is also the smallest tap
-       target that still feels reliable on a wall-mounted tablet. */
-    inline-size: 40px;
-    block-size: 40px;
+    /* 44px, the app's floor for anything a finger aims at (WCAG 2.5.5, and
+       the same figure the login and dialog buttons use). The old .btn-navbar
+       was 40px; four pixels is the difference between a button you hit and a
+       button you hit again. */
+    inline-size: 44px;
+    block-size: 44px;
+    /* Never shrink: this button IS its tap target, and a flex parent that is
+       one pixel short must give somewhere else. */
+    flex: none;
     padding: 0;
     border: 0;
     background: none;
