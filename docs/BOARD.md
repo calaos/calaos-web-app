@@ -48,7 +48,7 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
 | [T20](tasks/T20-cutover.md) | Cutover: new app becomes dist/, delete old app, docs | ⬜ | T19 | fable/high | |
-| [T21](tasks/T21-ci.md) | CI test workflow | 🟨 | T08 | sonnet/low | |
+| [T21](tasks/T21-ci.md) | CI test workflow | ✅ | T08 | sonnet/low | 3588419 |
 
 Parallelizable: T02∥T04 · T11∥T12∥T13 · T15∥T16 · T21 any time after T08.
 Critical path: T01→T02→T03→T05→T06→T07→T08→T09→T10→(T11,T12,T13)→T14→(T17,T18)→T19→T20.
