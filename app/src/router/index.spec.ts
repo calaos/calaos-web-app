@@ -105,6 +105,22 @@ describe('auth guard', () => {
         expect(router.currentRoute.value.path).toBe('/security/1');
     });
 
+    it('sends an authenticated user away from the login form', async () => {
+        signedIn();
+
+        await router.push('/login');
+
+        expect(router.currentRoute.value.path).toBe('/home');
+    });
+
+    it('keeps the login form reachable while a sign-in is still pending', async () => {
+        useAuthStore().state = 'pending';
+
+        await router.push('/login');
+
+        expect(router.currentRoute.value.path).toBe('/login');
+    });
+
     it('redirects again once the user signs out', async () => {
         signedIn();
         await router.push('/home');
@@ -195,5 +211,34 @@ describe('navigation intents', () => {
         await Promise.resolve();
 
         expect(router.currentRoute.value.path).toBe('/home');
+    });
+
+    it('sends the user back to login when a re-login is refused mid-session', async () => {
+        // The reconnect case: the tablet wakes up, resumeSession() re-logs in
+        // and the server says no. The store raises no intent for this (it is
+        // a UX call), so this watcher is the whole behaviour.
+        stop = startNavigationIntents(router);
+        const auth = useAuthStore();
+        signedIn();
+        loadHouse();
+        await router.push('/home/1');
+
+        auth.state = 'failed';
+        await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/login'));
+
+        // Still 'failed', which is what makes LoginView show the error.
+        expect(auth.hasFailed).toBe(true);
+    });
+
+    it('does not re-navigate when a sign-in is refused on the login form', async () => {
+        stop = startNavigationIntents(router);
+        const auth = useAuthStore();
+        await router.push('/login');
+        const before = router.currentRoute.value.fullPath;
+
+        auth.state = 'failed';
+        await Promise.resolve();
+
+        expect(router.currentRoute.value.fullPath).toBe(before);
     });
 });

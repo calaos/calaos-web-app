@@ -2,6 +2,16 @@
     "app": {
         "name": "Calaos"
     },
+    "login": {
+        "welcome": "Welcome",
+        "username": "Username",
+        "password": "Password",
+        "submit": "Sign in",
+        "submitting": "Signing in…",
+        "error": "Username or password is incorrect.",
+        "offline": "No connection to Calaos",
+        "offlineHint": "Sign in becomes available as soon as the server answers."
+    },
     "chrome": {
         "back": "Back",
         "signOut": "Sign out",

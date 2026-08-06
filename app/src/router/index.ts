@@ -14,6 +14,7 @@ import type { WatchStopHandle } from 'vue';
 import type { Router, RouterHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useHomeStore } from '../stores/home';
+import LoginView from '../views/LoginView.vue';
 
 declare module 'vue-router' {
     interface RouteMeta {
@@ -65,10 +66,12 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
         routes: [
             { path: '/', redirect: { name: 'home' } },
             {
+                // Eagerly imported, not lazy: it is the first thing an
+                // unauthenticated visitor sees, so a second round trip for
+                // its chunk would only add a blank frame.
                 path: '/login',
                 name: 'login',
-                // T07 replaces this with views/LoginView.vue.
-                component: placeholderView('login'),
+                component: LoginView,
             },
             {
                 path: '/home',
@@ -121,6 +124,14 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
             return { name: 'login' };
         }
 
+        // The mirror of the rule above: a signed-in user who types /#/login
+        // (or reloads on it after signing in on another tab) has no business
+        // on a form they have already filled in. The old app had no such
+        // rule and happily rendered the login screen over a live session.
+        if (to.name === 'login' && auth.isAuthed) {
+            return { name: 'home' };
+        }
+
         // Bounds check for the index-based params. `roomId`/`cameraId` are
         // positions in the hits-sorted room list / camera list, so a stale
         // deep link (or a smaller house after a re-login) must land on the
@@ -153,16 +164,28 @@ function inBounds(rawIndex: string, count: number): boolean {
 }
 
 /**
- * Wires `auth.pendingNavigation` to the router. The auth store cannot import
- * vue-router (it would make stores↔router a cycle and break store unit
- * tests), so it raises an intent and this watcher performs the push.
+ * Wires the auth store to the router. The store cannot import vue-router (it
+ * would make stores↔router a cycle and break store unit tests), so everything
+ * it wants from navigation is expressed as state and performed here.
  *
- * Returns the watch handle; main.ts ignores it (app lifetime), tests stop it.
+ * Two watchers:
+ *  1. `pendingNavigation` — the intent raised by an interactive sign-in
+ *    (→ /home, once the house data has landed) and by signOut() (→ /login).
+ *  2. a rejected re-login mid-session. `resumeSession()` fires on every
+ *    reconnect, and the server can refuse it (the password changed while the
+ *    tablet was asleep). The store deliberately raises no intent for that —
+ *    it is a UX call, not a protocol one, and this is the call: a session
+ *    that is no longer valid must not leave the user staring at stale rooms
+ *    whose controls silently do nothing. LoginView renders the error on
+ *    arrival because `state` is still 'failed'.
+ *
+ * Returns one handle stopping both; main.ts ignores it (app lifetime), tests
+ * stop it.
  */
 export function startNavigationIntents(router: Router): WatchStopHandle {
     const auth = useAuthStore();
 
-    return watch(
+    const stopIntents = watch(
         () => auth.pendingNavigation,
         (intent) => {
             if (intent === null) return;
@@ -170,4 +193,21 @@ export function startNavigationIntents(router: Router): WatchStopHandle {
             auth.consumeNavigation();
         },
     );
+
+    const stopRejections = watch(
+        () => auth.hasFailed,
+        (failed) => {
+            if (!failed) return;
+            // Only from behind the auth wall. A refusal while the user is
+            // already on /login is the ordinary wrong-password case, and
+            // pushing the route they are on would be a no-op navigation.
+            if (router.currentRoute.value.meta.requiresAuth !== true) return;
+            void router.push({ name: 'login' });
+        },
+    );
+
+    return () => {
+        stopIntents();
+        stopRejections();
+    };
 }

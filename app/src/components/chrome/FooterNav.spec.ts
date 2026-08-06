@@ -95,6 +95,11 @@ describe('FooterNav', () => {
     });
 
     it('hides the light on a route outside every section', async () => {
+        // /login is the only route outside the three sections, and since T07
+        // it is reachable only while signed out (the guard bounces an
+        // authenticated user back to /home). The footer is unmounted by then
+        // in the real shell; this still covers its no-active-section branch.
+        useAuthStore().state = 'idle';
         const wrapper = await mountFooter('/login');
 
         expect(activeLabels(wrapper)).toEqual([]);
