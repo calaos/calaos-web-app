@@ -8,6 +8,7 @@
     "dev:next": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite",
     "build:next": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite build",
     "preview:next": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite preview",
+    "mock": "node mock-server/index.mjs",
     "typecheck": "vue-tsc --build --force",
     "test:unit": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vitest run"
   },
@@ -46,7 +47,8 @@
     "unplugin-icons": "^23.0.1",
     "vite": "^8.2.0",
     "vitest": "^4.1.10",
-    "vue-tsc": "^3.3.9"
+    "vue-tsc": "^3.3.9",
+    "ws": "^8.21.2"
   },
   "engines": {
     "node": ">=18"

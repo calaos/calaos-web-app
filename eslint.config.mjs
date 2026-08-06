@@ -71,6 +71,22 @@ export default [
             'no-unused-vars': ['warn', { args: 'none' }],
         },
     },
+    {
+        // Mock calaos_server (T04): plain Node ESM, hence .mjs — the repo's
+        // package.json intentionally has no "type":"module" because tools/*.js
+        // are CommonJS.
+        files: ['mock-server/**/*.mjs'],
+        languageOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'module',
+            globals: {
+                ...globals.node,
+            },
+        },
+        rules: {
+            'no-unused-vars': ['error', { args: 'none' }],
+        },
+    },
     ...tsRecommended,
     ...vueEssential,
     {

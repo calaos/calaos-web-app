@@ -1,0 +1,257 @@
+{
+    "home": [
+        {
+            "name": "Salon",
+            "type": "lounge",
+            "hits": "12",
+            "items": [
+                {
+                    "id": "input_1",
+                    "name": "Température salon",
+                    "gui_type": "temp",
+                    "state": "21.5",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": "°C"
+                },
+                {
+                    "id": "output_1",
+                    "name": "Plafonnier",
+                    "gui_type": "light",
+                    "state": "true",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                },
+                {
+                    "id": "output_2",
+                    "name": "Applique",
+                    "gui_type": "light_dimmer",
+                    "gui_style": "default",
+                    "state": "set 50",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                },
+                {
+                    "id": "output_3",
+                    "name": "Bandeau LED",
+                    "gui_type": "light_rgb",
+                    "state": "#ff2200",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                },
+                {
+                    "id": "output_4",
+                    "name": "Volet baie vitrée",
+                    "gui_type": "shutter_smart",
+                    "state": "up 100",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                },
+                {
+                    "id": "output_5",
+                    "name": "Ambiance cinéma",
+                    "gui_type": "scenario",
+                    "state": "false",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                }
+            ]
+        },
+        {
+            "name": "Cuisine",
+            "type": "kitchen",
+            "hits": "47",
+            "items": [
+                {
+                    "id": "input_2",
+                    "name": "Luminosité",
+                    "gui_type": "analog_in",
+                    "gui_style": "light",
+                    "state": "412",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": "lux"
+                },
+                {
+                    "id": "output_6",
+                    "name": "Consigne chauffage",
+                    "gui_type": "analog_out",
+                    "gui_style": "temp",
+                    "state": "20",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": "°C"
+                },
+                {
+                    "id": "output_7",
+                    "name": "Spots plan de travail",
+                    "gui_type": "light",
+                    "state": "false",
+                    "visible": "true",
+                    "rw": "false",
+                    "unit": ""
+                },
+                {
+                    "id": "output_8",
+                    "name": "Nombre de cafés",
+                    "gui_type": "var_int",
+                    "state": "7",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": "tasses"
+                },
+                {
+                    "id": "output_9",
+                    "name": "Mode vacances",
+                    "gui_type": "var_bool",
+                    "state": "false",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                },
+                {
+                    "id": "output_10",
+                    "name": "Volet cuisine",
+                    "gui_type": "shutter",
+                    "state": "true",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                }
+            ]
+        },
+        {
+            "name": "Chambre",
+            "type": "bedroom",
+            "hits": "3",
+            "items": [
+                {
+                    "id": "input_3",
+                    "name": "Dernier réveil",
+                    "gui_type": "string_in",
+                    "state": "07:15",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                },
+                {
+                    "id": "output_11",
+                    "name": "Message",
+                    "gui_type": "var_string",
+                    "state": "",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                },
+                {
+                    "id": "output_12",
+                    "name": "Afficheur",
+                    "gui_type": "string_out",
+                    "state": "Bonne nuit",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                },
+                {
+                    "id": "output_13",
+                    "name": "Chevet",
+                    "gui_type": "light_dimmer",
+                    "state": "false",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                },
+                {
+                    "id": "output_14",
+                    "name": "LED de debug",
+                    "gui_type": "light",
+                    "state": "false",
+                    "visible": "false",
+                    "rw": "true",
+                    "unit": ""
+                }
+            ]
+        },
+        {
+            "name": "Extérieur",
+            "type": "outside",
+            "hits": "25",
+            "items": [
+                {
+                    "id": "input_4",
+                    "name": "Température extérieure",
+                    "gui_type": "temp",
+                    "state": "8.2",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": "°C"
+                },
+                {
+                    "id": "output_15",
+                    "name": "Éclairage terrasse",
+                    "gui_type": "light_rgb",
+                    "state": "0",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                },
+                {
+                    "id": "output_16",
+                    "name": "Store terrasse",
+                    "gui_type": "shutter_smart",
+                    "state": "down 35",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                },
+                {
+                    "id": "output_17",
+                    "name": "Durée arrosage",
+                    "gui_type": "analog_out",
+                    "gui_style": "default",
+                    "state": "15",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": "min"
+                },
+                {
+                    "id": "output_18",
+                    "name": "Tout éteindre",
+                    "gui_type": "scenario",
+                    "state": "false",
+                    "visible": "true",
+                    "rw": "true",
+                    "unit": ""
+                }
+            ]
+        }
+    ],
+    "cameras": [
+        {
+            "id": "camera_1",
+            "name": "Entrée"
+        },
+        {
+            "id": "camera_2",
+            "name": "Jardin"
+        }
+    ],
+    "audio": [
+        {
+            "id": "player_1",
+            "name": "Salon",
+            "status": "playing",
+            "current_track": {
+                "artist": "Calaos Orchestra",
+                "album": "Home Automation Vol. 1",
+                "title": "Ambient Kitchen",
+                "duration": "243"
+            }
+        }
+    ]
+}
