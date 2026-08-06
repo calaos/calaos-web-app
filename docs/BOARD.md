@@ -22,10 +22,10 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
 | [T09](tasks/T09-home-room.md) | Home grid + Room view shell | ✅ | T06 | opus/medium + frontend-design | d7cb9fd |
-| [T10](tasks/T10-io-simple.md) | IoRow dispatcher + simple IOs + StateIcon | 🟨 | T09,T02 | opus/high + frontend-design | |
-| [T11](tasks/T11-io-sliders.md) | Slider/stepper IOs (dimmer, analog_out, var_int) | ⬜ | T10 | sonnet/medium | |
-| [T12](tasks/T12-io-dialogs.md) | BaseDialog + color picker + text dialog IOs | ⬜ | T10 | opus/medium + frontend-design | |
-| [T13](tasks/T13-io-shutters.md) | Shutter IOs (shutter, shutter_smart) | ⬜ | T10 | sonnet/medium | |
+| [T10](tasks/T10-io-simple.md) | IoRow dispatcher + simple IOs + StateIcon | ✅ | T09,T02 | opus/high + frontend-design | 28a9c96 |
+| [T11](tasks/T11-io-sliders.md) | Slider/stepper IOs (dimmer, analog_out, var_int) | 🟨 | T10 | sonnet/medium | |
+| [T12](tasks/T12-io-dialogs.md) | BaseDialog + color picker + text dialog IOs | 🟨 | T10 | opus/medium + frontend-design | |
+| [T13](tasks/T13-io-shutters.md) | Shutter IOs (shutter, shutter_smart) | 🟨 | T10 | sonnet/medium | |
 | [T14](tasks/T14-e2e-io.md) | E2E IO interaction suite | ⬜ | T08,T11,T12,T13 | opus/medium | |
 
 ## M3 — Cameras + audio (demo: full feature surface)
