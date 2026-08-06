@@ -22,12 +22,24 @@ const tsRecommended = tseslint.configs.recommended.map((config) => ({
     files: ['app/**/*.ts'],
 }));
 
+// Playwright rig (T08). Scoped separately from app/** for the same reason
+// everything else is: the presets would otherwise reach the legacy src/.
+const E2E_FILES = ['playwright.config.ts', 'e2e/**/*.ts'];
+
+const tsRecommendedE2e = tseslint.configs.recommended.map((config) => ({
+    ...config,
+    files: E2E_FILES,
+}));
+
 export default [
     {
         ignores: [
             'dist/**',
             'dist-next/**',
             'node_modules/**',
+            // Playwright output (both gitignored)
+            'test-results/**',
+            'playwright-report/**',
             // npm runtime libs synced into src/libs by tools/common.js
             'src/libs/**',
             // vendored third-party code
@@ -88,6 +100,7 @@ export default [
         },
     },
     ...tsRecommended,
+    ...tsRecommendedE2e,
     ...vueEssential,
     {
         // Layer the TS parser into vue-eslint-parser for <script lang="ts">
@@ -113,6 +126,21 @@ export default [
             // repo's components are named after what they render, e.g.
             // App.vue, ShutterIo.vue.
             'vue/multi-word-component-names': 'off',
+        },
+    },
+
+    {
+        // Playwright specs are node code that also authors browser code:
+        // `page.evaluate()` callbacks are written inline and reference
+        // window/history/location, so both global sets are in scope here.
+        files: E2E_FILES,
+        languageOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'module',
+            globals: {
+                ...globals.node,
+                ...globals.browser,
+            },
         },
     },
 ];
