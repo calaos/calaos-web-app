@@ -41,13 +41,13 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
 | [T18](tasks/T18-responsive-a11y.md) | Responsive + a11y + visual polish | ✅ | T14,T17 | opus/high + frontend-design + playwright | 7285878 |
-| [T19](tasks/T19-i18n.md) | i18n completion en+fr | 🟨 | T18 | sonnet/medium | |
+| [T19](tasks/T19-i18n.md) | i18n completion en+fr | ✅ | T18 | sonnet/medium | 1013232 |
 
 ## M5 — Cutover
 
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
-| [T20](tasks/T20-cutover.md) | Cutover: new app becomes dist/, delete old app, docs | ⬜ | T19 | fable/high | |
+| [T20](tasks/T20-cutover.md) | Cutover: new app becomes dist/, delete old app, docs | 🟨 | T19 | fable/high | |
 | [T21](tasks/T21-ci.md) | CI test workflow | ✅ | T08 | sonnet/low | 3588419 |
 
 Parallelizable: T02∥T04 · T11∥T12∥T13 · T15∥T16 · T21 any time after T08.
