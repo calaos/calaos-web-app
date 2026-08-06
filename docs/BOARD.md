@@ -14,8 +14,8 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 | [T04](tasks/T04-mock-server.md) | Mock calaos_server + /control + fixtures | ✅ | T01 | opus/medium | 01da3d3 |
 | [T05](tasks/T05-stores.md) | Pinia stores + calaos service wiring | ✅ | T02,T03 | opus/high | 59b31ff |
 | [T06](tasks/T06-shell.md) | App shell, router, chrome | ✅ | T05 | opus/medium + frontend-design | 9bf7143 |
-| [T07](tasks/T07-login.md) | Login screen + flow | 🟨 | T06 | opus/medium + frontend-design | |
-| [T08](tasks/T08-e2e-infra.md) | Playwright infra + M1 E2E | ⬜ | T04,T07 | opus/medium | |
+| [T07](tasks/T07-login.md) | Login screen + flow | ✅ | T06 | opus/medium + frontend-design | b8b8f46 |
+| [T08](tasks/T08-e2e-infra.md) | Playwright infra + M1 E2E | 🟨 | T04,T07 | opus/medium | |
 
 ## M2 — Home, rooms, all IOs (demo: full control of mock home)
 
