@@ -26,14 +26,14 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 | [T11](tasks/T11-io-sliders.md) | Slider/stepper IOs (dimmer, analog_out, var_int) | ✅ | T10 | sonnet/medium | 23eeafb |
 | [T12](tasks/T12-io-dialogs.md) | BaseDialog + color picker + text dialog IOs | ✅ | T10 | opus/medium + frontend-design | 23eeafb |
 | [T13](tasks/T13-io-shutters.md) | Shutter IOs (shutter, shutter_smart) | ✅ | T10 | sonnet/medium | 23eeafb |
-| [T14](tasks/T14-e2e-io.md) | E2E IO interaction suite | 🟨 | T08,T11,T12,T13 | opus/medium | |
+| [T14](tasks/T14-e2e-io.md) | E2E IO interaction suite | ✅ | T08,T11,T12,T13 | opus/medium | f539dbc |
 
 ## M3 — Cameras + audio (demo: full feature surface)
 
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
-| [T15](tasks/T15-cameras.md) | Camera polling + views + E2E | ⬜ | T09,T08 | opus/high | |
-| [T16](tasks/T16-audio-protocol.md) | Research calaos_server audio protocol → spec + mock | ⬜ | T04 | fable/high | |
+| [T15](tasks/T15-cameras.md) | Camera polling + views + E2E | 🟨 | T09,T08 | opus/high | |
+| [T16](tasks/T16-audio-protocol.md) | Research calaos_server audio protocol → spec + mock | 🟨 | T04 | fable/high | |
 | [T17](tasks/T17-audio-player.md) | Full audio player (store, views, transport, volume) | ⬜ | T16,T09 | opus/high + frontend-design | |
 
 ## M4 — Polish (demo: release candidate)
