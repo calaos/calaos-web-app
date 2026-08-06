@@ -45,7 +45,9 @@ export default defineConfig(({ mode }) => {
             },
         },
         build: {
-            outDir: '../dist-next',
+            // Repo-root dist/ (root is 'app', so one level up). Committed to
+            // git — the sole input to the Docker image and the distro package.
+            outDir: '../dist',
             emptyOutDir: true,
         },
     };

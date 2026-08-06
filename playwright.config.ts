@@ -11,8 +11,11 @@
 //    exactly what calaos_server does for the real app.
 //
 // 2. `build` is part of the webServer command. `vite preview` serves whatever
-//    is in dist-next at the moment it starts, so a preview launched without a
-//    fresh build would happily serve a stale bundle and pass.
+//    is in dist/ at the moment it starts, so a preview launched without a
+//    fresh build would happily serve a stale bundle and pass. Note this means
+//    an E2E run rebuilds the committed dist/ — after running it, make sure
+//    dist/ is committed from a fresh `npm run build` (they produce identical
+//    output for identical sources, so normally there is nothing to re-commit).
 
 import { defineConfig, devices } from '@playwright/test';
 
@@ -94,7 +97,7 @@ export default defineConfig({
             // why control.mjs advertises it as the readiness probe. Probing
             // `/api` would open a WebSocket the mock would then log.
             url: `http://localhost:${MOCK_PORT}/control`,
-            // Never adopt a mock left running by `npm run dev:next`: its frame
+            // Never adopt a mock left running by `npm run dev`: its frame
             // log and scenario state are unknown, and the cold-load spec
             // asserts on an empty log.
             reuseExistingServer: false,
@@ -103,7 +106,7 @@ export default defineConfig({
             stderr: 'pipe',
         },
         {
-            command: `npm run build:next && npm run preview:next -- --port ${APP_PORT} --strictPort`,
+            command: `npm run build && npm run preview -- --port ${APP_PORT} --strictPort`,
             url: `http://localhost:${APP_PORT}/`,
             // Same reason as the mock, plus the one above: reusing a preview
             // would skip the build in front of it.

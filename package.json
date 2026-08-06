@@ -2,29 +2,17 @@
   "name": "calaos-web-app",
   "version": "3.0.0",
   "scripts": {
-    "build": "node tools/build.js",
-    "dev": "node tools/serve.js",
-    "lint": "eslint .",
-    "dev:next": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite",
-    "build:next": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite build",
-    "preview:next": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite preview",
+    "dev": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite",
+    "build": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite build",
+    "preview": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite preview",
     "mock": "node mock-server/index.mjs",
+    "lint": "eslint .",
     "typecheck": "vue-tsc --build --force",
     "test:unit": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vitest run",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ckpack/vue-color": "^1.6.0",
-    "@fortawesome/fontawesome-free": "^5.15.4",
-    "@uirouter/angularjs": "^1.1.2",
-    "angular": "^1.8.3",
-    "angular-sanitize": "^1.8.3",
-    "es5-shim": "^4.6.7",
-    "font-awesome-animation": "^0.4.2",
-    "jquery": "^3.7.1",
-    "json3": "^3.3.3",
-    "magnific-popup": "^1.2.0",
-    "ng-dialog": "^1.4.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.41",
     "vue-i18n": "11.4.2",
@@ -38,13 +26,10 @@
     "@types/node": "^20.19.43",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/test-utils": "^2.4.11",
-    "clean-css": "^5.3.3",
     "eslint": "^10.8.0",
     "eslint-plugin-vue": "^10.10.0",
     "globals": "^17.9.0",
     "happy-dom": "^20.11.1",
-    "html-minifier-terser": "^7.2.0",
-    "terser": "^5.44.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.66.0",
     "unplugin-icons": "^23.0.1",
@@ -54,7 +39,7 @@
     "ws": "^8.21.2"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19"
   },
   "author": {
     "name": "Calaos Team",

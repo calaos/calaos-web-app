@@ -4,10 +4,9 @@ import tseslint from 'typescript-eslint';
 import pluginVue from 'eslint-plugin-vue';
 
 // eslint-plugin-vue's and typescript-eslint's shared presets don't scope
-// every entry with `files` (some are meant to apply to a whole project).
-// This repo lints the legacy AngularJS app (src/, tools/) alongside the new
-// Vue app (app/), so every entry is force-scoped to app/** to guarantee the
-// old ES5 code is parsed and linted exactly as before.
+// every entry with `files` (some are meant to apply to a whole project), so
+// each preset is force-scoped to the directories it is meant for — mock
+// server .mjs files must not be parsed as TS, and vice versa.
 // 'flat/essential' (not 'flat/recommended'): keep to bug-catching structural
 // rules, no stylistic formatting rules — the repo has no formatter (see
 // CLAUDE.md), so enforcing e.g. template indentation via lint would just be
@@ -22,71 +21,31 @@ const tsRecommended = tseslint.configs.recommended.map((config) => ({
     files: ['app/**/*.ts'],
 }));
 
-// Playwright rig (T08). Scoped separately from app/** for the same reason
-// everything else is: the presets would otherwise reach the legacy src/.
+// Node-side TypeScript: the Playwright rig (T08) and the root Vite/Vitest
+// config files.
 const E2E_FILES = ['playwright.config.ts', 'e2e/**/*.ts'];
+const ROOT_CONFIG_FILES = ['vite.config.ts', 'vitest.config.ts'];
 
-const tsRecommendedE2e = tseslint.configs.recommended.map((config) => ({
+const tsRecommendedNode = tseslint.configs.recommended.map((config) => ({
     ...config,
-    files: E2E_FILES,
+    files: [...E2E_FILES, ...ROOT_CONFIG_FILES],
 }));
 
 export default [
     {
         ignores: [
+            // build output (committed, but never linted)
             'dist/**',
-            'dist-next/**',
             'node_modules/**',
             // Playwright output (both gitignored)
             'test-results/**',
             'playwright-report/**',
-            // npm runtime libs synced into src/libs by tools/common.js
-            'src/libs/**',
-            // vendored third-party code
-            'src/vendor/**',
-            'src/scripts/reconnecting-websocket.js',
         ],
     },
     js.configs.recommended,
     {
-        files: ['src/scripts/**/*.js'],
-        languageOptions: {
-            ecmaVersion: 'latest',
-            sourceType: 'script',
-            globals: {
-                ...globals.browser,
-                ...globals.jquery,
-                angular: 'readonly',
-                // cross-file globals: no module system, scripts share the global scope
-                calaosDevConfig: 'writable',
-                ReconnectingWebSocket: 'writable',
-                getRoomTypeString: 'writable',
-                getRoomTypeIcon: 'writable',
-            },
-        },
-        rules: {
-            'no-unused-vars': ['warn', { args: 'none' }],
-            // files define these globals themselves; only flag same-file redeclares
-            'no-redeclare': ['error', { builtinGlobals: false }],
-        },
-    },
-    {
-        files: ['tools/**/*.js'],
-        languageOptions: {
-            ecmaVersion: 2022,
-            sourceType: 'commonjs',
-            globals: {
-                ...globals.node,
-            },
-        },
-        rules: {
-            'no-unused-vars': ['warn', { args: 'none' }],
-        },
-    },
-    {
         // Mock calaos_server (T04): plain Node ESM, hence .mjs — the repo's
-        // package.json intentionally has no "type":"module" because tools/*.js
-        // are CommonJS.
+        // package.json has no "type":"module".
         files: ['mock-server/**/*.mjs'],
         languageOptions: {
             ecmaVersion: 'latest',
@@ -100,7 +59,7 @@ export default [
         },
     },
     ...tsRecommended,
-    ...tsRecommendedE2e,
+    ...tsRecommendedNode,
     ...vueEssential,
     {
         // Layer the TS parser into vue-eslint-parser for <script lang="ts">
@@ -128,7 +87,6 @@ export default [
             'vue/multi-word-component-names': 'off',
         },
     },
-
     {
         // Playwright specs are node code that also authors browser code:
         // `page.evaluate()` callbacks are written inline and reference
@@ -140,6 +98,17 @@ export default [
             globals: {
                 ...globals.node,
                 ...globals.browser,
+            },
+        },
+    },
+    {
+        // Vite/Vitest config files run in node.
+        files: ROOT_CONFIG_FILES,
+        languageOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'module',
+            globals: {
+                ...globals.node,
             },
         },
     },

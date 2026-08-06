@@ -4,38 +4,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Legacy AngularJS 1.8 web frontend for the Calaos home automation server. Plain ES5, no modules, no bundler — scripts are loaded as `<script>` tags in `src/index.html` and concatenated at build time into the bundles named by the `<!-- build:* -->` blocks.
+Web frontend for the Calaos home automation server: Vue 3 + TypeScript + Vite, Pinia stores, vue-router (hash history — static servers have no SPA fallback), vue-i18n (en/fr), unplugin-icons (MDI), plain CSS with custom properties (no Tailwind, no preprocessor, no formatter). App code lives in `app/src/`; unit tests are co-located (`foo.ts` → `foo.spec.ts`). Architecture details: `docs/ARCHITECTURE.md`.
 
-## Build toolchain (npm-only, Node >= 18)
+## dist/ is committed and is the sole input to Docker/packaging
 
-- `npm install`, then `npm run build` (regenerates `dist/`), `npm run dev` (serves `src/` on port 8000). No gulp, no bower.
-- The build lives in `tools/` (`build.js`, `serve.js`, `common.js`): plain Node scripts using terser, clean-css and html-minifier-terser. It parses the usemin-style build blocks in `src/index.html`.
-- Runtime libraries (angular, jquery, ngDialog, Font Awesome…) come from npm and are synced into `src/libs/` (gitignored) by the tools; `src/vendor/` holds third-party code with no npm package (angular-farbtastic).
-- The app bundle (`build:js`) is minified WITHOUT name mangling: AngularJS DI reads function parameter names and not all app code uses explicit `['dep', function(dep)]` annotations. Don't "optimize" this.
-- CSS is minified without URL rebasing on purpose: `url(../webfonts|../fonts|../images)` resolve because of the `dist/` layout. Don't enable rebasing.
+- CI never builds. `docker-publish.yml` copies the committed `dist/` into the image; the calaos/pkgbuilds PKGBUILD packages it too. **Any change under `app/` must ship with a fresh `npm run build` and the resulting `dist/` in the same commit**, or production gets stale code.
+- Never hand-edit `dist/`; `npm run build` empties and regenerates it. `npm run test:e2e` also rebuilds `dist/` (Playwright's webServer runs `npm run build` + `vite preview`), producing identical output for identical sources.
 
-## dist/ is committed and is the sole input to the Docker image
+## Networking invariants
 
-- CI never runs a build. `docker-publish.yml` copies the committed `dist/` straight into `ghcr.io/calaos/calaos-web-app`, and the calaos/pkgbuilds PKGBUILD packages the committed `dist/` too. A `src/` change without `npm run build` + committing `dist/` ships stale code.
-- Never hand-edit files under `dist/`; they are build outputs (`dist/scripts/dev_config.js` in particular is generated with an empty host on purpose — the app derives the WebSocket URL from `window.location` when the host is empty; never ship a non-empty host).
+- The app always talks to **same-origin `/api`** (WebSocket + camera snapshots); in production it is served by calaos_server itself. The WS URL is derived from `location.host` (`app/src/protocol/server-url.ts`) — never ship a hardcoded host, and no `VITE_*` var may reach the bundle (`vite.config.ts` refuses production builds if `VITE_CALAOS*` is set).
+- Dev against a real server: put `CALAOS_SERVER=http://<host>:5454` in `.env.development.local` (gitignored, never commit it); the Vite dev/preview proxy forwards `/api` there. Default target is the mock server.
+- `npm run mock` starts the mock calaos_server on :5454 (creds `demo`/`demo`, test API on `POST /control`) — `npm run mock` + `npm run dev` is a fully offline loop.
 
-## Gotchas
+## Protocol layer
 
-- Adding a JS file requires two edits: create it under `src/scripts/` AND add a `<script>` tag inside the `<!-- build:js -->` block in `src/index.html`, or it silently never loads. Same for CSS in the `<!-- build:css -->` block.
-- `src/scripts/dev_config.js` is gitignored; set `calaosServerHost` (e.g. `ws://192.168.1.10:5454/api`) to develop against a remote calaos_server. In production the WebSocket URL is derived from `window.location` + `/api` — the app assumes it is served by calaos_server itself (port 5454 is the server default).
-- Camera images are fetched over HTTP and gated by the SCE whitelist in `src/scripts/app.js`, which hardcodes `http://127.0.0.1:5454/**` — pointing `dev_config.js` at another host blocks camera images until that whitelist is extended.
-- `scripts/assets.json` (image-preload manifest) is generated and gitignored; the preloader breaks without it.
-- WebSocket protocol: JSON messages with a `msg` field (`login`, `get_home`, `set_state`, `event`). Only the `io_changed` event is handled — see the TODO in `src/scripts/services.js` for the unimplemented ones. The authoritative protocol spec lives in the calaos_server repo.
-- `src/scripts/reconnecting-websocket.js` is vendored third-party code — do not edit it.
+`app/src/protocol/` (types, guards, message codecs, per-gui_type state parsers, WS client) has **no Vue imports** — keep it framework-free. All wire values are strings; guards never throw on malformed frames. The audio protocol spec is `docs/audio-protocol.md` — items marked "Unverified" there have not been validated against a real calaos_server yet.
 
-## Style & lint
+## npm scripts
 
-- Existing code: mostly ES5, 4-space indent, single quotes, snake_case identifiers are fine. Match the file you're editing.
-- No formatter is configured; do not introduce one or mass-reformat existing files.
-- Lint with `npm run lint` (ESLint flat config in `eslint.config.mjs`; there is no module system, so cross-file globals are declared there). The codebase has known pre-existing lint errors (35 in `src/scripts/`) — don't add new ones.
+`dev` / `build` / `preview` (Vite), `mock`, `lint` (eslint, repo-wide, must stay clean), `typecheck` (vue-tsc), `test:unit` (Vitest), `test:e2e` (Playwright; starts mock + build/preview itself, needs `npx playwright install chromium` once). Node >= 20.19.
+
+## Known gaps
+
+- Color picker: the hue bar is not keyboard-accessible (upstream `@ckpack/vue-color` limitation).
 
 ## Git & releases
 
-- Commit directly to `master` — no PRs. Pushing to master dispatches a package build to calaos/calaos-build and publishes the Docker image.
-- The version lives in `package.json` (bower.json is gone).
+- Commit directly to `master` — no PRs. Pushing to master dispatches a package build to calaos/calaos-build and publishes the Docker image, so never push with a stale or broken `dist/`.
+- The version lives in `package.json` only.
 - Releases are cut with `gh workflow run build_release.yml -f version=x.x.x` (dev builds: `build_dev.yml` with `x.x.x-dev`). The workflow creates the git tag itself — never create release tags manually. Use the `/release` skill.

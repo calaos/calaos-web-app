@@ -1,11 +1,12 @@
 name: Test
 
-# Quality gates for the Vue 3 rewrite (app/, e2e/, mock-server/). Runs on
-# every push and pull request. This workflow only reads the repo and runs
-# `vite build`/`vite preview` against the gitignored `dist-next/` directory
-# (via `npm run test:e2e` -> playwright.config.ts's webServer) — it never
-# runs `npm run build` and never writes to `dist/`, and it does not touch
-# docker-publish.yml or build*.yml, which own packaging/publishing.
+# Quality gates for the Vue 3 app (app/, e2e/, mock-server/). Runs on
+# every push and pull request. This workflow only tests the repo: the E2E
+# step (`npm run test:e2e` -> playwright.config.ts's webServer) runs
+# `vite build`/`vite preview` in the runner's own workspace, but nothing is
+# ever committed — the deployed dist/ is always the one committed by the
+# developer. This workflow does not touch docker-publish.yml or build*.yml,
+# which own packaging/publishing from the committed dist/.
 on:
   push:
   pull_request:
@@ -21,32 +22,15 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          # vite@8 requires Node >=20.19 even though package.json's "engines"
-          # still says >=18 (that floor covers the old AngularJS app under
-          # src/, which this workflow does not build or test).
+          # vite@8 requires Node >=20.19 (package.json "engines" matches).
           node-version: '20'
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      # `npm run lint` (eslint .) currently exits 1 because of 35
-      # pre-existing errors in the OLD app's src/scripts/*.js, which predate
-      # the Vue 3 rewrite and are out of scope for it (see T20). Scoping the
-      # CI lint step to only the new code's directories/entry files keeps
-      # this gate meaningful and green without masking real lint errors in
-      # app/, e2e/ or mock-server/. --no-warn-ignored silences the harmless
-      # "file ignored, no matching configuration" notices for the two root
-      # *.config.ts files, which eslint.config.mjs deliberately doesn't
-      # scope with a `files` pattern.
-      #
-      # TODO(T20 cutover): once src/ is deleted, drop this scoping and use
-      # plain `npm run lint` again.
-      - name: Lint (new Vue app code only)
-        run: >-
-          ./node_modules/.bin/eslint --no-warn-ignored
-          app e2e mock-server
-          playwright.config.ts vite.config.ts vitest.config.ts
+      - name: Lint
+        run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck

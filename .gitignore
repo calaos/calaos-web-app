@@ -1,14 +1,10 @@
 node_modules
-.tmp
-.sass-cache
-src/scripts/dev_config.js
-src/scripts/assets.json
-src/libs
 .serena/
 
-# Vue 3 rewrite (app/) — see docs/ARCHITECTURE.md
-dist-next/
+# local env overrides (.env.development.local etc.) — never committed
 *.local
+
+# test/build tooling output
 test-results/
 playwright-report/
 *.tsbuildinfo

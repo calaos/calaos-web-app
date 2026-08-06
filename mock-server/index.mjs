@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Mock calaos_server — offline dev backend for `npm run dev:next`, the
+// Mock calaos_server — offline dev backend for `npm run dev`, the
 // Playwright `webServer`, and its own vitest regression suite.
 //
 // One HTTP server on PORT (default 5454) serving three things:
