@@ -1,0 +1,40 @@
+/*
+ * Design tokens for the Vue 3 rewrite.
+ * Dark theme, cyan accent, tactile press feedback.
+ * See docs/ARCHITECTURE.md "Styling / icons / fonts".
+ */
+:root {
+    /* Colors */
+    --c-bg: #000000;
+    --c-surface: #1a1a1a;
+    --c-surface-raised: #242424;
+    --c-border: #2e2e2e;
+    --c-text: #f2f2f2;
+    --c-text-muted: #9a9a9a;
+
+    --c-accent: #38b0d3;
+    --c-accent-glow: rgba(56, 176, 211, 0.45);
+
+    --c-danger: #e05656;
+    --c-success: #4caf7d;
+
+    /* Spacing scale */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+
+    /* Radius */
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 1rem;
+
+    /* Interaction */
+    --press-scale: 0.94;
+    --press-duration: 120ms;
+
+    /* Typography */
+    --font-sans: 'Ubuntu', system-ui, -apple-system, sans-serif;
+}

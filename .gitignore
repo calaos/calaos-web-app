@@ -5,3 +5,10 @@ src/scripts/dev_config.js
 src/scripts/assets.json
 src/libs
 .serena/
+
+# Vue 3 rewrite (app/) — see docs/ARCHITECTURE.md
+dist-next/
+*.local
+test-results/
+playwright-report/
+*.tsbuildinfo
