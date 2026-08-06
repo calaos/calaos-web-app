@@ -12,6 +12,29 @@
         "offline": "No connection to Calaos",
         "offlineHint": "Sign in becomes available as soon as the server answers."
     },
+    "home": {
+        "temperature": "Temperature",
+        "empty": "No rooms yet",
+        "emptyHint": "This account has no room configured on the server."
+    },
+    "room": {
+        "empty": "This room has nothing to control."
+    },
+    "roomType": {
+        "lounge": "Lounge",
+        "bedroom": "Bedroom",
+        "kitchen": "Kitchen",
+        "office": "Office",
+        "diningRoom": "Dining room",
+        "cellar": "Cellar",
+        "various": "Various",
+        "outside": "Outside",
+        "bathroom": "Bathroom",
+        "corridor": "Corridor",
+        "garage": "Garage",
+        "internal": "Internal",
+        "unknown": "Room"
+    },
     "chrome": {
         "back": "Back",
         "signOut": "Sign out",

@@ -14,7 +14,9 @@ import type { WatchStopHandle } from 'vue';
 import type { Router, RouterHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useHomeStore } from '../stores/home';
+import HomeView from '../views/HomeView.vue';
 import LoginView from '../views/LoginView.vue';
+import RoomView from '../views/RoomView.vue';
 
 declare module 'vue-router' {
     interface RouteMeta {
@@ -74,15 +76,19 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 component: LoginView,
             },
             {
+                // Eager, like LoginView: /home is where every sign-in lands
+                // and where the footer's Home tab always goes, so a lazy
+                // chunk would only add a blank frame to the app's busiest
+                // route. Same for the room it opens.
                 path: '/home',
                 name: 'home',
-                component: placeholderView('home'),
+                component: HomeView,
                 meta: { requiresAuth: true },
             },
             {
                 path: '/home/:roomId(\\d+)',
                 name: 'room',
-                component: placeholderView('room'),
+                component: RoomView,
                 meta: { requiresAuth: true, detail: true },
             },
             {

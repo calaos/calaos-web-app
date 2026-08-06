@@ -6,8 +6,10 @@ import { createMemoryHistory } from 'vue-router';
 import App from './App.vue';
 import en from './i18n/en.json';
 import { createAppRouter } from './router';
+import { toHomeData } from './protocol/guards';
 import { useAuthStore } from './stores/auth';
 import { useConnectionStore } from './stores/connection';
+import { useHomeStore } from './stores/home';
 import type { Router } from 'vue-router';
 import type { VueWrapper } from '@vue/test-utils';
 
@@ -64,8 +66,16 @@ describe('App shell', () => {
 
     it('renders the routed view inside the scrolling area', async () => {
         useAuthStore().state = 'authed';
+        useHomeStore().setHome(
+            toHomeData({
+                home: [{ name: 'Cuisine', type: 'kitchen', hits: '1', items: [] }],
+                cameras: [],
+                audio: [],
+            }),
+        );
+
         const wrapper = await mountApp('/home');
 
-        expect(wrapper.get('.app-shell__content').text()).toContain('home');
+        expect(wrapper.get('.app-shell__content').text()).toContain('Cuisine');
     });
 });

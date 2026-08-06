@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { createMemoryHistory } from 'vue-router';
 import { createAppRouter, startNavigationIntents } from './index';
+import HomeView from '../views/HomeView.vue';
+import RoomView from '../views/RoomView.vue';
 import { toHomeData } from '../protocol/guards';
 import { useAuthStore } from '../stores/auth';
 import { useHomeStore } from '../stores/home';
@@ -50,6 +52,17 @@ describe('routes', () => {
         await router.push('/audio');
         expect(router.currentRoute.value.meta.requiresAuth).toBe(true);
         expect(router.currentRoute.value.meta.detail).toBeUndefined();
+    });
+
+    it('mounts the real home views, not the T06 placeholders', async () => {
+        signedIn();
+        loadHouse();
+
+        await router.push('/home');
+        expect(router.currentRoute.value.matched[0]?.components?.default).toBe(HomeView);
+
+        await router.push('/home/1');
+        expect(router.currentRoute.value.matched[0]?.components?.default).toBe(RoomView);
     });
 
     it('accepts an opaque (non-numeric) audio player id', async () => {
