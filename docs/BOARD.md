@@ -32,9 +32,9 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
-| [T15](tasks/T15-cameras.md) | Camera polling + views + E2E | 🟨 | T09,T08 | opus/high | |
+| [T15](tasks/T15-cameras.md) | Camera polling + views + E2E | ✅ | T09,T08 | opus/high | c1f1b47 |
 | [T16](tasks/T16-audio-protocol.md) | Research calaos_server audio protocol → spec + mock | ✅ | T04 | fable/high | de6f0e4 |
-| [T17](tasks/T17-audio-player.md) | Full audio player (store, views, transport, volume) | ⬜ | T16,T09 | opus/high + frontend-design | |
+| [T17](tasks/T17-audio-player.md) | Full audio player (store, views, transport, volume) | 🟨 | T16,T09 | opus/high + frontend-design | |
 
 ## M4 — Polish (demo: release candidate)
 
