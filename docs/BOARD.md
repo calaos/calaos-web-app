@@ -10,9 +10,9 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 |---|---|---|---|---|---|
 | [T01](tasks/T01-scaffold.md) | Scaffold Vite/TS/Vitest/ESLint + styled hello | ✅ | — | sonnet/medium | 4b25caa |
 | [T02](tasks/T02-protocol.md) | Protocol types, guards, codecs, IO state parsers | ✅ | T01 | fable/high | 9481f10 |
-| [T03](tasks/T03-socket.md) | CalaosSocket + wsUrl | 🟨 | T02 | opus/medium | |
+| [T03](tasks/T03-socket.md) | CalaosSocket + wsUrl | ✅ | T02 | opus/medium | d60f7a2 |
 | [T04](tasks/T04-mock-server.md) | Mock calaos_server + /control + fixtures | ✅ | T01 | opus/medium | 01da3d3 |
-| [T05](tasks/T05-stores.md) | Pinia stores + calaos service wiring | ⬜ | T02,T03 | opus/high | |
+| [T05](tasks/T05-stores.md) | Pinia stores + calaos service wiring | 🟨 | T02,T03 | opus/high | |
 | [T06](tasks/T06-shell.md) | App shell, router, chrome | ⬜ | T05 | opus/medium + frontend-design | |
 | [T07](tasks/T07-login.md) | Login screen + flow | ⬜ | T06 | opus/medium + frontend-design | |
 | [T08](tasks/T08-e2e-infra.md) | Playwright infra + M1 E2E | ⬜ | T04,T07 | opus/medium | |
