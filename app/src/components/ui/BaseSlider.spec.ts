@@ -86,6 +86,48 @@ describe('BaseSlider', () => {
         expect(wrapper.emitted('commit')).toEqual([[21]]);
     });
 
+    it('sends nothing for a tap that never moves the thumb', async () => {
+        const wrapper = mountSlider(40);
+        const input = wrapper.get('input');
+
+        await input.trigger('pointerdown', { pointerType: 'touch' });
+        await input.trigger('pointerup', { pointerType: 'touch' });
+        // No `change` follows a no-move gesture — the browser only fires it
+        // when the value differs from where the interaction began.
+
+        expect(wrapper.emitted('commit')).toBeUndefined();
+    });
+
+    it('does not let a no-move tap swallow the next keyboard commit', async () => {
+        // Regression (found by the T14 E2E task): pointerup used to arm
+        // suppressNextChange unconditionally, but a no-move tap produces no
+        // `change` to disarm it, so the NEXT keyboard nudge was eaten.
+        const wrapper = mountSlider(40);
+        const input = wrapper.get('input');
+
+        await input.trigger('pointerdown', { pointerType: 'touch' });
+        await input.trigger('pointerup', { pointerType: 'touch' });
+
+        await dragTo(input, 41);
+        await input.trigger('change');
+
+        expect(wrapper.emitted('commit')).toEqual([[41]]);
+    });
+
+    it('commits a drag that returns to its starting value as a no-op, silently', async () => {
+        const wrapper = mountSlider(30);
+        const input = wrapper.get('input');
+
+        await input.trigger('pointerdown', { pointerType: 'mouse' });
+        await dragTo(input, 60);
+        await dragTo(input, 30);
+        await input.trigger('pointerup', { pointerType: 'mouse' });
+        // The browser also fires no `change` here: the committed value equals
+        // the one before the interaction.
+
+        expect(wrapper.emitted('commit')).toBeUndefined();
+    });
+
     it('resyncs the thumb to a fresh server value when nothing is interacting', async () => {
         const wrapper = mountSlider(20);
 

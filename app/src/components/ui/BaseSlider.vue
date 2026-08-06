@@ -44,9 +44,15 @@ const emit = defineEmits<{
 // moving it.
 const live = ref(props.modelValue);
 let interacting = false;
-// Set the instant a pointer release commits, so the `change` the browser
-// fires immediately after is read as that same gesture's echo, not a second
-// interaction to commit again.
+// Where the thumb sat when the pointer went down. The browser only fires
+// `change` after a gesture if the value actually moved, so this is what
+// decides whether a release must suppress the echo that follows it.
+let sessionStart = 0;
+// Set the instant a MOVING pointer release commits, so the `change` the
+// browser fires immediately after is read as that same gesture's echo, not a
+// second interaction to commit again. Never armed for a no-move tap: no
+// `change` follows one, and a flag left armed would eat the next keyboard
+// commit instead.
 let suppressNextChange = false;
 
 watch(
@@ -58,6 +64,10 @@ watch(
 
 function onPointerDown() {
     interacting = true;
+    sessionStart = live.value;
+    // A stale flag from any earlier edge case must not survive into this
+    // interaction.
+    suppressNextChange = false;
 }
 
 function onInput(event: Event) {
@@ -67,6 +77,8 @@ function onInput(event: Event) {
 function onPointerUp() {
     if (!interacting) return;
     interacting = false;
+    // Nothing moved: no frame to send, and no `change` will follow.
+    if (live.value === sessionStart) return;
     suppressNextChange = true;
     emit('commit', live.value);
 }
