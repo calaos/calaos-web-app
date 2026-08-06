@@ -20,6 +20,15 @@
     "room": {
         "empty": "This room has nothing to control."
     },
+    "camera": {
+        "label": "Camera",
+        "live": "Live",
+        "snapshot": "Live picture from {name}",
+        "unavailable": "No picture from this camera",
+        "retry": "Try again",
+        "empty": "No cameras yet",
+        "emptyHint": "This account has no camera configured on the server."
+    },
     "io": {
         "on": "On",
         "off": "Off",

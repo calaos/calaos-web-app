@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { createMemoryHistory } from 'vue-router';
 import { createAppRouter, startNavigationIntents } from './index';
+import CameraListView from '../views/CameraListView.vue';
+import CameraView from '../views/CameraView.vue';
 import HomeView from '../views/HomeView.vue';
 import RoomView from '../views/RoomView.vue';
 import { toHomeData } from '../protocol/guards';
@@ -63,6 +65,17 @@ describe('routes', () => {
 
         await router.push('/home/1');
         expect(router.currentRoute.value.matched[0]?.components?.default).toBe(RoomView);
+    });
+
+    it('mounts the real camera views, not the T06 placeholders', async () => {
+        signedIn();
+        loadHouse();
+
+        await router.push('/security');
+        expect(router.currentRoute.value.matched[0]?.components?.default).toBe(CameraListView);
+
+        await router.push('/security/1');
+        expect(router.currentRoute.value.matched[0]?.components?.default).toBe(CameraView);
     });
 
     it('accepts an opaque (non-numeric) audio player id', async () => {

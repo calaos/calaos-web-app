@@ -14,6 +14,8 @@ import type { WatchStopHandle } from 'vue';
 import type { Router, RouterHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useHomeStore } from '../stores/home';
+import CameraListView from '../views/CameraListView.vue';
+import CameraView from '../views/CameraView.vue';
 import HomeView from '../views/HomeView.vue';
 import LoginView from '../views/LoginView.vue';
 import RoomView from '../views/RoomView.vue';
@@ -107,15 +109,19 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 meta: { requiresAuth: true, detail: true },
             },
             {
+                // Eager, like the home routes: the Security tab is one press
+                // away at all times, and a lazy chunk would put a blank frame
+                // in front of a screen whose entire job is to show pictures
+                // quickly.
                 path: '/security',
                 name: 'security',
-                component: placeholderView('security'),
+                component: CameraListView,
                 meta: { requiresAuth: true },
             },
             {
                 path: '/security/:cameraId(\\d+)',
                 name: 'camera',
-                component: placeholderView('camera'),
+                component: CameraView,
                 meta: { requiresAuth: true, detail: true },
             },
             // Unknown hash → home, where the auth guard takes over.
