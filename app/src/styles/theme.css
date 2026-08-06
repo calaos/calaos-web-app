@@ -17,6 +17,23 @@
 
     --c-danger: #e05656;
     --c-success: #4caf7d;
+    /* Degraded-but-recovering (connection banner) — deliberately NOT the
+       accent: cyan means "working" everywhere else in this app. */
+    --c-warn: #e0a356;
+
+    /* App chrome. The 48px bar and its #3c3c3c→#111 gradient are carried over
+       verbatim from the old app (src/styles/main.css) — it is the single most
+       recognizable piece of Calaos furniture. */
+    --c-chrome-top: #3c3c3c;
+    --c-chrome-bottom: #111111;
+    --c-chrome-hairline: #4c4c4c;
+    --c-chrome-shadow: rgba(0, 0, 0, 0.55);
+
+    /* Chrome band heights stay in px: they are physical furniture sized to
+       the touch target, not text, so they must not scale with the root font. */
+    --h-navbar: 48px;
+    --h-footer: 78px;
+    --h-banner: 32px;
 
     /* Spacing scale */
     --space-1: 0.25rem;
@@ -35,6 +52,14 @@
     --press-scale: 0.94;
     --press-duration: 120ms;
 
-    /* Typography */
+    /* Typography. One family (Ubuntu, the Calaos face); the type treatment is
+       the CONTRAST between a tight wordmark and wide, uppercase utility
+       labels — see NavBar.vue / FooterNav.vue. */
     --font-sans: 'Ubuntu', system-ui, -apple-system, sans-serif;
+    --tracking-tight: -0.01em;
+    --tracking-wide: 0.09em;
+
+    /* Layering */
+    --z-background: -1;
+    --z-chrome: 100;
 }

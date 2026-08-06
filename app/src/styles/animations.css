@@ -1,6 +1,12 @@
 /*
- * Shared motion utilities: tactile press feedback, fade-in, shake (error
- * feedback). All guarded by prefers-reduced-motion.
+ * Shared motion utilities: tactile press feedback, fade/slide entrances,
+ * shake (error feedback). All guarded by prefers-reduced-motion.
+ *
+ * The four entrance keyframes are the old app's (src/styles/main.css:
+ * fadeIn / fadeInDown / fadeInUp / shake) transcribed to kebab-case and
+ * shortened: the originals ran 1 s, which reads as sluggish on a wall panel.
+ * The 20px offsets are kept as-is — that travel distance IS the old chrome's
+ * entrance.
  */
 .pressable {
     transition: transform var(--press-duration) ease;
@@ -21,6 +27,36 @@
 
 .fade-in {
     animation: fade-in 200ms ease both;
+}
+
+@keyframes fade-in-down {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in-down {
+    animation: fade-in-down 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in-up {
+    animation: fade-in-up 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
 @keyframes shake {
@@ -47,10 +83,28 @@
     animation: shake 400ms ease;
 }
 
+/** Slow, low-amplitude breathing — the connection banner's status dot. */
+@keyframes pulse-soft {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.35;
+    }
+}
+
+.pulse-soft {
+    animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .pressable,
     .fade-in,
-    .shake {
+    .fade-in-down,
+    .fade-in-up,
+    .shake,
+    .pulse-soft {
         animation: none !important;
         transition: none !important;
     }

@@ -7,10 +7,26 @@ import './styles/theme.css';
 import './styles/base.css';
 import './styles/animations.css';
 import { i18n } from './i18n';
+import { createAppRouter, startNavigationIntents } from './router';
+import { getCalaosService } from './services/calaos';
 import App from './App.vue';
 
-// The websocket is NOT started here: services/calaos.ts exposes
-// getCalaosService().start(), which T06 calls from the app shell once the
-// router exists (pinia must be installed first — the service resolves the
-// stores when it is created).
-createApp(App).use(createPinia()).use(i18n).mount('#app');
+const app = createApp(App);
+const router = createAppRouter();
+
+// Pinia first: the router's guard and the navigation-intent watcher both
+// resolve stores, and getCalaosService() resolves all three.
+app.use(createPinia());
+app.use(i18n);
+app.use(router);
+
+// auth.pendingNavigation → router.push. The auth store deliberately knows
+// nothing about vue-router; see router/index.ts.
+startNavigationIntents(router);
+
+app.mount('#app');
+
+// Connect last, so the shell is on screen before the socket starts dialling.
+// Construction is network-free; start() is what opens the websocket. No login
+// frame goes out until the user submits credentials.
+getCalaosService().start();

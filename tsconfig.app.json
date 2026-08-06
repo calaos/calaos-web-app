@@ -9,7 +9,9 @@
         "useDefineForClassFields": true,
         "resolveJsonModule": true,
         "isolatedModules": true,
-        "types": ["vite/client"],
+        // unplugin-icons/types/vue declares the virtual `~icons/*` modules
+        // that vite.config.ts's Icons() plugin resolves at build time.
+        "types": ["vite/client", "unplugin-icons/types/vue"],
         "strict": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,

@@ -1,5 +1,19 @@
 {
     "app": {
         "name": "Calaos"
+    },
+    "chrome": {
+        "back": "Back",
+        "signOut": "Sign out",
+        "sections": "Sections",
+        "tabs": {
+            "home": "Home",
+            "audio": "Audio",
+            "security": "Security"
+        },
+        "connection": {
+            "lost": "Connection lost",
+            "retrying": "Reconnecting…"
+        }
     }
 }

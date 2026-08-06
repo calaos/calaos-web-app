@@ -1,55 +1,53 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n';
+// The shell: a fixed-height grid of chrome bands around one scrolling
+// content area.
+//
+// The chrome is mounted with v-if rather than kept in the DOM at opacity 0
+// and revealed with a class (the old `ng-class="{fadeInDown: isAuth()}"`
+// trick). Mounting is what makes the entrance animation replay on every
+// sign-in, and it means the login screen genuinely owns the whole viewport
+// instead of relying on a `.content-max` override.
 
-const { t } = useI18n();
+import AppBackground from './components/chrome/AppBackground.vue';
+import ConnectionBanner from './components/chrome/ConnectionBanner.vue';
+import FooterNav from './components/chrome/FooterNav.vue';
+import NavBar from './components/chrome/NavBar.vue';
+import { useAuthStore } from './stores/auth';
+
+const auth = useAuthStore();
 </script>
 
 <template>
-    <main class="hello">
-        <h1 class="hello__title">{{ t('app.name') }}</h1>
-        <p class="hello__subtitle">Vue 3 scaffold is alive.</p>
-        <button type="button" class="hello__button pressable">Press me</button>
-    </main>
+    <AppBackground />
+
+    <div class="app-shell">
+        <NavBar v-if="auth.isAuthed" />
+        <ConnectionBanner />
+
+        <main class="app-shell__content">
+            <RouterView />
+        </main>
+
+        <FooterNav v-if="auth.isAuthed" />
+    </div>
 </template>
 
 <style scoped>
-.hello {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-4);
-    background: var(--c-bg);
-    color: var(--c-text);
-    text-align: center;
-    padding: var(--space-8);
+.app-shell {
+    display: grid;
+    /* navbar · banner · content · footer. The two chrome rows collapse to 0
+       when unauthenticated, so the content row takes the whole viewport. */
+    grid-template-rows: auto auto 1fr auto;
+    /* dvh, not vh: mobile browsers shrink the viewport when their address bar
+       is showing, and a footer parked under it is a footer nobody can tap. */
+    block-size: 100dvh;
+    overflow: hidden;
 }
 
-.hello__title {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--c-accent);
-    text-shadow: 0 0 1.5rem var(--c-accent-glow);
-}
-
-.hello__subtitle {
-    color: var(--c-text-muted);
-}
-
-.hello__button {
-    margin-top: var(--space-4);
-    padding: var(--space-3) var(--space-6);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--c-accent);
-    background: var(--c-surface);
-    color: var(--c-text);
-    font: inherit;
-    font-size: 1rem;
-    cursor: pointer;
-}
-
-.hello__button:hover {
-    background: var(--c-surface-raised);
+.app-shell__content {
+    min-block-size: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 </style>
