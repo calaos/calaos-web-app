@@ -3,13 +3,20 @@ import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import AnalogInIo from './AnalogInIo.vue';
+import AnalogOutIo from './AnalogOutIo.vue';
 import IoRow, { IO_COMPONENTS, NOT_IMPLEMENTED_GUI_TYPES } from './IoRow.vue';
+import LightDimmerIo from './LightDimmerIo.vue';
 import LightIo from './LightIo.vue';
+import LightRgbIo from './LightRgbIo.vue';
 import ScenarioIo from './ScenarioIo.vue';
+import ShutterIo from './ShutterIo.vue';
+import ShutterSmartIo from './ShutterSmartIo.vue';
 import StringInIo from './StringInIo.vue';
 import TempIo from './TempIo.vue';
 import UnknownIo from './UnknownIo.vue';
 import VarBoolIo from './VarBoolIo.vue';
+import VarIntIo from './VarIntIo.vue';
+import VarStringIo from './VarStringIo.vue';
 import en from '../../i18n/en.json';
 import { toIoItem } from '../../protocol/guards';
 import { GUI_TYPES } from '../../protocol/types';
@@ -29,10 +36,31 @@ const IMPLEMENTED = {
     light: LightIo,
     var_bool: VarBoolIo,
     scenario: ScenarioIo,
+    shutter: ShutterIo,
+    shutter_smart: ShutterSmartIo,
+    light_rgb: LightRgbIo,
+    // One component, two wire types.
+    var_string: VarStringIo,
+    string_out: VarStringIo,
+    analog_out: AnalogOutIo,
+    var_int: VarIntIo,
+    light_dimmer: LightDimmerIo,
 } as const;
 
 /** The only types that put a control in the row (when `rw` allows it). */
-const ACTIONABLE = new Set<string>(['light', 'var_bool', 'scenario']);
+const ACTIONABLE = new Set<string>([
+    'light',
+    'var_bool',
+    'scenario',
+    'shutter',
+    'shutter_smart',
+    'light_rgb',
+    'var_string',
+    'string_out',
+    'analog_out',
+    'var_int',
+    'light_dimmer',
+]);
 
 function mountRow(wire: WireIo) {
     const io = toIoItem({ id: 'io_1', name: 'Un objet', visible: 'true', rw: 'true', ...wire });

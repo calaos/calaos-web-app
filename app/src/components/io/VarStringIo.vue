@@ -1,0 +1,97 @@
+<script setup lang="ts">
+// `var_string` and `string_out` — a line of text the house keeps, and that
+// this screen can rewrite.
+//
+// One component, two gui_types: the old app pointed both at VarStringCtrl and
+// the two templates differed by nothing that mattered. The dispatch table
+// keeps two keys so the protocol layer stays honest about there being two
+// wire types, and the parser call below follows the discriminant rather than
+// quietly picking one — `parseStringOut` delegates to `parseVarString` today,
+// and if the server ever makes them differ this row already asks the right
+// question.
+//
+// The empty-state rule is `StringInIo`'s, for the same reason: the parser
+// falls back to the IO's NAME when the state is empty (old VarStringCtrl),
+// which the old markup could print because its row had no name column. This
+// row has one, so an empty IO shows its name ONCE, in the name column, and
+// omits the value entirely.
+//
+// The edit button is a keyboard rather than a pencil because a keyboard is
+// what happens: on the wall panel this is written for, pressing it puts the
+// on-screen keyboard on the glass. It is `rw`-gated like every other action in
+// the app; the old template gated the IMAGE inside the anchor instead, which
+// left a live, empty tap target on a read-only row.
+
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import IconFormatText from '~icons/mdi/format-text';
+import IconKeyboard from '~icons/mdi/keyboard';
+import IoRowFrame from './IoRowFrame.vue';
+import TextInputDialog from '../dialogs/TextInputDialog.vue';
+import IconButton from '../ui/IconButton.vue';
+import { useIo } from '../../composables/useIo';
+import { parseStringOut, parseVarString, setText } from '../../protocol/io-states';
+import type { IoItem } from '../../protocol/types';
+
+const props = defineProps<{ io: IoItem }>();
+
+const { t } = useI18n();
+const { isPending, set } = useIo(() => props.io.id);
+
+const display = computed(() =>
+    props.io.guiType === 'string_out'
+        ? parseStringOut(props.io.state, props.io.name).display
+        : parseVarString(props.io.state, props.io.name).display,
+);
+
+/** False exactly when the parser fell back to the name, i.e. empty state. */
+const hasValue = computed(() => props.io.state !== '');
+
+const dialogOpen = ref(false);
+
+function confirmText(text: string): void {
+    dialogOpen.value = false;
+    // RAW, no prefix — the one IO type whose action value is not a verb.
+    set(setText(text));
+}
+</script>
+
+<template>
+    <IoRowFrame :name="io.name" :pending="isPending">
+        <template #icon>
+            <IconFormatText class="var-string-io__icon" aria-hidden="true" />
+        </template>
+
+        <template v-if="hasValue" #value>
+            <span class="var-string-io__text">{{ display }}</span>
+        </template>
+
+        <template v-if="io.rw" #actions>
+            <IconButton :label="t('io.setText', { name: io.name })" @click="dialogOpen = true">
+                <IconKeyboard />
+            </IconButton>
+        </template>
+    </IoRowFrame>
+
+    <!-- Seeded from the raw state, not from `display`: the name shown by an
+         empty row is a placeholder, and pre-filling the field with it would
+         make "confirm" write the label into the value. -->
+    <TextInputDialog
+        :open="dialogOpen"
+        :text="io.state"
+        :name="io.name"
+        @confirm="confirmText"
+        @cancel="dialogOpen = false"
+    />
+</template>
+
+<style scoped>
+.var-string-io__icon {
+    color: var(--c-text-muted);
+}
+
+.var-string-io__text {
+    /* The value IS the row here, so it gets the brighter reading colour. */
+    color: var(--c-text);
+}
+</style>

@@ -13,24 +13,29 @@
 
 import type { Component } from 'vue';
 import AnalogInIo from './AnalogInIo.vue';
+import AnalogOutIo from './AnalogOutIo.vue';
+import LightDimmerIo from './LightDimmerIo.vue';
 import LightIo from './LightIo.vue';
+import LightRgbIo from './LightRgbIo.vue';
 import ScenarioIo from './ScenarioIo.vue';
+import ShutterIo from './ShutterIo.vue';
+import ShutterSmartIo from './ShutterSmartIo.vue';
 import StringInIo from './StringInIo.vue';
 import TempIo from './TempIo.vue';
 import UnknownIo from './UnknownIo.vue';
 import VarBoolIo from './VarBoolIo.vue';
+import VarIntIo from './VarIntIo.vue';
+import VarStringIo from './VarStringIo.vue';
 import type { GuiType, IoItem } from '../../protocol/types';
 
 /**
  * gui_type → the component that draws it. Total, and checked to be total.
  *
- * The `UnknownIo` entries below are scaffolding, not decisions: those types
- * are known and supported by the protocol layer already, but their controls
- * land in later tasks (see `NOT_IMPLEMENTED_GUI_TYPES`). Until then they get a
- * row that shows the name and the raw state and offers no action.
- *
- * Swapping one in is a two-line change: import the new component, point its
- * key at it, and drop the key from `NOT_IMPLEMENTED_GUI_TYPES`.
+ * Every wire type now has a component of its own, so `UnknownIo` appears
+ * exactly once, on the `unknown` key, and `NOT_IMPLEMENTED_GUI_TYPES` — the
+ * scaffolding list T10 kept while T11–T13 were outstanding — is empty. It is
+ * still exported and still read by the spec, which is what makes a type
+ * quietly parked on the placeholder impossible.
  */
 export const IO_COMPONENTS: Record<GuiType | 'unknown', Component> = {
     temp: TempIo,
@@ -40,39 +45,32 @@ export const IO_COMPONENTS: Record<GuiType | 'unknown', Component> = {
     var_bool: VarBoolIo,
     scenario: ScenarioIo,
 
-    // T11 — the +/- pair and the dimmer/colour controls.
-    analog_out: UnknownIo,
-    var_int: UnknownIo,
-    light_dimmer: UnknownIo,
-    light_rgb: UnknownIo,
+    // T11 — the +/- pair and the dimmer slider.
+    analog_out: AnalogOutIo,
+    var_int: VarIntIo,
+    light_dimmer: LightDimmerIo,
 
-    // T12 — the text dialog.
-    var_string: UnknownIo,
-    string_out: UnknownIo,
+    // T12 — the two dialog-driven types. `VarStringIo` serves both text
+    // types: one component, two wire types (see its docblock).
+    light_rgb: LightRgbIo,
+    var_string: VarStringIo,
+    string_out: VarStringIo,
 
     // T13 — up / stop / down.
-    shutter: UnknownIo,
-    shutter_smart: UnknownIo,
+    shutter: ShutterIo,
+    shutter_smart: ShutterSmartIo,
 
     // Not scaffolding: a gui_type this version has never heard of.
     unknown: UnknownIo,
 };
 
 /**
- * The keys above that are still waiting for their own component. Shrinks to
- * `[]` as T11–T13 land; the spec reads it, so a table entry and this list can
- * never disagree.
+ * The keys above that are still waiting for their own component — empty now
+ * that T11–T13 have landed. Kept rather than deleted: the spec cross-checks it
+ * against the table, so the next gui_type to arrive has somewhere to be parked
+ * that cannot be forgotten.
  */
-export const NOT_IMPLEMENTED_GUI_TYPES: readonly GuiType[] = [
-    'analog_out',
-    'var_int',
-    'light_dimmer',
-    'light_rgb',
-    'var_string',
-    'string_out',
-    'shutter',
-    'shutter_smart',
-];
+export const NOT_IMPLEMENTED_GUI_TYPES: readonly GuiType[] = [];
 </script>
 
 <script setup lang="ts">

@@ -26,7 +26,29 @@
         "turnOn": "Turn on {name}",
         "turnOff": "Turn off {name}",
         "run": "Run {name}",
+        "increase": "Increase {name}",
+        "decrease": "Decrease {name}",
+        "brightness": "Brightness for {name}",
+        "open": "Open",
+        "closed": "Closed",
+        "raise": "Raise {name}",
+        "stop": "Stop {name}",
+        "lower": "Lower {name}",
+        "setColor": "Set the color of {name}",
+        "setText": "Set the text of {name}",
         "unknownType": "Unknown type"
+    },
+    "dialog": {
+        "cancel": "Cancel",
+        "color": {
+            "title": "Set color",
+            "confirm": "Set color"
+        },
+        "text": {
+            "title": "Set text",
+            "label": "Text",
+            "confirm": "Set text"
+        }
     },
     "roomType": {
         "lounge": "Lounge",
