@@ -40,8 +40,8 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
-| [T18](tasks/T18-responsive-a11y.md) | Responsive + a11y + visual polish | 🟨 | T14,T17 | opus/high + frontend-design + playwright | |
-| [T19](tasks/T19-i18n.md) | i18n completion en+fr | ⬜ | T18 | sonnet/medium | |
+| [T18](tasks/T18-responsive-a11y.md) | Responsive + a11y + visual polish | ✅ | T14,T17 | opus/high + frontend-design + playwright | 7285878 |
+| [T19](tasks/T19-i18n.md) | i18n completion en+fr | 🟨 | T18 | sonnet/medium | |
 
 ## M5 — Cutover
 
