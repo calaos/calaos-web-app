@@ -12,14 +12,17 @@
 // static this time, because it is the room's own band of light rather than
 // something that follows a finger.
 //
-// The IO list below is deliberately raw — T10 replaces each row's contents
-// with `IoRow.vue`. Only the `visible` gate is real, because it is a store
-// truth rather than a rendering one (docs/ARCHITECTURE.md: `visible === false`
-// → never rendered, uniformly).
+// The list below owns one thing about its rows: which of them exist. An IO the
+// server marked `visible: false` is filtered out here and never reaches
+// `IoRow`, because "never rendered" is a property of the list
+// (docs/ARCHITECTURE.md: uniformly, for every type). Everything else about a
+// row — its glyph, its reading, whether `rw` lets it offer a control — belongs
+// to the row.
 
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
+import IoRow from '../components/io/IoRow.vue';
 import RoomIcon, { roomTypeLabelKey } from '../components/ui/RoomIcon.vue';
 import { useHomeStore } from '../stores/home';
 import type { IoItem } from '../protocol/types';
@@ -50,11 +53,9 @@ const ios = computed<IoItem[]>(() =>
             <h1 class="room__name">{{ room.name }}</h1>
         </header>
 
-        <!-- T10: `IoRow` mounts inside these list items. -->
         <ul v-if="ios.length > 0" class="room__ios fade-in">
             <li v-for="io in ios" :key="io.id" class="room__io">
-                <span class="room__io-name">{{ io.name }}</span>
-                <span class="room__io-state">{{ io.state }}</span>
+                <IoRow :io="io" />
             </li>
         </ul>
 
@@ -141,7 +142,7 @@ const ios = computed<IoItem[]>(() =>
     pointer-events: none;
 }
 
-/* ---- IO list (T10 fills these rows) ----------------------------------- */
+/* ---- IO list ----------------------------------------------------------- */
 
 .room__ios {
     display: flex;
@@ -149,21 +150,10 @@ const ios = computed<IoItem[]>(() =>
     gap: var(--space-2);
 }
 
+/* The list item carries no appearance of its own: the row IS the card, and it
+   is `IoRowFrame` that draws it. One owner per visual object. */
 .room__io {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4);
-    padding: var(--space-3);
-    background-color: var(--c-surface);
-    border: 1px solid var(--c-border);
-    border-radius: var(--radius-md);
-}
-
-.room__io-state {
-    color: var(--c-text-muted);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
 }
 
 .room__empty {

@@ -107,9 +107,9 @@ test('a tile opens its room, and back returns to the house', async ({ page }) =>
 
     await expect(page.locator('.room__name')).toHaveText('Extérieur');
     await expect(page.locator('.room__type')).toHaveText(MESSAGES.roomType.outside);
-    // The IO rows themselves land in T10; that they are the RIGHT IOs, in the
-    // order the server sent them, is this view's job.
-    await expect(page.locator('.room__io-name')).toHaveText([
+    // What each row DOES is its own component's business; that these are the
+    // RIGHT IOs, in the order the server sent them, is this view's job.
+    await expect(page.locator('.io-row__name')).toHaveText([
         'Température extérieure',
         'Éclairage terrasse',
         'Store terrasse',
@@ -131,7 +131,7 @@ test('an IO the server marked invisible is nowhere in the room', async ({ page }
     await expect(page).toHaveURL(/#\/home\/3$/);
 
     await expect(page.locator('.room__name')).toHaveText('Chambre');
-    await expect(page.locator('.room__io-name')).toHaveCount(4);
+    await expect(page.locator('.io-row__name')).toHaveCount(4);
     await expect(page.getByText('LED de debug')).toHaveCount(0);
 });
 

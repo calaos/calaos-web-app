@@ -42,6 +42,9 @@ const HOUSE: WireRoom[] = [
                 gui_type: 'light',
                 state: 'false',
                 visible: 'true',
+                // The only IO here the user can act on. `rw` defaults to
+                // false at ingest, which is why the others carry no controls.
+                rw: 'true',
             },
         ],
     },
@@ -114,7 +117,7 @@ describe('RoomView — the room says who it is', () => {
         await flushPromises();
 
         expect(wrapper.get('.room__name').text()).toBe('Cuisine');
-        expect(texts(wrapper, '.room__io-name')).toEqual(['Spots']);
+        expect(texts(wrapper, '.io-row__name')).toEqual(['Spots']);
     });
 
     it('renders nothing when the house is gone from under it', async () => {
@@ -136,8 +139,20 @@ describe('RoomView — the IO list', () => {
 
         const wrapper = await mountRoom('/home/1');
 
-        expect(texts(wrapper, '.room__io-name')).toEqual(['Température', 'Plafonnier']);
-        expect(texts(wrapper, '.room__io-state')).toEqual(['21.5', 'false']);
+        expect(texts(wrapper, '.io-row__name')).toEqual(['Température', 'Plafonnier']);
+    });
+
+    it('gives every IO the row its own type asks for', async () => {
+        loadHouse();
+
+        const wrapper = await mountRoom('/home/1');
+
+        // The temperature reads; the light is a control. Which component draws
+        // which is IoRow's business (IoRow.spec.ts) — what matters here is
+        // that the list hands each IO over and gets a real row back.
+        expect(wrapper.get('.temp-io__reading').text()).toBe('21.5 °C');
+        expect(wrapper.findAll('.io-row')).toHaveLength(2);
+        expect(wrapper.findAll('button')).toHaveLength(2);
     });
 
     it('never renders an IO the server marked invisible', async () => {
@@ -151,11 +166,14 @@ describe('RoomView — the IO list', () => {
     it('follows io_changed events', async () => {
         loadHouse();
         const wrapper = await mountRoom('/home/1');
+        expect(wrapper.get('.state-icon').classes()).not.toContain('state-icon--on');
 
         useHomeStore().handleEvent({ kind: 'io_changed', id: 'light_salon', state: 'true' });
         await flushPromises();
 
-        expect(texts(wrapper, '.room__io-state')).toEqual(['21.5', 'true']);
+        // The event patches one IO in the store's Map and the row re-renders:
+        // no re-fetch of the house, and no copy of the IO held by the list.
+        expect(wrapper.get('.state-icon').classes()).toContain('state-icon--on');
     });
 
     it('says a room is empty rather than showing a bare header', async () => {

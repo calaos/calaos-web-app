@@ -20,6 +20,14 @@
     "room": {
         "empty": "This room has nothing to control."
     },
+    "io": {
+        "on": "On",
+        "off": "Off",
+        "turnOn": "Turn on {name}",
+        "turnOff": "Turn off {name}",
+        "run": "Run {name}",
+        "unknownType": "Unknown type"
+    },
     "roomType": {
         "lounge": "Lounge",
         "bedroom": "Bedroom",
