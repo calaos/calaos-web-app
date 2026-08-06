@@ -8,6 +8,11 @@
 //   POST /control  {op:...}  → one of the ops below
 //
 //   {op:'push_io', id, state}   force an IO state + broadcast io_changed
+//   {op:'push_audio', id, status?, volume?, track?}
+//                               force audio player state + broadcast the
+//                               matching audio_* events (status uses the event
+//                               vocabulary 'play'|'pause'|'stop'; track is a
+//                               current_track object)
 //   {op:'drop'}                 destroy every open WebSocket (no close frame)
 //   {op:'scenario', name}       'login_fail_once' | 'silent_login'
 //                               | 'reject_all_logins' | 'reset'
@@ -46,6 +51,21 @@ export function applyControlOp(hub, body) {
             }
             const known = hub.state.pushIo(id, state ?? '');
             return { status: 200, body: { ok: true, op, id, state: String(state ?? ''), known } };
+        }
+
+        case 'push_audio': {
+            const { id, status, volume, track } = body;
+            if (typeof id !== 'string' || id === '') {
+                return { status: 400, body: { ok: false, error: 'push_audio requires a string id' } };
+            }
+            if (status === undefined && volume === undefined && track === undefined) {
+                return {
+                    status: 400,
+                    body: { ok: false, error: 'push_audio requires status, volume and/or track' },
+                };
+            }
+            const known = hub.state.pushAudio(id, { status, volume, track });
+            return { status: 200, body: { ok: true, op, id, known } };
         }
 
         case 'drop': {
@@ -92,7 +112,7 @@ export function applyControlOp(hub, body) {
                 body: {
                     ok: false,
                     error: `unknown op '${op}'`,
-                    known: ['push_io', 'drop', 'scenario', 'latency', 'log', 'reset'],
+                    known: ['push_io', 'push_audio', 'drop', 'scenario', 'latency', 'log', 'reset'],
                 },
             };
     }
@@ -109,7 +129,7 @@ export function controlStatus(hub) {
         scenario: hub.scenario.name,
         latencyMs: hub.latencyMs,
         logSize: hub.log.length,
-        ops: ['push_io', 'drop', 'scenario', 'latency', 'log', 'reset'],
+        ops: ['push_io', 'push_audio', 'drop', 'scenario', 'latency', 'log', 'reset'],
     };
 }
 

@@ -16,10 +16,20 @@ import { pathToFileURL } from 'node:url';
 import { WebSocketServer } from 'ws';
 
 import { createState } from './state.mjs';
-import { handleControlRequest } from './control.mjs';
+import { handleControlRequest, readJsonBody } from './control.mjs';
 
 const DEFAULT_PORT = 5454;
 const CAMERA_PNG = readFileSync(new URL('./fixtures/camera.png', import.meta.url));
+const COVER_JPG = readFileSync(new URL('./fixtures/cover.jpg', import.meta.url));
+
+/**
+ * Real WS replies echo the request's `msg_id` when one was sent
+ * (`JsonApiHandlerWS::sendJson`, calaos_base). Absent or empty → no key.
+ */
+function withMsgId(frame, msgId) {
+    if (typeof msgId === 'string' && msgId !== '') return { ...frame, msg_id: msgId };
+    return frame;
+}
 
 /**
  * @param {object} [options]
@@ -128,6 +138,8 @@ export function startServer(options = {}) {
             return;
         }
 
+        const msgId = frame.msg_id;
+
         switch (frame.msg) {
             case 'login':
                 handleLogin(ws, clientId, frame);
@@ -135,21 +147,138 @@ export function startServer(options = {}) {
 
             case 'get_home':
                 if (!requireAuth(ws, clientId, 'get_home')) return;
-                send(ws, { msg: 'get_home', data: hub.state.getHome() });
+                send(ws, withMsgId({ msg: 'get_home', data: hub.state.getHome() }, msgId));
                 return;
 
             case 'set_state': {
                 if (!requireAuth(ws, clientId, 'set_state')) return;
                 const { id, value } = frame.data ?? {};
                 if (typeof id !== 'string') return;
-                // Broadcast (or the deliberate absence of one for read-only and
-                // scenario IOs) happens inside applySetState.
-                hub.state.applySetState(id, value ?? '');
+
+                let success;
+                if (hub.state.isAudioPlayer(id)) {
+                    // Audio transport/volume commands ride set_state, like any
+                    // IO — AudioPlayer::set_value always reports true.
+                    success = hub.state.applyAudioCommand(id, value ?? '');
+                } else {
+                    // Broadcast (or the deliberate absence of one for read-only
+                    // and scenario IOs) happens inside applySetState.
+                    hub.state.applySetState(id, value ?? '');
+                    // decodeSetState approximation: false only for unknown ids
+                    // and read-only inputs (their set_value returns false).
+                    const io = hub.state.getIo(id);
+                    success = Boolean(io) && !['temp', 'analog_in', 'string_in'].includes(io.gui_type);
+                }
+
+                // The real server only answers when a msg_id was provided
+                // (JsonApiHandlerWS::processSetState).
+                if (typeof msgId === 'string' && msgId !== '') {
+                    send(ws, withMsgId({ msg: 'set_state', data: { success: success ? 'true' : 'false' } }, msgId));
+                }
+                return;
+            }
+
+            case 'get_state':
+                if (!requireAuth(ws, clientId, 'get_state')) return;
+                handleGetState(ws, frame, msgId);
+                return;
+
+            case 'audio':
+                if (!requireAuth(ws, clientId, 'audio')) return;
+                handleAudio(ws, frame, msgId);
+                return;
+
+            case 'get_playlist': {
+                if (!requireAuth(ws, clientId, 'get_playlist')) return;
+                const playlist = hub.state.audioPlaylist(String(frame.data?.id ?? ''));
+                // Unknown ids answer {success:'false'} (JsonApi::decodeGetPlaylist).
+                send(ws, withMsgId({ msg: 'get_playlist', data: playlist ?? { success: 'false' } }, msgId));
                 return;
             }
 
             default:
                 log(`client #${clientId}: unhandled msg '${frame.msg}'`);
+        }
+    }
+
+    /**
+     * `get_state` — flat `{id: state}` map; audio player ids expand to the
+     * detailed player object (JsonApi::buildJsonState). Unknown ids are
+     * silently skipped; a frame without `data` is answered without `data`.
+     */
+    function handleGetState(ws, frame, msgId) {
+        if (!frame.data) {
+            send(ws, withMsgId({ msg: 'get_state' }, msgId));
+            return;
+        }
+        const items = Array.isArray(frame.data.items)
+            ? frame.data.items.filter((it) => typeof it === 'string')
+            : [];
+        const data = {};
+        for (const id of items) {
+            if (hub.state.isAudioPlayer(id)) {
+                data[id] = hub.state.audioPlayerState(id);
+            } else {
+                const io = hub.state.getIo(id);
+                if (io) data[id] = io.state;
+            }
+        }
+        send(ws, withMsgId({ msg: 'get_state', data }, msgId));
+    }
+
+    /** LMS-style cover URL for the artwork id (`/music/<id>/cover.jpg`). */
+    function coverUrl(artworkTrackId) {
+        return `http://127.0.0.1:${hub.port}/music/${artworkTrackId}/cover.jpg`;
+    }
+
+    /**
+     * `audio` queries (JsonApiHandlerWS::processAudio). Error strings are
+     * upstream's, typos included ('unkown ...').
+     */
+    function handleAudio(ws, frame, msgId) {
+        const jdata = frame.data ?? {};
+        const respond = (data) => send(ws, withMsgId({ msg: 'audio', data }, msgId));
+
+        const action = typeof jdata.audio_action === 'string' ? jdata.audio_action : '';
+        const knownActions = ['get_playlist_size', 'get_time', 'get_playlist_item', 'get_cover_url'];
+        if (!knownActions.includes(action)) {
+            respond({ error: 'unkown audio_action' });
+            return;
+        }
+
+        const id = typeof jdata.id === 'string' ? jdata.id : '';
+        if (id === '') {
+            respond({ error: 'empty player id' });
+            return;
+        }
+        if (!hub.state.isAudioPlayer(id)) {
+            respond({ error: 'unkown player_id' });
+            return;
+        }
+
+        switch (action) {
+            case 'get_playlist_size':
+                respond({ playlist_size: String(hub.state.audioPlaylistSize(id)) });
+                return;
+            case 'get_time':
+                respond({ time_elapsed: hub.state.audioTimeElapsed(id) });
+                return;
+            case 'get_playlist_item': {
+                const item = String(jdata.item ?? '');
+                if (!/^-?\d+$/.test(item)) {
+                    respond({ error: 'wrong item' });
+                    return;
+                }
+                // Out-of-range indexes answer an empty track, like upstream
+                // (the player callback just yields empty params).
+                respond(hub.state.audioPlaylistItem(id, Number(item)) ?? {});
+                return;
+            }
+            case 'get_cover_url': {
+                const artworkId = hub.state.audioArtworkTrackId(id);
+                respond({ cover: artworkId === '' ? '' : coverUrl(artworkId) });
+                return;
+            }
         }
     }
 
@@ -177,7 +306,7 @@ export function startServer(options = {}) {
         }
 
         ws.authed = success;
-        send(ws, { msg: 'login', data: { success: success ? 'true' : 'false' } });
+        send(ws, withMsgId({ msg: 'login', data: { success: success ? 'true' : 'false' } }, frame.msg_id));
         log(`client #${clientId}: login '${cnUser ?? ''}' → ${success ? 'ok' : 'refused'}`);
     }
 
@@ -217,6 +346,76 @@ export function startServer(options = {}) {
         else respond();
     }
 
+    /**
+     * `POST /api` with a JSON body — the calaos HTTP API. The mock only
+     * implements `{action:'get_cover', id, ...}` (JsonApiHandlerHttp::
+     * processGetCover): credentials ride in the body, failures answer the
+     * upstream `{success:'false', error_str}` shapes, success returns the
+     * cover as base64 with contenttype image/jpeg.
+     */
+    async function handleApiPost(req, res) {
+        const json = (payload) => {
+            res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify(payload));
+        };
+
+        let body;
+        try {
+            body = await readJsonBody(req);
+        } catch {
+            body = {};
+        }
+
+        // Bad credentials answer a plain HTTP 400, not JSON (upstream sends
+        // its HTTP_400 error page and closes).
+        if (body.cn_user !== hub.user || body.cn_pass !== hub.pass) {
+            res.writeHead(400, { 'content-type': 'text/html' });
+            res.end('Bad Request');
+            return;
+        }
+
+        if (body.action !== 'get_cover') {
+            res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
+            res.end('mock /api POST only implements action=get_cover');
+            return;
+        }
+
+        if (!hub.state.isAudioPlayer(String(body.id ?? ''))) {
+            json({ success: 'false', error_str: 'id not set' });
+            return;
+        }
+        if (hub.state.audioArtworkTrackId(String(body.id)) === '') {
+            json({ success: 'false', error_str: 'unable get url' });
+            return;
+        }
+        json({
+            success: 'true',
+            contenttype: 'image/jpeg',
+            encoding: 'base64',
+            data: COVER_JPG.toString('base64'),
+        });
+    }
+
+    /** GET /music/<artwork_track_id>/cover.jpg — the LMS-style cover URL. */
+    function handleCover(url, res) {
+        const match = /^\/music\/([^/]+)\/cover\.jpg$/.exec(url.pathname);
+        const artworkId = match?.[1] ?? '';
+        const known = hub.state
+            .audioPlayerIds()
+            .some((id) => hub.state.audioArtworkTrackId(id) === artworkId);
+        if (!known) {
+            res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+            res.end('Unknown cover');
+            return;
+        }
+        res.writeHead(200, {
+            'content-type': 'image/jpeg',
+            'content-length': String(COVER_JPG.length),
+            'cache-control': 'no-store',
+        });
+        res.end(COVER_JPG);
+    }
+
     const server = createServer((req, res) => {
         const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
 
@@ -228,7 +427,19 @@ export function startServer(options = {}) {
             return;
         }
 
+        if (url.pathname.startsWith('/music/')) {
+            handleCover(url, res);
+            return;
+        }
+
         if (url.pathname === '/api') {
+            if (req.method === 'POST') {
+                handleApiPost(req, res).catch(() => {
+                    res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
+                    res.end('Internal error');
+                });
+                return;
+            }
             if (url.searchParams.get('action') === 'camera') {
                 handleCamera(url, res);
                 return;

@@ -12,7 +12,11 @@ import { startServer } from './index.mjs';
 import { nextState } from './state.mjs';
 
 const FIXTURE = JSON.parse(readFileSync(new URL('./fixtures/home.json', import.meta.url), 'utf8'));
+const AUDIO_FIXTURE = JSON.parse(
+    readFileSync(new URL('./fixtures/audio.json', import.meta.url), 'utf8'),
+);
 const CAMERA_PNG = readFileSync(new URL('./fixtures/camera.png', import.meta.url));
+const COVER_JPG = readFileSync(new URL('./fixtures/cover.jpg', import.meta.url));
 
 const GUI_TYPES = [
     'temp',
@@ -198,19 +202,42 @@ describe('fixtures/home.json', () => {
         expect(byId.get('output_8').unit).toBe('tasses'); // var_int
     });
 
-    it('has 2 cameras and 1 audio player in the documented shape', () => {
+    it('has 2 cameras and 2 audio players in the documented shape', () => {
         expect(FIXTURE.cameras).toHaveLength(2);
         for (const cam of FIXTURE.cameras) expect(Object.keys(cam).sort()).toEqual(['id', 'name']);
 
-        expect(FIXTURE.audio).toHaveLength(1);
-        const player = FIXTURE.audio[0];
-        expect(Object.keys(player).sort()).toEqual(['current_track', 'id', 'name', 'status']);
-        expect(Object.keys(player.current_track).sort()).toEqual([
-            'album',
-            'artist',
-            'duration',
-            'title',
+        // get_home audio entries carry basic info only (JsonApi::buildJsonAudio):
+        // {id,name,type,playlist,database,avr?} — live state comes via get_state.
+        expect(FIXTURE.audio).toHaveLength(2);
+        const [slim, roon] = FIXTURE.audio;
+        expect(Object.keys(slim).sort()).toEqual(['database', 'id', 'name', 'playlist', 'type']);
+        expect(slim).toMatchObject({ id: 'audio_1', type: 'slim', playlist: 'true', database: 'true' });
+        expect(Object.keys(roon).sort()).toEqual(['avr', 'database', 'id', 'name', 'playlist', 'type']);
+        expect(roon).toMatchObject({ id: 'audio_2', type: 'Roon', database: 'false' });
+    });
+
+    it('seeds audio runtime state for every fixture player, strings only', () => {
+        expect(Object.keys(AUDIO_FIXTURE).sort()).toEqual(FIXTURE.audio.map((p) => p.id).sort());
+        for (const seed of Object.values(AUDIO_FIXTURE)) {
+            expect(Object.keys(seed).sort()).toEqual([
+                'artwork_track_id',
+                'playlist',
+                'playlist_current_track',
+                'status',
+                'time_elapsed',
+                'volume',
+            ]);
+            expect(seed.playlist.length).toBeGreaterThan(0);
+        }
+        // audio_1 is a local-library player (full LMS songinfo tags), audio_2 a
+        // remote stream (reduced metadata, no artwork) for fallback testing.
+        expect(Object.keys(AUDIO_FIXTURE.audio_1.playlist[0]).sort()).toEqual([
+            'album', 'artist', 'bitrate', 'coverart', 'duration', 'genre', 'id', 'title', 'type',
         ]);
+        expect(Object.keys(AUDIO_FIXTURE.audio_2.playlist[0]).sort()).toEqual([
+            'album', 'artist', 'coverart', 'duration', 'title',
+        ]);
+        expect(AUDIO_FIXTURE.audio_2.artwork_track_id).toBe('');
     });
 
     it('ships a valid PNG snapshot', () => {
@@ -234,6 +261,17 @@ describe('login', () => {
     it('refuses an unknown user', async () => {
         const { reply } = await login('nobody', 'demo');
         expect(reply.data.success).toBe('false');
+    });
+
+    it('echoes msg_id when the client sends one', async () => {
+        const c = createClient();
+        await c.opened;
+        c.send({ msg: 'login', msg_id: '7', data: { cn_user: 'demo', cn_pass: 'demo' } });
+        expect(await c.waitFor(isLogin)).toEqual({
+            msg: 'login',
+            msg_id: '7',
+            data: { success: 'true' },
+        });
     });
 
     it('honours MOCK_USER / MOCK_PASS', async () => {
@@ -600,6 +638,388 @@ describe('/control scenarios', () => {
             'reject_all_logins',
             'reset',
         ]);
+    });
+});
+
+// Audio protocol per docs/audio-protocol.md (derived from calaos_base master).
+
+const audioEventOf = (typeStr, playerId) => (f) =>
+    f.msg === 'event' && f.data?.type_str === typeStr && f.data?.data?.player_id === playerId;
+
+describe('audio: get_state', () => {
+    it('expands audio player ids into the detailed player object', async () => {
+        const { client } = await login();
+        client.send({ msg: 'get_state', msg_id: '42', data: { items: ['audio_1', 'output_1', 'ghost'] } });
+        const frame = await client.waitFor((f) => f.msg === 'get_state');
+
+        expect(frame.msg_id).toBe('42'); // replies echo msg_id, like upstream
+        expect(frame.data.output_1).toBe('true'); // plain IOs stay flat strings
+        expect(frame.data.ghost).toBeUndefined(); // unknown ids silently skipped
+
+        const player = frame.data.audio_1;
+        expect(Object.keys(player).sort()).toEqual([
+            'current_track',
+            'playlist_current_track',
+            'playlist_size',
+            'status',
+            'time_elapsed',
+            'volume',
+        ]);
+        expect(player).toMatchObject({
+            playlist_current_track: '1',
+            volume: '35',
+            playlist_size: '3',
+            status: 'playing', // get_state vocabulary; events say 'play'
+        });
+        expect(player.current_track).toEqual(AUDIO_FIXTURE.audio_1.playlist[1]);
+        // Seeded at 42.5s and playing since reset: the clock is running.
+        expect(Number.parseFloat(player.time_elapsed)).toBeGreaterThanOrEqual(42.5);
+    });
+
+    it('answers a data-less get_state without a data key', async () => {
+        const { client } = await login();
+        client.send({ msg: 'get_state' });
+        expect(await client.waitFor((f) => f.msg === 'get_state')).toEqual({ msg: 'get_state' });
+    });
+});
+
+describe('audio: transport via set_state', () => {
+    it('pause: command echo, full-envelope status event, on<state> frame', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', data: { id: 'audio_1', value: 'pause' } });
+
+        // 1. AudioPlayer::set_value always echoes the raw command as io_changed.
+        expect(await client.waitFor(ioChangedFor('audio_1'))).toEqual({
+            msg: 'event',
+            data: { type_str: 'io_changed', data: { id: 'audio_1', state: 'pause' } },
+        });
+        // 2. The audio event carries the real server's full envelope.
+        expect(await client.waitFor(audioEventOf('audio_status_changed', 'audio_1'))).toEqual({
+            msg: 'event',
+            data: {
+                event_raw: 'audio_status_changed player_id:audio_1 state:pause',
+                type: '19',
+                type_str: 'audio_status_changed',
+                data: { player_id: 'audio_1', state: 'pause' },
+            },
+        });
+        // 3. hasChanged() fires io_changed 'onpause'.
+        expect((await client.waitFor(ioChangedFor('audio_1'))).data.data.state).toBe('onpause');
+
+        client.send({ msg: 'get_state', data: { items: ['audio_1'] } });
+        const { data } = await client.waitFor((f) => f.msg === 'get_state');
+        expect(data.audio_1.status).toBe('pause');
+    });
+
+    it('a no-op command (play while playing) only echoes', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', data: { id: 'audio_1', value: 'play' } });
+        await client.waitFor(ioChangedFor('audio_1'));
+        await sleep(150);
+        expect(client.frames.filter((f) => f.data?.type_str?.startsWith('audio_'))).toEqual([]);
+    });
+
+    it('stop resets the elapsed-time clock', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', data: { id: 'audio_1', value: 'stop' } });
+        await client.waitFor(audioEventOf('audio_status_changed', 'audio_1'));
+
+        client.send({ msg: 'get_state', data: { items: ['audio_1'] } });
+        const { data } = await client.waitFor((f) => f.msg === 'get_state');
+        expect(data.audio_1).toMatchObject({ status: 'stop', time_elapsed: '0' });
+    });
+
+    it('next/previous move through the playlist, wrapping, with song events', async () => {
+        const { client } = await login();
+
+        client.send({ msg: 'set_state', data: { id: 'audio_1', value: 'next' } });
+        expect(await client.waitFor(audioEventOf('audio_song_changed', 'audio_1'))).toEqual({
+            msg: 'event',
+            data: {
+                event_raw: 'audio_song_changed player_id:audio_1',
+                type: '13',
+                type_str: 'audio_song_changed',
+                data: { player_id: 'audio_1' },
+            },
+        });
+
+        client.send({ msg: 'set_state', data: { id: 'audio_1', value: 'next' } }); // 2 → wraps to 0
+        await client.waitFor(audioEventOf('audio_song_changed', 'audio_1'));
+
+        client.send({ msg: 'get_state', data: { items: ['audio_1'] } });
+        const { data } = await client.waitFor((f) => f.msg === 'get_state');
+        expect(data.audio_1.playlist_current_track).toBe('0');
+        expect(data.audio_1.current_track.title).toBe('Sunrise Over Wago');
+    });
+
+    it('volume set/up/down clamp to 0-100 and emit volume events', async () => {
+        const { client } = await login();
+
+        client.send({ msg: 'set_state', data: { id: 'audio_1', value: 'volume set 55' } });
+        expect(await client.waitFor(audioEventOf('audio_volume_changed', 'audio_1'))).toEqual({
+            msg: 'event',
+            data: {
+                event_raw: 'audio_volume_changed player_id:audio_1 volume:55',
+                type: '20',
+                type_str: 'audio_volume_changed',
+                data: { player_id: 'audio_1', volume: '55' },
+            },
+        });
+        expect((await client.waitFor(ioChangedFor('audio_1'))).data.data.state).toBe('onvolumechange');
+
+        client.send({ msg: 'set_state', data: { id: 'audio_1', value: 'volume up 5' } });
+        const up = await client.waitFor(audioEventOf('audio_volume_changed', 'audio_1'));
+        expect(up.data.data.volume).toBe('60');
+
+        client.send({ msg: 'set_state', data: { id: 'audio_1', value: 'volume down 200' } });
+        const down = await client.waitFor(audioEventOf('audio_volume_changed', 'audio_1'));
+        expect(down.data.data.volume).toBe('0'); // clamped
+
+        client.send({ msg: 'set_state', data: { id: 'audio_1', value: 'volume set 250' } });
+        const capped = await client.waitFor(audioEventOf('audio_volume_changed', 'audio_1'));
+        expect(capped.data.data.volume).toBe('100'); // clamped
+    });
+
+    it('unknown player commands are accepted and only echoed, like upstream', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', msg_id: '9', data: { id: 'audio_1', value: 'boogie' } });
+
+        expect((await client.waitFor(ioChangedFor('audio_1'))).data.data.state).toBe('boogie');
+        // set_value always returns true, so the reply is still a success.
+        expect(await client.waitFor((f) => f.msg === 'set_state')).toEqual({
+            msg: 'set_state',
+            msg_id: '9',
+            data: { success: 'true' },
+        });
+        expect(client.frames.filter((f) => f.data?.type_str?.startsWith('audio_'))).toEqual([]);
+    });
+
+    it('set_state replies only when a msg_id rides along', async () => {
+        const { client } = await login();
+
+        client.send({ msg: 'set_state', msg_id: 'a', data: { id: 'output_1', value: 'false' } });
+        expect(await client.waitFor((f) => f.msg === 'set_state')).toEqual({
+            msg: 'set_state',
+            msg_id: 'a',
+            data: { success: 'true' },
+        });
+
+        client.send({ msg: 'set_state', msg_id: 'b', data: { id: 'ghost', value: 'true' } });
+        expect((await client.waitFor((f) => f.msg === 'set_state')).data.success).toBe('false');
+
+        client.send({ msg: 'set_state', msg_id: 'c', data: { id: 'input_1', value: '30' } });
+        expect((await client.waitFor((f) => f.msg === 'set_state')).data.success).toBe('false');
+
+        client.send({ msg: 'set_state', data: { id: 'output_1', value: 'true' } });
+        await client.waitFor(ioChangedFor('output_1'));
+        await sleep(100);
+        expect(client.frames.filter((f) => f.msg === 'set_state')).toHaveLength(3);
+    });
+
+    it('control reset restores the seeded audio state', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', data: { id: 'audio_1', value: 'stop' } });
+        await client.waitFor(audioEventOf('audio_status_changed', 'audio_1'));
+
+        await control({ op: 'reset' });
+
+        client.send({ msg: 'get_state', data: { items: ['audio_1'] } });
+        const { data } = await client.waitFor((f) => f.msg === 'get_state');
+        expect(data.audio_1).toMatchObject({ status: 'playing', volume: '35' });
+    });
+});
+
+describe('audio: queries', () => {
+    it('get_playlist_size / get_time / get_playlist_item answer per spec', async () => {
+        const { client } = await login();
+
+        client.send({ msg: 'audio', msg_id: '1', data: { audio_action: 'get_playlist_size', id: 'audio_1' } });
+        expect(await client.waitFor((f) => f.msg === 'audio')).toEqual({
+            msg: 'audio',
+            msg_id: '1',
+            data: { playlist_size: '3' },
+        });
+
+        client.send({ msg: 'audio', data: { audio_action: 'get_time', id: 'audio_1' } });
+        const time = await client.waitFor((f) => f.msg === 'audio');
+        expect(Object.keys(time.data)).toEqual(['time_elapsed']);
+        expect(Number.parseFloat(time.data.time_elapsed)).toBeGreaterThanOrEqual(42.5);
+
+        client.send({ msg: 'audio', data: { audio_action: 'get_playlist_item', id: 'audio_1', item: '0' } });
+        expect((await client.waitFor((f) => f.msg === 'audio')).data).toEqual(
+            AUDIO_FIXTURE.audio_1.playlist[0],
+        );
+
+        // Out of range answers an empty track object, like upstream.
+        client.send({ msg: 'audio', data: { audio_action: 'get_playlist_item', id: 'audio_1', item: '9' } });
+        expect((await client.waitFor((f) => f.msg === 'audio')).data).toEqual({});
+    });
+
+    it('get_cover_url yields an LMS-style URL, empty when no artwork', async () => {
+        const { client } = await login();
+
+        client.send({ msg: 'audio', data: { audio_action: 'get_cover_url', id: 'audio_1' } });
+        expect((await client.waitFor((f) => f.msg === 'audio')).data).toEqual({
+            cover: `http://127.0.0.1:${server.port}/music/17/cover.jpg`,
+        });
+
+        client.send({ msg: 'audio', data: { audio_action: 'get_cover_url', id: 'audio_2' } });
+        expect((await client.waitFor((f) => f.msg === 'audio')).data).toEqual({ cover: '' });
+    });
+
+    it("answers upstream's error strings (typos faithful)", async () => {
+        const { client } = await login();
+
+        client.send({ msg: 'audio', data: { audio_action: 'warp_ten', id: 'audio_1' } });
+        expect((await client.waitFor((f) => f.msg === 'audio')).data).toEqual({
+            error: 'unkown audio_action',
+        });
+
+        client.send({ msg: 'audio', data: { audio_action: 'get_time' } });
+        expect((await client.waitFor((f) => f.msg === 'audio')).data).toEqual({
+            error: 'empty player id',
+        });
+
+        client.send({ msg: 'audio', data: { audio_action: 'get_time', id: 'ghost' } });
+        expect((await client.waitFor((f) => f.msg === 'audio')).data).toEqual({
+            error: 'unkown player_id',
+        });
+
+        client.send({ msg: 'audio', data: { audio_action: 'get_playlist_item', id: 'audio_1', item: 'x' } });
+        expect((await client.waitFor((f) => f.msg === 'audio')).data).toEqual({
+            error: 'wrong item',
+        });
+    });
+
+    it('get_playlist returns the full playlist, {success:"false"} for unknown ids', async () => {
+        const { client } = await login();
+
+        client.send({ msg: 'get_playlist', msg_id: '5', data: { id: 'audio_1' } });
+        expect(await client.waitFor((f) => f.msg === 'get_playlist')).toEqual({
+            msg: 'get_playlist',
+            msg_id: '5',
+            data: {
+                current_track: '1',
+                count: '3',
+                items: AUDIO_FIXTURE.audio_1.playlist,
+            },
+        });
+
+        client.send({ msg: 'get_playlist', data: { id: 'ghost' } });
+        expect((await client.waitFor((f) => f.msg === 'get_playlist')).data).toEqual({
+            success: 'false',
+        });
+    });
+
+    it('audio queries are ignored before login', async () => {
+        const c = createClient();
+        await c.opened;
+        c.send({ msg: 'audio', data: { audio_action: 'get_time', id: 'audio_1' } });
+        c.send({ msg: 'get_playlist', data: { id: 'audio_1' } });
+        c.send({ msg: 'get_state', data: { items: ['audio_1'] } });
+        await sleep(150);
+        expect(c.frames).toEqual([]);
+    });
+});
+
+describe('/control push_audio', () => {
+    it('pushes status/volume/track and broadcasts the matching events', async () => {
+        const { client: a } = await login();
+        const { client: b } = await login();
+
+        const { status, body } = await control({
+            op: 'push_audio',
+            id: 'audio_1',
+            status: 'pause',
+            volume: 80,
+            track: { title: 'Injected', artist: 'Test Rig', album: 'E2E', duration: '10' },
+        });
+        expect(status).toBe(200);
+        expect(body).toMatchObject({ ok: true, known: true });
+
+        for (const c of [a, b]) {
+            expect((await c.waitFor(audioEventOf('audio_status_changed', 'audio_1'))).data.data.state).toBe('pause');
+            expect((await c.waitFor(audioEventOf('audio_volume_changed', 'audio_1'))).data.data.volume).toBe('80');
+            await c.waitFor(audioEventOf('audio_song_changed', 'audio_1'));
+        }
+
+        a.send({ msg: 'get_state', data: { items: ['audio_1'] } });
+        const { data } = await a.waitFor((f) => f.msg === 'get_state');
+        expect(data.audio_1).toMatchObject({ status: 'pause', volume: '80' });
+        expect(data.audio_1.current_track.title).toBe('Injected');
+    });
+
+    it('still broadcasts for unknown players, flagged as unknown', async () => {
+        const { client } = await login();
+        const { body } = await control({ op: 'push_audio', id: 'ghost_9', status: 'play' });
+        expect(body.known).toBe(false);
+        await client.waitFor(audioEventOf('audio_status_changed', 'ghost_9'));
+    });
+
+    it('rejects a missing id and an empty patch', async () => {
+        expect((await control({ op: 'push_audio', status: 'play' })).status).toBe(400);
+        expect((await control({ op: 'push_audio', id: 'audio_1' })).status).toBe(400);
+    });
+
+    it('is advertised in the control ops list', async () => {
+        const statusBody = await (await fetch(server.controlUrl)).json();
+        expect(statusBody.ops).toContain('push_audio');
+    });
+});
+
+describe('cover art over HTTP', () => {
+    it('serves the LMS-style cover URL without auth, like a real LMS', async () => {
+        const res = await fetch(`${server.url}/music/17/cover.jpg`);
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toBe('image/jpeg');
+        const bytes = Buffer.from(await res.arrayBuffer());
+        expect(bytes.subarray(0, 2).toString('hex')).toBe('ffd8'); // JPEG SOI
+        expect(bytes.equals(COVER_JPG)).toBe(true);
+    });
+
+    it('404s an unknown artwork id', async () => {
+        expect((await fetch(`${server.url}/music/999/cover.jpg`)).status).toBe(404);
+    });
+
+    it('POST /api get_cover returns the base64 cover envelope', async () => {
+        const res = await fetch(`${server.url}/api`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ cn_user: 'demo', cn_pass: 'demo', action: 'get_cover', id: 'audio_1' }),
+        });
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body).toMatchObject({
+            success: 'true',
+            contenttype: 'image/jpeg',
+            encoding: 'base64',
+        });
+        expect(Buffer.from(body.data, 'base64').equals(COVER_JPG)).toBe(true);
+    });
+
+    it('POST /api get_cover fails per upstream shapes', async () => {
+        const post = async (payload) =>
+            fetch(`${server.url}/api`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+        // Bad credentials: plain HTTP 400, not JSON.
+        const bad = await post({ cn_user: 'demo', cn_pass: 'nope', action: 'get_cover', id: 'audio_1' });
+        expect(bad.status).toBe(400);
+
+        // Unknown player id.
+        const ghost = await post({ cn_user: 'demo', cn_pass: 'demo', action: 'get_cover', id: 'ghost' });
+        expect(await ghost.json()).toEqual({ success: 'false', error_str: 'id not set' });
+
+        // Player without artwork (remote stream).
+        const stream = await post({ cn_user: 'demo', cn_pass: 'demo', action: 'get_cover', id: 'audio_2' });
+        expect(await stream.json()).toEqual({ success: 'false', error_str: 'unable get url' });
+
+        // Anything else on POST /api is out of the mock's scope.
+        const other = await post({ cn_user: 'demo', cn_pass: 'demo', action: 'get_home' });
+        expect(other.status).toBe(400);
     });
 });
 

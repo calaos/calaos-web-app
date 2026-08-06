@@ -1,0 +1,60 @@
+{
+    "audio_1": {
+        "status": "playing",
+        "volume": "35",
+        "time_elapsed": "42.5",
+        "playlist_current_track": "1",
+        "artwork_track_id": "17",
+        "playlist": [
+            {
+                "id": "1042",
+                "title": "Sunrise Over Wago",
+                "artist": "Calaos Orchestra",
+                "album": "Home Automation Vol. 1",
+                "genre": "Electronic",
+                "coverart": "1",
+                "duration": "187.2",
+                "bitrate": "320kbps CBR",
+                "type": "MP3 (Mpeg-1 layer 3)"
+            },
+            {
+                "id": "1043",
+                "title": "Ambient Kitchen",
+                "artist": "Calaos Orchestra",
+                "album": "Home Automation Vol. 1",
+                "genre": "Electronic",
+                "coverart": "1",
+                "duration": "243.435",
+                "bitrate": "320kbps CBR",
+                "type": "MP3 (Mpeg-1 layer 3)"
+            },
+            {
+                "id": "1044",
+                "title": "Shutter Waltz",
+                "artist": "Calaos Orchestra",
+                "album": "Home Automation Vol. 1",
+                "genre": "Electronic",
+                "coverart": "1",
+                "duration": "201.0",
+                "bitrate": "320kbps CBR",
+                "type": "MP3 (Mpeg-1 layer 3)"
+            }
+        ]
+    },
+    "audio_2": {
+        "status": "stop",
+        "volume": "70",
+        "time_elapsed": "0",
+        "playlist_current_track": "0",
+        "artwork_track_id": "",
+        "playlist": [
+            {
+                "artist": "FIP",
+                "album": "Radio France",
+                "title": "FIP — la radio musicale la plus éclectique",
+                "duration": "0",
+                "coverart": "1"
+            }
+        ]
+    }
+}

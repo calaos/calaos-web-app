@@ -243,15 +243,19 @@
     ],
     "audio": [
         {
-            "id": "player_1",
+            "id": "audio_1",
             "name": "Salon",
-            "status": "playing",
-            "current_track": {
-                "artist": "Calaos Orchestra",
-                "album": "Home Automation Vol. 1",
-                "title": "Ambient Kitchen",
-                "duration": "243"
-            }
+            "type": "slim",
+            "playlist": "true",
+            "database": "true"
+        },
+        {
+            "id": "audio_2",
+            "name": "Cuisine",
+            "type": "Roon",
+            "playlist": "true",
+            "database": "false",
+            "avr": "avr_1"
         }
     ]
 }

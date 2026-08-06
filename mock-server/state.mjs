@@ -9,10 +9,15 @@
 import { readFileSync } from 'node:fs';
 
 const FIXTURE_URL = new URL('./fixtures/home.json', import.meta.url);
+const AUDIO_FIXTURE_URL = new URL('./fixtures/audio.json', import.meta.url);
 
 /** Re-read (not cache) so `/control {op:'reset'}` also picks up fixture edits. */
 function loadFixture() {
     return JSON.parse(readFileSync(FIXTURE_URL, 'utf8'));
+}
+
+function loadAudioFixture() {
+    return JSON.parse(readFileSync(AUDIO_FIXTURE_URL, 'utf8'));
 }
 
 /** Wire event frame for a single IO state change. */
@@ -26,10 +31,57 @@ export function ioChangedEvent(id, state) {
     };
 }
 
+/**
+ * Numeric event ids from the CalaosEvent enum, calaos_base
+ * src/bin/calaos_server/EventManager.h (EventUnkown = 0, counting up).
+ */
+const AUDIO_EVENT_TYPES = {
+    audio_song_changed: 13,
+    audio_status_changed: 19,
+    audio_volume_changed: 20,
+};
+
+/**
+ * Wire frame for an audio event. Unlike the mock's reduced `io_changed`
+ * envelope (kept for backward compat with existing tests), audio events carry
+ * the FULL envelope the real server sends — `CalaosEvent::toJson()` in
+ * calaos_base src/bin/calaos_server/EventManager.cpp:
+ * `{event_raw, type, type_str, data}`, all values strings.
+ */
+export function audioEvent(typeStr, params) {
+    const raw = [
+        typeStr,
+        ...Object.entries(params).map(([k, v]) => `${encodeURIComponent(k)}:${encodeURIComponent(v)}`),
+    ].join(' ');
+    return {
+        msg: 'event',
+        data: {
+            event_raw: raw,
+            type: String(AUDIO_EVENT_TYPES[typeStr]),
+            type_str: typeStr,
+            data: params,
+        },
+    };
+}
+
 /** Clamp to the 0-100 range calaos uses for dimmers / shutter percentages. */
 function clampPercent(n) {
     if (!Number.isFinite(n)) return 0;
     return String(Math.min(100, Math.max(0, Math.round(n))));
+}
+
+/** Squeezebox/LMS mixer volume is an integer percent, clamped to 0-100. */
+function clampVolume(n) {
+    if (!Number.isFinite(n)) return 0;
+    return Math.min(100, Math.max(0, Math.round(n)));
+}
+
+/**
+ * `time_elapsed` renders like the real server's `Utils::to_string(double)`
+ * (plain decimal, no trailing zeros); the mock rounds to 0.1 s.
+ */
+function formatSeconds(n) {
+    return String(Math.round(n * 10) / 10);
 }
 
 /** Parse `'up 30'` / `'down 100'` / `'stop 55'` into its two parts. */
@@ -162,6 +214,13 @@ export function createState({ broadcast = () => {} } = {}) {
     let ios;
     /** Last non-black colour per light_rgb id — never serialised to the wire. */
     let lastColors;
+    /**
+     * Audio player runtime state, keyed by player id (fixtures/audio.json).
+     * Wire-facing fields stay strings; `elapsedBase`/`playingSince` are
+     * mock-internal numbers driving the `time_elapsed` clock.
+     * @type {Map<string, object>}
+     */
+    let players;
 
     function reindex() {
         ios = new Map();
@@ -174,9 +233,71 @@ export function createState({ broadcast = () => {} } = {}) {
     function reset() {
         home = loadFixture();
         reindex();
+
+        players = new Map();
+        for (const [id, seed] of Object.entries(loadAudioFixture())) {
+            players.set(id, {
+                status: seed.status, // 'playing' | 'pause' | 'stop' (get_state vocabulary)
+                volume: clampVolume(Number(seed.volume)),
+                index: Number(seed.playlist_current_track) || 0,
+                playlist: seed.playlist ?? [],
+                artworkTrackId: seed.artwork_track_id ?? '',
+                elapsedBase: Number(seed.time_elapsed) || 0,
+                playingSince: seed.status === 'playing' ? Date.now() : null,
+            });
+        }
     }
 
     reset();
+
+    // ---------------------------------------------------------- audio ---
+
+    function timeElapsed(p) {
+        return p.elapsedBase + (p.playingSince !== null ? (Date.now() - p.playingSince) / 1000 : 0);
+    }
+
+    /** Freeze the elapsed clock into elapsedBase (pause/stop bookkeeping). */
+    function freezeClock(p) {
+        p.elapsedBase = timeElapsed(p);
+        p.playingSince = null;
+    }
+
+    /**
+     * Move player to `status` ('playing'|'pause'|'stop') and, when it actually
+     * changes, replay the real server's two frames: the audio_status_changed
+     * event (state 'play'|'pause'|'stop' — Squeezebox.cpp
+     * processNotificationMessage) and the io_changed 'on<state>' frame
+     * (AudioPlayer::hasChanged via set_status).
+     */
+    function setPlayerStatus(id, p, status, eventState) {
+        if (p.status === status) return;
+        if (status === 'playing') {
+            p.playingSince = Date.now();
+        } else {
+            freezeClock(p);
+            if (status === 'stop') p.elapsedBase = 0;
+        }
+        p.status = status;
+        broadcast(audioEvent('audio_status_changed', { player_id: id, state: eventState }));
+        broadcast(ioChangedEvent(id, `on${eventState}`));
+    }
+
+    function setPlayerVolume(id, p, volume) {
+        const next = clampVolume(volume);
+        if (next === p.volume) return;
+        p.volume = next;
+        broadcast(audioEvent('audio_volume_changed', { player_id: id, volume: String(next) }));
+        broadcast(ioChangedEvent(id, 'onvolumechange'));
+    }
+
+    function changeTrack(id, p, direction) {
+        const size = p.playlist.length;
+        if (size > 0) p.index = (p.index + direction + size) % size;
+        p.elapsedBase = 0;
+        if (p.playingSince !== null) p.playingSince = Date.now();
+        broadcast(audioEvent('audio_song_changed', { player_id: id }));
+        broadcast(ioChangedEvent(id, 'onsongchange'));
+    }
 
     return {
         reset,
@@ -196,6 +317,150 @@ export function createState({ broadcast = () => {} } = {}) {
 
         ioIds() {
             return [...ios.keys()];
+        },
+
+        // ------------------------------------------------------ audio ---
+
+        audioPlayerIds() {
+            return [...players.keys()];
+        },
+
+        isAudioPlayer(id) {
+            return players.has(id);
+        },
+
+        /** Current playlist track (empty object when the playlist is empty). */
+        audioCurrentTrack(id) {
+            const p = players.get(id);
+            if (!p) return {};
+            return p.playlist[p.index] ?? {};
+        },
+
+        /**
+         * Mock-internal artwork id for the current track ('' = no cover),
+         * used by index.mjs to build the LMS-style cover URL.
+         */
+        audioArtworkTrackId(id) {
+            return players.get(id)?.artworkTrackId ?? '';
+        },
+
+        audioPlaylistSize(id) {
+            return players.get(id)?.playlist.length ?? 0;
+        },
+
+        audioPlaylistItem(id, index) {
+            return players.get(id)?.playlist[index];
+        },
+
+        audioTimeElapsed(id) {
+            const p = players.get(id);
+            return p ? formatSeconds(timeElapsed(p)) : '0';
+        },
+
+        /**
+         * The per-player object `get_state` returns for an audio player id —
+         * `JsonApi::buildJsonState` (calaos_base src/bin/calaos_server/
+         * JsonApi.cpp): status is 'playing'|'pause'|'stop' here, while events
+         * carry 'play' (asymmetry faithful to upstream).
+         */
+        audioPlayerState(id) {
+            const p = players.get(id);
+            if (!p) return undefined;
+            return {
+                playlist_current_track: String(p.index),
+                volume: String(p.volume),
+                playlist_size: String(p.playlist.length),
+                time_elapsed: formatSeconds(timeElapsed(p)),
+                status: p.status,
+                current_track: { ...(p.playlist[p.index] ?? {}) },
+            };
+        },
+
+        /** The `get_playlist` payload — `JsonApi::decodeGetPlaylist`. */
+        audioPlaylist(id) {
+            const p = players.get(id);
+            if (!p) return undefined;
+            return {
+                current_track: String(p.index),
+                count: String(p.playlist.length),
+                items: p.playlist.map((track) => ({ ...track })),
+            };
+        },
+
+        /**
+         * Apply an `AudioPlayer::set_value` command (calaos_base
+         * src/bin/calaos_server/Audio/AudioPlayer.cpp). Mirrors the real
+         * frame sequence: an io_changed echoing the raw command always fires
+         * first, then the audio event + io_changed 'on<state>' pair when the
+         * player state actually changed. Unknown commands are accepted
+         * (echo only), like upstream. @returns {boolean} id is a player
+         */
+        applyAudioCommand(id, value) {
+            const p = players.get(id);
+            if (!p) return false;
+            const v = String(value);
+
+            broadcast(ioChangedEvent(id, v)); // set_value's unconditional echo
+
+            if (v === 'play') setPlayerStatus(id, p, 'playing', 'play');
+            else if (v === 'pause') setPlayerStatus(id, p, 'pause', 'pause');
+            else if (v === 'stop') setPlayerStatus(id, p, 'stop', 'stop');
+            else if (v === 'next') changeTrack(id, p, +1);
+            else if (v === 'previous') changeTrack(id, p, -1);
+            else if (v.startsWith('volume set ')) {
+                setPlayerVolume(id, p, Number(v.slice('volume set '.length)));
+            } else if (v.startsWith('volume up ')) {
+                setPlayerVolume(id, p, p.volume + (Number(v.slice('volume up '.length)) || 0));
+            } else if (v.startsWith('volume down ')) {
+                setPlayerVolume(id, p, p.volume - (Number(v.slice('volume down '.length)) || 0));
+            }
+            // power on/off, sleep N, sync/unsync, play/add <items>: accepted
+            // upstream but with no observable effect on this mock's state.
+
+            return true;
+        },
+
+        /**
+         * Force audio player state + events (`/control {op:'push_audio'}`).
+         * `status` uses the event vocabulary ('play'|'pause'|'stop');
+         * unknown ids still broadcast (parity with pushIo) so clients'
+         * handling of events for unknown players can be exercised.
+         * @returns {boolean} whether the id exists in the audio fixture
+         */
+        pushAudio(id, { status, volume, track } = {}) {
+            const p = players.get(id);
+
+            if (status !== undefined) {
+                const s = String(status);
+                if (p) {
+                    const canonical = s === 'play' ? 'playing' : s;
+                    if (canonical === 'playing' && p.playingSince === null) {
+                        p.playingSince = Date.now();
+                    } else if (canonical !== 'playing') {
+                        freezeClock(p);
+                        if (canonical === 'stop') p.elapsedBase = 0;
+                    }
+                    p.status = canonical;
+                }
+                broadcast(audioEvent('audio_status_changed', { player_id: id, state: s }));
+            }
+
+            if (volume !== undefined) {
+                const vol = clampVolume(Number(volume));
+                if (p) p.volume = vol;
+                broadcast(audioEvent('audio_volume_changed', { player_id: id, volume: String(vol) }));
+            }
+
+            if (track !== undefined) {
+                if (p && track && typeof track === 'object') {
+                    p.playlist[p.index] = { ...track };
+                    p.elapsedBase = 0;
+                    if (p.playingSince !== null) p.playingSince = Date.now();
+                }
+                broadcast(audioEvent('audio_song_changed', { player_id: id }));
+            }
+
+            return Boolean(p);
         },
 
         /**
