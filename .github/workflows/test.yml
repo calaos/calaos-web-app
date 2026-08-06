@@ -1,0 +1,91 @@
+name: Test
+
+# Quality gates for the Vue 3 rewrite (app/, e2e/, mock-server/). Runs on
+# every push and pull request. This workflow only reads the repo and runs
+# `vite build`/`vite preview` against the gitignored `dist-next/` directory
+# (via `npm run test:e2e` -> playwright.config.ts's webServer) — it never
+# runs `npm run build` and never writes to `dist/`, and it does not touch
+# docker-publish.yml or build*.yml, which own packaging/publishing.
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Lint, typecheck, unit and e2e tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # vite@8 requires Node >=20.19 even though package.json's "engines"
+          # still says >=18 (that floor covers the old AngularJS app under
+          # src/, which this workflow does not build or test).
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `npm run lint` (eslint .) currently exits 1 because of 35
+      # pre-existing errors in the OLD app's src/scripts/*.js, which predate
+      # the Vue 3 rewrite and are out of scope for it (see T20). Scoping the
+      # CI lint step to only the new code's directories/entry files keeps
+      # this gate meaningful and green without masking real lint errors in
+      # app/, e2e/ or mock-server/. --no-warn-ignored silences the harmless
+      # "file ignored, no matching configuration" notices for the two root
+      # *.config.ts files, which eslint.config.mjs deliberately doesn't
+      # scope with a `files` pattern.
+      #
+      # TODO(T20 cutover): once src/ is deleted, drop this scoping and use
+      # plain `npm run lint` again.
+      - name: Lint (new Vue app code only)
+        run: >-
+          ./node_modules/.bin/eslint --no-warn-ignored
+          app e2e mock-server
+          playwright.config.ts vite.config.ts vitest.config.ts
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:unit -- --run
+
+      - name: Resolve installed Playwright version
+        id: playwright-version
+        run: |
+          echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+      # On a cache hit the browser binaries are restored but the runner's OS
+      # packages (apt libs) are not, since those live outside
+      # ~/.cache/ms-playwright and every job runs on a fresh VM — so
+      # `install-deps` (no download) still has to run every time, while the
+      # (slow) browser download is skipped whenever the cache already has it.
+      - name: Install Playwright browsers (with OS deps)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright OS deps only (browsers cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
