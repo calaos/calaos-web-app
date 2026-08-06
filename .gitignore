@@ -1,7 +1,7 @@
 node_modules
 .tmp
 .sass-cache
-bower_components
 src/scripts/dev_config.js
 src/scripts/assets.json
-src/bower_components
+src/libs
+.serena/

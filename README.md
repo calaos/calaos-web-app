@@ -1,21 +1,20 @@
 Webapp for Calaos
 -----------------
 
-To build, install nodejs, and:
-```
-npm install -g bower gulp
-```
-Then install dependencies:
+Requirements: Node.js >= 18.
+
+Install dependencies:
 ```
 npm install
-bower install
 ```
-Then to build the app:
+Build the app (regenerates `dist/`, which is committed to git):
 ```
-gulp
+npm run build
 ```
-To develop with livereload:
+To develop (serves `src/` on http://localhost:8000):
 ```
-gulp serve
+npm run dev
 ```
-Don't forget to set the ws://xxx/api URL in src/scripts/dev_config.js
+Don't forget to set the ws://xxx:5454/api URL in `src/scripts/dev_config.js`
+(created with an empty host on first `npm run dev`) to develop against a
+remote calaos_server.

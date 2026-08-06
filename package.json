@@ -1,33 +1,33 @@
 {
   "name": "calaos-web-app",
   "version": "3.0.0",
+  "scripts": {
+    "build": "node tools/build.js",
+    "dev": "node tools/serve.js",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^5.15.4",
+    "@uirouter/angularjs": "^1.1.2",
+    "angular": "^1.8.3",
+    "angular-sanitize": "^1.8.3",
+    "es5-shim": "^4.6.7",
+    "font-awesome-animation": "^0.4.2",
+    "jquery": "^3.7.1",
+    "json3": "^3.3.3",
+    "magnific-popup": "^1.2.0",
+    "ng-dialog": "^1.4.0"
+  },
   "devDependencies": {
-    "del": "^3.0.0",
-    "gulp": "^3.9.1",
-    "gulp-cache": "^1.0.2",
-    "gulp-concat": "^2.6.1",
-    "gulp-connect": "^5.5.0",
-    "gulp-debug": "^4.0.0",
-    "gulp-file": "^0.4.0",
-    "gulp-filelist": "^1.0.2",
-    "gulp-imagemin": "^4.1.0",
-    "gulp-jsonminify": "^1.1.0",
-    "gulp-minify-css": "^1.2.4",
-    "gulp-minify-html": "^1.0.6",
-    "gulp-ng-annotate": "^2.1.0",
-    "gulp-notify": "^3.2.0",
-    "gulp-rev": "^8.1.1",
-    "gulp-uglify-es": "^1.0.4",
-    "gulp-usemin": "^0.3.29",
-    "gulp-util": "^3.0.8",
-    "imagemin-jpegtran": "^5.0.2",
-    "jpegtran-bin": "^3.2.0",
-    "jshint-stylish": "^2.2.1",
-    "opn": "^5.3.0",
-    "stream-combiner2": "^1.1.1"
+    "@eslint/js": "^10.0.1",
+    "clean-css": "^5.3.3",
+    "eslint": "^10.8.0",
+    "globals": "^17.9.0",
+    "html-minifier-terser": "^7.2.0",
+    "terser": "^5.44.0"
   },
   "engines": {
-    "node": ">=0.10.0"
+    "node": ">=18"
   },
   "author": {
     "name": "Calaos Team",
