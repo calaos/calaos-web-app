@@ -52,13 +52,39 @@ export default defineConfig({
     },
 
     projects: [
-        // Both are chromium (`devices[...].defaultBrowserType`), so the run
-        // needs only `npx playwright install chromium`. The mobile project is
-        // not a viewport tweak: `isMobile`/`hasTouch` change hit-testing and
-        // the `100dvh` shell in App.vue, which is where a phone-only layout
-        // bug would surface.
-        { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'] } },
-        { name: 'mobile-pixel7', use: { ...devices['Pixel 7'] } },
+        // All three are chromium (`devices[...].defaultBrowserType`), so the
+        // run needs only `npx playwright install chromium`. The mobile
+        // project is not a viewport tweak: `isMobile`/`hasTouch` change
+        // hit-testing and the `100dvh` shell in App.vue, which is where a
+        // phone-only layout bug would surface.
+        {
+            name: 'chromium-desktop',
+            use: { ...devices['Desktop Chrome'] },
+            // The full suite runs english (the default locale — no `locale`
+            // override — matches `navigator.language.startsWith('fr')` being
+            // false, see app/src/i18n/index.ts); fr-locale.spec.ts is the
+            // `fr` project's alone (T19).
+            testIgnore: '**/fr-locale.spec.ts',
+        },
+        {
+            name: 'mobile-pixel7',
+            use: { ...devices['Pixel 7'] },
+            testIgnore: '**/fr-locale.spec.ts',
+        },
+        {
+            name: 'fr',
+            // `navigator.language` (app/src/i18n/index.ts) is what actually
+            // picks the catalogue; `locale: 'fr-FR'` is what makes Chromium
+            // report it. Desktop viewport: this project is a locale smoke
+            // test, not another layout pass — chromium-desktop and
+            // mobile-pixel7 already cover geometry in english.
+            use: { ...devices['Desktop Chrome'], locale: 'fr-FR' },
+            // Only the dedicated french spec runs here — the rest of the
+            // suite asserts on `MESSAGES` from fixtures.ts, which is english
+            // (see its own comment), and would fail every text assertion
+            // under this locale.
+            testMatch: '**/fr-locale.spec.ts',
+        },
     ],
 
     webServer: [

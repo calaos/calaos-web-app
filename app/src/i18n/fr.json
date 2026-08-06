@@ -1,0 +1,119 @@
+{
+    "app": {
+        "name": "Calaos"
+    },
+    "login": {
+        "welcome": "Bienvenue",
+        "username": "Nom d’utilisateur",
+        "password": "Mot de passe",
+        "submit": "Se connecter",
+        "submitting": "Connexion…",
+        "error": "Nom d’utilisateur ou mot de passe incorrect.",
+        "offline": "Aucune connexion à Calaos",
+        "offlineHint": "La connexion devient possible dès que le serveur répond."
+    },
+    "home": {
+        "title": "Pièces",
+        "temperature": "Température",
+        "empty": "Aucune pièce pour l’instant",
+        "emptyHint": "Ce compte n’a aucune pièce configurée sur le serveur."
+    },
+    "room": {
+        "empty": "Cette pièce n’a rien à contrôler."
+    },
+    "audio": {
+        "label": "Audio",
+        "title": "Lecteurs audio",
+        "cover": "Pochette de l’album pour {name}",
+        "noCover": "Aucune pochette",
+        "nothingPlaying": "Aucune lecture en cours",
+        "status": {
+            "playing": "En lecture",
+            "pause": "En pause",
+            "stop": "Arrêté",
+            "error": "Erreur du lecteur",
+            "song_change": "Changement de piste",
+            "unknown": ""
+        },
+        "play": "Lire {name}",
+        "pause": "Mettre en pause {name}",
+        "stop": "Arrêter {name}",
+        "next": "Piste suivante sur {name}",
+        "previous": "Piste précédente sur {name}",
+        "position": "Position dans {name}",
+        "volume": "Volume de {name}",
+        "percent": "{value} %",
+        "empty": "Aucun lecteur pour l’instant",
+        "emptyHint": "Ce compte n’a aucun lecteur audio configuré sur le serveur."
+    },
+    "camera": {
+        "label": "Caméra",
+        "title": "Caméras",
+        "live": "En direct",
+        "snapshot": "Image en direct de {name}",
+        "unavailable": "Aucune image pour cette caméra",
+        "retry": "Réessayer",
+        "empty": "Aucune caméra pour l’instant",
+        "emptyHint": "Ce compte n’a aucune caméra configurée sur le serveur."
+    },
+    "io": {
+        "on": "Activé",
+        "off": "Désactivé",
+        "turnOn": "Allumer {name}",
+        "turnOff": "Éteindre {name}",
+        "run": "Lancer {name}",
+        "increase": "Augmenter {name}",
+        "decrease": "Diminuer {name}",
+        "brightness": "Luminosité de {name}",
+        "open": "Ouvert",
+        "closed": "Fermé",
+        "raise": "Monter {name}",
+        "stop": "Arrêter {name}",
+        "lower": "Descendre {name}",
+        "setColor": "Définir la couleur de {name}",
+        "setText": "Définir le texte de {name}",
+        "unknownType": "Type inconnu"
+    },
+    "dialog": {
+        "cancel": "Annuler",
+        "color": {
+            "title": "Définir la couleur",
+            "confirm": "Définir la couleur",
+            "hue": "Teinte"
+        },
+        "text": {
+            "title": "Définir le texte",
+            "label": "Texte",
+            "confirm": "Définir le texte"
+        }
+    },
+    "roomType": {
+        "lounge": "Salon",
+        "bedroom": "Chambre",
+        "kitchen": "Cuisine",
+        "office": "Bureau",
+        "diningRoom": "Salle à manger",
+        "cellar": "Cave",
+        "various": "Divers",
+        "outside": "Extérieur",
+        "bathroom": "Salle de bain",
+        "corridor": "Couloir",
+        "garage": "Garage",
+        "internal": "Interne",
+        "unknown": "Pièce"
+    },
+    "chrome": {
+        "back": "Retour",
+        "signOut": "Se déconnecter",
+        "sections": "Sections",
+        "tabs": {
+            "home": "Accueil",
+            "audio": "Audio",
+            "security": "Sécurité"
+        },
+        "connection": {
+            "lost": "Connexion perdue",
+            "retrying": "Reconnexion…"
+        }
+    }
+}

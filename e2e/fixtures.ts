@@ -12,8 +12,10 @@ import en from '../app/src/i18n/en.json';
 /**
  * The UI copy the specs assert on, read from the app's own catalogue so a
  * wording change is a one-file change. `navigator.language` decides the
- * locale (app/src/i18n/index.ts) and only `en` exists today; when T19 adds
- * `fr`, a french project would need `fr.json` here instead.
+ * locale (app/src/i18n/index.ts); the `chromium-desktop` and `mobile-pixel7`
+ * projects both run under the default (english) locale, so `MESSAGES` is
+ * `en` here. The `fr` project's own spec (e2e/fr-locale.spec.ts) imports
+ * `fr.json` directly instead of importing from here.
  */
 export const MESSAGES = en;
 
