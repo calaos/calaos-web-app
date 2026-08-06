@@ -15,13 +15,13 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 | [T05](tasks/T05-stores.md) | Pinia stores + calaos service wiring | ✅ | T02,T03 | opus/high | 59b31ff |
 | [T06](tasks/T06-shell.md) | App shell, router, chrome | ✅ | T05 | opus/medium + frontend-design | 9bf7143 |
 | [T07](tasks/T07-login.md) | Login screen + flow | ✅ | T06 | opus/medium + frontend-design | b8b8f46 |
-| [T08](tasks/T08-e2e-infra.md) | Playwright infra + M1 E2E | 🟨 | T04,T07 | opus/medium | |
+| [T08](tasks/T08-e2e-infra.md) | Playwright infra + M1 E2E | ✅ | T04,T07 | opus/medium | b9c4fc4 |
 
 ## M2 — Home, rooms, all IOs (demo: full control of mock home)
 
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
-| [T09](tasks/T09-home-room.md) | Home grid + Room view shell | ⬜ | T06 | opus/medium + frontend-design | |
+| [T09](tasks/T09-home-room.md) | Home grid + Room view shell | 🟨 | T06 | opus/medium + frontend-design | |
 | [T10](tasks/T10-io-simple.md) | IoRow dispatcher + simple IOs + StateIcon | ⬜ | T09,T02 | opus/high + frontend-design | |
 | [T11](tasks/T11-io-sliders.md) | Slider/stepper IOs (dimmer, analog_out, var_int) | ⬜ | T10 | sonnet/medium | |
 | [T12](tasks/T12-io-dialogs.md) | BaseDialog + color picker + text dialog IOs | ⬜ | T10 | opus/medium + frontend-design | |
@@ -48,7 +48,7 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
 | [T20](tasks/T20-cutover.md) | Cutover: new app becomes dist/, delete old app, docs | ⬜ | T19 | fable/high | |
-| [T21](tasks/T21-ci.md) | CI test workflow | ⬜ | T08 | sonnet/low | |
+| [T21](tasks/T21-ci.md) | CI test workflow | 🟨 | T08 | sonnet/low | |
 
 Parallelizable: T02∥T04 · T11∥T12∥T13 · T15∥T16 · T21 any time after T08.
 Critical path: T01→T02→T03→T05→T06→T07→T08→T09→T10→(T11,T12,T13)→T14→(T17,T18)→T19→T20.
