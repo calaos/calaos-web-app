@@ -47,7 +47,7 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
-| [T20](tasks/T20-cutover.md) | Cutover: new app becomes dist/, delete old app, docs | 🟨 | T19 | fable/high | |
+| [T20](tasks/T20-cutover.md) | Cutover: new app becomes dist/, delete old app, docs | ✅ | T19 | fable/high | b9331f4 — NOT PUSHED: awaiting operator smoke test on 192.168.30.17 |
 | [T21](tasks/T21-ci.md) | CI test workflow | ✅ | T08 | sonnet/low | 3588419 |
 
 Parallelizable: T02∥T04 · T11∥T12∥T13 · T15∥T16 · T21 any time after T08.
