@@ -53,6 +53,14 @@ Execution: each task runs in a dedicated subagent (model/effort/skills per its t
 Parallelizable: T02∥T04 · T11∥T12∥T13 · T15∥T16 · T21 any time after T08.
 Critical path: T01→T02→T03→T05→T06→T07→T08→T09→T10→(T11,T12,T13)→T14→(T17,T18)→T19→T20.
 
+
+## M6 — Distribution modernization (delivery = CI-built release assets)
+
+| ID | Task | Status | Deps | Agent | Commit |
+|---|---|---|---|---|---|
+| [T22](tasks/T22-release-pipeline.md) | Release pipeline: release.yml, dist/ leaves git, delete local Docker + dead workflows | 🟨 | T20 | opus/medium | |
+| [T23](tasks/T23-calaos-base-pr.md) | calaos_base PR: consume the release asset (ARG WEBAPP_VERSION) | ⬜ | T22 + first release | sonnet/medium | |
+
 ## Milestone smoke tests (manual, real server)
 
 At the end of each milestone: `.env.development.local` → `CALAOS_SERVER=http://192.168.30.17:5454`, run `npm run dev:next`, verify the milestone demo against the real calaos_server. T20 has the full pre-push checklist.
