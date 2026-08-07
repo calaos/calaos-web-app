@@ -59,7 +59,16 @@ Critical path: T01→T02→T03→T05→T06→T07→T08→T09→T10→(T11,T12,T1
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
 | [T22](tasks/T22-release-pipeline.md) | Release pipeline: release.yml, dist/ leaves git, delete local Docker + dead workflows | ✅ | T20 | opus/medium | c076f03 |
-| [T23](tasks/T23-calaos-base-pr.md) | calaos_base PR: consume the release asset (ARG WEBAPP_VERSION) | ⛔ | T22 + first release | sonnet/medium | gated: needs push + first release |
+| [T23](tasks/T23-calaos-base-pr.md) | calaos_base PR: consume the release asset (ARG WEBAPP_VERSION) | ❌ | — | — | superseded by T26 |
+
+
+## M7 — Standalone deb + calaos release convention
+
+| ID | Task | Status | Deps | Agent | Commit/PR |
+|---|---|---|---|---|---|
+| [T24](tasks/T24-calaos-release-convention.md) | Org-standard release flow: bump action, -dev on push, pkgdebs dispatch | 🟨 | T22 | opus/high | |
+| [T25](tasks/T25-pkgdebs-package.md) | pkgdebs PR: calaos-web-app deb + calaos-server Depends + bind-mount | 🟨 | — | opus/high | |
+| [T26](tasks/T26-calaos-base-dockerfile.md) | calaos_base PR: Dockerfile release asset + ARG (supersedes T23) | 🟨 | — | sonnet/medium | |
 
 ## Milestone smoke tests (manual, real server)
 
