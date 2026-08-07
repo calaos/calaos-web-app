@@ -68,7 +68,7 @@ Critical path: T01→T02→T03→T05→T06→T07→T08→T09→T10→(T11,T12,T1
 |---|---|---|---|---|---|
 | [T24](tasks/T24-calaos-release-convention.md) | Org-standard release flow: bump action, -dev on push, pkgdebs dispatch | ✅ | T22 | opus/high | 94be470 |
 | [T25](tasks/T25-pkgdebs-package.md) | pkgdebs PR: calaos-web-app deb + calaos-server Depends + bind-mount | ✅ | — | opus/high | [pkgdebs#1](https://github.com/calaos/pkgdebs/pull/1) |
-| [T26](tasks/T26-calaos-base-dockerfile.md) | calaos_base PR: Dockerfile release asset + ARG (supersedes T23) | ✅ (draft) | — | sonnet/medium | [calaos_base#172](https://github.com/calaos/calaos_base/pull/172) |
+| [T26](tasks/T26-calaos-base-dockerfile.md) | calaos_base PR: Dockerfile release asset + ARG (supersedes T23) | ✅ | — | sonnet/medium | [#172](https://github.com/calaos/calaos_base/pull/172) then [#173](https://github.com/calaos/calaos_base/pull/173): curl dropped, webapp comes ONLY from the deb bind-mount |
 
 ## Milestone smoke tests (manual, real server)
 
