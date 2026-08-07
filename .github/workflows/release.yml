@@ -1,44 +1,67 @@
 name: Release
 
-# Cuts a release. Manual dispatch only: the version input must be a bare
-# `x.x.x` (tags carry no `v` prefix) and must already match package.json on
-# the branch being released — the /release skill bumps and pushes it first.
+# Consolidated release flow, following the calaos org convention (model:
+# calaos/calaos-container's build-deb-push.yml).
 #
-# The job runs the same gates as test.yml, then builds the app and publishes
-# `calaos-web-app-<version>.tar.gz` (the CONTENTS of dist/, index.html at the
-# archive root) as the single asset of a new GitHub Release. `gh release
-# create` also creates the `<version>` tag, at the exact commit this run
-# checked out — never create release tags by hand.
+# The version lives in GIT TAGS, nowhere else. `calaos/action-bump-version@2`
+# takes the highest existing tag (dpkg version ordering over `git tag -l`)
+# and bumps it:
 #
-# dist/ is NOT in git: this workflow is the only producer of released
-# artifacts, and consumers (calaos/calaos_base's Dockerfile) download the
-# Release asset.
+#   * push to master          -> `prerelease`  3.0.1 -> 3.0.2-dev.0 -> 3.0.2-dev.1 …
+#   * workflow_dispatch patch -> 3.0.2   minor -> 3.1.0   major -> 4.0.0
+#
+# so every merge to master automatically publishes a `-dev.N` prerelease and
+# a real release is one manual dispatch. Tags are bare (no `v` prefix); the
+# `-` in a prerelease tag is turned into `~` later, by pkgdebs, for Debian
+# version ordering. `package.json` keeps the literal placeholder `0.0.0-git`
+# and is never hand-bumped: `npm version --no-git-tag-version` injects the
+# computed version into the workspace right before the build.
+#
+# Step order is load-bearing at the end: the GitHub Release (with its
+# tarball asset) MUST exist before the repository_dispatch, because the deb
+# build in calaos/pkgdebs downloads the asset by tag.
+#
+# `secrets.ACTION_DISPATCH` is an org PAT. The default GITHUB_TOKEN cannot
+# be used here: tags/releases it creates do not re-trigger workflows, and it
+# has no access to calaos/pkgdebs.
 on:
+  push:
+    branches: [ master ]
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Release version, bare x.x.x — must equal package.json "version"'
+      vincrement:
+        description: 'Package version increment (major.minor.patch)'
         required: true
-        type: string
-
-# `gh release create` pushes the tag and creates the release, both of which
-# need write access to repository contents. GITHUB_TOKEN is read-only by
-# default, so grant it explicitly (and nothing else).
-permissions:
-  contents: write
+        default: 'patch'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
 
 jobs:
-  release:
-    name: Test, build and publish release
+  ci:
+    name: CI quality gate
+    uses: ./.github/workflows/test.yml
+
+  build-and-release:
+    name: Build, publish release asset and dispatch deb build
     runs-on: ubuntu-latest
+    needs: ci
+
     steps:
-      - name: Checkout
+      - name: Checkout the repo
         uses: actions/checkout@v4
+
+      # Reads every git tag (the action fetches tags and unshallows the
+      # clone itself) and bumps the highest one. On a `push` event
+      # `github.event.inputs` is null, so the expression falls back to
+      # `prerelease`; on a dispatch it is the chosen major/minor/patch.
+      - name: Calaos Action Bump Version
+        id: calaos_version
+        uses: calaos/action-bump-version@2
         with:
-          # Full history + tags: needed to detect an already-existing tag
-          # below, and for `--generate-notes` to diff against the previous
-          # release.
-          fetch-depth: 0
+          version_fragment: ${{ github.event.inputs.vincrement || 'prerelease' }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -47,93 +70,60 @@ jobs:
           node-version: '20'
           cache: npm
 
-      - name: Validate version input
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Invalid version '$VERSION': expected a bare x.x.x version (no 'v' prefix, no suffix)."
-            exit 1
-          fi
-          PKG_VERSION="$(node -p "require('./package.json').version")"
-          if [[ "$VERSION" != "$PKG_VERSION" ]]; then
-            echo "::error::Version mismatch: dispatched '$VERSION' but package.json says '$PKG_VERSION'. Bump package.json on master and push before releasing (see the /release skill)."
-            exit 1
-          fi
-          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
-            echo "::error::Tag '$VERSION' already exists — releases are immutable, bump to a new version."
-            exit 1
-          fi
-          echo "Releasing $VERSION from $(git rev-parse --short HEAD)"
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Unit tests
-        run: npm run test:unit -- --run
-
-      - name: Resolve installed Playwright version
-        id: playwright-version
+      # package.json ships the placeholder `0.0.0-git`; stamp the real
+      # version in before building so anything that reads it at build time
+      # sees the released version. Not committed — the tag is the truth.
+      - name: Inject version into package.json
+        env:
+          VERSION: ${{ steps.calaos_version.outputs.version_bumped }}
         run: |
-          echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-browsers-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
-
-      # Same split as test.yml: on a cache hit the browser binaries are
-      # restored but the runner's OS packages (apt libs) are not, so
-      # `install-deps` (no download) still runs every time while the slow
-      # browser download is skipped.
-      - name: Install Playwright browsers (with OS deps)
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-
-      - name: Install Playwright OS deps only (browsers cached)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
-
-      - name: E2E tests
-        run: npm run test:e2e
-
-      - name: Upload Playwright report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
+          npm version --no-git-tag-version "$VERSION"
+          node -p "'package.json version is now ' + require('./package.json').version"
 
       - name: Build
         run: npm run build
 
       # Archive the CONTENTS of dist/, not the directory: consumers untar
       # straight into their web root (`tar xzf … -C /public`) and get
-      # index.html at the top level, no --strip-components needed.
+      # index.html at the top level, no --strip-components needed. The
+      # --sort/--owner/--group/--numeric-owner flags make the tarball
+      # reproducible.
       - name: Package dist/
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.calaos_version.outputs.version_bumped }}
         run: |
           tar --sort=name --owner=0 --group=0 --numeric-owner \
             -czf "calaos-web-app-$VERSION.tar.gz" -C dist .
           tar tzf "calaos-web-app-$VERSION.tar.gz"
 
-      # Creates the tag at the checked-out commit AND the release in one go.
-      - name: Create tag and GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ inputs.version }}
-        run: |
-          gh release create "$VERSION" "calaos-web-app-$VERSION.tar.gz" \
-            --target "$GITHUB_SHA" \
-            --title "$VERSION" \
-            --generate-notes
+      - name: Create Tag
+        uses: negz/create-tag@v1
+        with:
+          version: ${{ steps.calaos_version.outputs.version_bumped }}
+          token: ${{ secrets.ACTION_DISPATCH }}
+
+      # `prerelease` is true exactly when this run was not a manual
+      # dispatch: on `push`, `github.event.inputs.vincrement` is empty.
+      - name: Create a Release
+        uses: meeDamian/github-release@2.0
+        with:
+          token: ${{ secrets.ACTION_DISPATCH }}
+          tag: ${{ steps.calaos_version.outputs.version_bumped }}
+          name: ${{ steps.calaos_version.outputs.version_bumped }}
+          prerelease: ${{ github.event.inputs.vincrement == '' }}
+          files: calaos-web-app-${{ steps.calaos_version.outputs.version_bumped }}.tar.gz
+          gzip: false
+
+      # Hands off to calaos/pkgdebs, which builds the calaos-web-app .deb
+      # from the release asset above and pushes it to deb.calaos.fr. Must
+      # stay AFTER the release step.
+      - name: Repository Dispatch to pkgdebs
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.ACTION_DISPATCH }}
+          repository: calaos/pkgdebs
+          event-type: build_deb
+          client-payload: '{"pkgname": "calaos-web-app", "version": "${{ steps.calaos_version.outputs.version_bumped }}", "image_src": "", "prerelease": ${{ github.event.inputs.vincrement == '''' }} }'

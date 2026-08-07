@@ -9,7 +9,7 @@ Web frontend for the Calaos home automation server: Vue 3 + TypeScript + Vite, P
 ## dist/ is build output, never committed
 
 - `dist/` is gitignored. **Never commit it, never hand-edit it**; `npm run build` empties and regenerates it, and `npm run test:e2e` rebuilds it too (Playwright's webServer runs `npm run build` + `vite preview`).
-- Delivery is a **GitHub Release asset**: `.github/workflows/release.yml` (manual dispatch) runs the full gates, builds, packages the *contents* of `dist/` as `calaos-web-app-<version>.tar.gz` (`index.html` at the archive root) and publishes it. Consumers — calaos/calaos_base's Dockerfile, distro packaging — download that asset. Releases before the cutover still carry `dist/` in their source tag.
+- Delivery is a **GitHub Release asset**: `.github/workflows/release.yml` runs the full gates, builds, packages the *contents* of `dist/` as `calaos-web-app-<version>.tar.gz` (`index.html` at the archive root) and publishes it, then dispatches `build_deb` to calaos/pkgdebs which turns that asset into the `calaos-web-app` `.deb` on `deb.calaos.fr/calaos`. calaos/calaos_base's Dockerfile is the fallback consumer, downloading the asset directly. Releases before the cutover still carry `dist/` in their source tag.
 
 ## Networking invariants
 
@@ -31,6 +31,7 @@ Web frontend for the Calaos home automation server: Vue 3 + TypeScript + Vite, P
 
 ## Git & releases
 
-- Commit directly to `master` — no PRs. `test.yml` (lint, typecheck, unit, E2E) gates every push.
-- The version lives in `package.json` only. Tags are bare versions (`3.0.1`, no `v` prefix).
-- Cut a release with the `/release` skill: bump `package.json`, push, then `gh workflow run release.yml -f version=x.x.x`. The workflow refuses a version that does not match `package.json` or whose tag already exists, and creates the tag itself — never create release tags manually.
+- Commit directly to `master` — no PRs. `test.yml` (lint, typecheck, unit, E2E) runs on PRs and is called by `release.yml` (`needs: ci`) on every master push; it has no `push` trigger of its own.
+- **Git tags are the only version source.** Tags are bare (`3.0.1`, no `v` prefix). `package.json` is pinned to the placeholder `0.0.0-git` — never bump it; `release.yml` injects the CI-computed version with `npm version --no-git-tag-version`. Never create a release tag by hand.
+- Every push to `master` auto-cuts a `-dev.N` prerelease (`3.0.1` → `3.0.2-dev.0` → …) via `calaos/action-bump-version@2`, which bumps the highest existing tag.
+- Promote to a real release with the `/release` skill (`/release patch|minor|major`, default patch) → `gh workflow run release.yml -f vincrement=…`. Requires `secrets.ACTION_DISPATCH` (org PAT) for tag, release and the pkgdebs dispatch.

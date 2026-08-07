@@ -56,19 +56,31 @@ npm run test:e2e                           # Playwright (builds + serves dist/, 
 
 ## Release
 
-Bump `"version"` in `package.json`, push to `master`, then dispatch the
-release workflow — `/release 3.0.1` from Claude Code, or by hand:
+The version lives in **git tags**, not in `package.json` (which is pinned to
+the placeholder `0.0.0-git`). Tags are bare — no `v` prefix.
+`.github/workflows/release.yml` bumps the highest existing tag with
+[calaos/action-bump-version](https://github.com/calaos/action-bump-version):
 
-```
-gh workflow run release.yml -f version=3.0.1
-```
+- **Every push to `master`** publishes a `-dev.N` prerelease automatically
+  (`3.0.1` → `3.0.2-dev.0` → `3.0.2-dev.1` …). Nothing to do.
+- **A real release** is a manual dispatch — `/release patch` from Claude Code,
+  or by hand:
 
-The workflow re-runs every gate, builds the app, and publishes a GitHub
-Release tagged `3.0.1` (bare version, no `v` prefix) whose only asset is
-`calaos-web-app-3.0.1.tar.gz` — the contents of `dist/`, `index.html` at the
-archive root. It creates the tag itself; never tag by hand.
+  ```
+  gh workflow run release.yml -f vincrement=patch   # or minor / major
+  ```
 
-Consumers install a release by fetching that asset, e.g.
+Either way the workflow runs every gate (`test.yml` as a reusable workflow),
+builds the app, tags the commit, and publishes a GitHub Release whose only
+asset is `calaos-web-app-<version>.tar.gz` — the contents of `dist/`,
+`index.html` at the archive root. It creates the tag itself; never tag by hand.
+
+It then fires a `build_deb` repository dispatch at
+[calaos/pkgdebs](https://github.com/calaos/pkgdebs), which builds the
+`calaos-web-app` Debian package from that asset and publishes it to the apt
+repo at `deb.calaos.fr/calaos` — the normal way a Calaos system gets the app.
+
+Consumers can also install a release by fetching the asset directly, e.g.
 
 ```
 curl -fsSL https://github.com/calaos/calaos-web-app/releases/download/3.0.1/calaos-web-app-3.0.1.tar.gz \

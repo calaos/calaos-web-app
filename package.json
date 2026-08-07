@@ -1,6 +1,6 @@
 {
   "name": "calaos-web-app",
-  "version": "3.0.0",
+  "version": "0.0.0-git",
   "scripts": {
     "dev": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite",
     "build": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite build",

@@ -1,14 +1,20 @@
 name: Test
 
-# Quality gates for the Vue 3 app (app/, e2e/, mock-server/). Runs on
-# every push and pull request. This workflow only tests the repo: the E2E
-# step (`npm run test:e2e` -> playwright.config.ts's webServer) runs
-# `vite build`/`vite preview` in the runner's own workspace. dist/ is
-# gitignored build output; packaging/publishing is owned by release.yml,
-# which builds and attaches the release asset consumers download.
+# Quality gates for the Vue 3 app (app/, e2e/, mock-server/). Runs
+# standalone on every pull request, and is called as a reusable workflow
+# by release.yml (`needs: ci`) on push to master, so a release is only
+# built and published when all gates are green. There is deliberately NO
+# `push` trigger here: release.yml already runs this suite for every
+# master push, and keeping `push` would run it twice per commit.
+#
+# This workflow only tests the repo: the E2E step (`npm run test:e2e` ->
+# playwright.config.ts's webServer) runs `vite build`/`vite preview` in
+# the runner's own workspace. dist/ is gitignored build output;
+# packaging/publishing is owned by release.yml, which builds and attaches
+# the release asset consumers download.
 on:
-  push:
   pull_request:
+  workflow_call:
 
 jobs:
   test:
