@@ -31,6 +31,22 @@ export default defineConfig(({ mode }) => {
     };
 
     return {
+        // MUST stay relative. calaos_server does NOT serve this app at the
+        // origin root: its HTTP router (calaos_base
+        // src/bin/calaos_server/HttpClient.cpp) redirects `/`, `/app` and
+        // `/app/` to `/app/index.html`, serves static files only for paths
+        // under `/app/`, routes `/api` to the API, and answers EVERYTHING
+        // else with a 404 whose Content-Type is text/html. With the default
+        // `base: '/'` the built index.html asks for `/assets/index-*.js`,
+        // which escapes the `/app/` prefix, 404s, and kills the app with a
+        // module-script MIME error (the AngularJS app it replaced survived
+        // only because its asset paths happened to be relative).
+        // `./` resolves against the document, so the same bundle works both
+        // under `/app/` and at the root (dev, `vite preview`, E2E).
+        // The app's own absolute `/api` URLs are NOT affected and must stay
+        // absolute — the API really does live at the server root.
+        // Regression test: e2e/app-prefix.spec.ts + e2e/calaos-server-sim.mjs.
+        base: './',
         root: 'app',
         envDir: process.cwd(),
         plugins: [vue(), Icons({ compiler: 'vue3' })],

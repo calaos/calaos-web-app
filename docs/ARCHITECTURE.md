@@ -10,6 +10,7 @@ Target: rewrite the AngularJS 1.8 app as **Vue 3 + Vite + TypeScript**, feature 
 - Delivery is a **GitHub Release asset**: release.yml runs the gates (`needs: ci`, test.yml as a reusable workflow), builds, packages the *contents* of `dist/` as `calaos-web-app-<version>.tar.gz` (`index.html` at the archive root, deterministic `--sort=name --owner=0 --group=0 --numeric-owner`), creates the tag (`negz/create-tag@v1`) and publishes the release (`meeDamian/github-release@2.0`). Then — and only then, because the deb build downloads the asset by tag — it fires a `build_deb` `repository_dispatch` at **calaos/pkgdebs** with `{"pkgname":"calaos-web-app","version":…,"image_src":"","prerelease":…}`, which builds the `calaos-web-app` `.deb` and pushes it to the apt repo at `deb.calaos.fr/calaos`. calaos/calaos_base's Dockerfile is the fallback consumer, downloading the release asset directly. Tags cut before T22 still ship `dist/` inside their source archive.
 - Tag/release/dispatch all use `secrets.ACTION_DISPATCH` (an org PAT): `GITHUB_TOKEN` cannot re-trigger workflows from a tag it pushed, nor reach another repo.
 - Production is same-origin: the app is served by calaos_server; WS URL is `ws(s)://location.host/api`. (`location.host` omits the colon when the port is empty — this fixes the old `host:/api` bug.)
+- **The app is served under the `/app/` prefix, not at the origin root, so `base` in `vite.config.ts` MUST stay `'./'`.** calaos_server's router (calaos_base `src/bin/calaos_server/HttpClient.cpp`) 301s `/`, `/app` and `/app/` to `/app/index.html`, serves static files only for paths under `/app/`, routes `/api` to the API (HTTP actions + WS upgrade), and answers **everything else with a 404 whose Content-Type is `text/html`**. With vite's default `base: '/'` the built `index.html` asks for `/assets/index-*.js`, which escapes the prefix, gets that 404 page, and the browser refuses to execute it (`MIME type of text/html is not a valid JavaScript MIME type`) — a blank app. The AngularJS predecessor only survived because its asset paths happened to be relative. `'./'` resolves against the document, so one bundle works both under `/app/` and at the root (`vite dev`, `vite preview`, the E2E rig). The app's own `/api` URLs stay **absolute** — the API really is at the server root, and `location.host`-derived WS URLs are unaffected. Public-dir assets (`favicon.svg`) keep their canonical absolute `/favicon.svg` reference in `app/index.html`; vite rewrites them through `base` at build time. Regression: `e2e/app-prefix.spec.ts` against `e2e/calaos-server-sim.mjs`, which reproduces that router.
 
 ## Repo layout during the rewrite
 
@@ -29,9 +30,9 @@ New app in `app/` at the repo root, single root `package.json` (no workspaces �
 ```
 vite.config.ts            # root:'app', /api proxy, outDir dist-next (dist after cutover)
 vitest.config.ts          # happy-dom default, includes app/** and mock-server/*.test.js
-playwright.config.ts      # webServer: [mock, vite preview]; testDir e2e/
+playwright.config.ts      # webServer: [mock, build+vite preview, calaos-server-sim]; testDir e2e/
 tsconfig.json / tsconfig.app.json / tsconfig.node.json
-e2e/                      # fixtures.ts (mockControl helper) + specs
+e2e/                      # fixtures.ts (mockControl helper) + specs + calaos-server-sim.mjs
 mock-server/              # index.js, state.js, control.js, fixtures/{home.json,camera.png}, mock-server.test.js
 app/
 ├── index.html
@@ -150,6 +151,7 @@ Plain Node ≥18 ESM, single dep `ws`, one HTTP server on PORT (default 5454):
 
 - **Unit (Vitest, happy-dom)**: `io-states` table-driven per type (the crown jewel), guards/messages codecs, socket backoff sequence with fake timers + injected WS, `wsUrl` empty-port regression, stores (auth machine incl. no-empty-cred-login, normalization/sort, io_changed patch, pending lifecycle), `useCameraPoll` fake timers, component tests (IoRow dispatch ×14+unknown, visible/rw gating, slider commits once on release, dialog contracts).
 - **E2E (Playwright, chromium + mobile project)**: against **built** app (`vite preview`) + mock via `webServer`; preview proxy forwards `/api` so E2E exercises production URL derivation. Specs: login ok/fail, no auto-login on cold load (`/control log` shows zero login frames), room nav, IO roundtrips with exact-frame assertions, `push_io` live update, `drop` → banner → auto-reconnect → re-login, cameras polling, fr-locale smoke.
+  - A third `webServer`, `e2e/calaos-server-sim.mjs` (:4180), reproduces calaos_server's URL router — app under `/app/`, `/api` piped to the mock (raw TCP for the WS upgrade, no `ws` dependency), `text/html` 404 for everything else. It must stay **last** in the `webServer` array: it serves `dist/` off disk and the preview entry in front of it is what builds it (Playwright awaits one webServer setup task per entry, in array order). `e2e/app-prefix.spec.ts` (chromium-desktop only) boots through it, signs in over the proxied WebSocket, and asserts `index.html` references `./assets/…` while that same asset 404s at the root — the deployment invariant above, encoded.
 
 ## Audio (full player — user decision)
 

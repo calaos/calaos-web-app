@@ -44,9 +44,12 @@ export default [
     },
     js.configs.recommended,
     {
-        // Mock calaos_server (T04): plain Node ESM, hence .mjs — the repo's
-        // package.json has no "type":"module".
-        files: ['mock-server/**/*.mjs'],
+        // Plain Node ESM, hence .mjs — the repo's package.json has no
+        // "type":"module". Two of them: the mock calaos_server (T04) and the
+        // E2E rig's calaos_server URL-router simulator
+        // (e2e/calaos-server-sim.mjs), which is a server too, not a spec —
+        // the .ts block below is for the specs.
+        files: ['mock-server/**/*.mjs', 'e2e/**/*.mjs'],
         languageOptions: {
             ecmaVersion: 'latest',
             sourceType: 'module',

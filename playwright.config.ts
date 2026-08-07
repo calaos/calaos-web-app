@@ -23,6 +23,8 @@ import { defineConfig, devices } from '@playwright/test';
 const MOCK_PORT = 5454;
 /** `vite preview` for the built app. */
 const APP_PORT = 4173;
+/** e2e/calaos-server-sim.mjs — the same bundle under the production `/app/` prefix. */
+const PREFIX_PORT = 4180;
 
 export default defineConfig({
     testDir: './e2e',
@@ -72,7 +74,10 @@ export default defineConfig({
         {
             name: 'mobile-pixel7',
             use: { ...devices['Pixel 7'] },
-            testIgnore: '**/fr-locale.spec.ts',
+            // app-prefix.spec.ts is chromium-desktop's alone: it pins a URL
+            // layout (vite's `base`), which no viewport can change, so a
+            // second run of it would only cost time.
+            testIgnore: ['**/fr-locale.spec.ts', '**/app-prefix.spec.ts'],
         },
         {
             name: 'fr',
@@ -113,6 +118,27 @@ export default defineConfig({
             reuseExistingServer: false,
             // Covers a cold `vite build` on a slow machine.
             timeout: 120_000,
+            stdout: 'ignore',
+            stderr: 'pipe',
+        },
+        {
+            // calaos_server's URL layout: the app under `/app/`, `/api`
+            // forwarded to the mock, a text/html 404 for everything else.
+            // `vite preview` serves the bundle at the root, so without this
+            // nothing in the suite would notice an absolute asset URL —
+            // which is the production bug e2e/app-prefix.spec.ts pins.
+            //
+            // MUST stay last: it serves dist/ straight off disk, and the
+            // entry above is what builds it. Playwright runs one webServer
+            // setup task per entry and awaits them in array order (its
+            // `createPluginSetupTasks`), so by the time this starts, `npm run
+            // build` has finished.
+            command: `node e2e/calaos-server-sim.mjs`,
+            url: `http://localhost:${PREFIX_PORT}/app/index.html`,
+            env: { PORT: String(PREFIX_PORT), API_PORT: String(MOCK_PORT) },
+            // A stale sim would serve a stale dist/ — same reasoning as above.
+            reuseExistingServer: false,
+            timeout: 30_000,
             stdout: 'ignore',
             stderr: 'pipe',
         },
