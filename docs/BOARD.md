@@ -58,8 +58,8 @@ Critical path: T01→T02→T03→T05→T06→T07→T08→T09→T10→(T11,T12,T1
 
 | ID | Task | Status | Deps | Agent | Commit |
 |---|---|---|---|---|---|
-| [T22](tasks/T22-release-pipeline.md) | Release pipeline: release.yml, dist/ leaves git, delete local Docker + dead workflows | 🟨 | T20 | opus/medium | |
-| [T23](tasks/T23-calaos-base-pr.md) | calaos_base PR: consume the release asset (ARG WEBAPP_VERSION) | ⬜ | T22 + first release | sonnet/medium | |
+| [T22](tasks/T22-release-pipeline.md) | Release pipeline: release.yml, dist/ leaves git, delete local Docker + dead workflows | ✅ | T20 | opus/medium | c076f03 |
+| [T23](tasks/T23-calaos-base-pr.md) | calaos_base PR: consume the release asset (ARG WEBAPP_VERSION) | ⛔ | T22 + first release | sonnet/medium | gated: needs push + first release |
 
 ## Milestone smoke tests (manual, real server)
 
