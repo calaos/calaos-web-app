@@ -66,9 +66,9 @@ Critical path: T01→T02→T03→T05→T06→T07→T08→T09→T10→(T11,T12,T1
 
 | ID | Task | Status | Deps | Agent | Commit/PR |
 |---|---|---|---|---|---|
-| [T24](tasks/T24-calaos-release-convention.md) | Org-standard release flow: bump action, -dev on push, pkgdebs dispatch | 🟨 | T22 | opus/high | |
-| [T25](tasks/T25-pkgdebs-package.md) | pkgdebs PR: calaos-web-app deb + calaos-server Depends + bind-mount | 🟨 | — | opus/high | |
-| [T26](tasks/T26-calaos-base-dockerfile.md) | calaos_base PR: Dockerfile release asset + ARG (supersedes T23) | 🟨 | — | sonnet/medium | |
+| [T24](tasks/T24-calaos-release-convention.md) | Org-standard release flow: bump action, -dev on push, pkgdebs dispatch | ✅ | T22 | opus/high | 94be470 |
+| [T25](tasks/T25-pkgdebs-package.md) | pkgdebs PR: calaos-web-app deb + calaos-server Depends + bind-mount | ✅ | — | opus/high | [pkgdebs#1](https://github.com/calaos/pkgdebs/pull/1) |
+| [T26](tasks/T26-calaos-base-dockerfile.md) | calaos_base PR: Dockerfile release asset + ARG (supersedes T23) | ✅ (draft) | — | sonnet/medium | [calaos_base#172](https://github.com/calaos/calaos_base/pull/172) |
 
 ## Milestone smoke tests (manual, real server)
 
