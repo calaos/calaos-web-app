@@ -4,6 +4,9 @@ node_modules
 # local env overrides (.env.development.local etc.) — never committed
 *.local
 
+# build output — never committed; release.yml builds and publishes it
+dist/
+
 # test/build tooling output
 test-results/
 playwright-report/

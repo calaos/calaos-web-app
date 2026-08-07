@@ -3,10 +3,9 @@ name: Test
 # Quality gates for the Vue 3 app (app/, e2e/, mock-server/). Runs on
 # every push and pull request. This workflow only tests the repo: the E2E
 # step (`npm run test:e2e` -> playwright.config.ts's webServer) runs
-# `vite build`/`vite preview` in the runner's own workspace, but nothing is
-# ever committed — the deployed dist/ is always the one committed by the
-# developer. This workflow does not touch docker-publish.yml or build*.yml,
-# which own packaging/publishing from the committed dist/.
+# `vite build`/`vite preview` in the runner's own workspace. dist/ is
+# gitignored build output; packaging/publishing is owned by release.yml,
+# which builds and attaches the release asset consumers download.
 on:
   push:
   pull_request:

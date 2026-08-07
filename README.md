@@ -39,11 +39,10 @@ camera HTTP) to that host. The app itself always talks to same-origin
 npm run build
 ```
 
-regenerates `dist/`, which is **committed to git** and is the sole input to
-the Docker image and the distro package — CI never builds. Every app change
-must ship as source change **plus** rebuilt `dist/` in the same commit, or
-production gets stale code. `npm run preview` serves the built `dist/`
-locally (same `/api` proxy rules as dev).
+regenerates `dist/`. It is build output only: **gitignored, never
+committed** — released artifacts are built by CI (see Release below).
+`npm run preview` serves the built `dist/` locally (same `/api` proxy rules
+as dev).
 
 ## Test
 
@@ -57,5 +56,21 @@ npm run test:e2e                           # Playwright (builds + serves dist/, 
 
 ## Release
 
-Releases are cut with `gh workflow run build_release.yml -f version=x.x.x`
-(the workflow creates the git tag itself). See CLAUDE.md for details.
+Bump `"version"` in `package.json`, push to `master`, then dispatch the
+release workflow — `/release 3.0.1` from Claude Code, or by hand:
+
+```
+gh workflow run release.yml -f version=3.0.1
+```
+
+The workflow re-runs every gate, builds the app, and publishes a GitHub
+Release tagged `3.0.1` (bare version, no `v` prefix) whose only asset is
+`calaos-web-app-3.0.1.tar.gz` — the contents of `dist/`, `index.html` at the
+archive root. It creates the tag itself; never tag by hand.
+
+Consumers install a release by fetching that asset, e.g.
+
+```
+curl -fsSL https://github.com/calaos/calaos-web-app/releases/download/3.0.1/calaos-web-app-3.0.1.tar.gz \
+  | tar xz -C /path/to/webroot
+```

@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Web frontend for the Calaos home automation server: Vue 3 + TypeScript + Vite, Pinia stores, vue-router (hash history — static servers have no SPA fallback), vue-i18n (en/fr), unplugin-icons (MDI), plain CSS with custom properties (no Tailwind, no preprocessor, no formatter). App code lives in `app/src/`; unit tests are co-located (`foo.ts` → `foo.spec.ts`). Architecture details: `docs/ARCHITECTURE.md`.
 
-## dist/ is committed and is the sole input to Docker/packaging
+## dist/ is build output, never committed
 
-- CI never builds. `docker-publish.yml` copies the committed `dist/` into the image; the calaos/pkgbuilds PKGBUILD packages it too. **Any change under `app/` must ship with a fresh `npm run build` and the resulting `dist/` in the same commit**, or production gets stale code.
-- Never hand-edit `dist/`; `npm run build` empties and regenerates it. `npm run test:e2e` also rebuilds `dist/` (Playwright's webServer runs `npm run build` + `vite preview`), producing identical output for identical sources.
+- `dist/` is gitignored. **Never commit it, never hand-edit it**; `npm run build` empties and regenerates it, and `npm run test:e2e` rebuilds it too (Playwright's webServer runs `npm run build` + `vite preview`).
+- Delivery is a **GitHub Release asset**: `.github/workflows/release.yml` (manual dispatch) runs the full gates, builds, packages the *contents* of `dist/` as `calaos-web-app-<version>.tar.gz` (`index.html` at the archive root) and publishes it. Consumers — calaos/calaos_base's Dockerfile, distro packaging — download that asset. Releases before the cutover still carry `dist/` in their source tag.
 
 ## Networking invariants
 
@@ -31,6 +31,6 @@ Web frontend for the Calaos home automation server: Vue 3 + TypeScript + Vite, P
 
 ## Git & releases
 
-- Commit directly to `master` — no PRs. Pushing to master dispatches a package build to calaos/calaos-build and publishes the Docker image, so never push with a stale or broken `dist/`.
-- The version lives in `package.json` only.
-- Releases are cut with `gh workflow run build_release.yml -f version=x.x.x` (dev builds: `build_dev.yml` with `x.x.x-dev`). The workflow creates the git tag itself — never create release tags manually. Use the `/release` skill.
+- Commit directly to `master` — no PRs. `test.yml` (lint, typecheck, unit, E2E) gates every push.
+- The version lives in `package.json` only. Tags are bare versions (`3.0.1`, no `v` prefix).
+- Cut a release with the `/release` skill: bump `package.json`, push, then `gh workflow run release.yml -f version=x.x.x`. The workflow refuses a version that does not match `package.json` or whose tag already exists, and creates the tag itself — never create release tags manually.

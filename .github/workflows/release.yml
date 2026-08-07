@@ -1,0 +1,139 @@
+name: Release
+
+# Cuts a release. Manual dispatch only: the version input must be a bare
+# `x.x.x` (tags carry no `v` prefix) and must already match package.json on
+# the branch being released — the /release skill bumps and pushes it first.
+#
+# The job runs the same gates as test.yml, then builds the app and publishes
+# `calaos-web-app-<version>.tar.gz` (the CONTENTS of dist/, index.html at the
+# archive root) as the single asset of a new GitHub Release. `gh release
+# create` also creates the `<version>` tag, at the exact commit this run
+# checked out — never create release tags by hand.
+#
+# dist/ is NOT in git: this workflow is the only producer of released
+# artifacts, and consumers (calaos/calaos_base's Dockerfile) download the
+# Release asset.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, bare x.x.x — must equal package.json "version"'
+        required: true
+        type: string
+
+# `gh release create` pushes the tag and creates the release, both of which
+# need write access to repository contents. GITHUB_TOKEN is read-only by
+# default, so grant it explicitly (and nothing else).
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Test, build and publish release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history + tags: needed to detect an already-existing tag
+          # below, and for `--generate-notes` to diff against the previous
+          # release.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # vite@8 requires Node >=20.19 (package.json "engines" matches).
+          node-version: '20'
+          cache: npm
+
+      - name: Validate version input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version '$VERSION': expected a bare x.x.x version (no 'v' prefix, no suffix)."
+            exit 1
+          fi
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [[ "$VERSION" != "$PKG_VERSION" ]]; then
+            echo "::error::Version mismatch: dispatched '$VERSION' but package.json says '$PKG_VERSION'. Bump package.json on master and push before releasing (see the /release skill)."
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
+            echo "::error::Tag '$VERSION' already exists — releases are immutable, bump to a new version."
+            exit 1
+          fi
+          echo "Releasing $VERSION from $(git rev-parse --short HEAD)"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:unit -- --run
+
+      - name: Resolve installed Playwright version
+        id: playwright-version
+        run: |
+          echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+      # Same split as test.yml: on a cache hit the browser binaries are
+      # restored but the runner's OS packages (apt libs) are not, so
+      # `install-deps` (no download) still runs every time while the slow
+      # browser download is skipped.
+      - name: Install Playwright browsers (with OS deps)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright OS deps only (browsers cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Build
+        run: npm run build
+
+      # Archive the CONTENTS of dist/, not the directory: consumers untar
+      # straight into their web root (`tar xzf … -C /public`) and get
+      # index.html at the top level, no --strip-components needed.
+      - name: Package dist/
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          tar --sort=name --owner=0 --group=0 --numeric-owner \
+            -czf "calaos-web-app-$VERSION.tar.gz" -C dist .
+          tar tzf "calaos-web-app-$VERSION.tar.gz"
+
+      # Creates the tag at the checked-out commit AND the release in one go.
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh release create "$VERSION" "calaos-web-app-$VERSION.tar.gz" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
+            --generate-notes

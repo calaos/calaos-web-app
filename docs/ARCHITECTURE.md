@@ -2,19 +2,19 @@
 
 Target: rewrite the AngularJS 1.8 app as **Vue 3 + Vite + TypeScript**, feature parity plus deliberate fixes, light visual refresh (dark theme, cyan `#38b0d3` accent, tactile press feedback), tested with **Vitest + Playwright**. Task breakdown and status live in [BOARD.md](BOARD.md) and `tasks/`.
 
-## Deployment invariants (unchanged)
+## Deployment invariants
 
-- Output is a static site in `dist/`, **committed to git** (Docker `COPY dist /public`, distro PKGBUILD). CI never builds.
+- Output is a static site in `dist/`. It is **gitignored, never committed** (it was committed until T22): CI builds it.
+- Delivery is a **GitHub Release asset**. `.github/workflows/release.yml` (manual `workflow_dispatch`, bare `x.x.x` version matching `package.json`) runs the gates, builds, packages the *contents* of `dist/` as `calaos-web-app-<version>.tar.gz` (`index.html` at the archive root) and publishes it with the `<version>` tag it creates. Consumers (calaos/calaos_base's Dockerfile, distro packaging) download that asset; tags cut before T22 still ship `dist/` inside their source archive.
 - Production is same-origin: the app is served by calaos_server; WS URL is `ws(s)://location.host/api`. (`location.host` omits the colon when the port is empty — this fixes the old `host:/api` bug.)
-- The old app (`src/` + `tools/`) stays byte-identical and keeps producing `dist/` until the final cutover task (T20). Until then the only old files that may change are `package.json`, `eslint.config.mjs` (additive blocks) and `.gitignore`.
 
 ## Repo layout during the rewrite
 
-New app in `app/` at the repo root, single root `package.json` (no workspaces — one lockfile, CI never builds anything anyway).
+New app in `app/` at the repo root, single root `package.json` (no workspaces — one lockfile).
 
 | script | during rewrite | after cutover (T20) |
 |---|---|---|
-| `npm run dev` / `build` | old `tools/*.js` → `dist/` | `vite` / `vite build` → `dist/` |
+| `npm run dev` / `build` | old `tools/*.js` → `dist/` (committed back then) | `vite` / `vite build` → `dist/` (gitignored since T22, built by CI) |
 | `npm run dev:next` / `build:next` / `preview:next` | vite / vite build → `dist-next/` (gitignored) / vite preview | removed |
 | `npm run mock` | `node mock-server/index.js` (added T04) | kept |
 | `lint` / `typecheck` / `test:unit` / `test:e2e` | added incrementally | kept |
