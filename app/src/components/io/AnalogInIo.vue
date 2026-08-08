@@ -3,26 +3,28 @@
 //
 // `parseAnalogIn` returns the display string (`state` + `unit`, joined only
 // when there is a unit) and the resolved `gui_style` key, `'default'` when the
-// server sent none. `resolveIoStyleIcon` turns that key into a glyph and is
+// server sent none. `resolveAnalogIcon` turns that key into Calaos's own
+// artwork for that quantity, and is
 // total, so an unrecognised style draws the default dial instead of the old
-// app's broken-image icon (see io-style-icons.ts).
+// app's broken-image icon (see calaos-icons.ts).
 
 import { computed } from 'vue';
 import IoRowFrame from './IoRowFrame.vue';
-import { resolveIoStyleIcon } from './io-style-icons';
+import { resolveAnalogIcon } from './calaos-icons';
+import ImageIcon from '../ui/ImageIcon.vue';
 import { parseAnalogIn } from '../../protocol/io-states';
 import type { IoItem } from '../../protocol/types';
 
 const props = defineProps<{ io: IoItem }>();
 
 const reading = computed(() => parseAnalogIn(props.io.state, props.io.unit, props.io.ioStyle));
-const icon = computed(() => resolveIoStyleIcon(reading.value.icon));
+const icon = computed(() => resolveAnalogIcon(reading.value.icon));
 </script>
 
 <template>
     <IoRowFrame :name="io.name" :status="io.status">
         <template #icon>
-            <component :is="icon" class="analog-in-io__icon" aria-hidden="true" />
+            <ImageIcon class="analog-in-io__icon" :src="icon" />
         </template>
         <template #value>
             <span class="analog-in-io__reading">{{ reading.display }}</span>

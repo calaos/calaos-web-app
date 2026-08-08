@@ -44,7 +44,7 @@ test.beforeEach(async ({ mock }) => {
     await mock.reset();
 });
 
-test('the house arrives most-used first, each room carrying its type and temperature', async ({
+test('the house arrives most-used first, each room carrying its picture and temperature', async ({
     page,
 }) => {
     await page.goto('/');
@@ -52,7 +52,14 @@ test('the house arrives most-used first, each room carrying its type and tempera
 
     await expect(tiles(page)).toHaveCount(ROOMS.length);
     await expect(page.locator('.room-tile__name')).toHaveText(ROOMS.map((room) => room.name));
-    await expect(page.locator('.room-tile__type')).toHaveText(ROOMS.map((room) => room.type));
+    // Each tile carries its own room picture, and no two are the same. The
+    // type is deliberately NOT written out — the picture says it (HomeView).
+    await expect(page.locator('.room-tile__icon')).toHaveCount(ROOMS.length);
+    await expect(page.locator('.room-tile__type')).toHaveCount(0);
+    const pictures = await page.locator('.room-tile__icon').evaluateAll((nodes) =>
+        nodes.map((node) => (node as HTMLImageElement).currentSrc),
+    );
+    expect(new Set(pictures).size).toBe(ROOMS.length);
 
     // Only the two rooms with a temp IO show a reading, and it carries the
     // server's unit (the old tile hardcoded °C).

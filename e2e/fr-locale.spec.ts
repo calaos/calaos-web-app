@@ -53,10 +53,13 @@ test('the house renders in French: heading, tabs, and a room type label', async 
     // mock-server/fixtures/home.json's first room by `hits` (47): kitchen.
     // Reading the catalogue rather than hardcoding "Cuisine" here means a
     // future wording change to roomType.kitchen cannot make this spec stale.
-    const kitchenTile = page.locator('.room-tile').first();
-    await expect(kitchenTile.locator('.room-tile__type')).toHaveText(fr.roomType.kitchen);
+    // The tile itself no longer prints the type — the room's picture says it —
+    // so the translated label is checked where it still appears: the header of
+    // the room the tile opens.
+    await page.locator('.room-tile').first().click();
+    await expect(page.locator('.room__type')).toHaveText(fr.roomType.kitchen);
     // And it is a TRANSLATION, not the wire value passed through untouched.
-    await expect(kitchenTile.locator('.room-tile__type')).not.toHaveText('kitchen');
+    await expect(page.locator('.room__type')).not.toHaveText('kitchen');
 });
 
 test('server-provided room and IO names are never translated', async ({ page }) => {

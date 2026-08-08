@@ -17,13 +17,10 @@
 
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import IconArrowDownBold from '~icons/mdi/arrow-down-bold';
-import IconArrowUpBold from '~icons/mdi/arrow-up-bold';
-import IconStop from '~icons/mdi/stop';
-import IconWindowShutter from '~icons/mdi/window-shutter';
-import IconWindowShutterOpen from '~icons/mdi/window-shutter-open';
+import ActionButton from './ActionButton.vue';
+import { BUTTONS, STATE_ICONS } from './calaos-icons';
 import IoRowFrame from './IoRowFrame.vue';
-import IconButton from '../ui/IconButton.vue';
+import ImageIcon from '../ui/ImageIcon.vue';
 import StateIcon from '../ui/StateIcon.vue';
 import { useIo } from '../../composables/useIo';
 import { ACTION_DOWN, ACTION_STOP, ACTION_UP, parseShutterSmart } from '../../protocol/io-states';
@@ -42,10 +39,11 @@ const state = computed(() => parseShutterSmart(props.io.state));
         <template #icon>
             <StateIcon
                 :on="state.open"
-                :icon-off="IconWindowShutter"
-                :icon-on="IconWindowShutterOpen"
                 :label="t(state.open ? 'io.open' : 'io.closed')"
-            />
+            >
+                <template #off><ImageIcon :src="STATE_ICONS.shutterOff" /></template>
+                <template #on><ImageIcon :src="STATE_ICONS.shutterOn" /></template>
+            </StateIcon>
         </template>
 
         <template #value>
@@ -53,15 +51,21 @@ const state = computed(() => parseShutterSmart(props.io.state));
         </template>
 
         <template #actions>
-            <IconButton :label="t('io.raise', { name: io.name })" @click="set(ACTION_UP)">
-                <IconArrowUpBold />
-            </IconButton>
-            <IconButton :label="t('io.stop', { name: io.name })" @click="set(ACTION_STOP)">
-                <IconStop />
-            </IconButton>
-            <IconButton :label="t('io.lower', { name: io.name })" @click="set(ACTION_DOWN)">
-                <IconArrowDownBold />
-            </IconButton>
+            <ActionButton
+                :label="t('io.raise', { name: io.name })"
+                :face="BUTTONS.up"
+                @click="set(ACTION_UP)"
+            />
+            <ActionButton
+                :label="t('io.stop', { name: io.name })"
+                :face="BUTTONS.stop"
+                @click="set(ACTION_STOP)"
+            />
+            <ActionButton
+                :label="t('io.lower', { name: io.name })"
+                :face="BUTTONS.down"
+                @click="set(ACTION_DOWN)"
+            />
         </template>
     </IoRowFrame>
 </template>

@@ -25,9 +25,12 @@ function mountAnalogOut(wire: WireIo = {}) {
     return mount(AnalogOutIo, { props: { io }, global: { plugins: [i18n] } });
 }
 
-/** The `d` of the rendered glyph — how one MDI icon is told from another. */
+/**
+ * The artwork the row drew. Calaos's own picture files now, not MDI paths, so
+ * the `src` is what tells one from another.
+ */
 function glyphPath(wrapper: ReturnType<typeof mountAnalogOut>): string {
-    return wrapper.get('.io-row__lead path').attributes('d') ?? '';
+    return wrapper.get('.io-row__lead img').attributes('src') ?? '';
 }
 
 beforeEach(() => {
@@ -55,8 +58,8 @@ describe('AnalogOutIo', () => {
     });
 
     it('draws the glyph the server asked for, from the same table analog_in uses', () => {
-        const humidity = mountAnalogOut({ gui_style: 'humidity' });
-        const fallback = mountAnalogOut({ gui_style: '' });
+        const humidity = mountAnalogOut({ io_style: 'humidity' });
+        const fallback = mountAnalogOut({ io_style: '' });
 
         expect(glyphPath(humidity)).not.toBe(glyphPath(fallback));
     });

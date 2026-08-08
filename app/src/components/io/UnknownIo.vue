@@ -21,7 +21,8 @@ import { useI18n } from 'vue-i18n';
 import IconHelpCircleOutline from '~icons/mdi/help-circle-outline';
 import IconTuneVariant from '~icons/mdi/tune-variant';
 import IoRowFrame from './IoRowFrame.vue';
-import { resolveIoStyleIcon } from './io-style-icons';
+import { resolveAnalogIcon } from './calaos-icons';
+import ImageIcon from '../ui/ImageIcon.vue';
 import type { IoItem } from '../../protocol/types';
 
 const props = defineProps<{ io: IoItem }>();
@@ -31,14 +32,20 @@ const { t } = useI18n();
 /** Role 1 (a type we do not know) as opposed to role 2 (one not built yet). */
 const isUnknownType = computed(() => props.io.guiType === 'unknown');
 
-// A `gui_style` is the server's own hint about what the thing measures, and it
-// is worth more than any fallback — so it wins in both roles. Without one, an
-// unknown type says so, and a not-yet-built one shows a neutral control glyph
-// rather than accusing a perfectly valid shutter of being a mystery.
-const icon = computed(() => {
-    if (props.io.ioStyle !== '') return resolveIoStyleIcon(props.io.ioStyle);
-    return isUnknownType.value ? IconHelpCircleOutline : IconTuneVariant;
-});
+// An `io_style` is the server's own hint about what the thing measures, and
+// it is worth more than any fallback — so it wins in both roles, and it comes
+// from Calaos's own artwork.
+const styleIcon = computed(() =>
+    props.io.ioStyle !== '' ? resolveAnalogIcon(props.io.ioStyle) : null,
+);
+
+// Without one, an unknown type says so, and a not-yet-built one shows a
+// neutral control glyph rather than accusing a perfectly valid shutter of
+// being a mystery. These two have no Calaos equivalent — they describe THIS
+// app's confusion, not a device — so they stay MDI.
+const fallbackIcon = computed(() =>
+    isUnknownType.value ? IconHelpCircleOutline : IconTuneVariant,
+);
 
 /** The server's own word for the type, or ours when it did not send one. */
 const note = computed(() => {
@@ -52,7 +59,8 @@ const note = computed(() => {
 <template>
     <IoRowFrame :name="io.name" :status="io.status" :note="note">
         <template #icon>
-            <component :is="icon" class="unknown-io__icon" aria-hidden="true" />
+            <ImageIcon v-if="styleIcon !== null" class="unknown-io__icon" :src="styleIcon" />
+            <component :is="fallbackIcon" v-else class="unknown-io__icon" aria-hidden="true" />
         </template>
         <template v-if="io.state !== ''" #value>
             <span class="unknown-io__state">{{ io.state }}</span>

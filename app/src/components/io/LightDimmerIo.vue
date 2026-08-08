@@ -18,13 +18,11 @@
 
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import IconLightbulbOn from '~icons/mdi/lightbulb-on';
-import IconLightbulbOutline from '~icons/mdi/lightbulb-outline';
-import { iconPowerOff, iconPowerOn } from './action-icons';
+import ActionButton from './ActionButton.vue';
+import { BUTTONS, STATE_ICONS } from './calaos-icons';
 import IoRowFrame from './IoRowFrame.vue';
 import BaseSlider from '../ui/BaseSlider.vue';
-import IconButton from '../ui/IconButton.vue';
-import MaskIcon from '../ui/MaskIcon.vue';
+import ImageIcon from '../ui/ImageIcon.vue';
 import StateIcon from '../ui/StateIcon.vue';
 import { useIo } from '../../composables/useIo';
 import {
@@ -52,22 +50,27 @@ function commitPercent(percent: number) {
         <template #icon>
             <StateIcon
                 :on="dimmer.on"
-                :icon-off="IconLightbulbOutline"
-                :icon-on="IconLightbulbOn"
                 :label="t(dimmer.on ? 'io.on' : 'io.off')"
-            />
+            >
+                <template #off><ImageIcon :src="STATE_ICONS.lightOff" /></template>
+                <template #on><ImageIcon :src="STATE_ICONS.lightOn" /></template>
+            </StateIcon>
         </template>
         <template #value>
             <span class="light-dimmer-io__reading">{{ dimmer.percent }}%</span>
         </template>
 
         <template #actions>
-            <IconButton :label="t('io.turnOn', { name: io.name })" @click="set(ACTION_TRUE)">
-                <MaskIcon :src="iconPowerOn" />
-            </IconButton>
-            <IconButton :label="t('io.turnOff', { name: io.name })" @click="set(ACTION_FALSE)">
-                <MaskIcon :src="iconPowerOff" />
-            </IconButton>
+            <ActionButton
+                :label="t('io.turnOn', { name: io.name })"
+                :face="BUTTONS.lightOn"
+                @click="set(ACTION_TRUE)"
+            />
+            <ActionButton
+                :label="t('io.turnOff', { name: io.name })"
+                :face="BUTTONS.lightOff"
+                @click="set(ACTION_FALSE)"
+            />
             <BaseSlider
                 class="light-dimmer-io__slider"
                 :model-value="dimmer.percent"

@@ -67,12 +67,14 @@ describe('UnknownIo — standing in for a control that is not built yet', () => 
     });
 
     it('prefers the glyph the server asked for over its own fallback', () => {
-        const path = (wrapper: ReturnType<typeof mountUnknown>): string | undefined =>
-            wrapper.get('.io-row__lead path').attributes('d');
-
-        const styled = mountUnknown({ gui_type: 'var_int', gui_style: 'temp', state: '20' });
+        // A style resolves to Calaos artwork (an <img>); with no style the row
+        // falls back to an MDI glyph, which is this app describing its own
+        // confusion rather than a device.
+        const styled = mountUnknown({ gui_type: 'var_int', io_style: 'temp', state: '20' });
         const bare = mountUnknown({ gui_type: 'var_int', state: '20' });
 
-        expect(path(styled)).not.toBe(path(bare));
+        expect(styled.find('.io-row__lead img').exists()).toBe(true);
+        expect(bare.find('.io-row__lead img').exists()).toBe(false);
+        expect(bare.find('.io-row__lead svg').exists()).toBe(true);
     });
 });

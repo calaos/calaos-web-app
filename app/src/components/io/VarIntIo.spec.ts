@@ -46,14 +46,15 @@ describe('VarIntIo', () => {
         expect(mountVarInt({ state: '3', unit: '' }).get('.io-row__value').text()).toBe('3');
     });
 
-    it('draws the same static counter glyph regardless of gui_style', () => {
+    it('draws the same static counter glyph regardless of io_style', () => {
         // Unlike analog_out, the old template hardcoded icon_int.png — no
-        // gui_style lookup for this type (docs/ARCHITECTURE.md).
-        const withStyle = mountVarInt({ gui_style: 'humidity' });
-        const withoutStyle = mountVarInt({ gui_style: '' });
-        const path = (w: typeof withStyle) => w.get('.io-row__lead path').attributes('d');
+        // style lookup for this type (docs/ARCHITECTURE.md), and that icon is
+        // the one this row still draws.
+        const withStyle = mountVarInt({ io_style: 'humidity' });
+        const withoutStyle = mountVarInt({ io_style: '' });
+        const src = (w: typeof withStyle) => w.get('.io-row__lead img').attributes('src');
 
-        expect(path(withStyle)).toBe(path(withoutStyle));
+        expect(src(withStyle)).toBe(src(withoutStyle));
     });
 
     it('sends inc/dec, named for the IO, from the +/- buttons', async () => {

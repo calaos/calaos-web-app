@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="44"
+   height="44"
+   viewBox="0 0 11.641666 11.641667"
+   version="1.1"
+   id="svg8"
+   inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
+   sodipodi:docname="icon_speed.svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#454545"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="11.313708"
+     inkscape:cx="46.965777"
+     inkscape:cy="32.643734"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     units="px"
+     inkscape:snap-global="false"
+     inkscape:window-width="3440"
+     inkscape:window-height="1377"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:pagecheckerboard="false"
+     showguides="false"
+     inkscape:lockguides="false" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Calque 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-285.35832)">
+    <g
+       id="g4545">
+      <path
+         sodipodi:open="true"
+         d="m 2.2811601,295.11932 a 4.5989842,4.6278977 0 0 1 0.3897716,-6.32668 4.5989842,4.6278977 0 0 1 6.299224,-5.5e-4 4.5989842,4.6278977 0 0 1 0.3908578,6.32661"
+         sodipodi:end="0.69230869"
+         sodipodi:start="2.4491112"
+         sodipodi:ry="4.6278977"
+         sodipodi:rx="4.5989842"
+         sodipodi:cy="292.16464"
+         sodipodi:cx="5.8208332"
+         sodipodi:type="arc"
+         id="path4516"
+         style="fill:none;fill-opacity:1;stroke:#3ab4d7;stroke-width:1.66500008;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+      <ellipse
+         ry="0.71123272"
+         rx="0.70678985"
+         cy="292.16464"
+         cx="5.8208289"
+         style="fill:#3ab4d7;fill-opacity:1;stroke:none;stroke-width:1.66500008;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         id="path4518" />
+      <path
+         inkscape:transform-center-y="-0.69291276"
+         inkscape:transform-center-x="-0.28202875"
+         sodipodi:nodetypes="csccc"
+         inkscape:connector-curvature="0"
+         id="ellipse4520"
+         d="m 6.4461548,292.52905 c -0.1951753,0.34018 -0.6274404,0.45673 -0.9654932,0.26032 -0.3380528,-0.1964 -0.4538793,-0.63138 -0.2587027,-0.97156 0.195175,-0.34016 0.2460677,-0.32494 1.933697,-1.94785 -0.5212477,2.23971 -0.514336,2.31891 -0.7095011,2.65909 z"
+         style="fill:#3ab4d7;fill-opacity:1;stroke:none;stroke-width:1.66500008;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+      <rect
+         inkscape:transform-center-y="-3.0284979"
+         ry="0.24555388"
+         rx="0.24555388"
+         y="288.49066"
+         x="5.5045137"
+         height="1.3227457"
+         width="0.63263947"
+         id="rect4523"
+         style="fill:#3ab4d7;fill-opacity:1;stroke:none;stroke-width:1.66500008;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+      <rect
+         inkscape:transform-center-x="2.1414737"
+         transform="rotate(-45)"
+         style="fill:#3ab4d7;fill-opacity:1;stroke:none;stroke-width:1.66500008;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         id="rect4535"
+         width="0.63263947"
+         height="1.3227457"
+         x="-202.80321"
+         y="207.02892"
+         rx="0.24555388"
+         ry="0.24555388"
+         inkscape:transform-center-y="-2.1414698" />
+      <rect
+         inkscape:transform-center-y="4.6435116e-06"
+         ry="0.24555388"
+         rx="0.24555388"
+         y="2.1309624"
+         x="-292.49686"
+         height="1.3227457"
+         width="0.63263947"
+         id="rect4537"
+         style="fill:#3ab4d7;fill-opacity:1;stroke:none;stroke-width:1.66500008;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         transform="rotate(-90)"
+         inkscape:transform-center-x="3.0284983" />
+    </g>
+  </g>
+</svg>

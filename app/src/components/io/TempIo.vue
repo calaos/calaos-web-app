@@ -10,8 +10,9 @@
 // and a reading is neither.
 
 import { computed } from 'vue';
-import IconThermometer from '~icons/mdi/thermometer';
+import { STATE_ICONS } from './calaos-icons';
 import IoRowFrame from './IoRowFrame.vue';
+import ImageIcon from '../ui/ImageIcon.vue';
 import { parseTemp } from '../../protocol/io-states';
 import type { IoItem } from '../../protocol/types';
 
@@ -26,7 +27,7 @@ const display = computed(() => parseTemp(props.io.state, props.io.unit).display)
 <template>
     <IoRowFrame :name="io.name" :status="io.status">
         <template #icon>
-            <IconThermometer class="temp-io__icon" aria-hidden="true" />
+            <ImageIcon class="temp-io__icon" :src="STATE_ICONS.temp" />
         </template>
         <template #value>
             <span class="temp-io__reading">{{ display }}</span>
@@ -36,7 +37,9 @@ const display = computed(() => parseTemp(props.io.state, props.io.unit).display)
 
 <style scoped>
 .temp-io__icon {
-    color: var(--c-text-muted);
+    /* Calaos's own thermometer, which carries its own colour — nothing to
+       tint, unlike the MDI outline it replaces. */
+    font-size: 1.5rem;
 }
 
 .temp-io__reading {

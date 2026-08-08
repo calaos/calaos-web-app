@@ -143,20 +143,23 @@ describe('HomeView — the grid', () => {
         ]);
     });
 
-    it('names the type of each room next to its glyph', async () => {
+    it('shows each room as a picture, and does not write its type out', async () => {
         loadHouse();
 
         const wrapper = await mountHome();
 
-        expect(texts(wrapper, '.room-tile__type')).toEqual([
-            en.roomType.kitchen,
-            // The old map's `else` branch never assigned, so an unknown type
-            // inherited the previous room's icon and no label at all.
-            en.roomType.unknown,
-            en.roomType.lounge,
-            en.roomType.cellar,
-        ]);
+        // Every tile has its artwork...
         expect(wrapper.findAll('.room-tile__icon')).toHaveLength(4);
+        // ...including the unknown type, which gets the generic room rather
+        // than the previous tile's picture (the old map's `else` branch never
+        // assigned, so an unknown type inherited whatever came before it).
+        const sources = wrapper.findAll('.room-tile__icon').map((i) => i.attributes('src'));
+        expect(new Set(sources).size).toBe(4);
+
+        // The TYPE is not printed on the tile: the picture already says
+        // "kitchen", and two labels do not fit on one tile.
+        expect(wrapper.find('.room-tile__type').exists()).toBe(false);
+        expect(wrapper.text()).not.toContain(en.roomType.kitchen);
     });
 
     it('gives every tile press feedback', async () => {

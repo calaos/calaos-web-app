@@ -28,10 +28,9 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { resolveLightStyle } from './light-styles';
 import IoRowFrame from './IoRowFrame.vue';
-import { iconPowerOff, iconPowerOn } from './action-icons';
-import IconButton from '../ui/IconButton.vue';
+import ActionButton from './ActionButton.vue';
+import { BUTTONS, SYMBOLS } from './calaos-icons';
 import ImageIcon from '../ui/ImageIcon.vue';
-import MaskIcon from '../ui/MaskIcon.vue';
 import StateIcon from '../ui/StateIcon.vue';
 import { useIo } from '../../composables/useIo';
 import { ACTION_FALSE, ACTION_TRUE, parseLight } from '../../protocol/io-states';
@@ -46,6 +45,29 @@ const { isPending, set } = useIo(() => props.io.id);
 
 const on = computed(() => parseLight(props.io.state).on);
 const style = computed(() => resolveLightStyle(props.io.ioStyle));
+
+/**
+ * A lamp gets Calaos's bulb buttons; every styled device gets the blank face
+ * with the white power symbol over it. That split is calaos_mobile's:
+ * IOLight.qml uses `button_light_on`/`button_light_off`, while IOOutlet,
+ * IOPump, IOHeater and IOBoiler pass `ic_outlet_on.svg`/`ic_outlet_off.svg`
+ * as an `iconSource`, which ItemButtonAction draws over its default face.
+ */
+const buttons = computed(() =>
+    style.value.key === 'light'
+        ? {
+              onFace: BUTTONS.lightOn,
+              offFace: BUTTONS.lightOff,
+              onSymbol: undefined,
+              offSymbol: undefined,
+          }
+        : {
+              onFace: BUTTONS.empty,
+              offFace: BUTTONS.empty,
+              onSymbol: SYMBOLS.powerOn,
+              offSymbol: SYMBOLS.powerOff,
+          },
+);
 </script>
 
 <template>
@@ -75,12 +97,18 @@ const style = computed(() => resolveLightStyle(props.io.ioStyle));
         </template>
 
         <template #actions>
-            <IconButton :label="t('io.turnOn', { name: io.name })" @click="set(ACTION_TRUE)">
-                <MaskIcon :src="iconPowerOn" />
-            </IconButton>
-            <IconButton :label="t('io.turnOff', { name: io.name })" @click="set(ACTION_FALSE)">
-                <MaskIcon :src="iconPowerOff" />
-            </IconButton>
+            <ActionButton
+                :label="t('io.turnOn', { name: io.name })"
+                :face="buttons.onFace"
+                :overlay="buttons.onSymbol"
+                @click="set(ACTION_TRUE)"
+            />
+            <ActionButton
+                :label="t('io.turnOff', { name: io.name })"
+                :face="buttons.offFace"
+                :overlay="buttons.offSymbol"
+                @click="set(ACTION_FALSE)"
+            />
         </template>
     </IoRowFrame>
 </template>

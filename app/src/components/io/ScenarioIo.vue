@@ -12,10 +12,10 @@
 // gate is uniform here, like every other type.
 
 import { useI18n } from 'vue-i18n';
-import IconPlay from '~icons/mdi/play';
-import IconScriptTextOutline from '~icons/mdi/script-text-outline';
+import ActionButton from './ActionButton.vue';
+import { BUTTONS, STATE_ICONS } from './calaos-icons';
 import IoRowFrame from './IoRowFrame.vue';
-import IconButton from '../ui/IconButton.vue';
+import ImageIcon from '../ui/ImageIcon.vue';
 import { useIo } from '../../composables/useIo';
 import { ACTION_TRUE } from '../../protocol/io-states';
 import type { IoItem } from '../../protocol/types';
@@ -29,13 +29,15 @@ const { isPending, set } = useIo(() => props.io.id);
 <template>
     <IoRowFrame :name="io.name" :status="io.status" :pending="isPending">
         <template #icon>
-            <IconScriptTextOutline class="scenario-io__icon" aria-hidden="true" />
+            <ImageIcon class="scenario-io__icon" :src="STATE_ICONS.scenario" />
         </template>
 
         <template #actions>
-            <IconButton :label="t('io.run', { name: io.name })" @click="set(ACTION_TRUE)">
-                <IconPlay />
-            </IconButton>
+            <ActionButton
+                :label="t('io.run', { name: io.name })"
+                :face="BUTTONS.play"
+                @click="set(ACTION_TRUE)"
+            />
         </template>
     </IoRowFrame>
 </template>

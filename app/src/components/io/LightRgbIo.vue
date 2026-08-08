@@ -22,13 +22,12 @@
 
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import IconLightbulbOn from '~icons/mdi/lightbulb-on';
-import IconLightbulbOutline from '~icons/mdi/lightbulb-outline';
-import { iconPowerOff, iconPowerOn } from './action-icons';
+import ActionButton from './ActionButton.vue';
+import { BUTTONS, STATE_ICONS } from './calaos-icons';
 import IoRowFrame from './IoRowFrame.vue';
 import ColorPickerDialog from '../dialogs/ColorPickerDialog.vue';
 import IconButton from '../ui/IconButton.vue';
-import MaskIcon from '../ui/MaskIcon.vue';
+import ImageIcon from '../ui/ImageIcon.vue';
 import StateIcon from '../ui/StateIcon.vue';
 import { useIo } from '../../composables/useIo';
 import { ACTION_FALSE, ACTION_TRUE, parseLightRgb, setColor } from '../../protocol/io-states';
@@ -61,20 +60,29 @@ function confirmColor(hex: string): void {
         <template #icon>
             <StateIcon
                 :on="rgb.on"
-                :icon-off="IconLightbulbOutline"
-                :icon-on="IconLightbulbOn"
                 :label="t(rgb.on ? 'io.on' : 'io.off')"
                 :style="lampTint"
-            />
+            >
+                <template #off><ImageIcon :src="STATE_ICONS.lightOff" /></template>
+                <template #on><ImageIcon :src="STATE_ICONS.lightOn" /></template>
+            </StateIcon>
         </template>
 
         <template #actions>
-            <IconButton :label="t('io.turnOn', { name: io.name })" @click="set(ACTION_TRUE)">
-                <MaskIcon :src="iconPowerOn" />
-            </IconButton>
-            <IconButton :label="t('io.turnOff', { name: io.name })" @click="set(ACTION_FALSE)">
-                <MaskIcon :src="iconPowerOff" />
-            </IconButton>
+            <ActionButton
+                :label="t('io.turnOn', { name: io.name })"
+                :face="BUTTONS.lightOn"
+                @click="set(ACTION_TRUE)"
+            />
+            <ActionButton
+                :label="t('io.turnOff', { name: io.name })"
+                :face="BUTTONS.lightOff"
+                @click="set(ACTION_FALSE)"
+            />
+            <!-- No Calaos face for this one: calaos_mobile opens its colour
+                 picker from the row itself. A swatch showing the current
+                 colour is the clearer control, so it keeps the app's own
+                 button chrome. -->
             <IconButton :label="t('io.setColor', { name: io.name })" @click="pickerOpen = true">
                 <span class="light-rgb-io__swatch" :style="{ backgroundColor: rgb.color }" />
             </IconButton>

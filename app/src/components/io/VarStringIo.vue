@@ -32,11 +32,11 @@
 
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import IconFormatText from '~icons/mdi/format-text';
-import IconKeyboard from '~icons/mdi/keyboard';
+import ActionButton from './ActionButton.vue';
+import { BUTTONS, STATE_ICONS } from './calaos-icons';
 import IoRowFrame from './IoRowFrame.vue';
 import TextInputDialog from '../dialogs/TextInputDialog.vue';
-import IconButton from '../ui/IconButton.vue';
+import ImageIcon from '../ui/ImageIcon.vue';
 import { useIo } from '../../composables/useIo';
 import { parseStringOut, parseVarString, setText } from '../../protocol/io-states';
 import type { IoItem } from '../../protocol/types';
@@ -70,7 +70,7 @@ function confirmText(text: string): void {
 <template>
     <IoRowFrame :name="io.name" :status="io.status" :pending="isPending">
         <template #icon>
-            <IconFormatText class="var-string-io__icon" aria-hidden="true" />
+            <ImageIcon class="var-string-io__icon" :src="STATE_ICONS.text" />
         </template>
 
         <template v-if="hasValue" #value>
@@ -78,9 +78,11 @@ function confirmText(text: string): void {
         </template>
 
         <template v-if="canEdit" #actions>
-            <IconButton :label="t('io.setText', { name: io.name })" @click="dialogOpen = true">
-                <IconKeyboard />
-            </IconButton>
+            <ActionButton
+                :label="t('io.setText', { name: io.name })"
+                :face="BUTTONS.keyboard"
+                @click="dialogOpen = true"
+            />
         </template>
     </IoRowFrame>
 

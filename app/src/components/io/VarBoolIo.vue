@@ -18,14 +18,10 @@
 
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import IconCheckCircle from '~icons/mdi/check-circle';
-import IconCircleOutline from '~icons/mdi/circle-outline';
-// The same two action glyphs a light gets, for the same two verbs (see
-// LightIo.vue).
-import IconFlash from '~icons/mdi/flash';
-import IconFlashOff from '~icons/mdi/flash-off';
+import ActionButton from './ActionButton.vue';
+import { BUTTONS, STATE_ICONS } from './calaos-icons';
 import IoRowFrame from './IoRowFrame.vue';
-import IconButton from '../ui/IconButton.vue';
+import ImageIcon from '../ui/ImageIcon.vue';
 import StateIcon from '../ui/StateIcon.vue';
 import { useIo } from '../../composables/useIo';
 import { ACTION_FALSE, ACTION_TRUE, parseVarBool } from '../../protocol/io-states';
@@ -44,19 +40,24 @@ const checked = computed(() => parseVarBool(props.io.state).checked);
         <template #icon>
             <StateIcon
                 :on="checked"
-                :icon-off="IconCircleOutline"
-                :icon-on="IconCheckCircle"
                 :label="t(checked ? 'io.on' : 'io.off')"
-            />
+            >
+                <template #off><ImageIcon :src="STATE_ICONS.boolOff" /></template>
+                <template #on><ImageIcon :src="STATE_ICONS.boolOn" /></template>
+            </StateIcon>
         </template>
 
         <template v-if="io.rw" #actions>
-            <IconButton :label="t('io.turnOn', { name: io.name })" @click="set(ACTION_TRUE)">
-                <IconFlash />
-            </IconButton>
-            <IconButton :label="t('io.turnOff', { name: io.name })" @click="set(ACTION_FALSE)">
-                <IconFlashOff />
-            </IconButton>
+            <ActionButton
+                :label="t('io.turnOn', { name: io.name })"
+                :face="BUTTONS.check"
+                @click="set(ACTION_TRUE)"
+            />
+            <ActionButton
+                :label="t('io.turnOff', { name: io.name })"
+                :face="BUTTONS.empty"
+                @click="set(ACTION_FALSE)"
+            />
         </template>
     </IoRowFrame>
 </template>

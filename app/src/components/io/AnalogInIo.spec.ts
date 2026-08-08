@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import AnalogInIo from './AnalogInIo.vue';
-import { IO_STYLE_ICONS, resolveIoStyleIcon } from './io-style-icons';
+import { ANALOG_STYLE_ICONS, resolveAnalogIcon } from './calaos-icons';
 import { toIoItem } from '../../protocol/guards';
 import type { WireIo } from '../../protocol/types';
 import en from '../../i18n/en.json';
@@ -21,9 +21,12 @@ function mountAnalog(wire: WireIo) {
     return mount(AnalogInIo, { props: { io }, global: { plugins: [i18n] } });
 }
 
-/** The `d` of the rendered glyph — how one MDI icon is told from another. */
+/**
+ * The artwork the row drew. These are Calaos's own picture files now, not MDI
+ * paths, so the `src` is what identifies one from another.
+ */
 function glyphPath(wrapper: ReturnType<typeof mountAnalog>): string {
-    return wrapper.get('.io-row__lead path').attributes('d') ?? '';
+    return wrapper.get('.io-row__lead img').attributes('src') ?? '';
 }
 
 describe('AnalogInIo', () => {
@@ -57,22 +60,29 @@ describe('AnalogInIo', () => {
     });
 });
 
-describe('io-style icons', () => {
+describe('io_style icons', () => {
     it('covers every style the old app shipped an icon file for', () => {
-        // src/images/icon_*.png, which is the only record of which styles a
-        // calaos_server actually sends.
+        // src/images/icon_*.png, the only record of which styles the AngularJS
+        // app could draw.
         for (const style of ['default', 'analog', 'temp', 'humidity', 'int', 'text']) {
-            expect(IO_STYLE_ICONS[style]).toBeDefined();
+            expect(ANALOG_STYLE_ICONS[style], style).toBeDefined();
         }
     });
 
-    it('gives analog and default the same glyph, as the old icon files did', () => {
-        // icon_analog.png and icon_default.png were byte-identical.
-        expect(resolveIoStyleIcon('analog')).toBe(resolveIoStyleIcon('default'));
+    it('covers the styles calaos_mobile draws that the old web app could not', () => {
+        // IOAnalogStyled.qml builds `icon_<io_style>` at runtime, so its set is
+        // the set of files that ship in calaos_mobile's img/.
+        for (const style of ['luminosity', 'pressure', 'voltage', 'current', 'watt', 'speed']) {
+            expect(ANALOG_STYLE_ICONS[style], style).toBeDefined();
+        }
     });
 
-    it('is total — anything unmapped resolves to the default glyph', () => {
-        expect(resolveIoStyleIcon('')).toBe(IO_STYLE_ICONS.default);
-        expect(resolveIoStyleIcon('nonsense')).toBe(IO_STYLE_ICONS.default);
+    it('special-cases `temperature` onto the thermometer, as calaos_mobile does', () => {
+        expect(resolveAnalogIcon('temperature')).toBe(resolveAnalogIcon('temp'));
+    });
+
+    it('is total — anything unmapped resolves to the default dial', () => {
+        expect(resolveAnalogIcon('')).toBe(ANALOG_STYLE_ICONS.default);
+        expect(resolveAnalogIcon('nonsense')).toBe(ANALOG_STYLE_ICONS.default);
     });
 });

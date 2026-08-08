@@ -13,10 +13,11 @@
 //    This is one CSS grid with `auto-fill`, which fits the tiles to whatever
 //    width it is given — two on a phone, six on a wall panel.
 //  - The tile is left-aligned like the login form rather than centred: the
-//    name is the thing being scanned, and names align on a column. Its type
-//    sits above it in the same wide uppercase micro-type the footer tabs use
-//    (the label NAMES the glyph next to the name — it is also why an
-//    unrecognized type is worth a real translated word rather than nothing).
+//    name is the thing being scanned, and names align on a column. The room's
+//    TYPE is not written out: the picture already says "kitchen" better than
+//    the word does, and printing both put two labels on a tile that has room
+//    for one. (`roomTypeLabelKey` is still used — by the room header and by
+//    the picture's own lookup.)
 //  - Accent: the glyph is the only colour on a resting tile, held at low
 //    opacity; touching the tile lights it and draws the filament along the
 //    bottom edge — the same band of light as the footer's active tab and the
@@ -29,7 +30,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
 import IconThermometer from '~icons/mdi/thermometer';
-import RoomIcon, { roomTypeLabelKey } from '../components/ui/RoomIcon.vue';
+import RoomIcon from '../components/ui/RoomIcon.vue';
 import { parseTemp } from '../protocol/io-states';
 import { useHomeStore } from '../stores/home';
 import type { RoomVM } from '../stores/home';
@@ -57,7 +58,6 @@ function temperature(room: RoomVM): string | null {
 const tiles = computed(() =>
     home.rooms.map((room) => ({
         room,
-        typeLabel: roomTypeLabelKey(room.type),
         temperature: temperature(room),
     })),
 );
@@ -74,7 +74,6 @@ const tiles = computed(() =>
             <li v-for="tile in tiles" :key="tile.room.roomId" class="home__cell">
                 <RouterLink :to="`/home/${tile.room.roomId}`" class="room-tile pressable">
                     <span class="room-tile__head">
-                        <span class="room-tile__type">{{ t(tile.typeLabel) }}</span>
                         <span v-if="tile.temperature !== null" class="room-tile__temp">
                             <IconThermometer
                                 class="room-tile__temp-icon"
@@ -187,25 +186,14 @@ const tiles = computed(() =>
 }
 
 .room-tile__head {
+    /* Holds the temperature alone now, pushed to the trailing edge. A row
+       whose only child is optional still reserves its line, so tiles with and
+       without a reading keep their pictures on one baseline. */
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: var(--space-2);
-}
-
-.room-tile__type {
-    /* The footer tabs' type: small, wide, uppercase. Applied by CSS so the
-       catalogue keeps sentence-case strings. */
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
-    color: var(--c-text-muted);
-    /* Long labels shorten rather than push the temperature off the tile. */
-    min-inline-size: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    min-block-size: 1.25rem;
 }
 
 .room-tile__temp {
