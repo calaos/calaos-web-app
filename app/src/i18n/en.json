@@ -72,7 +72,12 @@
         "lower": "Lower {name}",
         "setColor": "Set the color of {name}",
         "setText": "Set the text of {name}",
-        "unknownType": "Unknown type"
+        "unknownType": "Unknown type",
+        "status": {
+            "battery": "Battery {percent}%",
+            "signal": "Signal {percent}%",
+            "disconnected": "Disconnected"
+        }
     },
     "dialog": {
         "cancel": "Cancel",

@@ -20,7 +20,6 @@ function mountShutterSmart(wire: WireIo = {}) {
         gui_type: 'shutter_smart',
         state: 'stop 50',
         visible: 'true',
-        rw: 'true',
         ...wire,
     });
     return mount(ShutterSmartIo, { props: { io }, global: { plugins: [i18n] } });
@@ -85,10 +84,14 @@ describe('ShutterSmartIo', () => {
         expect(wrapper.find('.io-row__pending').exists()).toBe(false);
     });
 
-    it('offers nothing to press when the cover is read-only', () => {
-        const wrapper = mountShutterSmart({ rw: 'false', state: 'up 100' });
+    it('keeps its controls whatever rw says', () => {
+        // docs/ARCHITECTURE.md "The `rw` flag"; calaos_mobile's
+        // IOShutterSmart.qml never reads it.
+        for (const rw of ['false', 'true', undefined]) {
+            const wrapper = mountShutterSmart({ rw, state: 'up 100' });
 
-        expect(wrapper.findAll('button')).toHaveLength(0);
-        expect(wrapper.get('.shutter-smart-io__percent').text()).toBe('100%');
+            expect(wrapper.findAll('button').length, `rw=${rw}`).toBeGreaterThan(0);
+            expect(wrapper.get('.shutter-smart-io__percent').text()).toBe('100%');
+        }
     });
 });

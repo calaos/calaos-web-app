@@ -51,8 +51,18 @@ const IO = {
     varInt: { id: 'output_8', name: 'Nombre de cafés', room: ROOM.cuisine },
     /** `shutter`, starts open. */
     shutter: { id: 'output_10', name: 'Volet cuisine', room: ROOM.cuisine },
-    /** The one `rw:"false"` IO in the fixture. */
-    readOnly: { id: 'output_7', name: 'Spots plan de travail', room: ROOM.cuisine },
+    /**
+     * The one `rw:"false"` IO in the fixture — a `var_int`, because that is
+     * one of only three gui_types the server ever sends `rw` for
+     * (docs/ARCHITECTURE.md "The `rw` flag").
+     */
+    readOnly: { id: 'output_19', name: 'Compteur eau', room: ROOM.cuisine },
+    /** A `light` with no `rw` on the wire, exactly as a real server sends it. */
+    lightNoRw: { id: 'output_7', name: 'Spots plan de travail', room: ROOM.cuisine },
+    /** `light` + `io_style: pump`, running, and reporting a radio signal. */
+    pump: { id: 'output_22', name: 'Pompe piscine', room: ROOM.outside },
+    /** `light` + `io_style: boiler`, and unreachable despite a full battery. */
+    boiler: { id: 'output_23', name: 'Chaudière', room: ROOM.outside },
     /** The one `visible:"false"` IO in the fixture. */
     invisible: { id: 'output_14', name: 'LED de debug', room: ROOM.bedroom },
 } as const;
@@ -400,7 +410,7 @@ test('an IO the server marked invisible has no row to press', async ({ page, moc
     expect(await setStateFrames(mock, IO.invisible.id)).toEqual([]);
 });
 
-test('an IO the server marked read-only shows its state and offers no controls', async ({
+test('a var_int the server marked read-only shows its value and offers no controls', async ({
     page,
 }) => {
     await openRoom(page, IO.readOnly.room);
@@ -408,12 +418,73 @@ test('an IO the server marked read-only shows its state and offers no controls',
 
     // The row exists and still reports — `rw` hides the actions, not the IO.
     await expect(row).toBeVisible();
-    await expect(stateIcon(row)).toHaveAttribute('aria-label', MESSAGES.io.off);
+    await expect(row.locator('.io-row__value')).toHaveText('1284 L');
     await expect(row.getByRole('button')).toHaveCount(0);
     await expect(row.locator('.io-row__actions')).toHaveCount(0);
 
-    // A writable row in the same list still has its pair, so this is the
-    // fixture's `rw:"false"` doing the work and not a missing renderer. The
-    // old app never looked at `rw` for a light at all.
+    // The writable var_int sitting in the SAME list still has its pair, so
+    // this is the fixture's `rw:"false"` doing the work and not a missing
+    // renderer or a room that failed to load.
     await expect(ioRow(page, IO.varInt.name).getByRole('button')).toHaveCount(2);
+});
+
+test('a light with no rw on the wire is still switchable', async ({ page, mock }) => {
+    // THE regression this suite missed: calaos_server sends no `rw` for a
+    // light, the app read that as read-only, and every lamp in every real
+    // house lost its buttons. The fixture now omits `rw` exactly where the
+    // server does (docs/ARCHITECTURE.md "The `rw` flag").
+    await openRoom(page, IO.lightNoRw.room);
+    const row = ioRow(page, IO.lightNoRw.name);
+
+    await expect(row.getByRole('button')).toHaveCount(2);
+    await expect(stateIcon(row)).toHaveAttribute('aria-label', MESSAGES.io.off);
+
+    await action(row, MESSAGES.io.turnOn, IO.lightNoRw.name).click();
+
+    await expect
+        .poll(() => setStateFrames(mock, IO.lightNoRw.id))
+        .toEqual([setStateFrame(IO.lightNoRw.id, 'true')]);
+    // And the row really does follow the server's echo.
+    await expect(stateIcon(row)).toHaveAttribute('aria-label', MESSAGES.io.on);
+});
+
+test('a styled light is drawn as its device and still sends the light verbs', async ({
+    page,
+    mock,
+}) => {
+    // calaos_server ships pumps, outlets, heaters and boilers as `light`s
+    // carrying an `io_style` (docs/ARCHITECTURE.md). The style changes the
+    // picture; the protocol is a light's.
+    await openRoom(page, IO.pump.room);
+    const row = ioRow(page, IO.pump.name);
+
+    // The state artwork is the pump's, not the lamp's, and it is lit.
+    await expect(stateIcon(row)).toHaveAttribute('aria-label', MESSAGES.io.on);
+    const lit = row.locator('.state-icon__glyph--on img').last();
+    await expect(lit).toHaveAttribute('src', /pump/);
+
+    await action(row, MESSAGES.io.turnOff, IO.pump.name).click();
+
+    await expect
+        .poll(() => setStateFrames(mock, IO.pump.id))
+        .toEqual([setStateFrame(IO.pump.id, 'false')]);
+});
+
+test('a device reports its battery and its radio next to its controls', async ({ page }) => {
+    // The `status_info` badge, ported from calaos_mobile's SensorStatusIcon.
+    await openRoom(page, IO.pump.room);
+
+    // A healthy radio: a signal bar, and nothing blinking.
+    const pump = ioRow(page, IO.pump.name).locator('.sensor-status');
+    await expect(pump).toHaveAttribute('alt', MESSAGES.io.status.signal.replace('{percent}', '80'));
+    await expect(pump).not.toHaveClass(/sensor-status--urgent/);
+
+    // Unreachable beats "battery 90%": the stale-but-healthy reading would
+    // otherwise hide the fact that nobody can hear this boiler.
+    const boiler = ioRow(page, IO.boiler.name).locator('.sensor-status');
+    await expect(boiler).toHaveAttribute('alt', MESSAGES.io.status.disconnected);
+    await expect(boiler).toHaveClass(/sensor-status--urgent/);
+
+    // And an IO with no status_info at all carries no badge.
+    await expect(ioRow(page, 'Store terrasse').locator('.sensor-status')).toHaveCount(0);
 });

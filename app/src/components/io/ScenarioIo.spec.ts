@@ -19,7 +19,6 @@ function mountScenario(wire: WireIo = {}) {
         gui_type: 'scenario',
         state: 'false',
         visible: 'true',
-        rw: 'true',
         ...wire,
     });
     return mount(ScenarioIo, { props: { io }, global: { plugins: [i18n] } });
@@ -78,11 +77,15 @@ describe('ScenarioIo', () => {
         expect(wrapper.find('.io-row__pending').exists()).toBe(false);
     });
 
-    it('offers nothing to press when the scenario is read-only', () => {
-        // The old scenario.html showed its play button whatever `rw` said.
-        const wrapper = mountScenario({ rw: 'false' });
+    it('keeps its play button whatever rw says', () => {
+        // The old scenario.html showed its play button whatever `rw` said, and
+        // so does calaos_mobile's IOScenario.qml. A scenario you cannot run is
+        // not a scenario (docs/ARCHITECTURE.md "The `rw` flag").
+        for (const rw of ['false', 'true', undefined]) {
+            const wrapper = mountScenario({ rw });
 
-        expect(wrapper.findAll('button')).toHaveLength(0);
-        expect(wrapper.get('.io-row__name').text()).toBe('Tout éteindre');
+            expect(wrapper.findAll('button'), `rw=${rw}`).toHaveLength(1);
+            expect(wrapper.get('.io-row__name').text()).toBe('Tout éteindre');
+        }
     });
 });

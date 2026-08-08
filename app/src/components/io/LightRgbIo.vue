@@ -22,13 +22,13 @@
 
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import IconFlash from '~icons/mdi/flash';
-import IconFlashOff from '~icons/mdi/flash-off';
 import IconLightbulbOn from '~icons/mdi/lightbulb-on';
 import IconLightbulbOutline from '~icons/mdi/lightbulb-outline';
+import { iconPowerOff, iconPowerOn } from './action-icons';
 import IoRowFrame from './IoRowFrame.vue';
 import ColorPickerDialog from '../dialogs/ColorPickerDialog.vue';
 import IconButton from '../ui/IconButton.vue';
+import MaskIcon from '../ui/MaskIcon.vue';
 import StateIcon from '../ui/StateIcon.vue';
 import { useIo } from '../../composables/useIo';
 import { ACTION_FALSE, ACTION_TRUE, parseLightRgb, setColor } from '../../protocol/io-states';
@@ -57,7 +57,7 @@ function confirmColor(hex: string): void {
 </script>
 
 <template>
-    <IoRowFrame :name="io.name" :pending="isPending">
+    <IoRowFrame :name="io.name" :status="io.status" :pending="isPending">
         <template #icon>
             <StateIcon
                 :on="rgb.on"
@@ -68,12 +68,12 @@ function confirmColor(hex: string): void {
             />
         </template>
 
-        <template v-if="io.rw" #actions>
+        <template #actions>
             <IconButton :label="t('io.turnOn', { name: io.name })" @click="set(ACTION_TRUE)">
-                <IconFlash />
+                <MaskIcon :src="iconPowerOn" />
             </IconButton>
             <IconButton :label="t('io.turnOff', { name: io.name })" @click="set(ACTION_FALSE)">
-                <IconFlashOff />
+                <MaskIcon :src="iconPowerOff" />
             </IconButton>
             <IconButton :label="t('io.setColor', { name: io.name })" @click="pickerOpen = true">
                 <span class="light-rgb-io__swatch" :style="{ backgroundColor: rgb.color }" />

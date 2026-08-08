@@ -6,7 +6,15 @@
 // wrong. NO Vue imports in this directory.
 
 import { GUI_TYPES } from './types';
-import type { AudioPlayerItem, CameraItem, GuiType, HomeData, IoItem, Room } from './types';
+import type {
+    AudioPlayerItem,
+    CameraItem,
+    GuiType,
+    HomeData,
+    IoItem,
+    IoStatusInfo,
+    Room,
+} from './types';
 
 export function isRecord(v: unknown): v is Record<string, unknown> {
     return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -28,9 +36,47 @@ export function wireBool(v: unknown): boolean {
     return v === 'true' || v === true;
 }
 
+// `rw` is NOT a general read-only flag, and almost nothing may gate on it —
+// see docs/ARCHITECTURE.md "The `rw` flag". calaos_server only ever sends the
+// key for var_bool / var_int / var_string, so reading it as false for a light
+// is normal and means nothing about whether that light can be switched.
+
 function toFiniteNumber(v: unknown): number {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * A number the wire may simply not have sent. Distinct from `toFiniteNumber`:
+ * a missing battery level must stay missing (no badge) rather than become 0
+ * (a flat battery, blinking red at the user).
+ */
+function toOptionalNumber(v: unknown): number | null {
+    if (v === undefined || v === null || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * `status_info` → typed telemetry, or `null` when the IO has none.
+ *
+ * Field names and their meanings are calaos_mobile's
+ * (`IOBase::ioStatusChanged`): each key is present only when the device
+ * actually reports it, and `connected` arrives as the string `'true'`.
+ * An EMPTY object still counts as "has status": that is what the reference
+ * client does (it sets `hasStatusInfo` on any `status_info` at all), and it is
+ * how an IO says "I am a device" without reporting a level yet.
+ */
+export function toIoStatusInfo(raw: unknown): IoStatusInfo | null {
+    if (!isRecord(raw)) return null;
+    return {
+        batteryLevel: toOptionalNumber(raw.battery_level),
+        wirelessSignal: toOptionalNumber(raw.wireless_signal),
+        connected: raw.connected === undefined ? null : wireBool(raw.connected),
+        uptime: toOptionalNumber(raw.uptime),
+        ipAddress: toWireString(raw.ip_address),
+        wifiSsid: toWireString(raw.wifi_ssid),
+    };
 }
 
 function isGuiType(v: string): v is GuiType {
@@ -46,12 +92,21 @@ export function toIoItem(raw: unknown): IoItem {
         id: toWireString(obj.id),
         name: toWireString(obj.name),
         state: toWireString(obj.state),
-        // Missing visible/rw → false, matching the old templates where only
-        // the exact string 'true' enabled rendering/controls.
+        // Both missing → false, exactly as calaos_mobile's RoomModel reads
+        // them. `rw` being false for a light is normal and means nothing: only
+        // the three types in `rwGatesControls` ever consult it.
         visible: wireBool(obj.visible),
         rw: wireBool(obj.rw),
         unit: toWireString(obj.unit),
-        guiStyle: toWireString(obj.gui_style),
+        // `io_style` is the real wire key — it is in calaos_server's parameter
+        // whitelist (`JsonApi::buildJsonIO`) and `gui_style` is NOT, so the
+        // server never sends the latter and every styled IO was silently
+        // falling back to the default glyph. calaos_mobile reads `io_style`
+        // too (`RoomModel.cpp`: `update_ioStyle(ioData["io_style"]…)`).
+        // `gui_style` stays as a fallback: it is what the old AngularJS
+        // templates read, and a fixture or proxy may still speak it.
+        ioStyle: toWireString(obj.io_style, toWireString(obj.gui_style)),
+        status: toIoStatusInfo(obj.status_info),
     };
     const guiType = toWireString(obj.gui_type);
     if (isGuiType(guiType)) {

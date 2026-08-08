@@ -29,7 +29,7 @@ import IconThermometer from '~icons/mdi/thermometer';
 import IconWaterPercent from '~icons/mdi/water-percent';
 
 /** Every `gui_style` this app draws, keyed exactly as the server sends it. */
-export const GUI_STYLE_ICONS: Record<string, Component> = {
+export const IO_STYLE_ICONS: Record<string, Component> = {
     // A dial with a needle: a measured quantity, no unit implied.
     default: IconGauge,
     analog: IconGauge,
@@ -42,6 +42,6 @@ export const GUI_STYLE_ICONS: Record<string, Component> = {
 };
 
 /** The glyph for a style. Total — an unknown style gets the default dial. */
-export function resolveGuiStyleIcon(guiStyle: string): Component {
-    return GUI_STYLE_ICONS[guiStyle] ?? GUI_STYLE_ICONS.default;
+export function resolveIoStyleIcon(ioStyle: string): Component {
+    return IO_STYLE_ICONS[ioStyle] ?? IO_STYLE_ICONS.default;
 }

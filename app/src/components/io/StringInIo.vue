@@ -25,7 +25,7 @@ const hasValue = computed(() => display.value !== props.io.name);
 </script>
 
 <template>
-    <IoRowFrame :name="io.name">
+    <IoRowFrame :name="io.name" :status="io.status">
         <template #icon>
             <IconFormatText class="string-in-io__icon" aria-hidden="true" />
         </template>

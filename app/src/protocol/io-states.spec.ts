@@ -79,8 +79,8 @@ describe('parseAnalogIn', () => {
         ['1250', 'W', 'energy', { display: '1250 W', icon: 'energy' }],
         ['42', '', '', { display: '42', icon: 'default' }],
         ['0.5', 'bar', 'water', { display: '0.5 bar', icon: 'water' }],
-    ])('state %o unit %o gui_style %o → %o', (state, unit, guiStyle, expected) => {
-        expect(parseAnalogIn(state, unit, guiStyle)).toEqual(expected);
+    ])('state %o unit %o gui_style %o → %o', (state, unit, ioStyle, expected) => {
+        expect(parseAnalogIn(state, unit, ioStyle)).toEqual(expected);
     });
 });
 
@@ -109,8 +109,8 @@ describe('parseAnalogOut', () => {
     it.each([
         ['30', '%', 'heating', { display: '30 %', icon: 'heating' }],
         ['7', '', '', { display: '7', icon: 'default' }],
-    ])('state %o unit %o gui_style %o → %o', (state, unit, guiStyle, expected) => {
-        expect(parseAnalogOut(state, unit, guiStyle)).toEqual(expected);
+    ])('state %o unit %o gui_style %o → %o', (state, unit, ioStyle, expected) => {
+        expect(parseAnalogOut(state, unit, ioStyle)).toEqual(expected);
     });
 });
 
@@ -245,7 +245,7 @@ describe('parseUnknown', () => {
     it.each([
         ['12', 'Mystery IO', 'gauge', { display: 'Mystery IO', state: '12', icon: 'gauge' }],
         ['', 'No style', '', { display: 'No style', state: '', icon: 'default' }],
-    ])('state %o name %o gui_style %o → %o', (state, name, guiStyle, expected) => {
-        expect(parseUnknown(state, name, guiStyle)).toEqual(expected);
+    ])('state %o name %o gui_style %o → %o', (state, name, ioStyle, expected) => {
+        expect(parseUnknown(state, name, ioStyle)).toEqual(expected);
     });
 });

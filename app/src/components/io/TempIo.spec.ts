@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { createI18n } from 'vue-i18n';
 import TempIo from './TempIo.vue';
 import { toIoItem } from '../../protocol/guards';
 import type { WireIo } from '../../protocol/types';
+import en from '../../i18n/en.json';
+
+// The row frame carries a translated sensor badge, so every row needs the
+// catalogue even when the row itself shows no text of its own.
+const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } });
 
 function mountTemp(wire: WireIo) {
-    const io = toIoItem({ id: 'input_1', gui_type: 'temp', visible: 'true', rw: 'true', ...wire });
-    return mount(TempIo, { props: { io } });
+    const io = toIoItem({ id: 'input_1', gui_type: 'temp', visible: 'true', ...wire });
+    return mount(TempIo, { props: { io }, global: { plugins: [i18n] } });
 }
 
 describe('TempIo', () => {

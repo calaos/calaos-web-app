@@ -11,7 +11,6 @@
                     "gui_type": "temp",
                     "state": "21.5",
                     "visible": "true",
-                    "rw": "true",
                     "unit": "°C"
                 },
                 {
@@ -20,7 +19,6 @@
                     "gui_type": "light",
                     "state": "true",
                     "visible": "true",
-                    "rw": "true",
                     "unit": ""
                 },
                 {
@@ -30,7 +28,6 @@
                     "gui_style": "default",
                     "state": "set 50",
                     "visible": "true",
-                    "rw": "true",
                     "unit": ""
                 },
                 {
@@ -39,7 +36,6 @@
                     "gui_type": "light_rgb",
                     "state": "#ff2200",
                     "visible": "true",
-                    "rw": "true",
                     "unit": ""
                 },
                 {
@@ -48,7 +44,6 @@
                     "gui_type": "shutter_smart",
                     "state": "up 100",
                     "visible": "true",
-                    "rw": "true",
                     "unit": ""
                 },
                 {
@@ -57,8 +52,28 @@
                     "gui_type": "scenario",
                     "state": "false",
                     "visible": "true",
-                    "rw": "true",
                     "unit": ""
+                },
+                {
+                    "id": "output_20",
+                    "name": "Prise TV",
+                    "gui_type": "light",
+                    "io_style": "outlet",
+                    "state": "true",
+                    "visible": "true",
+                    "unit": ""
+                },
+                {
+                    "id": "output_21",
+                    "name": "Radiateur",
+                    "gui_type": "light",
+                    "io_style": "heater",
+                    "state": "false",
+                    "visible": "true",
+                    "unit": "",
+                    "status_info": {
+                        "battery_level": "15"
+                    }
                 }
             ]
         },
@@ -74,7 +89,6 @@
                     "gui_style": "light",
                     "state": "412",
                     "visible": "true",
-                    "rw": "true",
                     "unit": "lux"
                 },
                 {
@@ -84,7 +98,6 @@
                     "gui_style": "temp",
                     "state": "20",
                     "visible": "true",
-                    "rw": "true",
                     "unit": "°C"
                 },
                 {
@@ -93,7 +106,6 @@
                     "gui_type": "light",
                     "state": "false",
                     "visible": "true",
-                    "rw": "false",
                     "unit": ""
                 },
                 {
@@ -115,12 +127,20 @@
                     "unit": ""
                 },
                 {
+                    "id": "output_19",
+                    "name": "Compteur eau",
+                    "gui_type": "var_int",
+                    "state": "1284",
+                    "visible": "true",
+                    "rw": "false",
+                    "unit": "L"
+                },
+                {
                     "id": "output_10",
                     "name": "Volet cuisine",
                     "gui_type": "shutter",
                     "state": "true",
                     "visible": "true",
-                    "rw": "true",
                     "unit": ""
                 }
             ]
@@ -136,7 +156,6 @@
                     "gui_type": "string_in",
                     "state": "07:15",
                     "visible": "true",
-                    "rw": "true",
                     "unit": ""
                 },
                 {
@@ -154,7 +173,6 @@
                     "gui_type": "string_out",
                     "state": "Bonne nuit",
                     "visible": "true",
-                    "rw": "true",
                     "unit": ""
                 },
                 {
@@ -163,7 +181,6 @@
                     "gui_type": "light_dimmer",
                     "state": "false",
                     "visible": "true",
-                    "rw": "true",
                     "unit": ""
                 },
                 {
@@ -172,7 +189,6 @@
                     "gui_type": "light",
                     "state": "false",
                     "visible": "false",
-                    "rw": "true",
                     "unit": ""
                 }
             ]
@@ -188,7 +204,6 @@
                     "gui_type": "temp",
                     "state": "8.2",
                     "visible": "true",
-                    "rw": "true",
                     "unit": "°C"
                 },
                 {
@@ -197,7 +212,6 @@
                     "gui_type": "light_rgb",
                     "state": "0",
                     "visible": "true",
-                    "rw": "true",
                     "unit": ""
                 },
                 {
@@ -206,7 +220,6 @@
                     "gui_type": "shutter_smart",
                     "state": "down 35",
                     "visible": "true",
-                    "rw": "true",
                     "unit": ""
                 },
                 {
@@ -216,7 +229,6 @@
                     "gui_style": "default",
                     "state": "15",
                     "visible": "true",
-                    "rw": "true",
                     "unit": "min"
                 },
                 {
@@ -225,8 +237,33 @@
                     "gui_type": "scenario",
                     "state": "false",
                     "visible": "true",
-                    "rw": "true",
                     "unit": ""
+                },
+                {
+                    "id": "output_22",
+                    "name": "Pompe piscine",
+                    "gui_type": "light",
+                    "io_style": "pump",
+                    "state": "true",
+                    "visible": "true",
+                    "unit": "",
+                    "status_info": {
+                        "wireless_signal": "80",
+                        "wifi_ssid": "maison"
+                    }
+                },
+                {
+                    "id": "output_23",
+                    "name": "Chaudière",
+                    "gui_type": "light",
+                    "io_style": "boiler",
+                    "state": "false",
+                    "visible": "true",
+                    "unit": "",
+                    "status_info": {
+                        "connected": "false",
+                        "battery_level": "90"
+                    }
                 }
             ]
         }

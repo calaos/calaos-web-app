@@ -9,7 +9,7 @@ import type { WireIo } from '../../protocol/types';
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } });
 
 function mountUnknown(wire: WireIo) {
-    const io = toIoItem({ id: 'io_x', visible: 'true', rw: 'true', ...wire });
+    const io = toIoItem({ id: 'io_x', visible: 'true', ...wire });
     return mount(UnknownIo, { props: { io }, global: { plugins: [i18n] } });
 }
 

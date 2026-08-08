@@ -1,19 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { createI18n } from 'vue-i18n';
 import AnalogInIo from './AnalogInIo.vue';
-import { GUI_STYLE_ICONS, resolveGuiStyleIcon } from './gui-style-icons';
+import { IO_STYLE_ICONS, resolveIoStyleIcon } from './io-style-icons';
 import { toIoItem } from '../../protocol/guards';
 import type { WireIo } from '../../protocol/types';
+import en from '../../i18n/en.json';
+
+// The row frame carries a translated sensor badge, so every row needs the
+// catalogue even when the row itself shows no text of its own.
+const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } });
 
 function mountAnalog(wire: WireIo) {
     const io = toIoItem({
         id: 'input_2',
         gui_type: 'analog_in',
         visible: 'true',
-        rw: 'true',
         ...wire,
     });
-    return mount(AnalogInIo, { props: { io } });
+    return mount(AnalogInIo, { props: { io }, global: { plugins: [i18n] } });
 }
 
 /** The `d` of the rendered glyph — how one MDI icon is told from another. */
@@ -52,22 +57,22 @@ describe('AnalogInIo', () => {
     });
 });
 
-describe('gui-style icons', () => {
+describe('io-style icons', () => {
     it('covers every style the old app shipped an icon file for', () => {
         // src/images/icon_*.png, which is the only record of which styles a
         // calaos_server actually sends.
         for (const style of ['default', 'analog', 'temp', 'humidity', 'int', 'text']) {
-            expect(GUI_STYLE_ICONS[style]).toBeDefined();
+            expect(IO_STYLE_ICONS[style]).toBeDefined();
         }
     });
 
     it('gives analog and default the same glyph, as the old icon files did', () => {
         // icon_analog.png and icon_default.png were byte-identical.
-        expect(resolveGuiStyleIcon('analog')).toBe(resolveGuiStyleIcon('default'));
+        expect(resolveIoStyleIcon('analog')).toBe(resolveIoStyleIcon('default'));
     });
 
     it('is total — anything unmapped resolves to the default glyph', () => {
-        expect(resolveGuiStyleIcon('')).toBe(GUI_STYLE_ICONS.default);
-        expect(resolveGuiStyleIcon('nonsense')).toBe(GUI_STYLE_ICONS.default);
+        expect(resolveIoStyleIcon('')).toBe(IO_STYLE_ICONS.default);
+        expect(resolveIoStyleIcon('nonsense')).toBe(IO_STYLE_ICONS.default);
     });
 });

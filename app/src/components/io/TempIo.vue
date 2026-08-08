@@ -24,7 +24,7 @@ const display = computed(() => parseTemp(props.io.state, props.io.unit).display)
 </script>
 
 <template>
-    <IoRowFrame :name="io.name">
+    <IoRowFrame :name="io.name" :status="io.status">
         <template #icon>
             <IconThermometer class="temp-io__icon" aria-hidden="true" />
         </template>

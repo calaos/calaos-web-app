@@ -40,6 +40,8 @@ app/
 └── src/
     ├── main.ts  App.vue
     ├── styles/{theme,base,animations}.css   # design tokens, reset+typo+focus, fade/shake/press
+    ├── assets/rooms/*.png    # the original room artwork (RoomIcon)
+    ├── assets/io/*           # device + battery/wifi artwork, from calaos/calaos_mobile
     ├── protocol/          # NO Vue imports in this directory
     │   ├── types.ts       # wire types + IoItem discriminated union on guiType
     │   ├── guards.ts      # hand-written defensive runtime guards (no zod)
@@ -54,11 +56,12 @@ app/
     ├── i18n/{index.ts,en.json,fr.json}
     ├── components/
     │   ├── chrome/{AppBackground,NavBar,FooterNav,ConnectionBanner}.vue
-    │   ├── ui/{BaseDialog,BaseSlider,StateIcon,IconButton,RoomIcon}.vue
+    │   ├── ui/{BaseDialog,BaseSlider,StateIcon,IconButton,RoomIcon,ImageIcon,MaskIcon}.vue
     │   ├── dialogs/{ColorPickerDialog,TextInputDialog}.vue
     │   └── io/{IoRow,IoRowFrame,TempIo,AnalogInIo,AnalogOutIo,LightIo,LightDimmerIo,
     │           LightRgbIo,ShutterIo,ShutterSmartIo,VarBoolIo,VarIntIo,VarStringIo,
-    │           StringInIo,ScenarioIo,UnknownIo}.vue
+    │           StringInIo,ScenarioIo,UnknownIo,SensorStatusBadge}.vue
+    │           + light-styles.ts (io_style -> device), io-style-icons.ts, action-icons.ts
     └── views/{LoginView,HomeView,RoomView,AudioListView,AudioPlayerView,
                CameraListView,CameraView}.vue
 ```
@@ -70,7 +73,9 @@ Unit tests are co-located (`foo.ts` → `foo.spec.ts`).
 Wire messages (all values are STRINGS on the wire):
 
 - send `{"msg":"login","data":{"cn_user":u,"cn_pass":p}}` → recv `{"msg":"login","data":{"success":"true"|"false"}}`
-- send `{"msg":"get_home"}` → recv `data: {home:[rooms], cameras:[], audio:[]}`. Room `{name,type,hits,items[]}`; IO `{id,name,gui_type,gui_style?,state,visible,rw,unit}`. Rooms sorted desc by `hits` at ingest.
+- send `{"msg":"get_home"}` → recv `data: {home:[rooms], cameras:[], audio:[]}`. Room `{name,type,hits,items[]}`; IO `{id,name,gui_type,io_style?,state,visible,rw?,unit,status_info?}`. Rooms sorted desc by `hits` at ingest.
+- **`io_style`, not `gui_style`.** calaos_server's parameter whitelist (`JsonApi::buildJsonIO`) carries `io_style`; it never sends `gui_style`, which is what the AngularJS templates read. `guards.ts` prefers `io_style` and keeps `gui_style` as a fallback. For a `light` the style is the DEVICE — `outlet`, `pump`, `heater`, `boiler` — and each is drawn as itself (`components/io/light-styles.ts`, ported from calaos_mobile's `Common::IOTypeFromString`); for the analog types it picks the dial glyph.
+- **`status_info`** is per-IO device telemetry (`battery_level`, `wireless_signal`, `connected`, `uptime`, `ip_address`, `wifi_ssid`), present only on IOs that are radios or run on a battery. `SensorStatusBadge.vue` renders it on every row, using calaos_mobile's `SensorStatusIcon.qml` priority and thresholds: disconnected > battery ≤ 30 (both blink) > battery > signal, and nothing at all when the device reports neither battery nor signal.
 - send `{"msg":"set_state","data":{"id":ioId,"value":v}}` — v ∈ `'true','false','up','down','stop','inc','dec','set <0-100>','set <#rrggbb>'`, or raw text (string IOs, no prefix).
 - recv `{"msg":"event","data":{"type_str":"io_changed","data":{id,state?,name?}}}`.
 
@@ -82,7 +87,7 @@ Wire messages (all values are STRINGS on the wire):
 |---|---|---|
 | `temp` | display `state` + (`unit` or `°C`) | — |
 | `analog_in` / `string_in` | `state` + `unit` / raw text (empty → show `name`) | — |
-| `analog_out` | `state` + `unit`, icon from `gui_style` (fallback `default`) | `inc` / `dec` |
+| `analog_out` | `state` + `unit`, icon from `io_style` (fallback `default`) | `inc` / `dec` |
 | `light` | on ⇔ `state === 'true'` | `true` / `false` |
 | `light_dimmer` | percent: numeric `state` → int; `'set N'` → N; `'true'`→100; `'false'`→0. on ⇔ percent > 0 | `true`/`false`; slider commit-on-release → `set N` |
 | `light_rgb` | color = `state === '0' ? '#000' : state`; on ⇔ `!(state==='0' \|\| state==='#000000')` | `true`/`false`; picker → `set #rrggbb` |
@@ -92,9 +97,26 @@ Wire messages (all values are STRINGS on the wire):
 | `var_int` | `state` + `unit` | `inc` / `dec` |
 | `var_string` / `string_out` | display = `state === '' ? name : state` | text dialog → raw text, **no prefix** |
 | `scenario` | name only | `true` (play) |
-| unknown | icon from `gui_style`, name + state | — |
+| unknown | icon from `io_style`, name + state | — |
 
-Cross-cutting (uniform this time, documented intentional fix): `visible === false` → not rendered; `rw === false` → action controls hidden (old code was inconsistent, e.g. analog_out ignored `rw`).
+Cross-cutting: `visible === false` → not rendered, uniformly, for every type (a documented intentional fix — the old templates checked it inconsistently).
+
+### The `rw` flag
+
+**`rw` is not a general read-only flag, and only three gui_types may gate on it.** Getting this wrong is what made almost every actuator in a real house uncontrollable after the rewrite, so the rule is spelled out here once:
+
+- calaos_server builds each IO from a fixed parameter whitelist and **skips any key the object does not define** (`JsonApi::buildJsonIO`: `if (!io->get_params().Exists(param)) continue;`). The only class defining `rw` is `Internal` — `var_bool` / `var_int` / `var_string` — where it is the configurable *"enable edit mode"* flag (`IntValue.cpp`, default `"false"`). For every other gui_type the key is **absent from the wire**, so `guards.ts` reads it as `false`; that false says nothing about whether the IO can be commanded.
+- The reference client agrees (calaos/calaos_mobile, kept up to date): `RoomModel.cpp` parses `rw` as `== "true"`, and only `IOVarBool.qml`, `IOVarInt.qml`, `IOVarString.qml` bind a control's visibility to it. `IOLight`, `IOLightDimmer`, `IOLightRGB`, `IOShutter`, `IOShutterSmart`, `IOScenario` never mention it.
+
+| gui_type | gates controls on `rw`? | |
+| --- | --- | --- |
+| `var_bool`, `var_int` | **yes** | the flag's only real meaning |
+| `var_string` | **yes**, but `string_out` shares the component and is always writable | calaos_mobile: `visible: (rw \|\| ioType === StringOut) && ioType !== StringIn` |
+| `analog_out` | **no** — always writable | calaos_mobile force-sets `rw = true` for it (*"force rw for analog_out to let us use the same qml than var_int"*) |
+| `light`, `light_dimmer`, `light_rgb`, `shutter`, `shutter_smart`, `scenario` | **no** — always writable | an output is commandable by definition |
+| `temp`, `analog_in`, `string_in` | n/a | sensors, no actions at all |
+
+The mock fixtures deliberately mirror this: `rw` is **absent** on every type the server omits it for, and present only on the three `Internal` types (`output_8`/`output_9` writable, `output_19` not). A fixture that sets `rw: "true"` everywhere is what let the regression pass CI.
 
 ### WS client (`socket.ts`)
 

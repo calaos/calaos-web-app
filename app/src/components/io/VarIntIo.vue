@@ -4,11 +4,13 @@
 // The old template hardcoded `icon_int.png` — no `gui_style` lookup, unlike
 // `analog_out` right beside it — and `docs/ARCHITECTURE.md`'s parser table
 // agrees: `parseVarInt` returns only the display string, no icon field. So
-// the glyph here is static: the same counter mark `gui-style-icons.ts` draws
+// the glyph here is static: the same counter mark `io-style-icons.ts` draws
 // for `gui_style: 'int'`, not one derived from this IO's own (absent) style.
 //
-// The two verbs are `analog_out`'s: `ACTION_INC` / `ACTION_DEC`, gated by
-// `rw` like every other row's actions.
+// The two verbs are `analog_out`'s: `ACTION_INC` / `ACTION_DEC` — but unlike
+// `analog_out`, they ARE gated by `rw`. This is one of the only three types
+// the server sends `rw` for, and where it genuinely means "the user may edit
+// this value" (docs/ARCHITECTURE.md "The `rw` flag").
 
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -30,7 +32,7 @@ const display = computed(() => parseVarInt(props.io.state, props.io.unit).displa
 </script>
 
 <template>
-    <IoRowFrame :name="io.name" :pending="isPending">
+    <IoRowFrame :name="io.name" :status="io.status" :pending="isPending">
         <template #icon>
             <IconCounter class="var-int-io__icon" aria-hidden="true" />
         </template>

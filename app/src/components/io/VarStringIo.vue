@@ -18,9 +18,17 @@
 //
 // The edit button is a keyboard rather than a pencil because a keyboard is
 // what happens: on the wall panel this is written for, pressing it puts the
-// on-screen keyboard on the glass. It is `rw`-gated like every other action in
-// the app; the old template gated the IMAGE inside the anchor instead, which
-// left a live, empty tap target on a read-only row.
+// on-screen keyboard on the glass. (The old template gated the IMAGE inside
+// the anchor rather than the anchor, leaving a live, empty tap target on a
+// read-only row; the gate is on the button here.)
+//
+// `rw` gates it for `var_string` ONLY. A `string_out` is an output — there is
+// no edit-mode flag to set on it and the server never sends one, so gating it
+// on `rw` made every display in the house unwritable. calaos_mobile spells the
+// same rule out in one line (IOVarString.qml): the keyboard button is
+// `visible: (modelData.rw || modelData.ioType === Common.StringOut) &&
+// modelData.ioType !== Common.StringIn`. `string_in` never reaches this
+// component — it has StringInIo, which offers no action at all.
 
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -47,6 +55,9 @@ const display = computed(() =>
 /** False exactly when the parser fell back to the name, i.e. empty state. */
 const hasValue = computed(() => props.io.state !== '');
 
+/** A `string_out` is always writable; a `var_string` only in edit mode. */
+const canEdit = computed(() => props.io.rw || props.io.guiType === 'string_out');
+
 const dialogOpen = ref(false);
 
 function confirmText(text: string): void {
@@ -57,7 +68,7 @@ function confirmText(text: string): void {
 </script>
 
 <template>
-    <IoRowFrame :name="io.name" :pending="isPending">
+    <IoRowFrame :name="io.name" :status="io.status" :pending="isPending">
         <template #icon>
             <IconFormatText class="var-string-io__icon" aria-hidden="true" />
         </template>
@@ -66,7 +77,7 @@ function confirmText(text: string): void {
             <span class="var-string-io__text">{{ display }}</span>
         </template>
 
-        <template v-if="io.rw" #actions>
+        <template v-if="canEdit" #actions>
             <IconButton :label="t('io.setText', { name: io.name })" @click="dialogOpen = true">
                 <IconKeyboard />
             </IconButton>

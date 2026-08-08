@@ -31,7 +31,6 @@ function mountDimmer(wire: WireIo = {}) {
         gui_type: 'light_dimmer',
         state: 'set 40',
         visible: 'true',
-        rw: 'true',
         ...wire,
     });
     return mount(LightDimmerIo, { props: { io }, global: { plugins: [i18n] } });
@@ -127,12 +126,17 @@ describe('LightDimmerIo', () => {
         expect(wrapper.find('.io-row__pending').exists()).toBe(false);
     });
 
-    it('offers nothing to press or drag when the dimmer is read-only, but still shows its level', () => {
-        const wrapper = mountDimmer({ rw: 'false', state: 'set 65' });
+    it('keeps its buttons and its slider whatever rw says', () => {
+        // A dimmer is an output: it never consults `rw` (docs/ARCHITECTURE.md
+        // "The `rw` flag"), and calaos_mobile's IOLightDimmer.qml does not
+        // either. Gating it here left the slider off every real dimmer.
+        for (const rw of ['false', 'true', undefined]) {
+            const wrapper = mountDimmer({ rw, state: 'set 65' });
 
-        expect(wrapper.findAll('button')).toHaveLength(0);
-        expect(wrapper.find('input[type="range"]').exists()).toBe(false);
-        expect(wrapper.find('.io-row__actions').exists()).toBe(false);
-        expect(wrapper.get('.light-dimmer-io__reading').text()).toBe('65%');
+            expect(wrapper.findAll('button'), `rw=${rw}`).toHaveLength(2);
+            expect(wrapper.find('input[type="range"]').exists()).toBe(true);
+            expect(wrapper.find('.io-row__actions').exists()).toBe(true);
+            expect(wrapper.get('.light-dimmer-io__reading').text()).toBe('65%');
+        }
     });
 });

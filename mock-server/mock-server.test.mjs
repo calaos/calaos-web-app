@@ -173,15 +173,32 @@ describe('fixtures/home.json', () => {
         walk(FIXTURE, '$');
     });
 
-    it('has exactly one hidden IO and exactly one read-only IO', () => {
+    it('has exactly one hidden IO, and sends rw exactly where the server does', () => {
         const ios = FIXTURE.home.flatMap((room) => room.items);
+
         expect(ios.filter((io) => io.visible === 'false')).toHaveLength(1);
-        expect(ios.filter((io) => io.rw === 'false')).toHaveLength(1);
-        // Everything else must be explicitly the other way round, not absent.
+        // `visible` is always explicit: every real IO class writes it.
         for (const io of ios) {
             expect(['true', 'false']).toContain(io.visible);
-            expect(['true', 'false']).toContain(io.rw);
         }
+
+        // `rw` is NOT. calaos_server only defines it on the three Internal
+        // types, and omits the key entirely for everything else
+        // (docs/ARCHITECTURE.md "The `rw` flag"). This fixture used to carry
+        // `rw: "true"` on every IO, which is why no test caught the app gating
+        // every actuator behind a flag no server sends.
+        const RW_TYPES = ['var_bool', 'var_int', 'var_string'];
+        for (const io of ios) {
+            if (RW_TYPES.includes(io.gui_type)) {
+                expect(['true', 'false'], `${io.id} (${io.gui_type})`).toContain(io.rw);
+            } else {
+                expect(io.rw, `${io.id} (${io.gui_type}) must not send rw`).toBeUndefined();
+            }
+        }
+
+        // Both sides of the gate are covered, so a regression either way fails.
+        expect(ios.filter((io) => io.rw === 'false')).toHaveLength(1);
+        expect(ios.filter((io) => io.rw === 'true').length).toBeGreaterThan(0);
     });
 
     it('ships rooms with unsorted hits, so the client sort is exercised', () => {
@@ -314,11 +331,25 @@ describe('get_home', () => {
                     gui_type: expect.any(String),
                     state: expect.any(String),
                     visible: expect.any(String),
-                    rw: expect.any(String),
                     unit: expect.any(String),
                 });
-                // gui_style is the only optional field; nothing else may leak.
-                const allowed = ['id', 'name', 'gui_type', 'gui_style', 'state', 'visible', 'rw', 'unit'];
+                // `rw` is optional on the wire — see the fixture test above.
+                if (io.rw !== undefined) expect(typeof io.rw).toBe('string');
+                // The optional fields are `io_style` (the sub-kind of an IO —
+                // note calaos_server sends THIS, never `gui_style`), `rw` and
+                // `status_info`. Nothing else may leak.
+                const allowed = [
+                    'id',
+                    'name',
+                    'gui_type',
+                    'io_style',
+                    'gui_style',
+                    'state',
+                    'visible',
+                    'rw',
+                    'unit',
+                    'status_info',
+                ];
                 expect(Object.keys(io).filter((k) => !allowed.includes(k))).toEqual([]);
             }
         }

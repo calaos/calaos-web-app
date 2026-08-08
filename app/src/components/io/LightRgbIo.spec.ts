@@ -23,7 +23,6 @@ function mountRgb(wire: WireIo = {}) {
         gui_type: 'light_rgb',
         state: '#ff8800',
         visible: 'true',
-        rw: 'true',
         ...wire,
     });
     return mount(LightRgbIo, {
@@ -145,13 +144,17 @@ describe('LightRgbIo', () => {
         expect(wrapper.find('.io-row__pending').exists()).toBe(false);
     });
 
-    it('offers nothing to press when the server marked the light read-only', () => {
-        const wrapper = mountRgb({ rw: 'false' });
+    it('keeps its controls whatever rw says — an RGB lamp never consults it', () => {
+        // docs/ARCHITECTURE.md "The `rw` flag"; calaos_mobile's IOLightRGB.qml
+        // never reads it.
+        for (const rw of ['false', 'true', undefined]) {
+            const wrapper = mountRgb({ rw });
 
-        expect(wrapper.findAll('button')).toHaveLength(0);
-        expect(wrapper.find('.io-row__actions').exists()).toBe(false);
-        // The lamp still reports its state — and its colour, on the glyph.
-        expect(wrapper.get('.state-icon').classes()).toContain('state-icon--on');
-        expect(wrapper.get('.state-icon').attributes('style')).toContain('#ff8800');
+            expect(wrapper.findAll('button').length, `rw=${rw}`).toBeGreaterThan(0);
+            expect(wrapper.find('.io-row__actions').exists()).toBe(true);
+            // And the lamp still reports its state — and its colour, on the glyph.
+            expect(wrapper.get('.state-icon').classes()).toContain('state-icon--on');
+            expect(wrapper.get('.state-icon').attributes('style')).toContain('#ff8800');
+        }
     });
 });

@@ -20,7 +20,6 @@ function mountAnalogOut(wire: WireIo = {}) {
         gui_type: 'analog_out',
         state: '42',
         visible: 'true',
-        rw: 'true',
         ...wire,
     });
     return mount(AnalogOutIo, { props: { io }, global: { plugins: [i18n] } });
@@ -90,13 +89,17 @@ describe('AnalogOutIo', () => {
         expect(wrapper.find('.io-row__pending').exists()).toBe(false);
     });
 
-    it('offers nothing to press when the server marked it read-only, unlike the old app', () => {
-        // The old analog_out.html never looked at `rw` (docs/ARCHITECTURE.md);
-        // uniform now.
-        const wrapper = mountAnalogOut({ rw: 'false', state: '10' });
+    it('keeps its +/- whatever rw says — an analog_out is always writable', () => {
+        // The old analog_out.html never looked at `rw`, and calaos_mobile goes
+        // further: RoomModel force-sets `rw = true` for this type so it can
+        // share var_int's QML ("force rw for analog_out to let us use the same
+        // qml than var_int"). See docs/ARCHITECTURE.md "The `rw` flag".
+        for (const rw of ['false', 'true', undefined]) {
+            const wrapper = mountAnalogOut({ rw, state: '10' });
 
-        expect(wrapper.findAll('button')).toHaveLength(0);
-        expect(wrapper.find('.io-row__actions').exists()).toBe(false);
-        expect(wrapper.get('.io-row__value').text()).toBe('10');
+            expect(wrapper.findAll('button'), `rw=${rw}`).toHaveLength(2);
+            expect(wrapper.find('.io-row__actions').exists()).toBe(true);
+            expect(wrapper.get('.io-row__value').text()).toBe('10');
+        }
     });
 });

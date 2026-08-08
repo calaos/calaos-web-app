@@ -1,18 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
-import IconBed from '~icons/mdi/bed';
-import IconBottleWine from '~icons/mdi/bottle-wine';
-import IconCog from '~icons/mdi/cog';
-import IconDesk from '~icons/mdi/desk';
-import IconDoorOpen from '~icons/mdi/door-open';
-import IconGarage from '~icons/mdi/garage';
-import IconHomeOutline from '~icons/mdi/home-outline';
-import IconShape from '~icons/mdi/shape';
-import IconShower from '~icons/mdi/shower';
-import IconSilverware from '~icons/mdi/silverware-fork-knife';
-import IconSofa from '~icons/mdi/sofa';
-import IconStove from '~icons/mdi/stove';
-import IconTree from '~icons/mdi/tree';
 import RoomIcon, {
     ROOM_TYPES,
     UNKNOWN_ROOM_TYPE,
@@ -20,55 +7,67 @@ import RoomIcon, {
     roomTypeLabelKey,
 } from './RoomIcon.vue';
 import en from '../../i18n/en.json';
-import type { Component } from 'vue';
 
 /**
  * The old map in full (src/scripts/utils.js `getRoomTypeIcon`), alias by
- * alias, so a lost branch fails here rather than showing the wrong glyph on
+ * alias, so a lost branch fails here rather than showing the wrong room on
  * someone's wall panel.
+ *
+ * The third column is the old PNG's basename. Asserting on the FILENAME rather
+ * than on a resolved URL is the point: these are the original bitmaps, and the
+ * test's job is to prove each alias still lands on the same artwork the old
+ * app shipped. Vite hashes the URL at build time; the basename survives.
  */
-const OLD_MAP: [string, string, Component][] = [
-    ['salon', 'lounge', IconSofa],
-    ['lounge', 'lounge', IconSofa],
-    ['chambre', 'bedroom', IconBed],
-    ['bedroom', 'bedroom', IconBed],
-    ['cuisine', 'kitchen', IconStove],
-    ['kitchen', 'kitchen', IconStove],
-    ['bureau', 'office', IconDesk],
-    ['office', 'office', IconDesk],
-    ['sam', 'diningRoom', IconSilverware],
-    ['diningroom', 'diningRoom', IconSilverware],
-    ['cave', 'cellar', IconBottleWine],
-    ['cellar', 'cellar', IconBottleWine],
-    ['divers', 'various', IconShape],
-    ['various', 'various', IconShape],
-    ['misc', 'various', IconShape],
-    ['exterieur', 'outside', IconTree],
-    ['outside', 'outside', IconTree],
-    ['sdb', 'bathroom', IconShower],
-    ['bathroom', 'bathroom', IconShower],
-    ['hall', 'corridor', IconDoorOpen],
-    ['couloir', 'corridor', IconDoorOpen],
-    ['corridor', 'corridor', IconDoorOpen],
-    ['garage', 'garage', IconGarage],
-    ['Internal', 'internal', IconCog],
+const OLD_MAP: [string, string, string][] = [
+    ['salon', 'lounge', 'room_salon'],
+    ['lounge', 'lounge', 'room_salon'],
+    ['chambre', 'bedroom', 'room_chambre'],
+    ['bedroom', 'bedroom', 'room_chambre'],
+    ['cuisine', 'kitchen', 'room_cuisine'],
+    ['kitchen', 'kitchen', 'room_cuisine'],
+    ['bureau', 'office', 'room_bureau'],
+    ['office', 'office', 'room_bureau'],
+    ['sam', 'diningRoom', 'room_sam'],
+    ['diningroom', 'diningRoom', 'room_sam'],
+    ['cave', 'cellar', 'room_cave'],
+    ['cellar', 'cellar', 'room_cave'],
+    // The old map sent all three of these to the generic `room.png`, not to
+    // the `room_misc.png` sitting next to it in the images folder.
+    ['divers', 'various', 'room'],
+    ['various', 'various', 'room'],
+    ['misc', 'various', 'room'],
+    ['exterieur', 'outside', 'room_exterieur'],
+    ['outside', 'outside', 'room_exterieur'],
+    ['sdb', 'bathroom', 'room_sdb'],
+    ['bathroom', 'bathroom', 'room_sdb'],
+    // Likewise `hall` → `room_corridor.png`; `room_hall.png` was never used.
+    ['hall', 'corridor', 'room_corridor'],
+    ['couloir', 'corridor', 'room_corridor'],
+    ['corridor', 'corridor', 'room_corridor'],
+    ['garage', 'garage', 'room_garage'],
+    ['Internal', 'internal', 'room'],
 ];
 
-/** The glyph itself, stripped of the wrapper's class/aria attributes. */
-function glyph(type: string): string {
-    return mount(RoomIcon, { props: { type } }).get('svg').element.innerHTML;
+/** The PNG basename behind a resolved (possibly hashed) asset URL. */
+function basename(url: string): string {
+    const file = url.split('/').pop() ?? '';
+    // `room_salon.png` in dev, `room_salon-a1b2c3d4.png` once Vite has hashed
+    // it: strip the extension and any build hash suffix.
+    return file.replace(/\.png$/, '').replace(/-[A-Za-z0-9_-]{8,}$/, '');
 }
 
-function referenceGlyph(icon: Component): string {
-    return mount(icon).get('svg').element.innerHTML;
+/** The `src` the component actually rendered, as a PNG basename. */
+function rendered(type: string): string {
+    const src = mount(RoomIcon, { props: { type } }).get('img').attributes('src');
+    return basename(src ?? '');
 }
 
 describe('resolveRoomType', () => {
-    it.each(OLD_MAP)('maps %s to the %s glyph', (wireType, key, icon) => {
+    it.each(OLD_MAP)('maps %s to the %s picture', (wireType, key, image) => {
         const definition = resolveRoomType(wireType);
 
         expect(definition.key).toBe(key);
-        expect(definition.icon).toBe(icon);
+        expect(basename(definition.image)).toBe(image);
     });
 
     it('covers every alias the old map knew, and nothing is unreachable', () => {
@@ -79,13 +78,13 @@ describe('resolveRoomType', () => {
     });
 
     it.each([[''], ['nope'], ['living room'], ['   ']])(
-        'falls back to the default room glyph for %o',
+        'falls back to the default room picture for %o',
         (type) => {
             // The old function never assigned in its `else` branch (it wrote
             // `rname == "room.png"`, a comparison), so this case was broken
             // by construction.
             expect(resolveRoomType(type)).toBe(UNKNOWN_ROOM_TYPE);
-            expect(UNKNOWN_ROOM_TYPE.icon).toBe(IconHomeOutline);
+            expect(basename(UNKNOWN_ROOM_TYPE.image)).toBe('room');
         },
     );
 
@@ -103,6 +102,13 @@ describe('resolveRoomType', () => {
         expect(resolveRoomType('salon').key).toBe('lounge');
         expect(resolveRoomType('atelier')).toBe(UNKNOWN_ROOM_TYPE);
         expect(resolveRoomType('atelier')).toBe(UNKNOWN_ROOM_TYPE);
+    });
+
+    it('gives every type a real picture', () => {
+        for (const definition of [...ROOM_TYPES, UNKNOWN_ROOM_TYPE]) {
+            expect(definition.image, `missing image for ${definition.key}`).toBeTruthy();
+            expect(definition.image).toMatch(/\.png/);
+        }
     });
 });
 
@@ -122,21 +128,33 @@ describe('roomTypeLabelKey', () => {
 });
 
 describe('RoomIcon', () => {
-    it.each(OLD_MAP)('renders the %s glyph', (wireType, _key, icon) => {
-        expect(glyph(wireType)).toBe(referenceGlyph(icon));
+    it.each(OLD_MAP)('renders the %s picture', (wireType, _key, image) => {
+        expect(rendered(wireType)).toBe(image);
     });
 
-    it('renders the default glyph for an unknown type', () => {
-        expect(glyph('atelier')).toBe(referenceGlyph(IconHomeOutline));
+    it('renders the original artwork, not a glyph', () => {
+        // The rewrite replaced these 220x120 renders with MDI line icons; this
+        // is the assertion that stops that happening again by accident.
+        const wrapper = mount(RoomIcon, { props: { type: 'salon' } });
+
+        expect(wrapper.find('img').exists()).toBe(true);
+        expect(wrapper.find('svg').exists()).toBe(false);
+    });
+
+    it('renders the default picture for an unknown type', () => {
+        expect(rendered('atelier')).toBe('room');
         // Rendered after a known type, the old global-variable way round.
-        expect(glyph('salon')).not.toBe(referenceGlyph(IconHomeOutline));
-        expect(glyph('atelier')).toBe(referenceGlyph(IconHomeOutline));
+        expect(rendered('salon')).not.toBe('room');
+        expect(rendered('atelier')).toBe('room');
     });
 
     it('is decorative: the room name and its type label carry the meaning', () => {
-        const wrapper = mount(RoomIcon, { props: { type: 'salon' } });
+        const img = mount(RoomIcon, { props: { type: 'salon' } }).get('img');
 
-        expect(wrapper.get('svg').attributes('aria-hidden')).toBe('true');
-        expect(wrapper.get('svg').classes()).toContain('room-icon');
+        expect(img.attributes('aria-hidden')).toBe('true');
+        // Empty alt, not a filename: a broken image must say nothing rather
+        // than announce `room_salon.png`.
+        expect(img.attributes('alt')).toBe('');
+        expect(img.classes()).toContain('room-icon');
     });
 });

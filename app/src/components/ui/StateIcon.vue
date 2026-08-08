@@ -28,10 +28,14 @@ withDefaults(
     defineProps<{
         /** Which layer is on top. */
         on: boolean;
-        /** Glyph for the resting state (outline, in the MDI pairs used here). */
-        iconOff: Component;
-        /** Glyph for the live state (filled). */
-        iconOn: Component;
+        /**
+         * Glyph for the resting state (outline, in the MDI pairs used here).
+         * Omit and use the `off` SLOT instead when the layer is artwork rather
+         * than a glyph — `LightIo` does, to show Calaos's own device pictures.
+         */
+        iconOff?: Component;
+        /** Glyph for the live state (filled). Or the `on` slot. */
+        iconOn?: Component;
         /**
          * Accessible name for the CURRENT state ("On" / "Off"). Omit when the
          * row already spells the state out in text — then this is decoration
@@ -39,7 +43,7 @@ withDefaults(
          */
         label?: string;
     }>(),
-    { label: undefined },
+    { iconOff: undefined, iconOn: undefined, label: undefined },
 );
 </script>
 
@@ -51,8 +55,12 @@ withDefaults(
         :aria-label="label"
         :aria-hidden="label === undefined ? 'true' : undefined"
     >
-        <component :is="iconOff" class="state-icon__glyph state-icon__glyph--off" />
-        <component :is="iconOn" class="state-icon__glyph state-icon__glyph--on" />
+        <span class="state-icon__glyph state-icon__glyph--off">
+            <slot name="off"><component :is="iconOff" /></slot>
+        </span>
+        <span class="state-icon__glyph state-icon__glyph--on">
+            <slot name="on"><component :is="iconOn" /></slot>
+        </span>
     </span>
 </template>
 
@@ -67,6 +75,10 @@ withDefaults(
 
 .state-icon__glyph {
     grid-area: 1 / 1;
+    /* A wrapper now, so the layer can hold either an MDI component or a slot
+       full of artwork; `grid` keeps it exactly the size of what it holds. */
+    display: grid;
+    place-items: center;
     transition: opacity 500ms ease;
 }
 

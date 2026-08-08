@@ -23,7 +23,6 @@ function mountLight(wire: WireIo = {}) {
         gui_type: 'light',
         state: 'false',
         visible: 'true',
-        rw: 'true',
         ...wire,
     });
     return mount(LightIo, { props: { io }, global: { plugins: [i18n] } });
@@ -95,14 +94,80 @@ describe('LightIo', () => {
         expect(wrapper.find('.io-row__pending').exists()).toBe(false);
     });
 
-    it('offers nothing to press when the server marked the light read-only', () => {
-        // The old light.html never looked at `rw`, though var_bool.html beside
-        // it did. Uniform now.
-        const wrapper = mountLight({ rw: 'false', state: 'true' });
+    it('stays operable whatever rw says — a light never consults it', () => {
+        // `rw` is the Internal types' edit-mode flag. calaos_server sends it
+        // for var_bool/var_int/var_string and for nothing else, so a light's
+        // `rw` is false on every real house; gating on it here is what left
+        // every lamp in the app unswitchable (docs/ARCHITECTURE.md "The `rw`
+        // flag"). calaos_mobile's IOLight.qml never reads it either.
+        for (const rw of ['false', 'true', undefined]) {
+            const wrapper = mountLight({ rw, state: 'true' });
 
-        expect(wrapper.findAll('button')).toHaveLength(0);
-        expect(wrapper.find('.io-row__actions').exists()).toBe(false);
-        // It still says what the light is doing.
-        expect(wrapper.get('.state-icon').classes()).toContain('state-icon--on');
+            expect(wrapper.findAll('button'), `rw=${rw}`).toHaveLength(2);
+            expect(wrapper.find('.io-row__actions').exists()).toBe(true);
+            // And it still says what the light is doing.
+            expect(wrapper.get('.state-icon').classes()).toContain('state-icon--on');
+        }
+    });
+});
+
+describe('LightIo — io_style', () => {
+    /**
+     * The `src` of the live artwork.
+     *
+     * `:last-child` because a style may stack a still backdrop behind its
+     * moving part (the pump); the last layer is always the device itself.
+     */
+    function litArtwork(wire: WireIo): string | undefined {
+        const wrapper = mountLight({ state: 'true', ...wire });
+        return wrapper.get('.state-icon__glyph--on img:last-child').attributes('src');
+    }
+
+    it.each([['outlet'], ['pump'], ['heater'], ['boiler']])(
+        'draws a light with io_style %s as that device, not as a lamp',
+        (ioStyle) => {
+            // calaos_server ships heating circuits and pumps as `light`s with
+            // a style; the rewrite drew all of them as a bulb, so a running
+            // pump looked like someone had left a lamp on.
+            expect(litArtwork({ io_style: ioStyle })).not.toBe(litArtwork({}));
+        },
+    );
+
+    it('gives each style its own artwork, all four distinct', () => {
+        const seen = ['outlet', 'pump', 'heater', 'boiler', ''].map((io_style) =>
+            litArtwork({ io_style }),
+        );
+
+        expect(new Set(seen).size).toBe(seen.length);
+    });
+
+    it('reads the style from io_style, the key the server really sends', () => {
+        expect(litArtwork({ io_style: 'outlet' })).toBe(litArtwork({ gui_style: 'outlet' }));
+        // …and io_style wins when a fixture sends both.
+        expect(litArtwork({ io_style: 'pump', gui_style: 'heater' })).toBe(
+            litArtwork({ io_style: 'pump' }),
+        );
+    });
+
+    it('spins only the devices that rotate in calaos_mobile, and only while lit', () => {
+        const spinning = (wire: WireIo): boolean =>
+            mountLight(wire).get('.state-icon').classes().includes('light-io__state--spinning');
+
+        expect(spinning({ io_style: 'pump', state: 'true' })).toBe(true);
+        expect(spinning({ io_style: 'outlet', state: 'true' })).toBe(true);
+        expect(spinning({ io_style: 'heater', state: 'true' })).toBe(false);
+        expect(spinning({ state: 'true' })).toBe(false);
+        // A resting pump must sit still, or an "off" row looks busy.
+        expect(spinning({ io_style: 'pump', state: 'false' })).toBe(false);
+    });
+
+    it('keeps the same two verbs whatever the device is', () => {
+        // The style changes the picture, never the protocol.
+        const wrapper = mountLight({ io_style: 'boiler' });
+
+        expect(wrapper.findAll('button')).toHaveLength(2);
+        expect(
+            wrapper.find(`button[aria-label="${label('io.turnOn', 'Plafonnier')}"]`).exists(),
+        ).toBe(true);
     });
 });

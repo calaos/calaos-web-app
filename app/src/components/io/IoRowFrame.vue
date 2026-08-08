@@ -6,8 +6,8 @@
 // span, a scenario's button in an `.action_button` anchor, and a string input
 // had no value column at all — sixteen files that agreed on `.io` and on
 // nothing else. One frame here, four slots, and a type only decides what goes
-// in them. It is also the single place the pending indicator and the `rw`
-// gate's consequences can be made to look the same everywhere.
+// in them. It is also the single place the pending indicator and an absent
+// actions slot can be made to look the same everywhere.
 //
 // The row is NOT a card you press. Nothing about it hovers or lifts, and it
 // has no filament: the buttons inside it are the interactive things, and
@@ -19,6 +19,9 @@
 // a dozen rows, and a dozen polite announcements racing each other after one
 // tap is worse than silence. The dot is the visual half, `aria-busy` the
 // programmatic one, and neither interrupts.
+
+import SensorStatusBadge from './SensorStatusBadge.vue';
+import type { IoStatusInfo } from '../../protocol/types';
 
 withDefaults(
     defineProps<{
@@ -32,8 +35,15 @@ withDefaults(
          * this app cannot draw.
          */
         note?: string;
+        /**
+         * The IO's `status_info`, when it has one. Handled here rather than by
+         * each type because a battery is a property of the DEVICE, not of what
+         * the device happens to control — calaos_mobile likewise drops a
+         * `SensorStatusIcon` into every row template.
+         */
+        status?: IoStatusInfo | null;
     }>(),
-    { pending: false, note: '' },
+    { pending: false, note: '', status: null },
 );
 </script>
 
@@ -53,6 +63,10 @@ withDefaults(
         </span>
 
         <span v-if="$slots.value" class="io-row__value"><slot name="value" /></span>
+
+        <!-- Between the reading and the controls, exactly where calaos_mobile
+             puts it: the device's own health, on whichever rows have any. -->
+        <SensorStatusBadge :status="status" />
 
         <span v-if="$slots.actions" class="io-row__actions"><slot name="actions" /></span>
     </div>

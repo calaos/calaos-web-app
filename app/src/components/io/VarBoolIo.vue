@@ -11,6 +11,10 @@
 // A checkbox glyph would have been the literal descendant of the old
 // `label.boolean` sprite, but a checkbox next to two real buttons invites a
 // tap that does nothing. The circle pair states, it does not offer.
+//
+// The buttons ARE `rw`-gated, unlike a light's: `var_bool` is one of the three
+// types the server actually sends `rw` for, and the old `var_bool.html` was
+// the one template that checked it (docs/ARCHITECTURE.md "The `rw` flag").
 
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -36,7 +40,7 @@ const checked = computed(() => parseVarBool(props.io.state).checked);
 </script>
 
 <template>
-    <IoRowFrame :name="io.name" :pending="isPending">
+    <IoRowFrame :name="io.name" :status="io.status" :pending="isPending">
         <template #icon>
             <StateIcon
                 :on="checked"

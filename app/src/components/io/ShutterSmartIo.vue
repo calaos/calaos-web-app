@@ -38,7 +38,7 @@ const state = computed(() => parseShutterSmart(props.io.state));
 </script>
 
 <template>
-    <IoRowFrame :name="io.name" :pending="isPending">
+    <IoRowFrame :name="io.name" :status="io.status" :pending="isPending">
         <template #icon>
             <StateIcon
                 :on="state.open"
@@ -52,7 +52,7 @@ const state = computed(() => parseShutterSmart(props.io.state));
             <span class="shutter-smart-io__percent">{{ state.percent }}%</span>
         </template>
 
-        <template v-if="io.rw" #actions>
+        <template #actions>
             <IconButton :label="t('io.raise', { name: io.name })" @click="set(ACTION_UP)">
                 <IconArrowUpBold />
             </IconButton>

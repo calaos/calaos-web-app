@@ -21,7 +21,7 @@ import { useI18n } from 'vue-i18n';
 import IconHelpCircleOutline from '~icons/mdi/help-circle-outline';
 import IconTuneVariant from '~icons/mdi/tune-variant';
 import IoRowFrame from './IoRowFrame.vue';
-import { resolveGuiStyleIcon } from './gui-style-icons';
+import { resolveIoStyleIcon } from './io-style-icons';
 import type { IoItem } from '../../protocol/types';
 
 const props = defineProps<{ io: IoItem }>();
@@ -36,7 +36,7 @@ const isUnknownType = computed(() => props.io.guiType === 'unknown');
 // unknown type says so, and a not-yet-built one shows a neutral control glyph
 // rather than accusing a perfectly valid shutter of being a mystery.
 const icon = computed(() => {
-    if (props.io.guiStyle !== '') return resolveGuiStyleIcon(props.io.guiStyle);
+    if (props.io.ioStyle !== '') return resolveIoStyleIcon(props.io.ioStyle);
     return isUnknownType.value ? IconHelpCircleOutline : IconTuneVariant;
 });
 
@@ -50,7 +50,7 @@ const note = computed(() => {
 </script>
 
 <template>
-    <IoRowFrame :name="io.name" :note="note">
+    <IoRowFrame :name="io.name" :status="io.status" :note="note">
         <template #icon>
             <component :is="icon" class="unknown-io__icon" aria-hidden="true" />
         </template>

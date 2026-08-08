@@ -47,7 +47,7 @@ const IMPLEMENTED = {
     light_dimmer: LightDimmerIo,
 } as const;
 
-/** The only types that put a control in the row (when `rw` allows it). */
+/** The only types that put a control in the row at all. */
 const ACTIONABLE = new Set<string>([
     'light',
     'var_bool',
@@ -62,8 +62,19 @@ const ACTIONABLE = new Set<string>([
     'light_dimmer',
 ]);
 
+/**
+ * The ONLY types whose controls `rw` may hide (docs/ARCHITECTURE.md "The `rw`
+ * flag"). `string_out` is not here even though it shares VarStringIo: it is an
+ * output and is always writable.
+ */
+const RW_GATED = new Set<string>(['var_bool', 'var_int', 'var_string']);
+
 function mountRow(wire: WireIo) {
-    const io = toIoItem({ id: 'io_1', name: 'Un objet', visible: 'true', rw: 'true', ...wire });
+    // NO `rw` by default — that is what calaos_server actually sends for every
+    // type but three. This helper used to default it to 'true', which is
+    // precisely why the suite never noticed that the app had gated every
+    // actuator in the house behind a flag no server sends.
+    const io = toIoItem({ id: 'io_1', name: 'Un objet', visible: 'true', ...wire });
     return mount(IoRow, { props: { io }, global: { plugins: [i18n] } });
 }
 
@@ -122,24 +133,46 @@ describe('IoRow — what it renders', () => {
         }
     });
 
-    it('offers no control at all for any type when rw is false', () => {
-        // The uniform gate (docs/ARCHITECTURE.md): the old app applied `rw`
-        // inconsistently — var_bool honoured it, light and analog_out did not.
+    it('offers controls on the real wire, where rw is absent', () => {
+        // THE regression. calaos_server omits `rw` for everything except the
+        // three Internal types, so on a real house every row below arrives
+        // with `rw` unset — and every actuator must still be operable.
         for (const guiType of ALL_KEYS) {
-            const wrapper = mountRow({ gui_type: guiType, state: 'true', rw: 'false' });
+            const wrapper = mountRow({ gui_type: guiType, state: 'true' });
+            const hasControls = wrapper.findAll('button').length > 0;
 
-            expect(wrapper.findAll('button')).toHaveLength(0);
-            expect(wrapper.find('.io-row__actions').exists()).toBe(false);
+            expect(hasControls, `${guiType} with rw absent`).toBe(
+                ACTIONABLE.has(guiType) && !RW_GATED.has(guiType),
+            );
         }
     });
 
-    it('offers controls only for the types that have a verb', () => {
+    it('lets rw hide the controls of the three types it applies to, and no others', () => {
         for (const guiType of ALL_KEYS) {
-            const wrapper = mountRow({ gui_type: guiType, state: 'true' });
+            const wrapper = mountRow({ gui_type: guiType, state: 'true', rw: 'false' });
+            const hasControls = wrapper.findAll('button').length > 0;
+
+            expect(hasControls, `${guiType} with rw="false"`).toBe(
+                ACTIONABLE.has(guiType) && !RW_GATED.has(guiType),
+            );
+        }
+    });
+
+    it('offers controls for every type that has a verb once rw is set', () => {
+        for (const guiType of ALL_KEYS) {
+            const wrapper = mountRow({ gui_type: guiType, state: 'true', rw: 'true' });
             const buttons = wrapper.findAll('button').length;
 
-            expect(buttons > 0).toBe(ACTIONABLE.has(guiType));
+            expect(buttons > 0, guiType).toBe(ACTIONABLE.has(guiType));
         }
+    });
+
+    it('keeps a light operable even if the server does send rw="false"', () => {
+        // calaos_mobile's IOLight.qml never reads `rw`; neither may this row.
+        const wrapper = mountRow({ gui_type: 'light', state: 'true', rw: 'false' });
+
+        expect(wrapper.findAll('button').length).toBeGreaterThan(0);
+        expect(wrapper.find('.io-row__actions').exists()).toBe(true);
     });
 
     it('draws an invisible IO all the same — that gate belongs to the list', () => {

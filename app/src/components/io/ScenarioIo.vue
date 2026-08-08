@@ -27,12 +27,12 @@ const { isPending, set } = useIo(() => props.io.id);
 </script>
 
 <template>
-    <IoRowFrame :name="io.name" :pending="isPending">
+    <IoRowFrame :name="io.name" :status="io.status" :pending="isPending">
         <template #icon>
             <IconScriptTextOutline class="scenario-io__icon" aria-hidden="true" />
         </template>
 
-        <template v-if="io.rw" #actions>
+        <template #actions>
             <IconButton :label="t('io.run', { name: io.name })" @click="set(ACTION_TRUE)">
                 <IconPlay />
             </IconButton>

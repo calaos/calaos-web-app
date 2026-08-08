@@ -78,9 +78,10 @@ import { computed } from 'vue';
 
 // `visible` is NOT checked here: RoomView filters invisible IOs out of the
 // list before this component ever exists, because "never rendered" is a
-// property of the list, not of the row (docs/ARCHITECTURE.md). `rw` is the
-// opposite — it hides controls inside a row that still shows its state — and
-// each component applies it to its own actions.
+// property of the list, not of the row (docs/ARCHITECTURE.md). `rw` is not
+// checked here either — it applies to three gui_types only, and each of those
+// components applies it to its own actions (docs/ARCHITECTURE.md "The `rw`
+// flag").
 const props = defineProps<{ io: IoItem }>();
 
 const component = computed(() => IO_COMPONENTS[props.io.guiType]);

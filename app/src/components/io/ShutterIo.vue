@@ -38,7 +38,7 @@ const open = computed(() => parseShutter(props.io.state).open);
 </script>
 
 <template>
-    <IoRowFrame :name="io.name" :pending="isPending">
+    <IoRowFrame :name="io.name" :status="io.status" :pending="isPending">
         <template #icon>
             <StateIcon
                 :on="open"
@@ -48,7 +48,7 @@ const open = computed(() => parseShutter(props.io.state).open);
             />
         </template>
 
-        <template v-if="io.rw" #actions>
+        <template #actions>
             <IconButton :label="t('io.raise', { name: io.name })" @click="set(ACTION_UP)">
                 <IconArrowUpBold />
             </IconButton>

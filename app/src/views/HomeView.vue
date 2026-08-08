@@ -85,8 +85,9 @@ const tiles = computed(() =>
                         </span>
                     </span>
 
+                    <RoomIcon :type="tile.room.type" class="room-tile__icon" />
+
                     <span class="room-tile__body">
-                        <RoomIcon :type="tile.room.type" class="room-tile__icon" />
                         <span class="room-tile__name">{{ tile.room.name }}</span>
                     </span>
                 </RouterLink>
@@ -120,9 +121,13 @@ const tiles = computed(() =>
        The max stays `1fr` on purpose: with a length there, auto-fit counts
        repetitions from the MAX, and a 14rem ceiling silently dropped a phone
        to one column and a tablet to one camera per row. The ceiling belongs
-       on the tile (below), where it costs nothing. */
+       on the tile (below), where it costs nothing.
+       The floor is 11rem rather than the glyph era's 9.5rem: the tile now
+       carries a 220×120 picture and wants the width. 11rem is the ceiling
+       that still leaves a 412px phone two columns — (412 - 2×16 padding
+       - 12 gap) / 2 = 184px — which e2e/home-rooms.spec.ts pins. */
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
     gap: var(--space-3);
     /* A room grid stretched across a 27" screen is a scavenger hunt. */
     inline-size: 100%;
@@ -152,12 +157,15 @@ const tiles = computed(() =>
 
 .room-tile {
     position: relative;
+    /* Three rows: the eyebrow, then the PICTURE taking every spare pixel, then
+       the name on the floor. The picture is the tile — it is what the eye
+       lands on and what makes one tile distinguishable from the next across a
+       room, which a 28px monochrome glyph beside a name never was. */
     display: grid;
-    grid-template-rows: auto 1fr;
-    gap: var(--space-3);
+    grid-template-rows: auto 1fr auto;
+    gap: var(--space-2);
     inline-size: 100%;
     max-inline-size: 22rem;
-    min-block-size: 7rem;
     padding: var(--space-3);
     /* First claim on the surface tokens: the login screen deliberately has no
        card, but a room IS an object you press, and it needs an edge. */
@@ -220,19 +228,25 @@ const tiles = computed(() =>
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    /* Name and glyph sit on the tile's floor, so tiles in a row line up
-       whether or not a name wraps. */
+    /* The name sits on the tile's floor, so tiles in a row line up whether or
+       not a name wraps. */
     align-self: end;
     min-inline-size: 0;
 }
 
 .room-tile__icon {
-    flex: none;
-    font-size: 1.75rem;
-    /* The one colour on a resting tile, dimmed until it is touched — the old
-       app's cyan room names, moved onto the glyph. */
-    color: var(--c-accent);
-    opacity: 0.55;
+    /* The artwork is 220×120; hold that ratio so a row of tiles has its
+       pictures at one size and on one baseline, whatever their names do.
+       `min-block-size: 0` lets the 1fr row actually shrink — without it a grid
+       item's automatic minimum size is its content, and the picture would
+       refuse to give the name its line on a short tile. */
+    inline-size: 100%;
+    min-block-size: 0;
+    aspect-ratio: 11 / 6;
+    /* The picture carries its own colour, so the resting tile no longer needs
+       the accent glyph. Held slightly back until touched — the same
+       "light follows the finger" rule the filament below obeys. */
+    opacity: 0.88;
     transition:
         opacity 200ms ease,
         filter 260ms ease;
@@ -243,7 +257,7 @@ const tiles = computed(() =>
 .room-tile:focus-visible .room-tile__icon,
 .room-tile:active .room-tile__icon {
     opacity: 1;
-    filter: drop-shadow(0 0 8px var(--c-accent-glow));
+    filter: drop-shadow(0 2px 10px var(--c-accent-glow));
 }
 
 .room-tile__name {

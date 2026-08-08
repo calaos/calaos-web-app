@@ -16,7 +16,7 @@
 // server marked `visible: false` is filtered out here and never reaches
 // `IoRow`, because "never rendered" is a property of the list
 // (docs/ARCHITECTURE.md: uniformly, for every type). Everything else about a
-// row — its glyph, its reading, whether `rw` lets it offer a control — belongs
+// row — its glyph, its reading, whether it offers a control at all — belongs
 // to the row.
 
 import { computed } from 'vue';
@@ -92,17 +92,28 @@ const ios = computed<IoItem[]>(() =>
     grid-row: span 2;
     display: grid;
     place-items: center;
-    inline-size: 3.25rem;
-    block-size: 3.25rem;
+    /* Sized to the artwork's 11:6, not to the square a 28px glyph needed: the
+       room you walked into shows its own picture, the same one you pressed on
+       the home grid. */
+    inline-size: 6.5rem;
+    block-size: 3.5rem;
+    padding: var(--space-1);
     background-color: var(--c-surface);
     border: 1px solid var(--c-border);
     border-radius: var(--radius-md);
 }
 
 .room__icon {
-    font-size: 1.75rem;
-    color: var(--c-accent);
-    filter: drop-shadow(0 0 10px var(--c-accent-glow));
+    filter: drop-shadow(0 1px 6px var(--c-accent-glow));
+}
+
+/* The header's picture is the one thing worth shrinking on a narrow phone —
+   the name beside it must not be squeezed to make room. */
+@media (max-width: 24rem) {
+    .room__plate {
+        inline-size: 4.75rem;
+        block-size: 2.75rem;
+    }
 }
 
 .room__type {

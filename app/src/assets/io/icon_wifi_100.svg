@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   height="512"
+   viewBox="0 0 512 512"
+   width="512"
+   version="1.1"
+   id="svg3"
+   sodipodi:docname="icon_wifi_100.svg"
+   inkscape:version="1.4.2 (ebf0e94, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs3" />
+  <sodipodi:namedview
+     id="namedview3"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.80585314"
+     inkscape:cx="267.41845"
+     inkscape:cy="192.9632"
+     inkscape:window-width="3440"
+     inkscape:window-height="1369"
+     inkscape:window-x="3832"
+     inkscape:window-y="500"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg3" />
+  <title
+     id="title1" />
+  <path
+     d="M346.65,304.3a136,136,0,0,0-180.71,0,21,21,0,1,0,27.91,31.38,94,94,0,0,1,124.89,0,21,21,0,0,0,27.91-31.4Z"
+     id="path1"
+     style="fill:#ececec" />
+  <path
+     d="M256.28,183.7a221.47,221.47,0,0,0-151.8,59.92,21,21,0,1,0,28.68,30.67,180.28,180.28,0,0,1,246.24,0,21,21,0,1,0,28.68-30.67A221.47,221.47,0,0,0,256.28,183.7Z"
+     id="path2"
+     style="fill:#ececec" />
+  <path
+     d="M462,175.86a309,309,0,0,0-411.44,0,21,21,0,1,0,28,31.29,267,267,0,0,1,355.43,0,21,21,0,0,0,28-31.31Z"
+     id="path3"
+     style="fill:#ececec" />
+  <circle
+     cx="256.28"
+     cy="393.41"
+     r="32"
+     id="circle3"
+     style="fill:#ececec" />
+</svg>

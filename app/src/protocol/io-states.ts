@@ -101,8 +101,8 @@ function joinUnit(state: string, unit: string): string {
 // guards.ts normalizes a missing gui_style to '', so '' → 'default' (this
 // also covers an empty-string gui_style, which the old app rendered as a
 // broken icon_.png).
-function iconStyle(guiStyle: string): string {
-    return guiStyle === '' ? 'default' : guiStyle;
+function iconStyle(ioStyle: string): string {
+    return ioStyle === '' ? 'default' : ioStyle;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,8 +116,8 @@ export function parseTemp(state: string, unit: string): DisplayState {
 }
 
 // analog_in — value + unit, gui_style icon with 'default' fallback.
-export function parseAnalogIn(state: string, unit: string, guiStyle: string): IconDisplayState {
-    return { display: joinUnit(state, unit), icon: iconStyle(guiStyle) };
+export function parseAnalogIn(state: string, unit: string, ioStyle: string): IconDisplayState {
+    return { display: joinUnit(state, unit), icon: iconStyle(ioStyle) };
 }
 
 // string_in — old string_input.html used VarStringCtrl: empty state → name.
@@ -131,8 +131,8 @@ export function parseLight(state: string): OnOffState {
 }
 
 // analog_out — same display as analog_in. Actions: ACTION_INC / ACTION_DEC.
-export function parseAnalogOut(state: string, unit: string, guiStyle: string): IconDisplayState {
-    return { display: joinUnit(state, unit), icon: iconStyle(guiStyle) };
+export function parseAnalogOut(state: string, unit: string, ioStyle: string): IconDisplayState {
+    return { display: joinUnit(state, unit), icon: iconStyle(ioStyle) };
 }
 
 // light_dimmer — precedence transcribed VERBATIM from LightDimmerCtrl:
@@ -229,6 +229,6 @@ export function parseScenario(name: string): DisplayState {
 }
 
 // unknown gui_type — icon from gui_style, name + raw state. No actions.
-export function parseUnknown(state: string, name: string, guiStyle: string): UnknownState {
-    return { display: name, state, icon: iconStyle(guiStyle) };
+export function parseUnknown(state: string, name: string, ioStyle: string): UnknownState {
+    return { display: name, state, icon: iconStyle(ioStyle) };
 }

@@ -20,7 +20,6 @@ function mountShutter(wire: WireIo = {}) {
         gui_type: 'shutter',
         state: 'false',
         visible: 'true',
-        rw: 'true',
         ...wire,
     });
     return mount(ShutterIo, { props: { io }, global: { plugins: [i18n] } });
@@ -81,10 +80,14 @@ describe('ShutterIo', () => {
         expect(wrapper.find('.io-row__pending').exists()).toBe(false);
     });
 
-    it('offers nothing to press when the cover is read-only', () => {
-        const wrapper = mountShutter({ rw: 'false', state: 'true' });
+    it('keeps up/stop/down whatever rw says', () => {
+        // docs/ARCHITECTURE.md "The `rw` flag"; calaos_mobile's IOShutter.qml
+        // never reads it.
+        for (const rw of ['false', 'true', undefined]) {
+            const wrapper = mountShutter({ rw, state: 'true' });
 
-        expect(wrapper.findAll('button')).toHaveLength(0);
-        expect(wrapper.get('.state-icon').classes()).toContain('state-icon--on');
+            expect(wrapper.findAll('button'), `rw=${rw}`).toHaveLength(3);
+            expect(wrapper.get('.state-icon').classes()).toContain('state-icon--on');
+        }
     });
 });

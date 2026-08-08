@@ -18,13 +18,13 @@
 
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import IconFlash from '~icons/mdi/flash';
-import IconFlashOff from '~icons/mdi/flash-off';
 import IconLightbulbOn from '~icons/mdi/lightbulb-on';
 import IconLightbulbOutline from '~icons/mdi/lightbulb-outline';
+import { iconPowerOff, iconPowerOn } from './action-icons';
 import IoRowFrame from './IoRowFrame.vue';
 import BaseSlider from '../ui/BaseSlider.vue';
 import IconButton from '../ui/IconButton.vue';
+import MaskIcon from '../ui/MaskIcon.vue';
 import StateIcon from '../ui/StateIcon.vue';
 import { useIo } from '../../composables/useIo';
 import {
@@ -48,7 +48,7 @@ function commitPercent(percent: number) {
 </script>
 
 <template>
-    <IoRowFrame :name="io.name" :pending="isPending">
+    <IoRowFrame :name="io.name" :status="io.status" :pending="isPending">
         <template #icon>
             <StateIcon
                 :on="dimmer.on"
@@ -61,12 +61,12 @@ function commitPercent(percent: number) {
             <span class="light-dimmer-io__reading">{{ dimmer.percent }}%</span>
         </template>
 
-        <template v-if="io.rw" #actions>
+        <template #actions>
             <IconButton :label="t('io.turnOn', { name: io.name })" @click="set(ACTION_TRUE)">
-                <IconFlash />
+                <MaskIcon :src="iconPowerOn" />
             </IconButton>
             <IconButton :label="t('io.turnOff', { name: io.name })" @click="set(ACTION_FALSE)">
-                <IconFlashOff />
+                <MaskIcon :src="iconPowerOff" />
             </IconButton>
             <BaseSlider
                 class="light-dimmer-io__slider"

@@ -15,11 +15,16 @@ export interface WireIo {
     id?: string;
     name?: string;
     gui_type?: string;
+    /** The style the server actually sends. */
+    io_style?: string;
+    /** What the old AngularJS templates read. Never sent by calaos_server. */
     gui_style?: string;
     state?: string;
     visible?: string;
     rw?: string;
     unit?: string;
+    /** Per-IO sensor telemetry: battery, signal, connectivity. */
+    status_info?: Record<string, unknown>;
 }
 
 export interface WireRoom {
@@ -74,6 +79,27 @@ export const GUI_TYPES = [
 
 export type GuiType = (typeof GUI_TYPES)[number];
 
+/**
+ * An IO's `status_info` block, as calaos_server sends it and as
+ * calaos_mobile's `IOBase::ioStatusChanged` reads it.
+ *
+ * Every field is independently optional — a mains-powered zigbee bulb reports
+ * a signal and no battery, a battery sensor the reverse — so each is `null`
+ * when absent rather than defaulted to a number that would render as a real
+ * (and wrong) reading.
+ */
+export interface IoStatusInfo {
+    /** 0-100. */
+    batteryLevel: number | null;
+    /** 0-100. */
+    wirelessSignal: number | null;
+    connected: boolean | null;
+    /** Seconds. */
+    uptime: number | null;
+    ipAddress: string;
+    wifiSsid: string;
+}
+
 interface IoBase {
     id: string;
     name: string;
@@ -81,11 +107,26 @@ interface IoBase {
     state: string;
     // Converted from the wire strings 'true'/'false' at ingest (guards.ts).
     visible: boolean;
+    /**
+     * The `Internal` types' "enable edit mode" flag. Absent — hence false —
+     * for every other type, where it carries NO meaning: see
+     * `rwGatesControls` in guards.ts for which types may consult it.
+     */
     rw: boolean;
     unit: string;
-    // '' when the server did not send gui_style; io-states.ts falls back to
-    // the 'default' icon (old templates: gui_style === undefined ? 'default').
-    guiStyle: string;
+    /**
+     * The server's `io_style` — the sub-kind of an IO, which for a `light`
+     * picks between a lamp, an outlet, a pump, a heater and a boiler, and for
+     * an analog input picks the dial's glyph. '' when unset; io-states.ts
+     * falls back to the 'default' icon.
+     */
+    ioStyle: string;
+    /**
+     * Sensor telemetry the server attaches to IOs that have a radio or a
+     * battery (zigbee, z-wave…). `null` when the IO sent no `status_info` at
+     * all — which is most of them.
+     */
+    status: IoStatusInfo | null;
 }
 
 export interface TempIo extends IoBase { guiType: 'temp' }

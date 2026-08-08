@@ -115,6 +115,10 @@ test('a tile opens its room, and back returns to the house', async ({ page }) =>
         'Store terrasse',
         'Durée arrosage',
         'Tout éteindre',
+        // Two `light`s with an `io_style`: a pump and a boiler, which the row
+        // draws as those devices rather than as lamps.
+        'Pompe piscine',
+        'Chaudière',
     ]);
 
     await expect(backButton(page)).toBeVisible();

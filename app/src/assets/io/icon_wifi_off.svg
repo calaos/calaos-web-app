@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   width="22"
+   height="22"
+   viewBox="0 0 0.66 0.66"
+   fill="none"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="icon_wifi_off.svg"
+   inkscape:version="1.4.2 (ebf0e94, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="16.503872"
+     inkscape:cx="14.390562"
+     inkscape:cy="26.024196"
+     inkscape:window-width="3440"
+     inkscape:window-height="1369"
+     inkscape:window-x="3832"
+     inkscape:window-y="500"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <g
+     id="System / Wifi_Off"
+     style="stroke:#ff5555;stroke-opacity:1"
+     transform="matrix(0.03114153,0,0,0.03114153,-0.04369109,-0.02812764)">
+    <path
+       id="Vector"
+       d="M 17.8506,11.5442 C 17.0475,10.6829 16.0641,10.0096 14.9707,9.57227 M 20.7759,8.81625 C 19.5712,7.52437 18.0961,6.51439 16.4561,5.8584 14.816,5.20241 13.0514,4.91635 11.2881,5.02111 M 8.34277,14.5905 c 0.61294,-0.6573 1.39171,-1.1373 2.25433,-1.3893 0.8627,-0.2521 1.7774,-0.2677 2.6478,-0.0438 M 6.14941,11.5438 C 7.09778,10.5268 8.29486,9.77461 9.62259,9.36133 M 3.22363,8.81604 C 4.1215,7.85319 5.17169,7.04466 6.33211,6.42285 M 4.41406,4 18.5562,18.1421 M 12,19 c -0.5523,0 -1,-0.4477 -1,-1 0,-0.5523 0.4477,-1 1,-1 0.5523,0 1,0.4477 1,1 0,0.5523 -0.4477,1 -1,1 z"
+       stroke="#000000"
+       stroke-width="2"
+       stroke-linecap="round"
+       stroke-linejoin="round"
+       style="stroke:#ff5555;stroke-opacity:1" />
+  </g>
+</svg>

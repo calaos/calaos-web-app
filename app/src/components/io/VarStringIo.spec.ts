@@ -137,13 +137,28 @@ describe('VarStringIo', () => {
         expect(wrapper.find('.io-row__pending').exists()).toBe(false);
     });
 
-    it('offers nothing to press when the IO is read-only', () => {
+    it('offers nothing to press when a var_string is not in edit mode', () => {
         // The old template hid the IMAGE inside the anchor, leaving a live but
         // empty tap target; the gate is on the control itself here.
-        const wrapper = mountString({ rw: 'false' });
+        // `var_string` is one of the three types where `rw` really does decide
+        // (docs/ARCHITECTURE.md "The `rw` flag").
+        const wrapper = mountString({ gui_type: 'var_string', rw: 'false' });
 
         expect(wrapper.findAll('button')).toHaveLength(0);
         expect(wrapper.find('.io-row__actions').exists()).toBe(false);
         expect(wrapper.get('.var-string-io__text').text()).toBe('Bonjour');
+    });
+
+    it('keeps a string_out writable whatever rw says', () => {
+        // The two wire types share this component but not the gate: a
+        // `string_out` is an output, the server sends no `rw` for it, and
+        // calaos_mobile spells the exception out in IOVarString.qml —
+        // `visible: (rw || ioType === StringOut) && ioType !== StringIn`.
+        for (const rw of ['false', 'true', undefined]) {
+            const wrapper = mountString({ gui_type: 'string_out', rw });
+
+            expect(wrapper.findAll('button'), `rw=${rw}`).toHaveLength(1);
+            expect(wrapper.find('.io-row__actions').exists()).toBe(true);
+        }
     });
 });
