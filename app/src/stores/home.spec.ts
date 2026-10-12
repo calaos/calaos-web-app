@@ -185,6 +185,67 @@ describe('get_home normalization', () => {
     });
 });
 
+describe('handleEvent — io_changed device patch', () => {
+    function withClimate() {
+        const store = useHomeStore();
+        store.setHome(
+            toHomeData({
+                home: [
+                    {
+                        name: 'Salon',
+                        items: [
+                            {
+                                ...wireIo('ac', 'climate'),
+                                state: 'cool',
+                                device: {
+                                    family: 'climate',
+                                    impl: 'proxy',
+                                    capabilities: { modes: ['off', 'cool'], fan_modes: ['auto'] },
+                                    state: { mode: 'cool', current_temp: 23, target_temp: 21 },
+                                    ios: { mode: 'ac_mode' },
+                                },
+                            },
+                            wireIo('light_1', 'light'),
+                        ],
+                    },
+                ],
+            }),
+        );
+        return store;
+    }
+
+    it('merges the device state, keeping the keys the event did not carry', () => {
+        const store = withClimate();
+        store.handleEvent({
+            kind: 'io_changed',
+            id: 'ac',
+            state: 'off',
+            device: { family: 'climate', impl: 'proxy', capabilities: {}, state: { mode: 'off' }, ios: {} },
+        });
+        const io = store.getIo('ac');
+        expect(io?.state).toBe('off');
+        expect(io?.device?.state).toEqual({ mode: 'off', currentTemp: 23, targetTemp: 21 });
+        expect(io?.device?.capabilities.modes).toEqual(['off', 'cool']);
+        expect(io?.device?.ios).toEqual({ mode: 'ac_mode' });
+    });
+
+    it('leaves the device alone when the event carries none', () => {
+        const store = withClimate();
+        store.handleEvent({ kind: 'io_changed', id: 'ac', state: 'off' });
+        expect(store.getIo('ac')?.device?.state.mode).toBe('cool');
+    });
+
+    it('attaches a device to an IO that had none', () => {
+        const store = withClimate();
+        store.handleEvent({
+            kind: 'io_changed',
+            id: 'light_1',
+            device: { family: 'climate', impl: 'x', capabilities: {}, state: {}, ios: {} },
+        });
+        expect(store.getIo('light_1')?.device?.impl).toBe('x');
+    });
+});
+
 describe('handleEvent — io_changed', () => {
     it('patches the state in place', () => {
         const store = useHomeStore();

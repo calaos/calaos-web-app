@@ -161,6 +161,36 @@ describe('decodeServerMessage — events', () => {
         });
     });
 
+    it('decodes the device object of an io_changed and ignores a malformed one', () => {
+        const frame = (device: unknown) =>
+            JSON.stringify({
+                msg: 'event',
+                data: {
+                    type_str: 'io_changed',
+                    data: { id: 'c1', state: 'heat', device },
+                },
+            });
+        expect(
+            decodeServerMessage(frame({ family: 'climate', impl: 'proxy', state: { mode: 'heat' } })),
+        ).toEqual({
+            kind: 'io_changed',
+            id: 'c1',
+            state: 'heat',
+            device: {
+                family: 'climate',
+                impl: 'proxy',
+                capabilities: {},
+                state: { mode: 'heat' },
+                ios: {},
+            },
+        });
+        expect(decodeServerMessage(frame('garbage'))).toEqual({
+            kind: 'io_changed',
+            id: 'c1',
+            state: 'heat',
+        });
+    });
+
     it('omits patch fields the event did not carry (hasOwnProperty semantics)', () => {
         const frame = JSON.stringify({
             msg: 'event',

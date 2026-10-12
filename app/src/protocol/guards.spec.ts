@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     toAudioPlayerItem,
     toCameraItem,
+    toDeviceInfo,
     toHomeData,
     toIoItem,
     toIoStatusInfo,
@@ -339,5 +340,145 @@ describe('toHomeData', () => {
     it.each(GARBAGE.map((g) => [g]))('never throws on garbage input %o', (garbage) => {
         expect(() => toHomeData(garbage)).not.toThrow();
         expect(toHomeData(garbage)).toEqual({ rooms: [], cameras: [], audio: [] });
+    });
+});
+
+describe('toDeviceInfo', () => {
+    const full = {
+        family: 'climate',
+        impl: 'proxy',
+        capabilities: {
+            modes: ['off', 'heat', 'cool', 'auto'],
+            target_temp: { min: 16, max: 30, step: 0.5, unit: '°C' },
+            target_temp_range: true,
+            fan_modes: ['auto', 'low', 'high'],
+            swing_modes: ['off', 'vertical'],
+            reports_action: true,
+            remote_temp: false,
+        },
+        state: {
+            mode: 'cool',
+            current_temp: 23.4,
+            target_temp: 21,
+            target_temp_low: 19,
+            target_temp_high: 24,
+            action: 'cooling',
+            fan_mode: 'auto',
+            swing_mode: 'off',
+        },
+        ios: { mode: 'salon_ac_mode', target_temp: 'salon_ac_target' },
+    };
+
+    it('decodes a complete device object', () => {
+        expect(toDeviceInfo(full)).toEqual({
+            family: 'climate',
+            impl: 'proxy',
+            capabilities: {
+                modes: ['off', 'heat', 'cool', 'auto'],
+                targetTemp: { min: 16, max: 30, step: 0.5, unit: '°C' },
+                targetTempRange: true,
+                fanModes: ['auto', 'low', 'high'],
+                swingModes: ['off', 'vertical'],
+                reportsAction: true,
+                remoteTemp: false,
+            },
+            state: {
+                mode: 'cool',
+                currentTemp: 23.4,
+                targetTemp: 21,
+                targetTempLow: 19,
+                targetTempHigh: 24,
+                action: 'cooling',
+                fanMode: 'auto',
+                swingMode: 'off',
+            },
+            ios: { mode: 'salon_ac_mode', target_temp: 'salon_ac_target' },
+        });
+    });
+
+    it('keeps a partial object partial (heat-only thermostat, string numbers)', () => {
+        expect(
+            toDeviceInfo({
+                family: 'climate',
+                impl: 'thermostat',
+                capabilities: { modes: ['off', 'heat'] },
+                state: { mode: 'heat', current_temp: '19.5' },
+            }),
+        ).toEqual({
+            family: 'climate',
+            impl: 'thermostat',
+            capabilities: { modes: ['off', 'heat'] },
+            state: { mode: 'heat', currentTemp: 19.5 },
+            ios: {},
+        });
+    });
+
+    it('keeps an unknown family and impl as they are', () => {
+        expect(toDeviceInfo({ family: 'fan', impl: 'x' })).toMatchObject({ family: 'fan', impl: 'x' });
+    });
+
+    it.each([[undefined], [null], ['x'], [42], [[]], [{}], [{ family: 3 }], [{ family: '' }]])(
+        'returns undefined for %o',
+        (raw) => {
+            expect(toDeviceInfo(raw)).toBeUndefined();
+        },
+    );
+
+    it('drops only the malformed parts', () => {
+        const d = toDeviceInfo({
+            family: 'climate',
+            capabilities: {
+                modes: 'heat',
+                target_temp: { min: 'a', max: 30, step: 1 },
+                fan_modes: ['auto', 3, null],
+                reports_action: 'true',
+            },
+            state: { mode: 7, current_temp: 'warm', target_temp: 21, action: 'idle' },
+            ios: { mode: 'm', bad: 3, worse: null },
+        });
+        expect(d).toEqual({
+            family: 'climate',
+            impl: '',
+            capabilities: { fanModes: ['auto'], reportsAction: true },
+            state: { targetTemp: 21, action: 'idle' },
+            ios: { mode: 'm' },
+        });
+    });
+
+    it('never throws on wrong section types', () => {
+        expect(() =>
+            toDeviceInfo({ family: 'climate', capabilities: 3, state: [], ios: 'x' }),
+        ).not.toThrow();
+        expect(toDeviceInfo({ family: 'climate', capabilities: 3, state: [], ios: 'x' })).toMatchObject({
+            capabilities: {},
+            state: {},
+            ios: {},
+        });
+    });
+});
+
+describe('toIoItem — device', () => {
+    it('attaches a decoded device and keeps gui_type climate on the fallback', () => {
+        const io = toIoItem({
+            id: 'c1',
+            gui_type: 'climate',
+            state: 'cool',
+            device: { family: 'climate', impl: 'proxy' },
+        });
+        expect(io).toMatchObject({ guiType: 'unknown', rawGuiType: 'climate', state: 'cool' });
+        expect(io.device?.impl).toBe('proxy');
+    });
+
+    it('keeps the item when the device object is malformed', () => {
+        const io = toIoItem({ id: 'c1', gui_type: 'light', state: 'true', device: 'oops' });
+        expect(io).toMatchObject({ id: 'c1', guiType: 'light', state: 'true' });
+        expect('device' in io).toBe(false);
+    });
+
+    it('does not break the rest of the batch', () => {
+        const home = toHomeData({
+            home: [{ name: 'r', items: [{ id: 'a', device: 3 }, { id: 'b', gui_type: 'light' }] }],
+        });
+        expect(home.rooms[0].items.map((i) => i.id)).toEqual(['a', 'b']);
     });
 });
