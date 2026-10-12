@@ -9,6 +9,10 @@ import { GUI_TYPES } from './types';
 import type {
     AudioPlayerItem,
     CameraItem,
+    DeviceCapabilities,
+    DeviceInfo,
+    DeviceState,
+    DeviceTargetTemp,
     GuiType,
     HomeData,
     IoItem,
@@ -79,6 +83,83 @@ export function toIoStatusInfo(raw: unknown): IoStatusInfo | null {
     };
 }
 
+function toStringList(v: unknown): string[] | undefined {
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : undefined;
+}
+
+function toTargetTemp(v: unknown): DeviceTargetTemp | undefined {
+    if (!isRecord(v)) return undefined;
+    const min = toOptionalNumber(v.min);
+    const max = toOptionalNumber(v.max);
+    const step = toOptionalNumber(v.step);
+    if (min === null || max === null || step === null) return undefined;
+    return { min, max, step, unit: toWireString(v.unit) };
+}
+
+function toDeviceCapabilities(raw: unknown): DeviceCapabilities {
+    const obj = isRecord(raw) ? raw : {};
+    const caps: DeviceCapabilities = {};
+    const modes = toStringList(obj.modes);
+    if (modes) caps.modes = modes;
+    const targetTemp = toTargetTemp(obj.target_temp);
+    if (targetTemp) caps.targetTemp = targetTemp;
+    const fanModes = toStringList(obj.fan_modes);
+    if (fanModes) caps.fanModes = fanModes;
+    const swingModes = toStringList(obj.swing_modes);
+    if (swingModes) caps.swingModes = swingModes;
+    if ('target_temp_range' in obj) caps.targetTempRange = wireBool(obj.target_temp_range);
+    if ('reports_action' in obj) caps.reportsAction = wireBool(obj.reports_action);
+    if ('remote_temp' in obj) caps.remoteTemp = wireBool(obj.remote_temp);
+    return caps;
+}
+
+function toDeviceState(raw: unknown): DeviceState {
+    const obj = isRecord(raw) ? raw : {};
+    const state: DeviceState = {};
+    for (const [wire, key] of [
+        ['mode', 'mode'],
+        ['action', 'action'],
+        ['fan_mode', 'fanMode'],
+        ['swing_mode', 'swingMode'],
+    ] as const) {
+        if (typeof obj[wire] === 'string') state[key] = obj[wire];
+    }
+    for (const [wire, key] of [
+        ['current_temp', 'currentTemp'],
+        ['target_temp', 'targetTemp'],
+        ['target_temp_low', 'targetTempLow'],
+        ['target_temp_high', 'targetTempHigh'],
+    ] as const) {
+        const n = toOptionalNumber(obj[wire]);
+        if (n !== null) state[key] = n;
+    }
+    return state;
+}
+
+/**
+ * The `device` object of a device item, or `undefined` when it is absent or
+ * has no usable `family`. Malformed sub-parts are dropped individually so one
+ * bad field never costs the item (or the rest of the batch) its decoding.
+ */
+export function toDeviceInfo(raw: unknown): DeviceInfo | undefined {
+    if (!isRecord(raw)) return undefined;
+    const family = raw.family;
+    if (typeof family !== 'string' || family === '') return undefined;
+    const ios: Record<string, string> = {};
+    if (isRecord(raw.ios)) {
+        for (const [role, id] of Object.entries(raw.ios)) {
+            if (typeof id === 'string') ios[role] = id;
+        }
+    }
+    return {
+        family,
+        impl: toWireString(raw.impl),
+        capabilities: toDeviceCapabilities(raw.capabilities),
+        state: toDeviceState(raw.state),
+        ios,
+    };
+}
+
 function isGuiType(v: string): v is GuiType {
     return (GUI_TYPES as readonly string[]).includes(v);
 }
@@ -108,11 +189,13 @@ export function toIoItem(raw: unknown): IoItem {
         ioStyle: toWireString(obj.io_style, toWireString(obj.gui_style)),
         status: toIoStatusInfo(obj.status_info),
     };
+    const device = toDeviceInfo(obj.device);
+    const withDevice = device ? { ...base, device } : base;
     const guiType = toWireString(obj.gui_type);
     if (isGuiType(guiType)) {
-        return { ...base, guiType };
+        return { ...withDevice, guiType };
     }
-    return { ...base, guiType: 'unknown', rawGuiType: guiType };
+    return { ...withDevice, guiType: 'unknown', rawGuiType: guiType };
 }
 
 export function toRoom(raw: unknown): Room {

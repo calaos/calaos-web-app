@@ -21,14 +21,72 @@ function loadAudioFixture() {
 }
 
 /** Wire event frame for a single IO state change. */
-export function ioChangedEvent(id, state) {
+export function ioChangedEvent(id, state, device) {
     return {
         msg: 'event',
         data: {
             type_str: 'io_changed',
-            data: { id, state },
+            data: device === undefined ? { id, state } : { id, state, device },
         },
     };
+}
+
+function clampToStep(value, { min, max, step }) {
+    const clamped = Math.min(max, Math.max(min, value));
+    return step > 0 ? Math.round((clamped - min) / step) * step + min : clamped;
+}
+
+/**
+ * Best-effort partial update of a device (spec §5.2): invalid fields are
+ * dropped, valid ones still apply. `value` is a plain mode or a JSON object.
+ * @returns {boolean} whether the device state changed
+ */
+export function applyDeviceCommand(io, value) {
+    const dev = io.device;
+    let patch;
+    if (typeof value === 'string' && value.trimStart().startsWith('{')) {
+        try {
+            patch = JSON.parse(value);
+        } catch {
+            return false;
+        }
+    } else {
+        patch = { mode: String(value) };
+    }
+    if (patch === null || typeof patch !== 'object' || Array.isArray(patch)) return false;
+
+    const caps = dev.capabilities;
+    const next = { ...dev.state };
+    const enumFields = [
+        ['mode', caps.modes],
+        ['fan_mode', caps.fan_modes],
+        ['swing_mode', caps.swing_modes],
+    ];
+    for (const [field, allowed] of enumFields) {
+        if (field in patch && Array.isArray(allowed) && allowed.includes(patch[field])) {
+            next[field] = patch[field];
+        }
+    }
+    const temps = ['target_temp', ...(caps.target_temp_range ? ['target_temp_low', 'target_temp_high'] : [])];
+    for (const field of temps) {
+        const n = Number(patch[field]);
+        if (field in patch && caps.target_temp && Number.isFinite(n)) {
+            next[field] = clampToStep(n, caps.target_temp);
+        }
+    }
+
+    if (caps.reports_action) {
+        const cur = Number(next.current_temp);
+        const tgt = Number(next.target_temp);
+        if (next.mode === 'off') next.action = 'off';
+        else if (next.mode === 'heat') next.action = cur < tgt ? 'heating' : 'idle';
+        else if (next.mode === 'cool') next.action = cur > tgt ? 'cooling' : 'idle';
+    }
+
+    if (JSON.stringify(next) === JSON.stringify(dev.state)) return false;
+    dev.state = next;
+    io.state = String(next.mode ?? io.state);
+    return true;
 }
 
 /**
@@ -485,6 +543,12 @@ export function createState({ broadcast = () => {} } = {}) {
         applySetState(id, value) {
             const io = ios.get(id);
             if (!io) return null;
+
+            if (io.device) {
+                if (!applyDeviceCommand(io, value)) return null;
+                broadcast(ioChangedEvent(id, io.state, io.device));
+                return { id, state: io.state };
+            }
 
             const next = nextState(io, value, lastColors.get(id) ?? '#ffffff');
             if (next === null || next === io.state) return null;

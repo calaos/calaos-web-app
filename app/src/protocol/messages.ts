@@ -6,7 +6,7 @@
 // can assert byte-exact frames). All wire values are STRINGS.
 
 import { toAudioPlayerState, toSeconds } from './audio';
-import { isRecord, toHomeData, toWireString } from './guards';
+import { isRecord, toDeviceInfo, toHomeData, toWireString } from './guards';
 import type { AudioPlayerState, IoChangedMessage, ServerMessage } from './types';
 
 export function encodeLogin(user: string, pass: string): string {
@@ -131,6 +131,10 @@ export function decodeServerMessage(raw: unknown): ServerMessage {
                 const msg: IoChangedMessage = { kind: 'io_changed', id: String(id) };
                 if ('state' in inner) msg.state = toWireString(inner.state);
                 if ('name' in inner) msg.name = toWireString(inner.name);
+                // A malformed device object is ignored, never fatal: the
+                // state/name patch above still applies.
+                const device = toDeviceInfo(inner.device);
+                if (device) msg.device = device;
                 return msg;
             }
             // Well-formed event the app does not implement yet (new_io,

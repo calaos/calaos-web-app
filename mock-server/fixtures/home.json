@@ -74,6 +74,95 @@
                     "status_info": {
                         "battery_level": "15"
                     }
+                },
+                {
+                    "id": "clim_salon",
+                    "name": "Climatisation salon",
+                    "gui_type": "climate",
+                    "state": "cool",
+                    "visible": "true",
+                    "unit": "",
+                    "device": {
+                        "family": "climate",
+                        "impl": "proxy",
+                        "capabilities": {
+                            "modes": [
+                                "off",
+                                "heat",
+                                "cool",
+                                "auto"
+                            ],
+                            "target_temp": {
+                                "min": 16,
+                                "max": 30,
+                                "step": 0.5,
+                                "unit": "°C"
+                            },
+                            "target_temp_range": true,
+                            "fan_modes": [
+                                "auto",
+                                "low",
+                                "high"
+                            ],
+                            "swing_modes": [
+                                "off",
+                                "vertical"
+                            ],
+                            "reports_action": true,
+                            "remote_temp": true
+                        },
+                        "state": {
+                            "mode": "cool",
+                            "current_temp": 23.4,
+                            "target_temp": 21.0,
+                            "target_temp_low": 19.0,
+                            "target_temp_high": 24.0,
+                            "action": "cooling",
+                            "fan_mode": "auto",
+                            "swing_mode": "off"
+                        },
+                        "ios": {
+                            "mode": "clim_salon_mode",
+                            "current_temp": "clim_salon_temp",
+                            "target_temp": "clim_salon_target"
+                        }
+                    }
+                },
+                {
+                    "id": "thermo_sdb",
+                    "name": "Thermostat salle de bain",
+                    "gui_type": "climate",
+                    "state": "heat",
+                    "visible": "true",
+                    "unit": "",
+                    "device": {
+                        "family": "climate",
+                        "impl": "thermostat",
+                        "capabilities": {
+                            "modes": [
+                                "off",
+                                "heat"
+                            ],
+                            "target_temp": {
+                                "min": 7,
+                                "max": 28,
+                                "step": 0.5,
+                                "unit": "°C"
+                            },
+                            "reports_action": true
+                        },
+                        "state": {
+                            "mode": "heat",
+                            "current_temp": 19.5,
+                            "target_temp": 21.5,
+                            "action": "heating"
+                        },
+                        "ios": {
+                            "current_temp": "thermo_sdb_temp",
+                            "target_temp": "thermo_sdb_target",
+                            "action": "thermo_sdb_action"
+                        }
+                    }
                 }
             ]
         },

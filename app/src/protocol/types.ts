@@ -25,6 +25,8 @@ export interface WireIo {
     unit?: string;
     /** Per-IO sensor telemetry: battery, signal, connectivity. */
     status_info?: Record<string, unknown>;
+    /** Present on device items (gui_type = the family, e.g. 'climate'). */
+    device?: Record<string, unknown>;
 }
 
 export interface WireRoom {
@@ -100,6 +102,50 @@ export interface IoStatusInfo {
     wifiSsid: string;
 }
 
+export interface DeviceTargetTemp {
+    min: number;
+    max: number;
+    step: number;
+    unit: string;
+}
+
+/** Every field is optional: absent means the wire did not carry it. */
+export interface DeviceCapabilities {
+    modes?: string[];
+    targetTemp?: DeviceTargetTemp;
+    targetTempRange?: boolean;
+    fanModes?: string[];
+    swingModes?: string[];
+    reportsAction?: boolean;
+    remoteTemp?: boolean;
+}
+
+/** Optional for the same reason: io_changed patches by key presence. */
+export interface DeviceState {
+    mode?: string;
+    currentTemp?: number;
+    targetTemp?: number;
+    targetTempLow?: number;
+    targetTempHigh?: number;
+    action?: string;
+    fanMode?: string;
+    swingMode?: string;
+}
+
+/**
+ * The `device` object of a device item (spec §5.3). `family` and `impl` stay
+ * free strings: a family or impl this client does not know must survive
+ * decoding.
+ */
+export interface DeviceInfo {
+    family: string;
+    impl: string;
+    capabilities: DeviceCapabilities;
+    state: DeviceState;
+    /** Role -> id of the linked IO. */
+    ios: Record<string, string>;
+}
+
 interface IoBase {
     id: string;
     name: string;
@@ -127,6 +173,8 @@ interface IoBase {
      * all — which is most of them.
      */
     status: IoStatusInfo | null;
+    /** Only on device items, and only when the server sent a usable object. */
+    device?: DeviceInfo;
 }
 
 export interface TempIo extends IoBase { guiType: 'temp' }
@@ -309,6 +357,7 @@ export interface IoChangedMessage {
     // code checked hasOwnProperty before assigning).
     state?: string;
     name?: string;
+    device?: DeviceInfo;
 }
 
 // Any well-formed `event` frame that is not an io_changed — the ones the app

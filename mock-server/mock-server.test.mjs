@@ -155,13 +155,15 @@ function cameraUrl(id, user = 'demo', pass = 'demo') {
 // --------------------------------------------------------------- tests ---
 
 describe('fixtures/home.json', () => {
-    it('covers all 14 gui_types', () => {
+    it('covers all 14 gui_types, plus the climate device family', () => {
         const seen = new Set(FIXTURE.home.flatMap((room) => room.items.map((io) => io.gui_type)));
-        expect([...seen].sort()).toEqual([...GUI_TYPES].sort());
+        expect([...seen].sort()).toEqual([...GUI_TYPES, 'climate'].sort());
     });
 
     it('is strings all the way down (the calaos wire has no other type)', () => {
         const walk = (value, path) => {
+            // The `device` object is real JSON (numbers, booleans) per spec §5.3.
+            if (path.endsWith('.device')) return;
             if (Array.isArray(value)) {
                 value.forEach((v, i) => walk(v, `${path}[${i}]`));
             } else if (value && typeof value === 'object') {
@@ -349,6 +351,7 @@ describe('get_home', () => {
                     'rw',
                     'unit',
                     'status_info',
+                    'device',
                 ];
                 expect(Object.keys(io).filter((k) => !allowed.includes(k))).toEqual([]);
             }
@@ -371,6 +374,50 @@ describe('get_home', () => {
         client.send({ msg: 'no_such_command' });
         client.send({ msg: 'get_home' });
         await expect(client.waitFor(isGetHome)).resolves.toBeTruthy();
+    });
+});
+
+describe('set_state on a climate device', () => {
+    const send = async (value, id = 'clim_salon') => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', data: { id, value } });
+        return (await client.waitFor(ioChangedFor(id))).data.data;
+    };
+
+    it('applies a JSON partial update and emits the updated device object', async () => {
+        const data = await send('{"mode":"heat","target_temp":22.3}');
+        expect(data.state).toBe('heat');
+        expect(data.device.state).toMatchObject({ mode: 'heat', target_temp: 22.5, current_temp: 23.4 });
+        expect(data.device.capabilities.modes).toEqual(['off', 'heat', 'cool', 'auto']);
+    });
+
+    it('accepts a plain mode', async () => {
+        const data = await send('off');
+        expect(data.state).toBe('off');
+        expect(data.device.state).toMatchObject({ mode: 'off', action: 'off' });
+    });
+
+    it('is best effort: drops an invalid field, applies the valid ones, clamps to bounds', async () => {
+        const data = await send('{"mode":"dry","fan_mode":"high","target_temp":99}');
+        expect(data.device.state).toMatchObject({ mode: 'cool', fan_mode: 'high', target_temp: 30 });
+    });
+
+    it('rejects a mode the thermostat does not support and ignores bad JSON', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', data: { id: 'thermo_sdb', value: 'cool' } });
+        client.send({ msg: 'set_state', data: { id: 'thermo_sdb', value: '{nope' } });
+        client.send({ msg: 'set_state', data: { id: 'thermo_sdb', value: 'off' } });
+        const data = (await client.waitFor(ioChangedFor('thermo_sdb'))).data.data;
+        expect(data.state).toBe('off');
+    });
+
+    it('persists into the next get_home', async () => {
+        await send('{"target_temp_low":18}');
+        const { client } = await login();
+        client.send({ msg: 'get_home' });
+        const home = await client.waitFor(isGetHome);
+        const io = home.data.home.flatMap((r) => r.items).find((i) => i.id === 'clim_salon');
+        expect(io.device.state.target_temp_low).toBe(18);
     });
 });
 
