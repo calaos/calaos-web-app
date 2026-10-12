@@ -120,7 +120,7 @@ export interface DeviceCapabilities {
     remoteTemp?: boolean;
 }
 
-/** Optional for the same reason: io_changed patches by key presence. */
+/** Optional: the server only sends the fields the device actually has. */
 export interface DeviceState {
     mode?: string;
     currentTemp?: number;

@@ -445,6 +445,27 @@ describe('toDeviceInfo', () => {
         });
     });
 
+    it('rejects coerced non-numbers, bad bounds, and warns on dropped objects', () => {
+        const d = toDeviceInfo({
+            family: 'climate',
+            capabilities: { target_temp: { min: 30, max: 16, step: 0.5 } },
+            state: { current_temp: true, target_temp: ' ', target_temp_low: [], target_temp_high: 22 },
+        });
+        expect(d?.capabilities.targetTemp).toBeUndefined();
+        expect(d?.state).toEqual({ targetTempHigh: 22 });
+        expect(toDeviceInfo({ family: 'c', capabilities: { target_temp: { min: 1, max: 5, step: 0 } } })
+            ?.capabilities.targetTemp).toBeUndefined();
+        const warn = vi.mocked(console.warn);
+        warn.mockClear();
+        toDeviceInfo({ family: 3 });
+        toDeviceInfo('x');
+        toDeviceInfo({ family: 'c', state: { target_temp: '21' } });
+        expect(warn).toHaveBeenCalledTimes(3);
+        warn.mockClear();
+        toDeviceInfo(undefined);
+        expect(warn).not.toHaveBeenCalled();
+    });
+
     it('never throws on wrong section types', () => {
         expect(() =>
             toDeviceInfo({ family: 'climate', capabilities: 3, state: [], ios: 'x' }),

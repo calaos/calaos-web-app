@@ -163,6 +163,54 @@
                             "action": "thermo_sdb_action"
                         }
                     }
+                },
+                {
+                    "id": "clim_salon_mode",
+                    "name": "Mode clim salon",
+                    "gui_type": "string_out",
+                    "state": "cool",
+                    "visible": "false",
+                    "unit": ""
+                },
+                {
+                    "id": "clim_salon_temp",
+                    "name": "Temp clim salon",
+                    "gui_type": "temp",
+                    "state": "23.4",
+                    "visible": "false",
+                    "unit": "°C"
+                },
+                {
+                    "id": "clim_salon_target",
+                    "name": "Consigne clim salon",
+                    "gui_type": "analog_out",
+                    "state": "21",
+                    "visible": "false",
+                    "unit": "°C"
+                },
+                {
+                    "id": "thermo_sdb_temp",
+                    "name": "Temp salle de bain",
+                    "gui_type": "temp",
+                    "state": "19.5",
+                    "visible": "false",
+                    "unit": "°C"
+                },
+                {
+                    "id": "thermo_sdb_target",
+                    "name": "Consigne salle de bain",
+                    "gui_type": "analog_out",
+                    "state": "21.5",
+                    "visible": "false",
+                    "unit": "°C"
+                },
+                {
+                    "id": "thermo_sdb_action",
+                    "name": "Action thermostat",
+                    "gui_type": "string_in",
+                    "state": "heating",
+                    "visible": "false",
+                    "unit": ""
                 }
             ]
         },

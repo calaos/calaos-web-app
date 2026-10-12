@@ -214,7 +214,7 @@ describe('handleEvent — io_changed device patch', () => {
         return store;
     }
 
-    it('merges the device state, keeping the keys the event did not carry', () => {
+    it('replaces the device object whole', () => {
         const store = withClimate();
         store.handleEvent({
             kind: 'io_changed',
@@ -224,9 +224,9 @@ describe('handleEvent — io_changed device patch', () => {
         });
         const io = store.getIo('ac');
         expect(io?.state).toBe('off');
-        expect(io?.device?.state).toEqual({ mode: 'off', currentTemp: 23, targetTemp: 21 });
-        expect(io?.device?.capabilities.modes).toEqual(['off', 'cool']);
-        expect(io?.device?.ios).toEqual({ mode: 'ac_mode' });
+        expect(io?.device?.state).toEqual({ mode: 'off' });
+        expect(io?.device?.capabilities.modes).toBeUndefined();
+        expect(io?.device?.ios).toEqual({});
     });
 
     it('leaves the device alone when the event carries none', () => {

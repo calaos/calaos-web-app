@@ -163,11 +163,12 @@ export function startServer(options = {}) {
                 } else {
                     // Broadcast (or the deliberate absence of one for read-only
                     // and scenario IOs) happens inside applySetState.
-                    hub.state.applySetState(id, value ?? '');
+                    const applied = hub.state.applySetState(id, value ?? '');
                     // decodeSetState approximation: false only for unknown ids
                     // and read-only inputs (their set_value returns false).
                     const io = hub.state.getIo(id);
-                    success = Boolean(io) && !['temp', 'analog_in', 'string_in'].includes(io.gui_type);
+                    success = Boolean(io) && !['temp', 'analog_in', 'string_in'].includes(io.gui_type)
+                        && !applied?.rejected;
                 }
 
                 // The real server only answers when a msg_id was provided

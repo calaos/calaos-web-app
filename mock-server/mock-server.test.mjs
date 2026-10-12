@@ -178,7 +178,7 @@ describe('fixtures/home.json', () => {
     it('has exactly one hidden IO, and sends rw exactly where the server does', () => {
         const ios = FIXTURE.home.flatMap((room) => room.items);
 
-        expect(ios.filter((io) => io.visible === 'false')).toHaveLength(1);
+        expect(ios.filter((io) => io.visible === 'false')).toHaveLength(7);
         // `visible` is always explicit: every real IO class writes it.
         for (const io of ios) {
             expect(['true', 'false']).toContain(io.visible);
@@ -418,6 +418,50 @@ describe('set_state on a climate device', () => {
         const home = await client.waitFor(isGetHome);
         const io = home.data.home.flatMap((r) => r.items).find((i) => i.id === 'clim_salon');
         expect(io.device.state.target_temp_low).toBe(18);
+    });
+});
+
+describe('set_state on a climate device — edge cases', () => {
+    it('answers success:false when no field is valid, and does not broadcast', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', msg_id: 'm1', data: { id: 'thermo_sdb', value: 'cool' } });
+        const reply = await client.waitFor((f) => f.msg === 'set_state' && f.msg_id === 'm1');
+        expect(reply.data.success).toBe('false');
+        client.send({ msg: 'set_state', msg_id: 'm2', data: { id: 'thermo_sdb', value: 'off' } });
+        const ok = await client.waitFor((f) => f.msg === 'set_state' && f.msg_id === 'm2');
+        expect(ok.data.success).toBe('true');
+    });
+
+    it('ignores null/empty/false setpoints instead of clamping them to min', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', msg_id: 'm1', data: { id: 'clim_salon', value: '{"target_temp":null}' } });
+        client.send({ msg: 'set_state', msg_id: 'm2', data: { id: 'clim_salon', value: '{"target_temp":""}' } });
+        const a = await client.waitFor((f) => f.msg_id === 'm1');
+        const b = await client.waitFor((f) => f.msg_id === 'm2');
+        expect([a.data.success, b.data.success]).toEqual(['false', 'false']);
+    });
+
+    it('rounds to the step before clamping, without float noise', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', data: { id: 'clim_salon', value: '{"target_temp":29.9}' } });
+        const data = (await client.waitFor(ioChangedFor('clim_salon'))).data.data;
+        expect(data.device.state.target_temp).toBe(30);
+    });
+
+    it('recomputes the action in auto', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', data: { id: 'clim_salon', value: '{"mode":"auto","target_temp_low":25,"target_temp_high":28}' } });
+        const data = (await client.waitFor(ioChangedFor('clim_salon'))).data.data;
+        expect(data.device.state.action).toBe('heating');
+    });
+
+    it('push_io on a device updates its mode and emits the whole device', async () => {
+        const { client } = await login();
+        await control({ op: 'push_io', id: 'clim_salon', state: 'heat' });
+        const data = (await client.waitFor(ioChangedFor('clim_salon'))).data.data;
+        expect(data.state).toBe('heat');
+        expect(data.device.state.mode).toBe('heat');
+        expect(data.device.capabilities.modes).toBeDefined();
     });
 });
 
