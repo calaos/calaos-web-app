@@ -224,19 +224,8 @@ export const useHomeStore = defineStore('home', () => {
         // code checked hasOwnProperty before assigning).
         if (msg.state !== undefined) io.state = msg.state;
         if (msg.name !== undefined) io.name = msg.name;
-        if (msg.device !== undefined) {
-            const cur = io.device;
-            // Per-section merge: a partial `state` must not wipe the keys the
-            // event did not carry.
-            io.device = cur
-                ? {
-                    ...msg.device,
-                    capabilities: { ...cur.capabilities, ...msg.device.capabilities },
-                    state: { ...cur.state, ...msg.device.state },
-                    ios: { ...cur.ios, ...msg.device.ios },
-                }
-                : msg.device;
-        }
+        // The server always sends the device whole: replace, never merge.
+        if (msg.device !== undefined) io.device = msg.device;
     }
 
     /** Dispatch table entry point. NEVER throws on an unknown event. */

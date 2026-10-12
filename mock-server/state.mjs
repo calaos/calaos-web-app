@@ -31,15 +31,21 @@ export function ioChangedEvent(id, state, device) {
     };
 }
 
+function decimals(n) {
+    return (String(n).split('.')[1] ?? '').length;
+}
+
+/** Round to the step first, then clamp, and strip float noise (0.1 + 0.2). */
 function clampToStep(value, { min, max, step }) {
-    const clamped = Math.min(max, Math.max(min, value));
-    return step > 0 ? Math.round((clamped - min) / step) * step + min : clamped;
+    const rounded = step > 0 ? Math.round((value - min) / step) * step + min : value;
+    const d = Math.max(decimals(step), decimals(min));
+    return Number(Math.min(max, Math.max(min, rounded)).toFixed(d));
 }
 
 /**
  * Best-effort partial update of a device (spec §5.2): invalid fields are
  * dropped, valid ones still apply. `value` is a plain mode or a JSON object.
- * @returns {boolean} whether the device state changed
+ * @returns {{accepted: boolean, changed: boolean}} `accepted` is false when no field was valid
  */
 export function applyDeviceCommand(io, value) {
     const dev = io.device;
@@ -48,15 +54,18 @@ export function applyDeviceCommand(io, value) {
         try {
             patch = JSON.parse(value);
         } catch {
-            return false;
+            return { accepted: false, changed: false };
         }
     } else {
         patch = { mode: String(value) };
     }
-    if (patch === null || typeof patch !== 'object' || Array.isArray(patch)) return false;
+    if (patch === null || typeof patch !== 'object' || Array.isArray(patch)) {
+        return { accepted: false, changed: false };
+    }
 
     const caps = dev.capabilities;
     const next = { ...dev.state };
+    let accepted = false;
     const enumFields = [
         ['mode', caps.modes],
         ['fan_mode', caps.fan_modes],
@@ -65,13 +74,18 @@ export function applyDeviceCommand(io, value) {
     for (const [field, allowed] of enumFields) {
         if (field in patch && Array.isArray(allowed) && allowed.includes(patch[field])) {
             next[field] = patch[field];
+            accepted = true;
         }
     }
     const temps = ['target_temp', ...(caps.target_temp_range ? ['target_temp_low', 'target_temp_high'] : [])];
     for (const field of temps) {
-        const n = Number(patch[field]);
-        if (field in patch && caps.target_temp && Number.isFinite(n)) {
+        const raw = patch[field];
+        // Number(null), Number('') and Number(false) are 0: not setpoints.
+        const isNum = typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== '');
+        const n = isNum ? Number(raw) : NaN;
+        if (caps.target_temp && Number.isFinite(n)) {
             next[field] = clampToStep(n, caps.target_temp);
+            accepted = true;
         }
     }
 
@@ -81,12 +95,17 @@ export function applyDeviceCommand(io, value) {
         if (next.mode === 'off') next.action = 'off';
         else if (next.mode === 'heat') next.action = cur < tgt ? 'heating' : 'idle';
         else if (next.mode === 'cool') next.action = cur > tgt ? 'cooling' : 'idle';
+        else if (next.mode === 'auto') {
+            const lo = Number(next.target_temp_low ?? tgt);
+            const hi = Number(next.target_temp_high ?? tgt);
+            next.action = cur < lo ? 'heating' : cur > hi ? 'cooling' : 'idle';
+        }
     }
 
-    if (JSON.stringify(next) === JSON.stringify(dev.state)) return false;
+    if (JSON.stringify(next) === JSON.stringify(dev.state)) return { accepted, changed: false };
     dev.state = next;
     io.state = String(next.mode ?? io.state);
-    return true;
+    return { accepted, changed: true };
 }
 
 /**
@@ -531,7 +550,9 @@ export function createState({ broadcast = () => {} } = {}) {
             const io = ios.get(id);
             const next = String(state);
             if (io) io.state = next;
-            broadcast(ioChangedEvent(id, next));
+            // A device re-publishes itself whole, with the mode following state.
+            if (io?.device) io.device.state.mode = next;
+            broadcast(ioChangedEvent(id, next, io?.device));
             return Boolean(io);
         },
 
@@ -545,7 +566,9 @@ export function createState({ broadcast = () => {} } = {}) {
             if (!io) return null;
 
             if (io.device) {
-                if (!applyDeviceCommand(io, value)) return null;
+                const res = applyDeviceCommand(io, value);
+                if (!res.accepted) return { id, state: io.state, rejected: true };
+                if (!res.changed) return null;
                 broadcast(ioChangedEvent(id, io.state, io.device));
                 return { id, state: io.state };
             }

@@ -83,16 +83,32 @@ export function toIoStatusInfo(raw: unknown): IoStatusInfo | null {
     };
 }
 
+// Stricter than toOptionalNumber: Number(true), Number(' ') and Number([]) are
+// finite but are not numbers. Numeric strings are tolerated with a warning
+// because §5.3 says real JSON numbers.
+function toDeviceNumber(v: unknown): number | null {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+    if (typeof v === 'string' && v.trim() !== '') {
+        const n = Number(v);
+        if (Number.isFinite(n)) {
+            console.warn('calaos protocol: device number sent as a string:', v);
+            return n;
+        }
+    }
+    return null;
+}
+
 function toStringList(v: unknown): string[] | undefined {
     return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : undefined;
 }
 
 function toTargetTemp(v: unknown): DeviceTargetTemp | undefined {
     if (!isRecord(v)) return undefined;
-    const min = toOptionalNumber(v.min);
-    const max = toOptionalNumber(v.max);
-    const step = toOptionalNumber(v.step);
+    const min = toDeviceNumber(v.min);
+    const max = toDeviceNumber(v.max);
+    const step = toDeviceNumber(v.step);
     if (min === null || max === null || step === null) return undefined;
+    if (step <= 0 || min > max) return undefined;
     return { min, max, step, unit: toWireString(v.unit) };
 }
 
@@ -130,7 +146,7 @@ function toDeviceState(raw: unknown): DeviceState {
         ['target_temp_low', 'targetTempLow'],
         ['target_temp_high', 'targetTempHigh'],
     ] as const) {
-        const n = toOptionalNumber(obj[wire]);
+        const n = toDeviceNumber(obj[wire]);
         if (n !== null) state[key] = n;
     }
     return state;
@@ -142,9 +158,15 @@ function toDeviceState(raw: unknown): DeviceState {
  * bad field never costs the item (or the rest of the batch) its decoding.
  */
 export function toDeviceInfo(raw: unknown): DeviceInfo | undefined {
-    if (!isRecord(raw)) return undefined;
+    if (!isRecord(raw)) {
+        if (raw !== undefined) console.warn('calaos protocol: malformed device object, dropped:', raw);
+        return undefined;
+    }
     const family = raw.family;
-    if (typeof family !== 'string' || family === '') return undefined;
+    if (typeof family !== 'string' || family === '') {
+        console.warn('calaos protocol: device object without a usable family, dropped:', raw);
+        return undefined;
+    }
     const ios: Record<string, string> = {};
     if (isRecord(raw.ios)) {
         for (const [role, id] of Object.entries(raw.ios)) {
