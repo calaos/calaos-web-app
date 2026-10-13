@@ -91,6 +91,7 @@ interface InFlight {
     /** What the server reported when the command left, per field. */
     base: Partial<Record<keyof ClimatePatch, number | string | undefined>>;
     sent: Partial<ClimatePatch>;
+    timer?: ReturnType<typeof setTimeout>;
 }
 
 let inFlight: InFlight[] = [];
@@ -105,25 +106,36 @@ function dropDraft(sent: Partial<ClimatePatch>, fields?: Iterable<keyof ClimateP
     draft.value = next;
 }
 
+function retire(entry: InFlight) {
+    if (entry.timer !== undefined) {
+        clearTimeout(entry.timer);
+        draftTimers.delete(entry.timer);
+    }
+    inFlight = inFlight.filter((e) => e !== entry);
+    dropDraft(entry.sent);
+}
+
 const commands = useDebouncedMerge<ClimatePatch>((merged) => {
     const fields = Object.keys(merged) as (keyof ClimatePatch)[];
-    if (!set(JSON.stringify(merged))) {
-        dropDraft(merged);
-        return;
-    }
     const entry: InFlight = {
         base: Object.fromEntries(fields.map((f) => [f, serverValue(f)])),
         sent: merged,
     };
+    // A refusal changes nothing on the server, so the republished device looks
+    // like any unrelated update: only the verdict can end the draft early.
+    const sentOk = set(JSON.stringify(merged), (success) => {
+        if (!success) retire(entry);
+    });
+    if (!sentOk) {
+        dropDraft(merged);
+        return;
+    }
     inFlight.push(entry);
     // Rejected or ignored commands never change the server's value: the draft
     // must not outlive the store's own pending timeout.
-    const timer = setTimeout(() => {
-        draftTimers.delete(timer);
-        inFlight = inFlight.filter((e) => e !== entry);
-        dropDraft(merged);
-    }, DRAFT_TIMEOUT_MS);
+    const timer = setTimeout(() => retire(entry), DRAFT_TIMEOUT_MS);
     draftTimers.add(timer);
+    entry.timer = timer;
 }, DEBOUNCE_MS);
 
 function queue(patch: Partial<ClimatePatch>) {
@@ -188,12 +200,10 @@ const singleValue = computed(
     () => previewSingle.value ?? draft.value.target_temp ?? state.value?.targetTemp,
 );
 
-const rangeLow = computed(
-    () => previewRange.value?.low ?? draft.value.target_temp_low ?? state.value?.targetTempLow,
-);
-const rangeHigh = computed(
-    () => previewRange.value?.high ?? draft.value.target_temp_high ?? state.value?.targetTempHigh,
-);
+// What the slider is told: never the live drag, or its own follow-the-server
+// logic would only ever see its own movement.
+const rangeLow = computed(() => draft.value.target_temp_low ?? state.value?.targetTempLow);
+const rangeHigh = computed(() => draft.value.target_temp_high ?? state.value?.targetTempHigh);
 
 function fmt(value: number | undefined): string {
     return value === undefined || !bounds.value ? '—' : formatSetpoint(value, bounds.value.step);
@@ -202,7 +212,10 @@ function fmt(value: number | undefined): string {
 const singleText = computed(() => `${fmt(singleValue.value)} ${unit.value}`);
 // The server refuses a partial range, so a half-known one is shown, not editable.
 const rangeKnown = computed(() => rangeLow.value !== undefined && rangeHigh.value !== undefined);
-const rangeText = computed(() => `${fmt(rangeLow.value)} – ${fmt(rangeHigh.value)} ${unit.value}`);
+const rangeText = computed(
+    () =>
+        `${fmt(previewRange.value?.low ?? rangeLow.value)} – ${fmt(previewRange.value?.high ?? rangeHigh.value)} ${unit.value}`,
+);
 
 function nudge(direction: 1 | -1) {
     const b = bounds.value;

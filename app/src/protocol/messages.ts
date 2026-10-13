@@ -20,8 +20,13 @@ export function encodeGetHome(): string {
 // `value` is the raw wire action string: 'true', 'false', 'up', 'down',
 // 'stop', 'inc', 'dec', 'set <0-100>', 'set <#rrggbb>' — or raw text for
 // string IOs (NO 'set ' prefix). Builders live in io-states.ts.
-export function encodeSetState(id: string, value: string): string {
-    return JSON.stringify({ msg: 'set_state', data: { id, value } });
+export function encodeSetState(id: string, value: string, msgId?: string): string {
+    // The server only answers a set_state that carries a msg_id.
+    return JSON.stringify(
+        msgId === undefined
+            ? { msg: 'set_state', data: { id, value } }
+            : { msg: 'set_state', msg_id: msgId, data: { id, value } },
+    );
 }
 
 /**
@@ -112,6 +117,15 @@ export function decodeServerMessage(raw: unknown): ServerMessage {
                 // null vs 0 matters: 'the reply was not about time' is not the
                 // same claim as 'the player is at the start'.
                 timeElapsed: 'time_elapsed' in data ? toSeconds(data.time_elapsed) : null,
+            };
+        }
+
+        case 'set_state': {
+            const data = isRecord(obj.data) ? obj.data : {};
+            return {
+                kind: 'set_state',
+                msgId: toWireString(obj.msg_id),
+                success: data.success === 'true',
             };
         }
 

@@ -313,6 +313,21 @@ describe('events and set_state', () => {
         expect(home.isPending('light_1')).toBe(false);
     });
 
+    it('routes the verdict of a set_state back to whoever asked', () => {
+        const home = useHomeStore();
+        startAndOpen();
+        signInAndLoad();
+        const verdicts: boolean[] = [];
+
+        home.sendSetState('light_1', 'true', (ok) => verdicts.push(ok));
+        const { msg_id: msgId } = JSON.parse(sent().at(-1)!);
+        FakeWebSocket.last.fireMessage(
+            JSON.stringify({ msg: 'set_state', msg_id: msgId, data: { success: 'false' } }),
+        );
+
+        expect(verdicts).toEqual([false]);
+    });
+
     it('drops a set_state sent while the socket is down (no pending badge)', () => {
         const home = useHomeStore();
         startAndOpen();

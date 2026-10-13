@@ -442,6 +442,32 @@ describe('set_state pending lifecycle', () => {
         expect(store.isPending('light_2')).toBe(false);
     });
 
+    it('asks for a verdict with a msg_id, and hands it to the callback once', () => {
+        const store = useHomeStore();
+        attachOkTransport();
+        store.setHome(homeFixture());
+        const verdicts: boolean[] = [];
+
+        store.sendSetState('light_1', 'true', (ok) => verdicts.push(ok));
+        const { msg_id: msgId } = JSON.parse(sent[0]);
+        expect(msgId).toEqual(expect.any(String));
+
+        store.applySetStateResult({ kind: 'set_state', msgId: 'nobody-asked', success: false });
+        expect(verdicts).toEqual([]);
+        store.applySetStateResult({ kind: 'set_state', msgId, success: false });
+        store.applySetStateResult({ kind: 'set_state', msgId, success: true });
+        expect(verdicts).toEqual([false]);
+    });
+
+    it('sends no msg_id when nobody waits for the verdict', () => {
+        const store = useHomeStore();
+        attachOkTransport();
+        store.setHome(homeFixture());
+
+        store.sendSetState('light_1', 'true');
+        expect(JSON.parse(sent[0])).not.toHaveProperty('msg_id');
+    });
+
     it('records nothing when the frame could not be sent', () => {
         const store = useHomeStore();
         store.attachTransport(() => false);
