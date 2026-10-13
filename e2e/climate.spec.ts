@@ -159,9 +159,9 @@ test('fan_only hides the setpoint and the fan select still works', async ({ page
     await mode(row, MESSAGES.climate.mode.fan_only).click();
     await expect(row.locator('.climate-io__setpoint')).toHaveCount(0);
 
-    await row.getByRole('combobox', { name: copy(MESSAGES.climate.fanOf, SALON) }).selectOption('high');
+    await row.getByRole('combobox', { name: new RegExp(`^${MESSAGES.climate.fan} ${SALON}$`) }).selectOption('high');
     await expect.poll(() => commands(mock, 'clim_salon')).toEqual(['fan_only', '{"fan_mode":"high"}']);
-    await expect(row.getByRole('combobox', { name: copy(MESSAGES.climate.fanOf, SALON) })).toHaveValue('high');
+    await expect(row.getByRole('combobox', { name: new RegExp(`^${MESSAGES.climate.fan} ${SALON}$`) })).toHaveValue('high');
 });
 
 test('a heat-only thermostat offers two modes and no fan or swing', async ({ page }) => {
@@ -194,14 +194,47 @@ test('a device that knows nothing yet shows an unknown mode, no readings, and st
     await expect(row.locator('.climate-io__chip--unknown')).toHaveCount(0);
 });
 
-test('a range-only device has no setpoint outside auto', async ({ page }) => {
+test('a range-only device keeps its range in every mode but fan_only', async ({ page }) => {
     await openLounge(page);
     const row = device(page, 'Split véranda');
 
     await expect(row.getByRole('slider')).toHaveCount(2);
     await mode(row, MESSAGES.climate.mode.heat).click();
-    await expect(row.locator('.climate-io__setpoint')).toHaveCount(0);
+    await expect(mode(row, MESSAGES.climate.mode.heat)).toHaveAttribute('aria-pressed', 'true');
+    await expect(row.getByRole('slider')).toHaveCount(2);
+    await expect(row.getByRole('slider').first()).toBeEnabled();
     await expect(row.getByRole('combobox')).toHaveCount(1);
+});
+
+test('dragging a range handle with the pointer sends the dragged pair and keeps it', async ({ page, mock }) => {
+    await openLounge(page);
+    const row = device(page, 'Split véranda');
+    const low = row.getByRole('slider', { name: new RegExp(`^${copy(MESSAGES.climate.targetLow, 'Split véranda')}$`) });
+    await expect(row.locator('.climate-io__target')).toHaveText('20.0 – 25.0 °C');
+    await low.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+
+    // The thumb centre sits half a 2rem hit area (16px) in from the box edge.
+    const box = (await low.boundingBox())!;
+    const x = (value: number) => box.x + 16 + ((value - 16) / (30 - 16)) * (box.width - 32);
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x(20), y);
+    await page.mouse.down();
+    await page.mouse.move(x(20.5), y, { steps: 4 });
+    await page.mouse.move(x(21.5), y, { steps: 4 });
+    await page.mouse.up();
+
+    await expect.poll(() => commands(mock, 'clim_split')).toHaveLength(1);
+    const [only] = await commands(mock, 'clim_split');
+    const pair = JSON.parse(only) as { target_temp_low: number; target_temp_high: number };
+    expect(pair.target_temp_low).toBeGreaterThan(20);
+    expect(pair.target_temp_high).toBe(25);
+
+    // It must not snap back to the old pair, before or after the answer.
+    const shown = `${pair.target_temp_low.toFixed(1)} – 25.0 °C`;
+    await expect(row.locator('.climate-io__target')).toHaveText(shown);
+    await expect(row).not.toHaveAttribute('aria-busy', 'true');
+    await expect(row.locator('.climate-io__target')).toHaveText(shown);
+    await expect(low).toHaveValue(String(pair.target_temp_low));
 });
 
 test('keeps every control inside the viewport', async ({ page }) => {

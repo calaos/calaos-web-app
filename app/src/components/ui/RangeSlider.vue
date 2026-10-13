@@ -13,7 +13,7 @@
 // a too-narrow pair whole, which would look like a dead control.
 
 import { computed, ref, watch } from 'vue';
-import { moveRangeHandle } from '../../protocol/climate';
+import { formatSetpoint, moveRangeHandle } from '../../protocol/climate';
 import type { Range } from '../../protocol/climate';
 import type { DeviceTargetTemp } from '../../protocol/types';
 
@@ -34,11 +34,24 @@ const emit = defineEmits<{
 
 const current = ref<Range>({ low: props.low, high: props.high });
 let interacting = false;
+// The handle under the pointer: the other one has no reason to stay put.
+let dragged: keyof Range | null = null;
+let sessionStart: Range = current.value;
+// Armed by a pointer release that already committed, so the `change` the
+// browser fires right after it is not read as a second interaction.
+let suppressNextChange = false;
 
 watch(
     () => [props.low, props.high] as const,
     ([low, high]) => {
-        if (!interacting) current.value = { low, high };
+        if (!interacting || dragged === null) {
+            current.value = { low, high };
+            return;
+        }
+        // The server moved while a handle is held: follow it for the other
+        // handle, and keep the held one inside the new gap. Otherwise the
+        // release would send the held handle's value with a stale partner.
+        current.value = moveRangeHandle(dragged, current.value[dragged], { low, high }, props.bounds);
     },
 );
 
@@ -52,20 +65,39 @@ function onInput(which: keyof Range, event: Event) {
     emit('live', next);
 }
 
-function onPress() {
+function onPress(which: keyof Range) {
     interacting = true;
+    dragged = which;
+    sessionStart = current.value;
+    suppressNextChange = false;
 }
 
-// A tap that moves nothing fires no `change`, so the release must end the
-// interaction by itself or the thumbs would never resync again.
+// The commit goes out BEFORE `live: null`: the parent keeps showing the live
+// pair until it has stored the committed one, and the props watcher must not
+// find a stale model to restore once the interaction is over.
 function onRelease() {
+    if (!interacting) return;
     interacting = false;
+    dragged = null;
+    const moved =
+        current.value.low !== sessionStart.low || current.value.high !== sessionStart.high;
+    if (moved) {
+        suppressNextChange = true;
+        emit('commit', current.value);
+    }
     emit('live', null);
 }
 
 function onChange() {
-    onRelease();
+    if (suppressNextChange) {
+        suppressNextChange = false;
+        return;
+    }
+    // No pointer session: a keyboard step.
+    interacting = false;
+    dragged = null;
     emit('commit', current.value);
+    emit('live', null);
 }
 
 function percent(value: number): number {
@@ -83,7 +115,8 @@ const fill = computed(() => ({
 const lowOnTop = computed(() => percent(current.value.low) > 50);
 
 function valueText(value: number): string {
-    return props.bounds.unit === '' ? String(value) : `${value} ${props.bounds.unit}`;
+    const text = formatSetpoint(value, props.bounds.step);
+    return props.bounds.unit === '' ? text : `${text} ${props.bounds.unit}`;
 }
 </script>
 
@@ -102,7 +135,7 @@ function valueText(value: number): string {
             :aria-label="labelLow"
             :disabled="disabled"
             :aria-valuetext="valueText(current.low)"
-            @pointerdown="onPress"
+            @pointerdown="onPress('low')"
             @pointerup="onRelease"
             @pointercancel="onRelease"
             @input="onInput('low', $event)"
@@ -118,7 +151,7 @@ function valueText(value: number): string {
             :aria-label="labelHigh"
             :disabled="disabled"
             :aria-valuetext="valueText(current.high)"
-            @pointerdown="onPress"
+            @pointerdown="onPress('high')"
             @pointerup="onRelease"
             @pointercancel="onRelease"
             @input="onInput('high', $event)"
@@ -144,7 +177,8 @@ function valueText(value: number): string {
 }
 
 .range-slider__rail {
-    inset-inline: calc(var(--thumb) / 2);
+    /* Reaches half a visible dot past the thumb centres, like BaseSlider's rail. */
+    inset-inline: calc(var(--thumb) / 2 - 0.5rem);
     background: var(--c-track);
 }
 

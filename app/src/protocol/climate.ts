@@ -13,13 +13,13 @@ export interface ClimateGating {
 }
 
 /**
- * The single setpoint exists when its link does (`ios.target_temp`) or a value
- * was received; a device that only exposes low/high has neither. A device with
- * `target_temp` but no range always has it.
+ * A device with a range has a single setpoint only if its `target_temp` link
+ * exists; one that only exposes low/high is "range-only". Without a range the
+ * `target_temp` capability implies the link.
  */
 function hasSingleSetpoint(device: DeviceInfo): boolean {
     if (device.capabilities.targetTempRange !== true) return true;
-    return device.ios.target_temp !== undefined || device.state.targetTemp !== undefined;
+    return device.ios.target_temp !== undefined;
 }
 
 /**
@@ -35,8 +35,8 @@ export function climateGating(device: DeviceInfo): ClimateGating {
     const range = caps.targetTempRange === true;
     if (mode === 'auto' && range) return { off: false, setpoint: 'range' };
     if (single) return { off: mode === 'off', setpoint: 'single' };
-    // Range-only device outside auto: heat/cool have no setpoint of their own.
-    return { off: mode === 'off', setpoint: mode === 'off' || mode === '' ? 'range' : 'none' };
+    // Range-only device: the range is its only setpoint, in every mode.
+    return { off: mode === 'off', setpoint: 'range' };
 }
 
 export function decimalsOf(n: number): number {

@@ -106,10 +106,10 @@ Cross-cutting: `visible === false` → not rendered, uniformly, for every type (
 
 One component for the whole device family, driven by `device.capabilities` (which controls exist) and `device.state` (what they show); nothing branches on `impl`. A device without a usable `device` object renders as a name and its scalar mode, with no controls.
 
-- **Gating** (`protocol/climate.ts`, `climateGating`): `off` greys setpoint, fan and swing; `fan_only` hides the setpoint; the two-handle range replaces the slider only in `auto` on a device with `target_temp_range`. A device that exposes only low/high (no `ios.target_temp`, none received) has no setpoint outside `auto`. An unknown mode (`""` or absent) is shown as such, presses no button and is *not* `off`.
+- **Gating** (`protocol/climate.ts`, `climateGating`): `off` greys setpoint, fan and swing; `fan_only` hides the setpoint; the two-handle range replaces the slider only in `auto` on a device with `target_temp_range`. A device that exposes only low/high (range capability, no `ios.target_temp`) shows the range in every mode but `fan_only`; a half-known range is shown but not editable, because the server refuses partial ranges. An unknown mode (`""` or absent) is shown as such, presses no button and is *not* `off`.
 - **Range**: the server refuses a low/high pair tighter than `min_range` whole, so `RangeSlider` clamps the dragged handle against the other one and never produces such a pair.
 - **Commands**: mode buttons send the plain mode. Setpoint, range, fan and swing changes are queued and sent as one JSON partial update after 350 ms of quiet (`useDebouncedMerge`), so a drag, a held arrow key or a run of +/- taps is one command. A mode click flushes the queue first.
-- **Not optimistic, with one exception**: a value the user just chose (the draft) stays on screen until the answer or the 5 s pending timeout, then the server's `device` replaces it.
+- **Not optimistic, with one exception**: a value the user just chose (the draft) stays on screen until the server reports another value for that field, or 5 s pass; an `io_changed` that only moves `current_temp` does not end it.
 
 ### The `rw` flag
 

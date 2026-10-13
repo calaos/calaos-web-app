@@ -98,7 +98,7 @@ export function applyDeviceCommand(io, value) {
                 touched = true;
             }
         }
-        // Like CLIM-1: a pair that is inverted or tighter than min_range is refused whole.
+        // A pair that is inverted or tighter than min_range is refused whole.
         const { target_temp_low: lo, target_temp_high: hi } = range;
         const pairOk = lo === undefined || hi === undefined || hi - lo >= (bounds.min_range ?? 0) - 1e-9;
         if (touched && pairOk) {
@@ -586,7 +586,11 @@ export function createState({ broadcast = () => {} } = {}) {
 
             if (io.device) {
                 const res = applyDeviceCommand(io, value);
-                if (!res.accepted) return { id, state: io.state, rejected: true };
+                if (!res.accepted) {
+                    // The real server republishes the device even when it refuses.
+                    broadcast(ioChangedEvent(id, io.state, io.device));
+                    return { id, state: io.state, rejected: true };
+                }
                 if (!res.changed) return null;
                 broadcast(ioChangedEvent(id, io.state, io.device));
                 return { id, state: io.state };

@@ -55,21 +55,25 @@ describe('climateGating', () => {
         expect(climateGating(d)).toEqual({ off: true, setpoint: 'none' });
     });
 
-    describe('range-only device (no target_temp link, none received)', () => {
+    describe('range-only device (range capability, no target_temp link)', () => {
         const rangeOnly = (mode: string) => device({ rangeOnly: true, state: { mode } });
 
-        it('has a range in auto, none in heat/cool, a greyed range when off or unknown', () => {
-            expect(climateGating(rangeOnly('auto')).setpoint).toBe('range');
-            expect(climateGating(rangeOnly('heat')).setpoint).toBe('none');
-            expect(climateGating(rangeOnly('cool')).setpoint).toBe('none');
-            expect(climateGating(rangeOnly('off'))).toEqual({ off: true, setpoint: 'range' });
-            expect(climateGating(rangeOnly(''))).toEqual({ off: false, setpoint: 'range' });
+        it.each([
+            ['auto', 'range', false],
+            ['heat', 'range', false],
+            ['cool', 'range', false],
+            ['dry', 'range', false],
+            ['off', 'range', true],
+            ['', 'range', false],
+            ['fan_only', 'none', false],
+        ] as const)('mode %j → %s setpoint, off=%s', (mode, setpoint, off) => {
+            expect(climateGating(rangeOnly(mode))).toEqual({ off, setpoint });
         });
 
-        it('treats a received target_temp as proof the single setpoint exists', () => {
+        it('stays range-only even if a stray target_temp value was received', () => {
             const d = rangeOnly('heat');
             d.state.targetTemp = 21;
-            expect(climateGating(d).setpoint).toBe('single');
+            expect(climateGating(d).setpoint).toBe('range');
         });
     });
 });

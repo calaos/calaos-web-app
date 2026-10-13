@@ -118,9 +118,7 @@
         "raise": "Raise the target of {name}",
         "lower": "Lower the target of {name}",
         "fan": "Fan",
-        "swing": "Swing",
-        "fanOf": "Fan speed of {name}",
-        "swingOf": "Swing of {name}"
+        "swing": "Swing"
     },
     "dialog": {
         "cancel": "Cancel",
