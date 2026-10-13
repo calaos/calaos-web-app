@@ -90,13 +90,16 @@
                                 "off",
                                 "heat",
                                 "cool",
-                                "auto"
+                                "auto",
+                                "dry",
+                                "fan_only"
                             ],
                             "target_temp": {
                                 "min": 16,
                                 "max": 30,
                                 "step": 0.5,
-                                "unit": "°C"
+                                "unit": "°C",
+                                "min_range": 2
                             },
                             "target_temp_range": true,
                             "fan_modes": [
@@ -124,7 +127,12 @@
                         "ios": {
                             "mode": "clim_salon_mode",
                             "current_temp": "clim_salon_temp",
-                            "target_temp": "clim_salon_target"
+                            "target_temp": "clim_salon_target",
+                            "target_temp_low": "clim_salon_low",
+                            "target_temp_high": "clim_salon_high",
+                            "action": "clim_salon_action",
+                            "fan_mode": "clim_salon_fan",
+                            "swing_mode": "clim_salon_swing"
                         }
                     }
                 },
@@ -161,6 +169,164 @@
                             "current_temp": "thermo_sdb_temp",
                             "target_temp": "thermo_sdb_target",
                             "action": "thermo_sdb_action"
+                        }
+                    }
+                },
+                {
+                    "id": "thermo_bureau",
+                    "name": "Thermostat bureau",
+                    "gui_type": "climate",
+                    "state": "off",
+                    "visible": "true",
+                    "unit": "",
+                    "device": {
+                        "family": "climate",
+                        "impl": "thermostat",
+                        "capabilities": {
+                            "modes": [
+                                "off",
+                                "heat",
+                                "cool",
+                                "auto"
+                            ],
+                            "target_temp": {
+                                "min": 7,
+                                "max": 35,
+                                "step": 0.5,
+                                "unit": "°C",
+                                "min_range": 1
+                            },
+                            "target_temp_range": true,
+                            "reports_action": true
+                        },
+                        "state": {
+                            "mode": "off",
+                            "current_temp": 20.5,
+                            "target_temp": 21.0,
+                            "target_temp_low": 19.0,
+                            "target_temp_high": 24.0,
+                            "action": "off"
+                        },
+                        "ios": {
+                            "current_temp": "thermo_bureau_temp",
+                            "target_temp": "thermo_bureau_target",
+                            "target_temp_low": "thermo_bureau_low",
+                            "target_temp_high": "thermo_bureau_high",
+                            "action": "thermo_bureau_action"
+                        }
+                    }
+                },
+                {
+                    "id": "clim_split",
+                    "name": "Split véranda",
+                    "gui_type": "climate",
+                    "state": "auto",
+                    "visible": "true",
+                    "unit": "",
+                    "device": {
+                        "family": "climate",
+                        "impl": "proxy",
+                        "capabilities": {
+                            "modes": [
+                                "off",
+                                "heat",
+                                "cool",
+                                "auto"
+                            ],
+                            "target_temp": {
+                                "min": 16,
+                                "max": 30,
+                                "step": 0.5,
+                                "unit": "°C",
+                                "min_range": 3
+                            },
+                            "target_temp_range": true,
+                            "fan_modes": [
+                                "auto",
+                                "low",
+                                "medium",
+                                "high"
+                            ]
+                        },
+                        "state": {
+                            "mode": "auto",
+                            "current_temp": 22.0,
+                            "target_temp_low": 20.0,
+                            "target_temp_high": 25.0,
+                            "fan_mode": "auto"
+                        },
+                        "ios": {
+                            "mode": "clim_split_mode",
+                            "current_temp": "clim_split_temp",
+                            "target_temp_low": "clim_split_low",
+                            "target_temp_high": "clim_split_high",
+                            "fan_mode": "clim_split_fan"
+                        }
+                    }
+                },
+                {
+                    "id": "clim_fancoil",
+                    "name": "Ventilo-convecteur",
+                    "gui_type": "climate",
+                    "state": "dry",
+                    "visible": "true",
+                    "unit": "",
+                    "device": {
+                        "family": "climate",
+                        "impl": "proxy",
+                        "capabilities": {
+                            "modes": [
+                                "off",
+                                "cool",
+                                "dry",
+                                "fan_only"
+                            ],
+                            "target_temp": {
+                                "min": 18,
+                                "max": 28,
+                                "step": 0.5,
+                                "unit": "°C"
+                            },
+                            "swing_modes": [
+                                "off",
+                                "vertical",
+                                "horizontal"
+                            ]
+                        },
+                        "state": {
+                            "mode": "dry",
+                            "current_temp": 24.5,
+                            "target_temp": 23.0,
+                            "swing_mode": "vertical"
+                        },
+                        "ios": {
+                            "mode": "clim_fancoil_mode",
+                            "current_temp": "clim_fancoil_temp",
+                            "target_temp": "clim_fancoil_target",
+                            "swing_mode": "clim_fancoil_swing"
+                        }
+                    }
+                },
+                {
+                    "id": "clim_garage",
+                    "name": "Pompe à chaleur garage",
+                    "gui_type": "climate",
+                    "state": "",
+                    "visible": "true",
+                    "unit": "",
+                    "device": {
+                        "family": "climate",
+                        "impl": "proxy",
+                        "capabilities": {
+                            "modes": [
+                                "off",
+                                "heat",
+                                "cool"
+                            ]
+                        },
+                        "state": {},
+                        "ios": {
+                            "mode": "clim_garage_mode"
                         }
                     }
                 },

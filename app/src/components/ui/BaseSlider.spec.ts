@@ -151,4 +151,29 @@ describe('BaseSlider', () => {
 
         expect(wrapper.emitted('commit')).toEqual([[50]]);
     });
+
+    it('reports the thumb on every tick and null when the interaction ends', async () => {
+        const wrapper = mountSlider(20);
+        const input = wrapper.get('input');
+
+        await input.trigger('pointerdown', { pointerType: 'mouse' });
+        await dragTo(input, 30);
+        await dragTo(input, 35);
+        expect(wrapper.emitted('live')).toEqual([[30], [35]]);
+
+        await input.trigger('pointerup', { pointerType: 'mouse' });
+        expect(wrapper.emitted('live')).toEqual([[30], [35], [null]]);
+    });
+
+    it('ends the live report on a keyboard change too, and on a drag that went nowhere', async () => {
+        const keyboard = mountSlider(20);
+        await dragTo(keyboard.get('input'), 21);
+        await keyboard.get('input').trigger('change');
+        expect(keyboard.emitted('live')).toEqual([[21], [null]]);
+
+        const tap = mountSlider(40);
+        await tap.get('input').trigger('pointerdown', { pointerType: 'touch' });
+        await tap.get('input').trigger('pointerup', { pointerType: 'touch' });
+        expect(tap.emitted('live')).toEqual([[null]]);
+    });
 });

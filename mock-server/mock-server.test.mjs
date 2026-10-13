@@ -388,7 +388,7 @@ describe('set_state on a climate device', () => {
         const data = await send('{"mode":"heat","target_temp":22.3}');
         expect(data.state).toBe('heat');
         expect(data.device.state).toMatchObject({ mode: 'heat', target_temp: 22.5, current_temp: 23.4 });
-        expect(data.device.capabilities.modes).toEqual(['off', 'heat', 'cool', 'auto']);
+        expect(data.device.capabilities.modes).toEqual(['off', 'heat', 'cool', 'auto', 'dry', 'fan_only']);
     });
 
     it('accepts a plain mode', async () => {
@@ -398,7 +398,7 @@ describe('set_state on a climate device', () => {
     });
 
     it('is best effort: drops an invalid field, applies the valid ones, clamps to bounds', async () => {
-        const data = await send('{"mode":"dry","fan_mode":"high","target_temp":99}');
+        const data = await send('{"mode":"turbo","fan_mode":"high","target_temp":99}');
         expect(data.device.state).toMatchObject({ mode: 'cool', fan_mode: 'high', target_temp: 30 });
     });
 
@@ -462,6 +462,61 @@ describe('set_state on a climate device — edge cases', () => {
         expect(data.state).toBe('heat');
         expect(data.device.state.mode).toBe('heat');
         expect(data.device.capabilities.modes).toBeDefined();
+    });
+});
+
+describe('climate fixtures cover the capability combinations', () => {
+    const devices = () =>
+        FIXTURE.home.flatMap((r) => r.items).filter((i) => i.gui_type === 'climate').map((i) => i.device);
+    const has = (pred) => devices().some(pred);
+
+    it('has full, range-only, single-setpoint, heat-only and minimal devices', () => {
+        expect(has((d) => d.capabilities.target_temp_range && d.ios.target_temp)).toBe(true);
+        expect(has((d) => d.capabilities.target_temp_range && !d.ios.target_temp)).toBe(true);
+        expect(has((d) => !d.capabilities.target_temp_range && d.capabilities.target_temp)).toBe(true);
+        expect(has((d) => d.capabilities.modes.length === 2)).toBe(true);
+        expect(has((d) => !d.capabilities.target_temp && d.state.mode === undefined)).toBe(true);
+        expect(has((d) => d.capabilities.fan_modes && !d.capabilities.swing_modes)).toBe(true);
+        expect(has((d) => d.capabilities.swing_modes && !d.capabilities.fan_modes)).toBe(true);
+        expect(has((d) => !d.capabilities.reports_action)).toBe(true);
+        expect(has((d) => d.state.current_temp === undefined)).toBe(true);
+        expect(has((d) => d.capabilities.modes.includes('dry') && d.capabilities.modes.includes('fan_only'))).toBe(true);
+    });
+});
+
+describe('set_state on a climate device — ranges', () => {
+    const expectReply = async (client, id, value, msgId) => {
+        client.send({ msg: 'set_state', msg_id: msgId, data: { id, value } });
+        return (await client.waitFor((f) => f.msg === 'set_state' && f.msg_id === msgId)).data.success;
+    };
+
+    it('refuses a pair tighter than min_range, whole, and keeps the old range', async () => {
+        const { client } = await login();
+        expect(await expectReply(client, 'clim_salon', '{"target_temp_low":23.5}', 'a')).toBe('false');
+        client.send({ msg: 'get_home' });
+        const home = await client.waitFor(isGetHome);
+        const io = home.data.home.flatMap((r) => r.items).find((i) => i.id === 'clim_salon');
+        expect(io.device.state).toMatchObject({ target_temp_low: 19, target_temp_high: 24 });
+    });
+
+    it('accepts a pair that respects min_range', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', data: { id: 'clim_salon', value: '{"target_temp_low":21,"target_temp_high":23}' } });
+        const data = (await client.waitFor(ioChangedFor('clim_salon'))).data.data;
+        expect(data.device.state).toMatchObject({ target_temp_low: 21, target_temp_high: 23 });
+    });
+
+    it('rejects target_temp on a range-only device', async () => {
+        const { client } = await login();
+        expect(await expectReply(client, 'clim_split', '{"target_temp":22}', 'b')).toBe('false');
+    });
+
+    it('starts the minimal device with an unknown mode and accepts its first mode', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', data: { id: 'clim_garage', value: 'heat' } });
+        const data = (await client.waitFor(ioChangedFor('clim_garage'))).data.data;
+        expect(data.state).toBe('heat');
+        expect(data.device.state).toEqual({ mode: 'heat' });
     });
 });
 

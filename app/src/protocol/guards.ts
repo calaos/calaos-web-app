@@ -109,7 +109,10 @@ function toTargetTemp(v: unknown): DeviceTargetTemp | undefined {
     const step = toDeviceNumber(v.step);
     if (min === null || max === null || step === null) return undefined;
     if (step <= 0 || min > max) return undefined;
-    return { min, max, step, unit: toWireString(v.unit) };
+    const target: DeviceTargetTemp = { min, max, step, unit: toWireString(v.unit) };
+    const minRange = toDeviceNumber(v.min_range);
+    if (minRange !== null && minRange >= 0) target.minRange = minRange;
+    return target;
 }
 
 function toDeviceCapabilities(raw: unknown): DeviceCapabilities {

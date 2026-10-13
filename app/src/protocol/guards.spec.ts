@@ -413,6 +413,18 @@ describe('toDeviceInfo', () => {
         });
     });
 
+    it('decodes min_range and drops a negative or non-numeric one', () => {
+        const caps = (min_range: unknown) =>
+            toDeviceInfo({
+                family: 'climate',
+                capabilities: { target_temp: { min: 7, max: 35, step: 0.5, unit: '°C', min_range } },
+            })?.capabilities.targetTemp;
+        expect(caps(2)).toEqual({ min: 7, max: 35, step: 0.5, unit: '°C', minRange: 2 });
+        expect(caps(-1)).toEqual({ min: 7, max: 35, step: 0.5, unit: '°C' });
+        expect(caps('wide')).toEqual({ min: 7, max: 35, step: 0.5, unit: '°C' });
+        expect(caps(undefined)).toEqual({ min: 7, max: 35, step: 0.5, unit: '°C' });
+    });
+
     it('keeps an unknown family and impl as they are', () => {
         expect(toDeviceInfo({ family: 'fan', impl: 'x' })).toMatchObject({ family: 'fan', impl: 'x' });
     });
@@ -479,14 +491,14 @@ describe('toDeviceInfo', () => {
 });
 
 describe('toIoItem — device', () => {
-    it('attaches a decoded device and keeps gui_type climate on the fallback', () => {
+    it('attaches a decoded device to a climate item', () => {
         const io = toIoItem({
             id: 'c1',
             gui_type: 'climate',
             state: 'cool',
             device: { family: 'climate', impl: 'proxy' },
         });
-        expect(io).toMatchObject({ guiType: 'unknown', rawGuiType: 'climate', state: 'cool' });
+        expect(io).toMatchObject({ guiType: 'climate', state: 'cool' });
         expect(io.device?.impl).toBe('proxy');
     });
 

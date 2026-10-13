@@ -14,6 +14,7 @@
 import type { Component } from 'vue';
 import AnalogInIo from './AnalogInIo.vue';
 import AnalogOutIo from './AnalogOutIo.vue';
+import ClimateIo from './ClimateIo.vue';
 import LightDimmerIo from './LightDimmerIo.vue';
 import LightIo from './LightIo.vue';
 import LightRgbIo from './LightRgbIo.vue';
@@ -59,6 +60,9 @@ export const IO_COMPONENTS: Record<GuiType | 'unknown', Component> = {
     // T13 — up / stop / down.
     shutter: ShutterIo,
     shutter_smart: ShutterSmartIo,
+
+    // A device family (spec §5.3): one capability-driven component.
+    climate: ClimateIo,
 
     // Not scaffolding: a gui_type this version has never heard of.
     unknown: UnknownIo,

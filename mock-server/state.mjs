@@ -77,14 +77,33 @@ export function applyDeviceCommand(io, value) {
             accepted = true;
         }
     }
-    const temps = ['target_temp', ...(caps.target_temp_range ? ['target_temp_low', 'target_temp_high'] : [])];
-    for (const field of temps) {
-        const raw = patch[field];
+    const asNumber = (raw) => {
         // Number(null), Number('') and Number(false) are 0: not setpoints.
         const isNum = typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== '');
-        const n = isNum ? Number(raw) : NaN;
-        if (caps.target_temp && Number.isFinite(n)) {
-            next[field] = clampToStep(n, caps.target_temp);
+        return isNum ? Number(raw) : NaN;
+    };
+    const bounds = caps.target_temp;
+    // The single setpoint needs its own link: a range-only device has none.
+    if (bounds && dev.ios?.target_temp && Number.isFinite(asNumber(patch.target_temp))) {
+        next.target_temp = clampToStep(asNumber(patch.target_temp), bounds);
+        accepted = true;
+    }
+    if (bounds && caps.target_temp_range) {
+        const range = { ...next };
+        let touched = false;
+        for (const field of ['target_temp_low', 'target_temp_high']) {
+            const n = asNumber(patch[field]);
+            if (Number.isFinite(n)) {
+                range[field] = clampToStep(n, bounds);
+                touched = true;
+            }
+        }
+        // Like CLIM-1: a pair that is inverted or tighter than min_range is refused whole.
+        const { target_temp_low: lo, target_temp_high: hi } = range;
+        const pairOk = lo === undefined || hi === undefined || hi - lo >= (bounds.min_range ?? 0) - 1e-9;
+        if (touched && pairOk) {
+            next.target_temp_low = range.target_temp_low;
+            next.target_temp_high = range.target_temp_high;
             accepted = true;
         }
     }
