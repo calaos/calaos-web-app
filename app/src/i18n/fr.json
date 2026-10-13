@@ -118,9 +118,7 @@
         "raise": "Augmenter la consigne de {name}",
         "lower": "Baisser la consigne de {name}",
         "fan": "Ventilation",
-        "swing": "Oscillation",
-        "fanOf": "Vitesse de ventilation de {name}",
-        "swingOf": "Oscillation de {name}"
+        "swing": "Oscillation"
     },
     "dialog": {
         "cancel": "Annuler",

@@ -33,8 +33,8 @@ describe('RangeSlider', () => {
     it('reads out each handle with its unit', () => {
         const w = mountRange();
 
-        expect(handle(w, 'Lowest').attributes('aria-valuetext')).toBe('19 °C');
-        expect(handle(w, 'Highest').attributes('aria-valuetext')).toBe('24 °C');
+        expect(handle(w, 'Lowest').attributes('aria-valuetext')).toBe('19.0 °C');
+        expect(handle(w, 'Highest').attributes('aria-valuetext')).toBe('24.0 °C');
     });
 
     it('reports the pair while dragging and sends nothing until the release', async () => {
@@ -51,6 +51,51 @@ describe('RangeSlider', () => {
         await low.trigger('change');
         expect(w.emitted('commit')).toEqual([[{ low: 21, high: 24 }]]);
         expect(w.emitted('live')!.at(-1)).toEqual([null]);
+    });
+
+    it('commits once, on release, for a pointer drag, before ending the live report', async () => {
+        const order: string[] = [];
+        const w = mountRange(19, 24, {
+            onCommit: () => order.push('commit'),
+            onLive: () => order.push('live'),
+        });
+        const low = handle(w, 'Lowest');
+
+        await low.trigger('pointerdown');
+        await dragTo(low, 20);
+        await dragTo(low, 21);
+        await low.trigger('pointerup');
+        // The browser fires `change` right after the release of the same gesture.
+        await low.trigger('change');
+
+        expect(order.filter((e) => e === 'commit')).toHaveLength(1);
+        expect(order.lastIndexOf('commit')).toBeLessThan(order.lastIndexOf('live'));
+    });
+
+    it('sends the dragged pair, not the old one, after a pointer drag', async () => {
+        const w = mountRange();
+        const low = handle(w, 'Lowest');
+
+        await low.trigger('pointerdown');
+        await dragTo(low, 21);
+        await low.trigger('pointerup');
+        await low.trigger('change');
+
+        expect(w.emitted('commit')).toEqual([[{ low: 21, high: 24 }]]);
+        expect((low.element as HTMLInputElement).value).toBe('21');
+    });
+
+    it('sends nothing for a press that moves nothing, and still commits the next key step', async () => {
+        const w = mountRange();
+        const high = handle(w, 'Highest');
+
+        await high.trigger('pointerdown');
+        await high.trigger('pointerup');
+        expect(w.emitted('commit')).toBeUndefined();
+
+        await dragTo(high, 25);
+        await high.trigger('change');
+        expect(w.emitted('commit')).toEqual([[{ low: 19, high: 25 }]]);
     });
 
     it('commits a keyboard step as input then change', async () => {
@@ -113,5 +158,33 @@ describe('RangeSlider', () => {
         for (const input of w.findAll('input')) {
             expect((input.element as HTMLInputElement).disabled).toBe(true);
         }
+    });
+
+    it('takes both new bounds when the pair moves past the handles, then drags from there', async () => {
+        const w = mountRange(19.5, 24.5);
+
+        await w.setProps({ low: 25, high: 28 });
+        expect((handle(w, 'Lowest').element as HTMLInputElement).value).toBe('25');
+        expect((handle(w, 'Highest').element as HTMLInputElement).value).toBe('28');
+
+        const high = handle(w, 'Highest');
+        await dragTo(high, 29);
+        await high.trigger('change');
+        expect(w.emitted('commit')).toEqual([[{ low: 25, high: 29 }]]);
+    });
+
+    it('follows the server for the handle that is not held, and re-clamps the held one', async () => {
+        const w = mountRange(19, 24);
+        const low = handle(w, 'Lowest');
+
+        await low.trigger('pointerdown');
+        await dragTo(low, 21);
+        await w.setProps({ low: 19, high: 22.5 });
+        expect((handle(w, 'Highest').element as HTMLInputElement).value).toBe('22.5');
+        expect((low.element as HTMLInputElement).value).toBe('20.5');
+
+        await low.trigger('pointerup');
+        await low.trigger('change');
+        expect(w.emitted('commit')).toEqual([[{ low: 20.5, high: 22.5 }]]);
     });
 });

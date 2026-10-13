@@ -97,6 +97,9 @@ async function setTo(input: Omit<DOMWrapper<Element>, 'exists'>, value: number) 
     await input.trigger('change');
 }
 
+const accessibleText = (el: { element: Element }) =>
+    (el.element.textContent ?? '').replace(/\s+/g, ' ').trim();
+
 const modeButton = (w: VueWrapper, label: string) =>
     w.findAll('.climate-io__mode').find((b) => b.text() === label)!;
 
@@ -201,11 +204,11 @@ describe('ClimateIo — capabilities present and absent', () => {
 
         const fanOnly = mountClimate(wireDevice({ swing_modes: undefined }));
         expect(fanOnly.findAll('select')).toHaveLength(1);
-        expect(fanOnly.get('select').attributes('aria-label')).toBe(t('climate.fanOf'));
+        expect(accessibleText(fanOnly.get('label'))).toBe(`${t('climate.fan')} ${NAME}`);
 
         const swingOnly = mountClimate(wireDevice({ fan_modes: [] }));
         expect(swingOnly.findAll('select')).toHaveLength(1);
-        expect(swingOnly.get('select').attributes('aria-label')).toBe(t('climate.swingOf'));
+        expect(accessibleText(swingOnly.get('label'))).toBe(`${t('climate.swing')} ${NAME}`);
     });
 
     it('shows the action badge only when the device reports an action', () => {
@@ -332,8 +335,15 @@ describe('ClimateIo — gating by mode', () => {
         expect(w.findAll('input[type="range"]')).toHaveLength(1);
     });
 
-    it('offers no setpoint in heat on a range-only device', () => {
-        const w = mountClimate(wireDevice({}, { mode: 'heat', target_temp: undefined }, { mode: 'm' }));
+    it.each(['heat', 'cool', 'dry', 'auto'])('offers the range, not a slider, in %s on a range-only device', (mode) => {
+        const w = mountClimate(wireDevice({}, { mode, target_temp: undefined }, { mode: 'm' }));
+
+        expect(w.findAll('input[type="range"]')).toHaveLength(2);
+        expect(w.get('.climate-io__setpoint').classes()).not.toContain('climate-io__setpoint--off');
+    });
+
+    it('hides the range of a range-only device in fan_only', () => {
+        const w = mountClimate(wireDevice({}, { mode: 'fan_only', target_temp: undefined }, { mode: 'm' }));
 
         expect(w.find('.climate-io__setpoint').exists()).toBe(false);
     });
@@ -593,8 +603,8 @@ describe('ClimateIo — range commands', () => {
     it('exposes the unit in the handles value text', () => {
         const w = mountClimate(wireDevice({}, { mode: 'auto' }));
 
-        expect(slider(w, lowLabel).attributes('aria-valuetext')).toBe('19 °C');
-        expect(slider(w, highLabel).attributes('aria-valuetext')).toBe('24 °C');
+        expect(slider(w, lowLabel).attributes('aria-valuetext')).toBe('19.0 °C');
+        expect(slider(w, highLabel).attributes('aria-valuetext')).toBe('24.0 °C');
     });
 });
 
@@ -631,13 +641,14 @@ describe('ClimateIo — fan and swing commands', () => {
         ]);
     });
 
-    it('labels both selects, visibly and for assistive tech', () => {
+    it('names both selects through their label, which carries the device name', () => {
         const w = mountClimate();
 
         for (const select of w.findAll('select')) {
             const label = w.get(`label[for="${select.attributes('id')}"]`);
-            expect(label.text()).not.toBe('');
-            expect(select.attributes('aria-label')).toContain(label.text());
+            expect(label.text()).toContain(NAME);
+            // An aria-label would override the label and let the two drift apart.
+            expect(select.attributes('aria-label')).toBeUndefined();
         }
     });
 });
@@ -657,5 +668,135 @@ describe('ClimateIo — accessibility', () => {
         const w = mountClimate();
 
         expect(slider(w, t('climate.target')).attributes('aria-valuetext')).toBe('21.0 °C');
+    });
+});
+
+describe('ClimateIo — range by pointer', () => {
+    it('sends the dragged pair when a handle is released, and keeps showing it', async () => {
+        const w = mountClimate(wireDevice({}, { mode: 'auto' }));
+        const high = slider(w, t('climate.targetHigh'));
+
+        await high.trigger('pointerdown');
+        await dragTo(high, 25);
+        await dragTo(high, 26);
+        await high.trigger('pointerup');
+        await high.trigger('change');
+        expect(w.get('.climate-io__target').text()).toBe('19.0 – 26.0 °C');
+        expect((high.element as HTMLInputElement).value).toBe('26');
+
+        await vi.advanceTimersByTimeAsync(400);
+        expect(values()).toEqual(['{"target_temp_low":19,"target_temp_high":26}']);
+    });
+
+    it('keeps a half-known range visible but not editable, and never invents the missing bound', async () => {
+        const w = mountClimate({
+            ...wireDevice({}, { mode: 'auto' }),
+            state: { ...without(FULL_STATE, 'target_temp_high'), mode: 'auto' },
+        });
+
+        expect(w.get('.climate-io__target').text()).toBe('19.0 – — °C');
+        for (const handle of w.findAll('input[type="range"]')) {
+            expect((handle.element as HTMLInputElement).disabled).toBe(true);
+        }
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(sent).toEqual([]);
+    });
+});
+
+describe('ClimateIo — drafts', () => {
+    it('keeps the chosen value when only the current temperature changed', async () => {
+        const w = mountClimate();
+
+        await setTo(slider(w, t('climate.target')), 25);
+        await vi.advanceTimersByTimeAsync(400);
+
+        changed(wireDevice({}, { current_temp: 23.9 }));
+        await w.vm.$nextTick();
+        expect(w.get('.climate-io__target').text()).toBe('25.0 °C');
+
+        changed(wireDevice({}, { current_temp: 23.9, target_temp: 25 }));
+        await w.vm.$nextTick();
+        expect(w.get('.climate-io__target').text()).toBe('25.0 °C');
+        await vi.advanceTimersByTimeAsync(6000);
+    });
+
+    it('lets a newer choice on the same field survive the answer to the older one', async () => {
+        const w = mountClimate();
+
+        await setTo(slider(w, t('climate.target')), 25);
+        await vi.advanceTimersByTimeAsync(400);
+        await setTo(slider(w, t('climate.target')), 27);
+
+        changed(wireDevice({}, { target_temp: 25 }));
+        await w.vm.$nextTick();
+        expect(w.get('.climate-io__target').text()).toBe('27.0 °C');
+    });
+
+    it('ends the draft of a field when the server reports another value for it', async () => {
+        const w = mountClimate(wireDevice({}, { mode: 'auto' }));
+
+        await setTo(slider(w, t('climate.targetLow')), 20);
+        await vi.advanceTimersByTimeAsync(400);
+        changed(wireDevice({}, { mode: 'auto', target_temp_low: 20.5 }));
+        await w.vm.$nextTick();
+
+        expect(w.get('.climate-io__target').text()).toBe('20.5 – 24.0 °C');
+    });
+});
+
+describe('ClimateIo — taking a mode request back', () => {
+    it('ignores the displayed mode when nothing is pending', async () => {
+        const w = mountClimate();
+        await modeButton(w, 'Heat').trigger('click');
+        expect(sent).toEqual([]);
+    });
+
+    it('sends the displayed mode again while another mode is still pending', async () => {
+        const w = mountClimate();
+
+        await modeButton(w, 'Cool').trigger('click');
+        await modeButton(w, 'Heat').trigger('click');
+
+        expect(values()).toEqual(['cool', 'heat']);
+    });
+
+    it('goes back to ignoring it once the answer arrived', async () => {
+        const w = mountClimate();
+
+        await modeButton(w, 'Cool').trigger('click');
+        changed(wireDevice({}, { mode: 'cool' }));
+        await w.vm.$nextTick();
+        await modeButton(w, 'Cool').trigger('click');
+
+        expect(values()).toEqual(['cool']);
+    });
+});
+
+describe('ClimateIo — the server moving the range under the handles', () => {
+    it('does not send a stale handle when both bounds moved past the old handles', async () => {
+        const w = mountClimate(wireDevice({}, { mode: 'auto', target_temp_low: 19.5, target_temp_high: 24.5 }));
+
+        changed(wireDevice({}, { mode: 'auto', target_temp_low: 25, target_temp_high: 28 }));
+        await w.vm.$nextTick();
+        expect(w.get('.climate-io__target').text()).toBe('25.0 – 28.0 °C');
+        expect((slider(w, t('climate.targetLow')).element as HTMLInputElement).value).toBe('25');
+        expect((slider(w, t('climate.targetHigh')).element as HTMLInputElement).value).toBe('28');
+
+        await setTo(slider(w, t('climate.targetHigh')), 29);
+        await vi.advanceTimersByTimeAsync(400);
+
+        expect(values()).toEqual(['{"target_temp_low":25,"target_temp_high":29}']);
+    });
+
+    it('keeps the gap against the new partner when the held handle is the one left behind', async () => {
+        const w = mountClimate(wireDevice({}, { mode: 'auto', target_temp_low: 19.5, target_temp_high: 24.5 }));
+
+        changed(wireDevice({}, { mode: 'auto', target_temp_low: 25, target_temp_high: 28 }));
+        await w.vm.$nextTick();
+        await setTo(slider(w, t('climate.targetHigh')), 20);
+        await vi.advanceTimersByTimeAsync(400);
+
+        const pair = JSON.parse(values()[0]) as { target_temp_low: number; target_temp_high: number };
+        expect(pair).toEqual({ target_temp_low: 25, target_temp_high: 27 });
     });
 });

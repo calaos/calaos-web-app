@@ -407,7 +407,9 @@ describe('set_state on a climate device', () => {
         client.send({ msg: 'set_state', data: { id: 'thermo_sdb', value: 'cool' } });
         client.send({ msg: 'set_state', data: { id: 'thermo_sdb', value: '{nope' } });
         client.send({ msg: 'set_state', data: { id: 'thermo_sdb', value: 'off' } });
-        const data = (await client.waitFor(ioChangedFor('thermo_sdb'))).data.data;
+        const data = (
+            await client.waitFor((f) => ioChangedFor('thermo_sdb')(f) && f.data.data.state === 'off')
+        ).data.data;
         expect(data.state).toBe('off');
     });
 
@@ -422,11 +424,15 @@ describe('set_state on a climate device', () => {
 });
 
 describe('set_state on a climate device — edge cases', () => {
-    it('answers success:false when no field is valid, and does not broadcast', async () => {
+    it('answers success:false when no field is valid, and republishes the unchanged device', async () => {
         const { client } = await login();
         client.send({ msg: 'set_state', msg_id: 'm1', data: { id: 'thermo_sdb', value: 'cool' } });
+        // The republished device precedes the reply; waitFor consumes in order.
+        const event = (await client.waitFor(ioChangedFor('thermo_sdb'))).data.data;
         const reply = await client.waitFor((f) => f.msg === 'set_state' && f.msg_id === 'm1');
         expect(reply.data.success).toBe('false');
+        expect(event.state).toBe('heat');
+        expect(event.device.state).toMatchObject({ mode: 'heat', target_temp: 21.5 });
         client.send({ msg: 'set_state', msg_id: 'm2', data: { id: 'thermo_sdb', value: 'off' } });
         const ok = await client.waitFor((f) => f.msg === 'set_state' && f.msg_id === 'm2');
         expect(ok.data.success).toBe('true');

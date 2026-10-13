@@ -11,7 +11,7 @@
 // snap back for the round trip. Setpoint, fan and swing changes are debounced
 // into one merged command; see useDebouncedMerge.
 
-import { computed, ref, useId, watch } from 'vue';
+import { computed, onScopeDispose, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import IconThermostat from '~icons/mdi/thermostat';
 import ActionButton from './ActionButton.vue';
@@ -27,6 +27,9 @@ import type { DeviceTargetTemp, IoItem } from '../../protocol/types';
 
 /** Quiet period before a burst of setpoint/fan/swing changes becomes one command. */
 const DEBOUNCE_MS = 350;
+
+/** Matches the store's pending timeout: after this a silent server is a refusing one. */
+const DRAFT_TIMEOUT_MS = 5000;
 
 /** Fields the JSON partial update can carry from this widget. */
 interface ClimatePatch {
@@ -67,8 +70,60 @@ const draft = ref<Partial<ClimatePatch>>({});
 const previewSingle = ref<number | null>(null);
 const previewRange = ref<Range | null>(null);
 
+/** The server's value for a patch field, as the device reports it right now. */
+function serverValue(field: keyof ClimatePatch): number | string | undefined {
+    const s = state.value;
+    switch (field) {
+        case 'target_temp':
+            return s?.targetTemp;
+        case 'target_temp_low':
+            return s?.targetTempLow;
+        case 'target_temp_high':
+            return s?.targetTempHigh;
+        case 'fan_mode':
+            return s?.fanMode;
+        case 'swing_mode':
+            return s?.swingMode;
+    }
+}
+
+interface InFlight {
+    /** What the server reported when the command left, per field. */
+    base: Partial<Record<keyof ClimatePatch, number | string | undefined>>;
+    sent: Partial<ClimatePatch>;
+}
+
+let inFlight: InFlight[] = [];
+const draftTimers = new Set<ReturnType<typeof setTimeout>>();
+
+function dropDraft(sent: Partial<ClimatePatch>, fields?: Iterable<keyof ClimatePatch>) {
+    const next = { ...draft.value };
+    for (const field of fields ?? (Object.keys(sent) as (keyof ClimatePatch)[])) {
+        // A newer choice on the same field is not this command's to retire.
+        if (next[field] === sent[field]) delete next[field];
+    }
+    draft.value = next;
+}
+
 const commands = useDebouncedMerge<ClimatePatch>((merged) => {
-    if (!set(JSON.stringify(merged))) draft.value = {};
+    const fields = Object.keys(merged) as (keyof ClimatePatch)[];
+    if (!set(JSON.stringify(merged))) {
+        dropDraft(merged);
+        return;
+    }
+    const entry: InFlight = {
+        base: Object.fromEntries(fields.map((f) => [f, serverValue(f)])),
+        sent: merged,
+    };
+    inFlight.push(entry);
+    // Rejected or ignored commands never change the server's value: the draft
+    // must not outlive the store's own pending timeout.
+    const timer = setTimeout(() => {
+        draftTimers.delete(timer);
+        inFlight = inFlight.filter((e) => e !== entry);
+        dropDraft(merged);
+    }, DRAFT_TIMEOUT_MS);
+    draftTimers.add(timer);
 }, DEBOUNCE_MS);
 
 function queue(patch: Partial<ClimatePatch>) {
@@ -76,19 +131,43 @@ function queue(patch: Partial<ClimatePatch>) {
     commands.push(patch);
 }
 
-// The answer (or the 5 s timeout) ends the pending state: from then on the
-// server's numbers are the truth again. A change queued meanwhile keeps its draft.
-watch(isPending, (now, before) => {
-    if (before && !now && !commands.isQueued()) draft.value = {};
+// The device arrives whole on every io_changed, including ones that only move
+// current_temp: a draft ends when the server reports a different value for
+// its own field, not when anything arrives.
+watch(
+    () => props.io.device,
+    () => {
+        for (const entry of inFlight) {
+            const answered = (Object.keys(entry.sent) as (keyof ClimatePatch)[]).filter(
+                (f) => serverValue(f) !== entry.base[f],
+            );
+            if (answered.length === 0) continue;
+            dropDraft(entry.sent, answered);
+            for (const f of answered) delete entry.base[f];
+        }
+        inFlight = inFlight.filter((e) => Object.keys(e.base).length > 0);
+    },
+);
+
+onScopeDispose(() => {
+    for (const timer of draftTimers) clearTimeout(timer);
 });
 
 // ----------------------------------------------------------------- modes ---
 
+// The mode this widget asked for and has not seen answered. While it is out,
+// the displayed mode is a legitimate target again: clicking it takes the
+// request back.
+const modeInFlight = ref<string | null>(null);
+watch(isPending, (now) => {
+    if (!now) modeInFlight.value = null;
+});
+
 function selectMode(next: string) {
-    if (next === mode.value) return;
+    if (next === mode.value && modeInFlight.value === null) return;
     // The mode must not overtake a setpoint the user chose just before it.
     commands.flush();
-    set(next);
+    if (set(next)) modeInFlight.value = next;
 }
 
 const modeUnselected = computed(() => !modes.value.includes(mode.value));
@@ -121,6 +200,8 @@ function fmt(value: number | undefined): string {
 }
 
 const singleText = computed(() => `${fmt(singleValue.value)} ${unit.value}`);
+// The server refuses a partial range, so a half-known one is shown, not editable.
+const rangeKnown = computed(() => rangeLow.value !== undefined && rangeHigh.value !== undefined);
 const rangeText = computed(() => `${fmt(rangeLow.value)} – ${fmt(rangeHigh.value)} ${unit.value}`);
 
 function nudge(direction: 1 | -1) {
@@ -164,6 +245,13 @@ function onSelect(field: 'fan_mode' | 'swing_mode', event: Event) {
             />
         </template>
         <template #value>
+            <span
+                v-if="device && action !== undefined"
+                class="climate-io__chip"
+                :class="{ 'climate-io__chip--active': actionActive }"
+            >
+                {{ label('action', action) }}
+            </span>
             <span v-if="device" class="climate-io__current">
                 <span class="visually-hidden">
                     {{ state?.currentTemp === undefined ? t('climate.currentUnknown') : t('climate.current') }}
@@ -193,17 +281,8 @@ function onSelect(field: 'fan_mode' | 'swing_mode', event: Event) {
                             {{ label('mode', m) }}
                         </button>
                     </div>
-                    <span class="climate-io__status">
-                        <span v-if="modeUnselected" class="climate-io__chip climate-io__chip--unknown">
-                            {{ mode === '' ? t('climate.mode.unknown') : label('mode', mode) }}
-                        </span>
-                        <span
-                            v-if="action !== undefined"
-                            class="climate-io__chip"
-                            :class="{ 'climate-io__chip--active': actionActive }"
-                        >
-                            {{ label('action', action) }}
-                        </span>
+                    <span v-if="modeUnselected" class="climate-io__chip climate-io__chip--unknown">
+                        {{ mode === '' ? t('climate.mode.unknown') : label('mode', mode) }}
                     </span>
                 </div>
 
@@ -228,6 +307,7 @@ function onSelect(field: 'fan_mode' | 'swing_mode', event: Event) {
                         />
                     </div>
                     <BaseSlider
+                        class="climate-io__slider"
                         :model-value="singleValue ?? bounds.min"
                         :min="bounds.min"
                         :max="bounds.max"
@@ -243,7 +323,7 @@ function onSelect(field: 'fan_mode' | 'swing_mode', event: Event) {
                 <div
                     v-else-if="bounds && gating?.setpoint === 'range'"
                     class="climate-io__setpoint"
-                    :class="{ 'climate-io__setpoint--off': gating.off }"
+                    :class="{ 'climate-io__setpoint--off': gating.off || !rangeKnown }"
                 >
                     <div class="climate-io__dial">
                         <output class="climate-io__target">{{ rangeText }}</output>
@@ -254,7 +334,7 @@ function onSelect(field: 'fan_mode' | 'swing_mode', event: Event) {
                         :bounds="bounds"
                         :label-low="t('climate.targetLow', { name: io.name })"
                         :label-high="t('climate.targetHigh', { name: io.name })"
-                        :disabled="gating.off"
+                        :disabled="gating.off || !rangeKnown"
                         @live="previewRange = $event"
                         @commit="commitRange"
                     />
@@ -262,11 +342,12 @@ function onSelect(field: 'fan_mode' | 'swing_mode', event: Event) {
 
                 <div v-if="caps?.fanModes?.length || caps?.swingModes?.length" class="climate-io__selects">
                     <div v-if="caps?.fanModes?.length" class="climate-io__field">
-                        <label :for="fanId">{{ t('climate.fan') }}</label>
+                        <label :for="fanId">
+                            {{ t('climate.fan') }}<span class="visually-hidden">{{ ' ' + io.name }}</span>
+                        </label>
                         <select
                             :id="fanId"
                             class="climate-io__select"
-                            :aria-label="t('climate.fanOf', { name: io.name })"
                             :value="fanValue"
                             :disabled="gating?.off"
                             @change="onSelect('fan_mode', $event)"
@@ -278,11 +359,12 @@ function onSelect(field: 'fan_mode' | 'swing_mode', event: Event) {
                         </select>
                     </div>
                     <div v-if="caps?.swingModes?.length" class="climate-io__field">
-                        <label :for="swingId">{{ t('climate.swing') }}</label>
+                        <label :for="swingId">
+                            {{ t('climate.swing') }}<span class="visually-hidden">{{ ' ' + io.name }}</span>
+                        </label>
                         <select
                             :id="swingId"
                             class="climate-io__select"
-                            :aria-label="t('climate.swingOf', { name: io.name })"
                             :value="swingValue"
                             :disabled="gating?.off"
                             @change="onSelect('swing_mode', $event)"
@@ -312,7 +394,14 @@ function onSelect(field: 'fan_mode' | 'swing_mode', event: Event) {
 }
 
 .climate-io__current {
+    margin-inline-start: var(--space-2);
     color: var(--c-text);
+}
+
+/* Same rail as RangeSlider, so the width does not jump between heat and auto. */
+.climate-io__setpoint .climate-io__slider {
+    inline-size: calc(100% - 1rem);
+    margin-inline: 0.5rem;
 }
 
 .climate-io__panel {
@@ -361,14 +450,10 @@ function onSelect(field: 'fan_mode' | 'swing_mode', event: Event) {
     box-shadow: 0 0 8px var(--c-accent-glow);
 }
 
-.climate-io__status {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-}
-
 .climate-io__chip {
+    display: inline-block;
     padding: 0.125rem var(--space-2);
+    line-height: 1.4;
     font-size: 0.8125rem;
     color: var(--c-text-muted);
     border: 1px solid var(--c-border);
@@ -423,14 +508,21 @@ function onSelect(field: 'fan_mode' | 'swing_mode', event: Event) {
 
 .climate-io__field {
     display: flex;
-    flex: 1 1 8rem;
-    flex-direction: column;
-    gap: var(--space-1);
+    flex: 1 1 11rem;
+    align-items: center;
+    gap: var(--space-2);
     font-size: 0.8125rem;
     color: var(--c-text-muted);
 }
 
+.climate-io__field label {
+    /* Both selects start at the same x when the fields stack on a phone. */
+    min-inline-size: 4.5rem;
+}
+
 .climate-io__select {
+    flex: 1;
+    min-inline-size: 0;
     min-block-size: 2.75rem;
     padding-inline: var(--space-2);
     font-size: 0.9375rem;
