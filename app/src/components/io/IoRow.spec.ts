@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import AnalogInIo from './AnalogInIo.vue';
 import AnalogOutIo from './AnalogOutIo.vue';
+import ClimateIo from './ClimateIo.vue';
 import IoRow, { IO_COMPONENTS, NOT_IMPLEMENTED_GUI_TYPES } from './IoRow.vue';
 import LightDimmerIo from './LightDimmerIo.vue';
 import LightIo from './LightIo.vue';
@@ -25,7 +26,7 @@ import type { WireIo } from '../../protocol/types';
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } });
 
-/** The full dispatch surface: the 14 wire types plus the fallback. */
+/** The full dispatch surface: the wire types plus the fallback. */
 const ALL_KEYS = [...GUI_TYPES, 'unknown'] as const;
 
 /** The types that have a component of their own today. */
@@ -45,6 +46,7 @@ const IMPLEMENTED = {
     analog_out: AnalogOutIo,
     var_int: VarIntIo,
     light_dimmer: LightDimmerIo,
+    climate: ClimateIo,
 } as const;
 
 /** The only types that put a control in the row at all. */
@@ -89,8 +91,8 @@ afterEach(() => {
 });
 
 describe('IoRow — the dispatch table', () => {
-    it('has an entry for all 14 gui_types and for the unknown fallback', () => {
-        expect(ALL_KEYS).toHaveLength(15);
+    it('has an entry for every gui_type and for the unknown fallback', () => {
+        expect(ALL_KEYS).toHaveLength(16);
         expect(Object.keys(IO_COMPONENTS).sort()).toEqual([...ALL_KEYS].sort());
         for (const key of ALL_KEYS) {
             expect(IO_COMPONENTS[key]).toBeDefined();

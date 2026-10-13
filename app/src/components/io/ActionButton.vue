@@ -88,7 +88,12 @@ defineProps<{
     transition: filter 160ms ease;
 }
 
-.action-button:hover .action-button__face {
+.action-button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.action-button:hover:not(:disabled) .action-button__face {
     filter: brightness(1.25);
 }
 

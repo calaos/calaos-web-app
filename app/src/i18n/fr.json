@@ -79,6 +79,49 @@
             "disconnected": "Déconnecté"
         }
     },
+    "climate": {
+        "mode": {
+            "off": "Arrêt",
+            "heat": "Chauffage",
+            "cool": "Froid",
+            "auto": "Auto",
+            "dry": "Déshumidif.",
+            "fan_only": "Ventilation",
+            "unknown": "Mode inconnu"
+        },
+        "action": {
+            "off": "Arrêté",
+            "idle": "En veille",
+            "heating": "Chauffe",
+            "cooling": "Refroidit",
+            "drying": "Déshumidifie",
+            "fan": "Ventilation en cours"
+        },
+        "option": {
+            "auto": "Auto",
+            "low": "Bas",
+            "medium": "Moyen",
+            "high": "Haut",
+            "quiet": "Silencieux",
+            "on": "Activé",
+            "off": "Désactivé",
+            "vertical": "Vertical",
+            "horizontal": "Horizontal",
+            "both": "Les deux"
+        },
+        "modes": "Mode de {name}",
+        "current": "Température actuelle",
+        "currentUnknown": "Température actuelle inconnue",
+        "target": "Consigne de {name}",
+        "targetLow": "Température basse de {name}",
+        "targetHigh": "Température haute de {name}",
+        "raise": "Augmenter la consigne de {name}",
+        "lower": "Baisser la consigne de {name}",
+        "fan": "Ventilation",
+        "swing": "Oscillation",
+        "fanOf": "Vitesse de ventilation de {name}",
+        "swingOf": "Oscillation de {name}"
+    },
     "dialog": {
         "cancel": "Annuler",
         "color": {

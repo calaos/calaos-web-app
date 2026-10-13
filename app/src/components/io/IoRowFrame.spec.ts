@@ -58,4 +58,16 @@ describe('IoRowFrame', () => {
         await wrapper.setProps({ pending: false });
         expect(wrapper.find('.io-row__pending').exists()).toBe(false);
     });
+
+    it('puts the panel slot on a line of its own, and nothing when it is absent', () => {
+        const bare = mount(IoRowFrame, { props: { name: 'Plafonnier' }, global: { plugins: [i18n] } });
+        expect(bare.find('.io-row__panel').exists()).toBe(false);
+
+        const wrapper = mount(IoRowFrame, {
+            props: { name: 'Clim' },
+            global: { plugins: [i18n] },
+            slots: { panel: '<button class="inside">go</button>' },
+        });
+        expect(wrapper.find('.io-row__panel button.inside').exists()).toBe(true);
+    });
 });

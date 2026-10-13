@@ -79,6 +79,49 @@
             "disconnected": "Disconnected"
         }
     },
+    "climate": {
+        "mode": {
+            "off": "Off",
+            "heat": "Heat",
+            "cool": "Cool",
+            "auto": "Auto",
+            "dry": "Dry",
+            "fan_only": "Fan",
+            "unknown": "Mode unknown"
+        },
+        "action": {
+            "off": "Off",
+            "idle": "Idle",
+            "heating": "Heating",
+            "cooling": "Cooling",
+            "drying": "Drying",
+            "fan": "Fan running"
+        },
+        "option": {
+            "auto": "Auto",
+            "low": "Low",
+            "medium": "Medium",
+            "high": "High",
+            "quiet": "Quiet",
+            "on": "On",
+            "off": "Off",
+            "vertical": "Vertical",
+            "horizontal": "Horizontal",
+            "both": "Both"
+        },
+        "modes": "Mode of {name}",
+        "current": "Current temperature",
+        "currentUnknown": "Current temperature unknown",
+        "target": "Target temperature of {name}",
+        "targetLow": "Lowest temperature of {name}",
+        "targetHigh": "Highest temperature of {name}",
+        "raise": "Raise the target of {name}",
+        "lower": "Lower the target of {name}",
+        "fan": "Fan",
+        "swing": "Swing",
+        "fanOf": "Fan speed of {name}",
+        "swingOf": "Swing of {name}"
+    },
     "dialog": {
         "cancel": "Cancel",
         "color": {

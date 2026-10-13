@@ -36,6 +36,12 @@ const props = withDefaults(
 const emit = defineEmits<{
     /** The final value, sent once per interaction — pointer release or keyboard change. */
     commit: [value: number];
+    /**
+     * The thumb's position on every drag tick, then `null` once the
+     * interaction ends — for a readout that follows the thumb before anything
+     * is sent.
+     */
+    live: [value: number | null];
 }>();
 
 // The thumb's own position: starts at, and resyncs to, `modelValue`, except
@@ -72,11 +78,13 @@ function onPointerDown() {
 
 function onInput(event: Event) {
     live.value = Number((event.target as HTMLInputElement).value);
+    emit('live', live.value);
 }
 
 function onPointerUp() {
     if (!interacting) return;
     interacting = false;
+    emit('live', null);
     // Nothing moved: no frame to send, and no `change` will follow.
     if (live.value === sessionStart) return;
     suppressNextChange = true;
@@ -90,6 +98,7 @@ function onChange() {
     }
     // No pointer session was open: a keyboard-driven commit.
     interacting = false;
+    emit('live', null);
     emit('commit', live.value);
 }
 </script>

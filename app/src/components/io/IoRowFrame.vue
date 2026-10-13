@@ -69,6 +69,10 @@ withDefaults(
         <SensorStatusBadge :status="status" />
 
         <span v-if="$slots.actions" class="io-row__actions"><slot name="actions" /></span>
+
+        <!-- A line of its own under the header, for rows whose controls do not
+             fit beside the name (a climate device). -->
+        <div v-if="$slots.panel" class="io-row__panel"><slot name="panel" /></div>
     </div>
 </template>
 
@@ -169,6 +173,13 @@ withDefaults(
     max-inline-size: min(16rem, 45%);
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.io-row__panel {
+    flex: 1 1 100%;
+    min-inline-size: 0;
+    padding-block-start: var(--space-3);
+    border-block-start: 1px solid var(--c-border);
 }
 
 .io-row__actions {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GUI_TYPES } from './types';
 
 describe('GUI_TYPES', () => {
-    it('lists exactly the 14 gui_types dispatched by the old app (room.html ng-switch)', () => {
+    it('lists the 14 gui_types dispatched by the old app (room.html ng-switch), then the device families', () => {
         expect(GUI_TYPES).toEqual([
             'temp',
             'analog_in',
@@ -18,6 +18,7 @@ describe('GUI_TYPES', () => {
             'var_string',
             'string_out',
             'scenario',
+            'climate',
         ]);
     });
 

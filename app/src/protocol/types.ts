@@ -61,7 +61,7 @@ export interface WireHome {
 // ---------------------------------------------------------------------------
 
 // The 14 gui_types dispatched by the old app (src/views/room.html ng-switch),
-// in the same order. Anything else falls back to guiType 'unknown'.
+// in the same order, then the device families. Anything else falls back to guiType 'unknown'.
 export const GUI_TYPES = [
     'temp',
     'analog_in',
@@ -77,6 +77,9 @@ export const GUI_TYPES = [
     'var_string',
     'string_out',
     'scenario',
+    // A device family (spec §5.3), not one of the old app's types: its
+    // `device` object carries everything the widget draws.
+    'climate',
 ] as const;
 
 export type GuiType = (typeof GUI_TYPES)[number];
@@ -107,6 +110,8 @@ export interface DeviceTargetTemp {
     max: number;
     step: number;
     unit: string;
+    /** Minimum gap between low and high; only sent with `target_temp_range`. */
+    minRange?: number;
 }
 
 /** Every field is optional: absent means the wire did not carry it. */
@@ -191,6 +196,7 @@ export interface VarIntIo extends IoBase { guiType: 'var_int' }
 export interface VarStringIo extends IoBase { guiType: 'var_string' }
 export interface StringOutIo extends IoBase { guiType: 'string_out' }
 export interface ScenarioIo extends IoBase { guiType: 'scenario' }
+export interface ClimateIo extends IoBase { guiType: 'climate' }
 export interface UnknownIo extends IoBase {
     guiType: 'unknown';
     // The gui_type string actually received ('' if absent), kept for display
@@ -213,6 +219,7 @@ export type IoItem =
     | VarStringIo
     | StringOutIo
     | ScenarioIo
+    | ClimateIo
     | UnknownIo;
 
 export interface Room {
