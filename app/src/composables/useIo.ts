@@ -15,8 +15,11 @@ export interface UseIo {
     io: ComputedRef<IoItem | undefined>;
     /** A set_state is in flight for this IO (cleared by io_changed or 5 s). */
     isPending: ComputedRef<boolean>;
-    /** Sends a raw wire action value; false when the socket is not open. */
-    set: (value: string) => boolean;
+    /**
+     * Sends a raw wire action value; false when the socket is not open.
+     * `onResult` is called with the server's verdict when it answers.
+     */
+    set: (value: string, onResult?: (success: boolean) => void) => boolean;
 }
 
 export function useIo(id: MaybeRefOrGetter<string>): UseIo {
@@ -27,6 +30,6 @@ export function useIo(id: MaybeRefOrGetter<string>): UseIo {
     return {
         io: computed(() => home.ios.get(ioId.value)),
         isPending: computed(() => home.pending.has(ioId.value)),
-        set: (value: string) => home.sendSetState(ioId.value, value),
+        set: (value, onResult) => home.sendSetState(ioId.value, value, onResult),
     };
 }

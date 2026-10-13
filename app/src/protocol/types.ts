@@ -357,6 +357,16 @@ export interface AudioQueryMessage {
     timeElapsed: number | null;
 }
 
+/**
+ * The answer to a `set_state` that carried a `msg_id` (the server only answers
+ * those). `success` is false when it refused every field of the command.
+ */
+export interface SetStateResultMessage {
+    kind: 'set_state';
+    msgId: string;
+    success: boolean;
+}
+
 export interface IoChangedMessage {
     kind: 'io_changed';
     id: string;
@@ -389,6 +399,7 @@ export type ServerMessage =
     | GetHomeMessage
     | GetStateMessage
     | AudioQueryMessage
+    | SetStateResultMessage
     | IoChangedMessage
     | UnknownEventMessage
     | UnknownMessage;

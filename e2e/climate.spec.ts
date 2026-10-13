@@ -237,6 +237,39 @@ test('dragging a range handle with the pointer sends the dragged pair and keeps 
     await expect(low).toHaveValue(String(pair.target_temp_low));
 });
 
+test('a command the server refuses reverts at once, not after the 5 s timeout', async ({ page, mock }) => {
+    // The UI never builds a pair tighter than min_range, so the page's socket
+    // is made to send one: the mock then refuses it whole, like the server.
+    const refused = '{"target_temp_low":25,"target_temp_high":26}';
+    await page.routeWebSocket(/\/api/, (ws) => {
+        const server = ws.connectToServer();
+        ws.onMessage((message) => {
+            const text = typeof message === 'string' ? message : message.toString();
+            const frame = JSON.parse(text) as { msg?: string; data?: { id?: string } };
+            if (frame.msg === 'set_state' && frame.data?.id === 'clim_split') {
+                server.send(JSON.stringify({ ...frame, data: { ...frame.data, value: refused } }));
+            } else {
+                server.send(message);
+            }
+        });
+        server.onMessage((message) => ws.send(message));
+    });
+    await openLounge(page);
+    const row = device(page, 'Split véranda');
+    const target = row.locator('.climate-io__target');
+    await expect(target).toHaveText('20.0 – 25.0 °C');
+
+    const low = row.getByRole('slider', { name: copy(MESSAGES.climate.targetLow, 'Split véranda'), exact: true });
+    await low.focus();
+    await low.press('ArrowRight');
+    await expect(target).toHaveText('20.5 – 25.0 °C');
+
+    await expect.poll(() => commands(mock, 'clim_split')).toEqual([refused]);
+    // Well under the 5 s draft timeout: the verdict, not the clock, ends it.
+    await expect(target).toHaveText('20.0 – 25.0 °C', { timeout: 2000 });
+    await expect(low).toHaveValue('20');
+});
+
 test('keeps every control inside the viewport', async ({ page }) => {
     await openLounge(page);
     const viewport = page.viewportSize()!;

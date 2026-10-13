@@ -106,6 +106,12 @@ const modeButton = (w: VueWrapper, label: string) =>
 const slider = (w: VueWrapper, label: string) =>
     w.get(`input[type="range"][aria-label="${label}"]`);
 
+/** Answers the last set_state the way the server does for a command it refused. */
+const refuseLast = (success = false) => {
+    const { msg_id: msgId } = JSON.parse(sent.at(-1)!);
+    useHomeStore().applySetStateResult({ kind: 'set_state', msgId, success });
+};
+
 const changed = (device: Wire) =>
     useHomeStore().handleEvent({
         kind: 'io_changed',
@@ -798,5 +804,91 @@ describe('ClimateIo — the server moving the range under the handles', () => {
 
         const pair = JSON.parse(values()[0]) as { target_temp_low: number; target_temp_high: number };
         expect(pair).toEqual({ target_temp_low: 25, target_temp_high: 27 });
+    });
+});
+
+describe('ClimateIo — a refused command', () => {
+    it('puts the server value back as soon as the refusal arrives, not 5 s later', async () => {
+        const w = mountClimate();
+
+        await setTo(slider(w, t('climate.target')), 25);
+        await vi.advanceTimersByTimeAsync(400);
+        expect(w.get('.climate-io__target').text()).toBe('25.0 °C');
+
+        // The server republishes the device unchanged, then says no.
+        changed(wireDevice());
+        await w.vm.$nextTick();
+        refuseLast();
+        await w.vm.$nextTick();
+
+        expect(w.get('.climate-io__target').text()).toBe('21.0 °C');
+    });
+
+    it('does the same when the verdict comes before the republished device', async () => {
+        const w = mountClimate();
+
+        await setTo(slider(w, t('climate.target')), 25);
+        await vi.advanceTimersByTimeAsync(400);
+        refuseLast();
+        await w.vm.$nextTick();
+        expect(w.get('.climate-io__target').text()).toBe('21.0 °C');
+
+        changed(wireDevice());
+        await w.vm.$nextTick();
+        expect(w.get('.climate-io__target').text()).toBe('21.0 °C');
+    });
+
+    it('keeps the value after an accepted verdict, until the device reports it', async () => {
+        const w = mountClimate();
+
+        await setTo(slider(w, t('climate.target')), 25);
+        await vi.advanceTimersByTimeAsync(400);
+        refuseLast(true);
+        await w.vm.$nextTick();
+
+        expect(w.get('.climate-io__target').text()).toBe('25.0 °C');
+    });
+
+    it('only retires the refused fields, not a newer choice made meanwhile', async () => {
+        const w = mountClimate();
+
+        await setTo(slider(w, t('climate.target')), 25);
+        await vi.advanceTimersByTimeAsync(400);
+        await setTo(slider(w, t('climate.target')), 27);
+        refuseLast();
+        await w.vm.$nextTick();
+
+        expect(w.get('.climate-io__target').text()).toBe('27.0 °C');
+    });
+});
+
+describe('ClimateIo — the server moving while a handle is held', () => {
+    it('sends the other client\'s value for the handle that was not held', async () => {
+        const w = mountClimate(wireDevice({}, { mode: 'auto', target_temp_low: 19, target_temp_high: 24 }));
+        const high = slider(w, t('climate.targetHigh'));
+
+        await high.trigger('pointerdown');
+        await dragTo(high, 29);
+        // A second client sets 17–21 while the pointer is still down.
+        changed(wireDevice({}, { mode: 'auto', target_temp_low: 17, target_temp_high: 21 }));
+        await w.vm.$nextTick();
+        expect((slider(w, t('climate.targetLow')).element as HTMLInputElement).value).toBe('17');
+
+        await high.trigger('pointerup');
+        await high.trigger('change');
+        await vi.advanceTimersByTimeAsync(400);
+
+        expect(values()).toEqual(['{"target_temp_low":17,"target_temp_high":29}']);
+    });
+
+    it('shows the live drag in the readout without feeding it back to the slider', async () => {
+        const w = mountClimate(wireDevice({}, { mode: 'auto' }));
+        const high = slider(w, t('climate.targetHigh'));
+
+        await high.trigger('pointerdown');
+        await dragTo(high, 27);
+
+        expect(w.get('.climate-io__target').text()).toBe('19.0 – 27.0 °C');
+        expect(w.findComponent({ name: 'RangeSlider' }).props('high')).toBe(24);
     });
 });

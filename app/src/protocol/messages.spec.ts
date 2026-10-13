@@ -41,6 +41,21 @@ describe('encoders — exact wire JSON (all values are strings)', () => {
         expect(encodeSetState('io_9', value)).toBe(frame);
     });
 
+    it('adds a msg_id only when asked, so the server answers it', () => {
+        expect(encodeSetState('io_9', 'true', 'set-1')).toBe(
+            '{"msg":"set_state","msg_id":"set-1","data":{"id":"io_9","value":"true"}}',
+        );
+    });
+
+    it('decodes the verdict of a set_state', () => {
+        const frame = (success: unknown) => ({ msg: 'set_state', msg_id: 'set-1', data: { success } });
+        expect(decodeServerMessage(frame('true'))).toEqual({ kind: 'set_state', msgId: 'set-1', success: true });
+        expect(decodeServerMessage(frame('false'))).toEqual({ kind: 'set_state', msgId: 'set-1', success: false });
+        // Only the string 'true' counts, as for login.
+        expect(decodeServerMessage(frame(true))).toMatchObject({ success: false });
+        expect(decodeServerMessage({ msg: 'set_state' })).toEqual({ kind: 'set_state', msgId: '', success: false });
+    });
+
     it('dimmer slider commit uses the "set " prefix', () => {
         expect(encodeSetState('io_2', setPercent(50))).toBe(
             '{"msg":"set_state","data":{"id":"io_2","value":"set 50"}}',

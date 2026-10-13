@@ -109,6 +109,10 @@ export function createCalaosService(
                 audio.applyAudioQuery(msg);
                 break;
 
+            case 'set_state':
+                home.applySetStateResult(msg);
+                break;
+
             case 'io_changed':
             case 'unknown_event':
                 home.handleEvent(msg);

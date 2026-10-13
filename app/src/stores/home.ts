@@ -23,6 +23,7 @@ import type {
     CameraItem,
     HomeData,
     IoChangedMessage,
+    SetStateResultMessage,
     IoItem,
     UnknownEventMessage,
 } from '../protocol/types';
@@ -118,6 +119,8 @@ export const useHomeStore = defineStore('home', () => {
 
     // Not state: timer handles, and the socket sender injected by the service.
     const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    const resultWaiters = new Map<string, (success: boolean) => void>();
+    let nextMsgId = 0;
     let send: FrameSender = (frame) => {
         console.warn('calaos home: no transport attached, dropping frame:', frame);
         return false;
@@ -171,6 +174,7 @@ export const useHomeStore = defineStore('home', () => {
         const sorted = [...home.rooms].sort((a, b) => b.hits - a.hits);
 
         clearPendingAll();
+        resultWaiters.clear();
         ios.value.clear();
 
         rooms.value = sorted.map((room, index) => {
@@ -265,8 +269,18 @@ export const useHomeStore = defineStore('home', () => {
      * not open) — nothing is marked pending in that case, since no answer is
      * coming.
      */
-    function sendSetState(id: string, value: string): boolean {
-        if (!send(encodeSetState(id, value))) return false;
+    function sendSetState(
+        id: string,
+        value: string,
+        onResult?: (success: boolean) => void,
+    ): boolean {
+        // A msg_id is only worth sending when someone listens for the verdict.
+        const msgId = onResult === undefined ? undefined : `set-${++nextMsgId}`;
+        if (!send(encodeSetState(id, value, msgId))) return false;
+        if (msgId !== undefined && onResult !== undefined) {
+            resultWaiters.set(msgId, onResult);
+            setTimeout(() => resultWaiters.delete(msgId), PENDING_TIMEOUT_MS);
+        }
 
         clearPending(id);
         pending.value.set(id, { value, sentAt: Date.now() });
@@ -280,6 +294,14 @@ export const useHomeStore = defineStore('home', () => {
             }, PENDING_TIMEOUT_MS),
         );
         return true;
+    }
+
+    /** The server's verdict on a set_state that asked for one. */
+    function applySetStateResult(msg: SetStateResultMessage): void {
+        const waiter = resultWaiters.get(msg.msgId);
+        if (waiter === undefined) return;
+        resultWaiters.delete(msg.msgId);
+        waiter(msg.success);
     }
 
     // -----------------------------------------------------------------------
@@ -314,6 +336,7 @@ export const useHomeStore = defineStore('home', () => {
         setHome,
         handleEvent,
         sendSetState,
+        applySetStateResult,
         clearPending,
         clear,
     };
