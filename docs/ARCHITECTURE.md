@@ -97,9 +97,19 @@ Wire messages (all values are STRINGS on the wire):
 | `var_int` | `state` + `unit` | `inc` / `dec` |
 | `var_string` / `string_out` | display = `state === '' ? name : state` | text dialog → raw text, **no prefix** |
 | `scenario` | name only | `true` (play) |
+| `climate` | everything from `device` (see below); `state` is only the mode, shown when there is no usable `device` | plain mode; JSON partial update |
 | unknown | icon from `io_style`, name + state | — |
 
 Cross-cutting: `visible === false` → not rendered, uniformly, for every type (a documented intentional fix — the old templates checked it inconsistently).
+
+### The `climate` row (`ClimateIo.vue`)
+
+One component for the whole device family, driven by `device.capabilities` (which controls exist) and `device.state` (what they show); nothing branches on `impl`. A device without a usable `device` object renders as a name and its scalar mode, with no controls.
+
+- **Gating** (`protocol/climate.ts`, `climateGating`): `off` greys setpoint, fan and swing; `fan_only` hides the setpoint; the two-handle range replaces the slider only in `auto` on a device with `target_temp_range`. A device that exposes only low/high (no `ios.target_temp`, none received) has no setpoint outside `auto`. An unknown mode (`""` or absent) is shown as such, presses no button and is *not* `off`.
+- **Range**: the server refuses a low/high pair tighter than `min_range` whole, so `RangeSlider` clamps the dragged handle against the other one and never produces such a pair.
+- **Commands**: mode buttons send the plain mode. Setpoint, range, fan and swing changes are queued and sent as one JSON partial update after 350 ms of quiet (`useDebouncedMerge`), so a drag, a held arrow key or a run of +/- taps is one command. A mode click flushes the queue first.
+- **Not optimistic, with one exception**: a value the user just chose (the draft) stays on screen until the answer or the 5 s pending timeout, then the server's `device` replaces it.
 
 ### The `rw` flag
 
