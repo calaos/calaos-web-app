@@ -1181,7 +1181,7 @@ describe('ClimateIo — the same value sent twice', () => {
     });
 
     it('keeps the draft when the first command times out while the third is still out', async () => {
-        const w = await plusMinusPlus();
+        await plusMinusPlus();
 
         // Sent at 400 ms, 800 ms and 1200 ms: at 5.5 s the first one's 5 s are
         // up, the third one's are not.

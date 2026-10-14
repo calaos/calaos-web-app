@@ -163,13 +163,26 @@ export function useClimate(io: MaybeRefOrGetter<IoItem>): UseClimate {
         draft.value = next;
     }
 
+    /**
+     * Ends a command's claim on its draft — except for a field a newer command
+     * still waits on: that command may have sent the very same value, and its
+     * draft is what the screen should keep showing until it is answered.
+     */
+    function releaseDraft(entry: InFlight, fields: Iterable<Field>) {
+        const newer = inFlight.slice(inFlight.indexOf(entry) + 1);
+        dropDraft(
+            entry.sent,
+            [...fields].filter((f) => !newer.some((e) => e.pending.has(f))),
+        );
+    }
+
     function retire(entry: InFlight) {
         if (entry.timer !== undefined) {
             clearTimeout(entry.timer);
             draftTimers.delete(entry.timer);
         }
+        releaseDraft(entry, Object.keys(entry.sent) as Field[]);
         inFlight = inFlight.filter((e) => e !== entry);
-        dropDraft(entry.sent);
     }
 
     const commands = useDebouncedMerge<ClimatePatch>((merged) => {
@@ -228,10 +241,9 @@ export function useClimate(io: MaybeRefOrGetter<IoItem>): UseClimate {
                 known[f] = value;
                 const waiting = inFlight.filter((e) => e.pending.has(f));
                 const answered = waiting.findIndex((e) => e.sent[f] === value);
-                for (const entry of answered === -1 ? waiting : waiting.slice(0, answered + 1)) {
-                    entry.pending.delete(f);
-                    dropDraft(entry.sent, [f]);
-                }
+                const done = answered === -1 ? waiting : waiting.slice(0, answered + 1);
+                for (const entry of done) entry.pending.delete(f);
+                for (const entry of done) releaseDraft(entry, [f]);
             }
             for (const entry of inFlight.filter((e) => e.pending.size === 0)) retire(entry);
         },
