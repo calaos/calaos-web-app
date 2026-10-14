@@ -147,9 +147,9 @@ const swingLabel = (value: string) => (te(`climate.swingOption.${value}`) ? t(`c
 
         <template #value>
             <template v-if="device">
-                <span class="climate-io__set">{{ text.setpoint.value }}</span>
+                <span v-if="text.setpoint.value !== ''" class="climate-io__set">{{ text.setpoint.value }}</span>
                 <template v-if="text.room.value !== ''">
-                    <span class="climate-io__dot" aria-hidden="true">·</span>
+                    <span v-if="text.setpoint.value !== ''" class="climate-io__dot" aria-hidden="true">·</span>
                     <span>{{ text.room.value }}</span>
                 </template>
             </template>

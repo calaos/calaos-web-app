@@ -12,7 +12,7 @@ export interface ClimateText {
     status: ComputedRef<string>;
     /** The same for a row, where room is tight ("Waiting"). */
     statusShort: ComputedRef<string>;
-    /** `22°`, `21 – 23°`, or `--` when the setpoint was never received. */
+    /** `22°`, `21 – 23°`, `--` when never received, empty where there is no setpoint to show. */
     setpoint: ComputedRef<string>;
     /** `Room 25.4°`, empty when the temperature was never received. */
     room: ComputedRef<string>;
@@ -60,7 +60,9 @@ export function useClimateText(ctl: UseClimate): ClimateText {
         status: computed(() => (ctl.status.value ? say(ctl.status.value, false) : '')),
         statusShort: computed(() => (ctl.status.value ? say(ctl.status.value, true) : '')),
         setpoint: computed(() => {
-            if (ctl.gating.value?.setpoint !== 'range') return degrees(ctl.single.value);
+            const kind = ctl.gating.value?.setpoint;
+            if (kind === 'none') return '';
+            if (kind !== 'range') return degrees(ctl.single.value);
             const { low, high } = ctl;
             if (low.value === undefined || high.value === undefined) return '--';
             return `${formatTemp(low.value, step.value, locale.value)} – ${degrees(high.value)}`;
