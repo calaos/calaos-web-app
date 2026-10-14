@@ -43,7 +43,10 @@ export function layout({ size, stroke, knob }: DialSize): DialLayout {
 
 /** Angle in degrees of a temperature on the arc, bounded to the arc's ends. */
 export function angleOf(temp: number, bounds: Pick<DeviceTargetTemp, 'min' | 'max'>): number {
-    return START + SPAN * clamp01((temp - bounds.min) / (bounds.max - bounds.min));
+    const width = bounds.max - bounds.min;
+    // A device announcing min == max has one possible value: the arc's start.
+    if (width <= 0) return START;
+    return START + SPAN * clamp01((temp - bounds.min) / width);
 }
 
 export function arcPath(cx: number, cy: number, r: number, from: number, to: number): string {
