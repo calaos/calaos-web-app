@@ -961,6 +961,54 @@ describe('ClimateIo — setpoint commands', () => {
     });
 });
 
+describe('ClimateIo — two commands in flight', () => {
+    it('keeps the second setpoint on screen when only the first one was answered', async () => {
+        const w = mountClimate();
+        await openSettings(w);
+        await raise().trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        await raise().trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        expect(values()).toEqual(['{"target_temp":21.5}', '{"target_temp":22}']);
+
+        changed(wireDevice({}, { target_temp: 21.5 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['22°']);
+
+        changed(wireDevice({}, { target_temp: 22 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['22°']);
+
+        // Both answered: the draft is gone, another client's value shows.
+        changed(wireDevice({}, { target_temp: 25 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['25°']);
+    });
+
+    it('does the same for a range end', async () => {
+        const w = mountClimate(wireDevice({}, { mode: 'auto' }));
+        await openSettings(w);
+        await button(t('climate.raiseLow')).trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        await button(t('climate.raiseLow')).trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        expect(values()).toEqual([
+            '{"target_temp_low":19.5,"target_temp_high":24}',
+            '{"target_temp_low":20,"target_temp_high":24}',
+        ]);
+
+        changed(wireDevice({}, { mode: 'auto', target_temp_low: 19.5 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['20°', '24°']);
+
+        changed(wireDevice({}, { mode: 'auto', target_temp_low: 20 }));
+        await w.vm.$nextTick();
+        changed(wireDevice({}, { mode: 'auto', target_temp_low: 18 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['18°', '24°']);
+    });
+});
+
 describe('ClimateIo — a refused command', () => {
     it('puts the server value back as soon as the refusal arrives, not 5 s later', async () => {
         const w = mountClimate();
