@@ -1,19 +1,24 @@
-// The climate widget against the mock's climate fixtures, from the tap to the
-// wire and back.
+// The climate widget against the mock's climate fixtures, from the tap on a
+// row to the command on the wire and back.
 //
-// Each device in mock-server/fixtures/home.json is a different capability
-// combination, so the widget's "only what the device has" rule is exercised
-// end to end rather than by one lucky fixture:
-//   clim_salon     everything (six modes, range with min_range, fan, swing, action)
-//   thermo_sdb     heat-only thermostat: two modes, one setpoint, no fan
-//   thermo_bureau  thermostat with a range
-//   clim_split     range-only proxy with a fan, no action
-//   clim_fancoil   single setpoint, swing only, no action
-//   clim_garage    mode only, mode unknown at start
+// Each device in mock-server/fixtures/home.json is one status of the table in
+// docs/devices/UI_CLIMATE.md:
+//   clim_salon      cools (full capabilities: six modes, fan, swing, humidity)
+//   thermo_sdb      heats (heat-only thermostat, one setpoint)
+//   clim_sejour     auto, 19.5 – 24.5, heating
+//   clim_bureau     auto at the min_range stop
+//   thermo_couloir  wants to heat, the relay waits (lockout)
+//   thermo_bureau   off
+//   clim_garage     mode never received, no setpoint capability
+//   clim_veranda    offline (connected: false)
+//   thermo_cave     held by a safety rule (fault)
+//   clim_fancoil    dry, no action reported
 
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { MESSAGES, expect, loginAs, test } from './fixtures';
 import type { MockControl } from './fixtures';
-import type { Locator, Page } from '@playwright/test';
+import type { Locator, Page, TestInfo } from '@playwright/test';
 
 /** Room ids are indices into the hits-desc room list (see home-rooms.spec). */
 const LOUNGE = 2;
@@ -21,22 +26,43 @@ const LOUNGE = 2;
 /** Quiet period of the widget's debounce; polls below simply outwait it. */
 const DEBOUNCE_MS = 350;
 
-const SALON = 'Climatisation salon';
+const C = MESSAGES.climate;
+
+const DEVICES = {
+    cool: { id: 'clim_salon', name: 'Climatisation salon' },
+    heat: { id: 'thermo_sdb', name: 'Thermostat salle de bain' },
+    auto: { id: 'clim_sejour', name: 'PAC séjour' },
+    stop: { id: 'clim_bureau', name: 'Clim bureau' },
+    lockout: { id: 'thermo_couloir', name: 'Radiateur couloir' },
+    off: { id: 'thermo_bureau', name: 'Thermostat bureau' },
+    unknown: { id: 'clim_garage', name: 'Pompe à chaleur garage' },
+    offline: { id: 'clim_veranda', name: 'Clim véranda' },
+    fault: { id: 'thermo_cave', name: 'Chauffage cave' },
+    dry: { id: 'clim_fancoil', name: 'Ventilo-convecteur' },
+} as const;
+
+const RGB = {
+    heat: 'rgb(255, 218, 90)',
+    cool: 'rgb(56, 176, 211)',
+    wait: 'rgb(224, 163, 86)',
+    offline: 'rgb(224, 86, 86)',
+};
 
 function copy(template: string, name: string): string {
     return template.replace('{name}', name);
 }
 
-function device(page: Page, name: string): Locator {
+function row(page: Page, name: string): Locator {
     return page.locator('.io-row').filter({ has: page.locator('.io-row__name', { hasText: name }) });
 }
 
-function mode(row: Locator, label: string): Locator {
-    return row.locator('.climate-io__mode', { hasText: new RegExp(`^${label}$`) });
+/** The settings, wherever they are drawn: a side panel or a dialog. */
+function settings(page: Page): Locator {
+    return page.locator('.climate-detail');
 }
 
-function targetSlider(row: Locator, name: string): Locator {
-    return row.getByRole('slider', { name: copy(MESSAGES.climate.target, name), exact: true });
+function modePill(page: Page): Locator {
+    return settings(page).locator('.climate-detail__pill');
 }
 
 async function openLounge(page: Page): Promise<void> {
@@ -44,6 +70,11 @@ async function openLounge(page: Page): Promise<void> {
     await loginAs(page);
     await page.locator('.room-tile').nth(LOUNGE).click();
     await expect(page).toHaveURL(new RegExp(`#/home/${LOUNGE}$`));
+}
+
+async function openSettings(page: Page, name: string): Promise<void> {
+    await row(page, name).click();
+    await expect(settings(page)).toBeVisible();
 }
 
 /** The `value` of every set_state frame the mock saw for one device. */
@@ -57,226 +88,293 @@ test.beforeEach(async ({ mock }) => {
     await mock.reset();
 });
 
-test('changing the mode sends the plain mode and the buttons follow the answer', async ({ page, mock }) => {
-    await openLounge(page);
-    const row = device(page, SALON);
-    await expect(mode(row, MESSAGES.climate.mode.cool)).toHaveAttribute('aria-pressed', 'true');
+test.describe('opening the settings', () => {
+    test.skip(({ isMobile }) => isMobile, 'the side panel is a wide-screen layout');
 
-    await mock.latency(1000);
-    await mode(row, MESSAGES.climate.mode.heat).click();
+    test('a tap on the row opens a side panel beside the list, and the cross closes it', async ({ page }) => {
+        await openLounge(page);
+        await openSettings(page, DEVICES.cool.name);
 
-    await expect.poll(() => commands(mock, 'clim_salon')).toEqual(['heat']);
-    // Not optimistic: the old mode stays pressed while the answer is out.
-    await expect(row).toHaveAttribute('aria-busy', 'true');
-    await expect(mode(row, MESSAGES.climate.mode.cool)).toHaveAttribute('aria-pressed', 'true');
+        const panel = page.locator('.climate-panel');
+        await expect(panel).toBeVisible();
+        await expect(panel.getByRole('heading', { name: DEVICES.cool.name })).toBeVisible();
+        await expect(page.getByRole('dialog')).toHaveCount(0);
 
-    await expect(mode(row, MESSAGES.climate.mode.heat)).toHaveAttribute('aria-pressed', 'true');
-    await expect(row).not.toHaveAttribute('aria-busy', 'true');
-    // Current 23.4 above the 21 target: heating has nothing to do.
-    await expect(row.locator('.climate-io__chip')).toHaveText(MESSAGES.climate.action.idle);
-});
+        // The list made room: no row runs under the panel.
+        const list = (await row(page, DEVICES.cool.name).boundingBox())!;
+        const side = (await panel.boundingBox())!;
+        expect(list.x + list.width).toBeLessThanOrEqual(side.x);
 
-test('moving the setpoint by keyboard sends one JSON command and shows the update', async ({ page, mock }) => {
-    await openLounge(page);
-    const row = device(page, 'Thermostat salle de bain');
-    const slider = targetSlider(row, 'Thermostat salle de bain');
-    await expect(row.locator('.climate-io__target')).toHaveText('21.5 °C');
-
-    // Three quick steps are one gesture to the server.
-    await slider.focus();
-    await slider.press('ArrowRight');
-    await slider.press('ArrowRight');
-    await slider.press('ArrowRight');
-    await expect(row.locator('.climate-io__target')).toHaveText('23.0 °C');
-
-    await expect.poll(() => commands(mock, 'thermo_sdb'), { timeout: DEBOUNCE_MS * 10 }).toEqual([
-        '{"target_temp":23}',
-    ]);
-    // The answer replaced the device: the update is the server's, and 23 °C
-    // above the 19.5 °C reading means the thermostat is heating.
-    await expect(row).not.toHaveAttribute('aria-busy', 'true');
-    await expect(row.locator('.climate-io__target')).toHaveText('23.0 °C');
-    await expect(row.locator('.climate-io__chip')).toHaveText(MESSAGES.climate.action.heating);
-});
-
-test('dragging the slider with the pointer sends a single command', async ({ page, mock }) => {
-    await openLounge(page);
-    const row = device(page, SALON);
-    const slider = targetSlider(row, SALON);
-    // The room is long: bring the slider clear of the fixed footer first.
-    await slider.evaluate((el) => el.scrollIntoView({ block: 'center' }));
-    const box = (await slider.boundingBox())!;
-
-    await page.mouse.move(box.x + box.width * 0.4, box.y + box.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 8 });
-    await page.mouse.move(box.x + box.width * 0.9, box.y + box.height / 2, { steps: 8 });
-    await page.mouse.up();
-
-    await expect.poll(() => commands(mock, 'clim_salon')).toHaveLength(1);
-    const [only] = await commands(mock, 'clim_salon');
-    expect(JSON.parse(only)).toEqual({ target_temp: expect.any(Number) });
-    await page.waitForTimeout(DEBOUNCE_MS * 2);
-    expect(await commands(mock, 'clim_salon')).toHaveLength(1);
-});
-
-test('off greys the setpoint, fan and swing; auto swaps the slider for a range that keeps its gap', async ({
-    page,
-    mock,
-}) => {
-    await openLounge(page);
-    const row = device(page, SALON);
-
-    await mode(row, MESSAGES.climate.mode.off).click();
-    await expect(mode(row, MESSAGES.climate.mode.off)).toHaveAttribute('aria-pressed', 'true');
-    await expect(targetSlider(row, SALON)).toBeDisabled();
-    await expect(row.getByRole('combobox')).toHaveCount(2);
-    for (const select of await row.getByRole('combobox').all()) await expect(select).toBeDisabled();
-
-    await mode(row, MESSAGES.climate.mode.auto).click();
-    await expect(mode(row, MESSAGES.climate.mode.auto)).toHaveAttribute('aria-pressed', 'true');
-    await expect(row.getByRole('slider')).toHaveCount(2);
-    await expect(row.locator('.climate-io__target')).toHaveText('19.0 – 24.0 °C');
-
-    // End asks for 30; the gap to the 24 °C high handle stops it at 22.
-    const low = row.getByRole('slider', { name: copy(MESSAGES.climate.targetLow, SALON), exact: true });
-    await low.focus();
-    await low.press('End');
-    await expect(low).toHaveValue('22');
-
-    await expect.poll(() => commands(mock, 'clim_salon')).toEqual([
-        'off',
-        'auto',
-        '{"target_temp_low":22,"target_temp_high":24}',
-    ]);
-    await expect(row.locator('.climate-io__target')).toHaveText('22.0 – 24.0 °C');
-});
-
-test('fan_only hides the setpoint and the fan select still works', async ({ page, mock }) => {
-    await openLounge(page);
-    const row = device(page, SALON);
-
-    await mode(row, MESSAGES.climate.mode.fan_only).click();
-    await expect(row.locator('.climate-io__setpoint')).toHaveCount(0);
-
-    await row.getByRole('combobox', { name: new RegExp(`^${MESSAGES.climate.fan} ${SALON}$`) }).selectOption('high');
-    await expect.poll(() => commands(mock, 'clim_salon')).toEqual(['fan_only', '{"fan_mode":"high"}']);
-    await expect(row.getByRole('combobox', { name: new RegExp(`^${MESSAGES.climate.fan} ${SALON}$`) })).toHaveValue('high');
-});
-
-test('a heat-only thermostat offers two modes and no fan or swing', async ({ page }) => {
-    await openLounge(page);
-    const row = device(page, 'Thermostat salle de bain');
-
-    await expect(row.locator('.climate-io__mode')).toHaveText([
-        MESSAGES.climate.mode.off,
-        MESSAGES.climate.mode.heat,
-    ]);
-    await expect(row.getByRole('combobox')).toHaveCount(0);
-    await expect(row.locator('.climate-io__current')).toContainText('19.5 °C');
-});
-
-test('a device that knows nothing yet shows an unknown mode, no readings, and still works', async ({
-    page,
-    mock,
-}) => {
-    await openLounge(page);
-    const row = device(page, 'Pompe à chaleur garage');
-
-    await expect(row.locator('.climate-io__chip--unknown')).toHaveText(MESSAGES.climate.mode.unknown);
-    await expect(row.locator('.climate-io__current')).toContainText('—');
-    await expect(row.locator('.climate-io__setpoint')).toHaveCount(0);
-    await expect(row.locator('.climate-io__mode[aria-pressed="true"]')).toHaveCount(0);
-
-    await mode(row, MESSAGES.climate.mode.heat).click();
-    await expect.poll(() => commands(mock, 'clim_garage')).toEqual(['heat']);
-    await expect(mode(row, MESSAGES.climate.mode.heat)).toHaveAttribute('aria-pressed', 'true');
-    await expect(row.locator('.climate-io__chip--unknown')).toHaveCount(0);
-});
-
-test('a range-only device keeps its range in every mode but fan_only', async ({ page }) => {
-    await openLounge(page);
-    const row = device(page, 'Split véranda');
-
-    await expect(row.getByRole('slider')).toHaveCount(2);
-    await mode(row, MESSAGES.climate.mode.heat).click();
-    await expect(mode(row, MESSAGES.climate.mode.heat)).toHaveAttribute('aria-pressed', 'true');
-    await expect(row.getByRole('slider')).toHaveCount(2);
-    await expect(row.getByRole('slider').first()).toBeEnabled();
-    await expect(row.getByRole('combobox')).toHaveCount(1);
-});
-
-test('dragging a range handle with the pointer sends the dragged pair and keeps it', async ({ page, mock }) => {
-    await openLounge(page);
-    const row = device(page, 'Split véranda');
-    const low = row.getByRole('slider', { name: new RegExp(`^${copy(MESSAGES.climate.targetLow, 'Split véranda')}$`) });
-    await expect(row.locator('.climate-io__target')).toHaveText('20.0 – 25.0 °C');
-    await low.evaluate((el) => el.scrollIntoView({ block: 'center' }));
-
-    // The thumb centre sits half a 2rem hit area (16px) in from the box edge.
-    const box = (await low.boundingBox())!;
-    const x = (value: number) => box.x + 16 + ((value - 16) / (30 - 16)) * (box.width - 32);
-    const y = box.y + box.height / 2;
-    await page.mouse.move(x(20), y);
-    await page.mouse.down();
-    await page.mouse.move(x(20.5), y, { steps: 4 });
-    await page.mouse.move(x(21.5), y, { steps: 4 });
-    await page.mouse.up();
-
-    await expect.poll(() => commands(mock, 'clim_split')).toHaveLength(1);
-    const [only] = await commands(mock, 'clim_split');
-    const pair = JSON.parse(only) as { target_temp_low: number; target_temp_high: number };
-    expect(pair.target_temp_low).toBeGreaterThan(20);
-    expect(pair.target_temp_high).toBe(25);
-
-    // It must not snap back to the old pair, before or after the answer.
-    const shown = `${pair.target_temp_low.toFixed(1)} – 25.0 °C`;
-    await expect(row.locator('.climate-io__target')).toHaveText(shown);
-    await expect(row).not.toHaveAttribute('aria-busy', 'true');
-    await expect(row.locator('.climate-io__target')).toHaveText(shown);
-    await expect(low).toHaveValue(String(pair.target_temp_low));
-});
-
-test('a command the server refuses reverts at once, not after the 5 s timeout', async ({ page, mock }) => {
-    // The UI never builds a pair tighter than min_range, so the page's socket
-    // is made to send one: the mock then refuses it whole, like the server.
-    const refused = '{"target_temp_low":25,"target_temp_high":26}';
-    await page.routeWebSocket(/\/api/, (ws) => {
-        const server = ws.connectToServer();
-        ws.onMessage((message) => {
-            const text = typeof message === 'string' ? message : message.toString();
-            const frame = JSON.parse(text) as { msg?: string; data?: { id?: string } };
-            if (frame.msg === 'set_state' && frame.data?.id === 'clim_split') {
-                server.send(JSON.stringify({ ...frame, data: { ...frame.data, value: refused } }));
-            } else {
-                server.send(message);
-            }
-        });
-        server.onMessage((message) => ws.send(message));
+        await panel.getByRole('button', { name: C.close }).click();
+        await expect(panel).toHaveCount(0);
+        await expect(row(page, DEVICES.cool.name)).toBeFocused();
     });
-    await openLounge(page);
-    const row = device(page, 'Split véranda');
-    const target = row.locator('.climate-io__target');
-    await expect(target).toHaveText('20.0 – 25.0 °C');
 
-    const low = row.getByRole('slider', { name: copy(MESSAGES.climate.targetLow, 'Split véranda'), exact: true });
-    await low.focus();
-    await low.press('ArrowRight');
-    await expect(target).toHaveText('20.5 – 25.0 °C');
+    test('Escape closes the panel', async ({ page }) => {
+        await openLounge(page);
+        await openSettings(page, DEVICES.cool.name);
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.climate-panel')).toHaveCount(0);
+    });
 
-    await expect.poll(() => commands(mock, 'clim_split')).toEqual([refused]);
-    // Well under the 5 s draft timeout: the verdict, not the clock, ends it.
-    await expect(target).toHaveText('20.0 – 25.0 °C', { timeout: 2000 });
-    await expect(low).toHaveValue('20');
+    test('the row opens from the keyboard', async ({ page }) => {
+        await openLounge(page);
+        await row(page, DEVICES.cool.name).focus();
+        await page.keyboard.press('Enter');
+        await expect(settings(page)).toBeVisible();
+    });
 });
 
-test('keeps every control inside the viewport', async ({ page }) => {
+test.describe('changing the setpoint and the mode', () => {
+    test('+ sends one JSON command and the panel shows the answer', async ({ page, mock }) => {
+        await openLounge(page);
+        await openSettings(page, DEVICES.cool.name);
+        const number = settings(page).locator('.climate-detail__num');
+        await expect(number).toHaveText('21°');
+
+        const raise = settings(page).getByRole('button', { name: copy(C.raise, DEVICES.cool.name) });
+        await raise.click();
+        await raise.click();
+        await expect(number).toHaveText('22°');
+
+        // Two taps are one gesture to the server.
+        await expect.poll(() => commands(mock, DEVICES.cool.id), { timeout: DEBOUNCE_MS * 10 }).toEqual([
+            '{"target_temp":22}',
+        ]);
+        await expect(number).toHaveText('22°');
+        // The row behind says it too.
+        await expect(row(page, DEVICES.cool.name).locator('.climate-io__set')).toHaveText('22°');
+    });
+
+    test('the mode pill opens the list; choosing a mode sends it plain and closes the list', async ({ page, mock }) => {
+        await openLounge(page);
+        await openSettings(page, DEVICES.cool.name);
+        await expect(modePill(page)).toHaveText(C.mode.cool);
+
+        await modePill(page).click();
+        const list = page.getByRole('dialog', { name: C.modeTitle });
+        await expect(list.getByRole('radio', { name: C.mode.cool })).toHaveAttribute('aria-checked', 'true');
+        await list.getByRole('radio', { name: C.mode.heat }).click();
+
+        await expect(list).toHaveCount(0);
+        await expect.poll(() => commands(mock, DEVICES.cool.id)).toEqual(['heat']);
+        await expect(modePill(page)).toHaveText(C.mode.heat);
+        // 23.4 above the 21 target: heating has nothing to do.
+        await expect(settings(page).locator('.climate-detail__word')).toHaveText(C.status.idle);
+    });
+
+    test('more settings: fan and swing apply on tap, humidity is shown', async ({ page, mock }) => {
+        await openLounge(page);
+        await openSettings(page, DEVICES.cool.name);
+
+        await settings(page).getByRole('button', { name: C.more }).click();
+        const more = page.getByRole('dialog', { name: C.more });
+        await expect(more.getByText(copy(C.humidity, '').replace('{value}', '48'))).toBeVisible();
+
+        await more.getByRole('radio', { name: C.option.high }).click();
+        await more.getByRole('radio', { name: C.swingOption.vertical }).click();
+        // One merged command for both.
+        await expect.poll(() => commands(mock, DEVICES.cool.id), { timeout: DEBOUNCE_MS * 10 }).toEqual([
+            '{"fan_mode":"high","swing_mode":"vertical"}',
+        ]);
+        await expect(more.getByRole('radio', { name: C.option.high })).toHaveAttribute('aria-checked', 'true');
+    });
+
+    test('auto: the two ends move on their own and keep min_range between them', async ({ page, mock }) => {
+        await openLounge(page);
+        await openSettings(page, DEVICES.auto.name);
+        const numbers = settings(page).locator('.climate-detail__num');
+        await expect(numbers).toHaveText(['19.5°', '24.5°']);
+
+        await settings(page).getByRole('button', { name: copy(C.raiseLow, DEVICES.auto.name) }).click();
+        await expect.poll(() => commands(mock, DEVICES.auto.id), { timeout: DEBOUNCE_MS * 10 }).toEqual([
+            '{"target_temp_low":20,"target_temp_high":24.5}',
+        ]);
+        await expect(numbers).toHaveText(['20°', '24.5°']);
+    });
+
+    test('at the min_range stop the inner buttons are refused and the gap is said', async ({ page, mock }) => {
+        await openLounge(page);
+        await openSettings(page, DEVICES.stop.name);
+        const name = DEVICES.stop.name;
+
+        await expect(settings(page).getByText(copy(C.rangeStop, name).replace('{gap}', '2°'))).toBeVisible();
+        await expect(settings(page).getByRole('button', { name: copy(C.raiseLow, name) })).toBeDisabled();
+        await expect(settings(page).getByRole('button', { name: copy(C.lowerHigh, name) })).toBeDisabled();
+        await expect(settings(page).getByRole('button', { name: copy(C.lowerLow, name) })).toBeEnabled();
+        await expect(settings(page).getByRole('button', { name: copy(C.raiseHigh, name) })).toBeEnabled();
+
+        // Pulling the low end away frees the inner buttons again.
+        await settings(page).getByRole('button', { name: copy(C.lowerLow, name) }).click();
+        await expect(settings(page).getByRole('button', { name: copy(C.raiseLow, name) })).toBeEnabled();
+        await expect.poll(() => commands(mock, DEVICES.stop.id), { timeout: DEBOUNCE_MS * 10 }).toEqual([
+            '{"target_temp_low":20.5,"target_temp_high":23}',
+        ]);
+    });
+});
+
+test.describe('every status of the table', () => {
+    const cases = [
+        { key: 'cool', short: C.status.cooling, colour: RGB.cool },
+        { key: 'heat', short: C.status.heating, colour: RGB.heat },
+        { key: 'auto', short: C.status.heating, colour: RGB.heat },
+        { key: 'stop', short: C.statusShort.idle, colour: undefined },
+        { key: 'lockout', short: C.statusShort.lockout, colour: RGB.wait },
+        { key: 'off', short: C.status.off, colour: undefined },
+        { key: 'unknown', short: C.statusShort.unknown, colour: undefined },
+        { key: 'offline', short: C.status.offline, colour: RGB.offline },
+        { key: 'fault', short: C.fault.sensor_stale, colour: RGB.offline },
+    ] as const;
+
+    for (const { key, short, colour } of cases) {
+        test(`${key}: the row and the settings say so`, async ({ page }) => {
+            await openLounge(page);
+            const device = DEVICES[key];
+            const status = row(page, device.name).locator('.climate-io__status');
+            await expect(status).toHaveText(short);
+            if (colour) await expect(status).toHaveCSS('color', colour);
+
+            await openSettings(page, device.name);
+            const word = settings(page).locator('.climate-detail__word');
+            if (key === 'lockout') await expect(word).toHaveText(/^Starts in 2 min \d\d$/);
+            else if (key === 'stop' || key === 'off' || key === 'unknown') await expect(word).toHaveText(key === 'stop' ? C.status.idle : C.status[key === 'off' ? 'off' : 'unknown']);
+            else await expect(word).toHaveText(short);
+            if (colour) await expect(word).toHaveCSS('color', colour);
+        });
+    }
+
+    test('offline: nothing can be changed', async ({ page }) => {
+        await openLounge(page);
+        await openSettings(page, DEVICES.offline.name);
+        await expect(settings(page).getByRole('button', { name: copy(C.raise, DEVICES.offline.name) })).toBeDisabled();
+        await expect(settings(page).getByRole('button', { name: copy(C.lower, DEVICES.offline.name) })).toBeDisabled();
+        await expect(modePill(page)).toBeDisabled();
+    });
+
+    test('unknown mode: a grey pill that still opens the list, and nothing selected', async ({ page, mock }) => {
+        await openLounge(page);
+        await openSettings(page, DEVICES.unknown.name);
+        await expect(modePill(page)).toHaveText(C.mode.unknown);
+        await expect(settings(page).locator('.climate-detail__line')).toHaveCount(0);
+
+        await modePill(page).click();
+        const list = page.getByRole('dialog', { name: C.modeTitle });
+        await expect(list.locator('[aria-checked="true"]')).toHaveCount(0);
+        await list.getByRole('radio', { name: C.mode.heat }).click();
+        await expect.poll(() => commands(mock, DEVICES.unknown.id)).toEqual(['heat']);
+    });
+
+    test('a device without fan, swing or humidity has no more settings', async ({ page }) => {
+        await openLounge(page);
+        await openSettings(page, DEVICES.heat.name);
+        await expect(settings(page).getByRole('button', { name: C.more })).toHaveCount(0);
+    });
+});
+
+test.describe('below 1024 px the settings are a centred dialog', () => {
+    test.skip(({ isMobile }) => isMobile, 'the mobile project already runs this layout everywhere');
+
+    test('at 1023 px: a dialog in the middle of the screen, no side panel', async ({ page }) => {
+        await page.setViewportSize({ width: 1023, height: 768 });
+        await openLounge(page);
+        await openSettings(page, DEVICES.cool.name);
+
+        await expect(page.locator('.climate-panel')).toHaveCount(0);
+        const dialog = page.getByRole('dialog', { name: DEVICES.cool.name });
+        await expect(dialog).toBeVisible();
+        const viewport = page.viewportSize()!;
+        // The dialog slides in; it is centred once it has settled.
+        await expect
+            .poll(async () => {
+                const b = (await dialog.boundingBox())!;
+                return [Math.round(b.x + b.width / 2), Math.round(b.y + b.height / 2)];
+            })
+            .toEqual([viewport.width / 2, viewport.height / 2].map(Math.round));
+        const box = (await dialog.boundingBox())!;
+        // Wide: 35rem, not the 22rem of a form.
+        expect(box.width).toBeGreaterThan(500);
+
+        await dialog.getByRole('button', { name: C.close }).click();
+        await expect(dialog).toHaveCount(0);
+    });
+
+    test('at 1024 px it is a panel again', async ({ page }) => {
+        await page.setViewportSize({ width: 1024, height: 768 });
+        await openLounge(page);
+        await openSettings(page, DEVICES.cool.name);
+        await expect(page.locator('.climate-panel')).toBeVisible();
+        // The list shrank into what the panel left.
+        const list = (await row(page, DEVICES.cool.name).boundingBox())!;
+        const side = (await page.locator('.climate-panel').boundingBox())!;
+        expect(list.x + list.width).toBeLessThanOrEqual(side.x);
+    });
+
+    test('the dialog drives the device like the panel does', async ({ page, mock }) => {
+        await page.setViewportSize({ width: 800, height: 700 });
+        await openLounge(page);
+        await openSettings(page, DEVICES.cool.name);
+        await settings(page).getByRole('button', { name: copy(C.lower, DEVICES.cool.name) }).click();
+        await expect.poll(() => commands(mock, DEVICES.cool.id)).toEqual(['{"target_temp":20.5}']);
+        await modePill(page).click();
+        // The mode list stacks on top of the dialog.
+        await page.getByRole('dialog', { name: C.modeTitle }).getByRole('radio', { name: C.mode.off }).click();
+        await expect.poll(() => commands(mock, DEVICES.cool.id)).toEqual(['{"target_temp":20.5}', 'off']);
+    });
+});
+
+test('keeps every row inside the viewport', async ({ page }) => {
     await openLounge(page);
     const viewport = page.viewportSize()!;
-
-    for (const name of [SALON, 'Thermostat bureau', 'Ventilo-convecteur']) {
-        const box = (await device(page, name).boundingBox())!;
+    for (const { name } of Object.values(DEVICES)) {
+        const box = (await row(page, name).boundingBox())!;
         expect(box.x).toBeGreaterThanOrEqual(0);
         expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
     }
+});
+
+// Screenshots of every state, for comparing with climate-mockups/round4/final/
+// web/*.png. They are attached to the report; SHOTS_DIR also writes them to disk.
+test.describe('screenshots of the states', () => {
+    test.skip(({ isMobile }) => isMobile, 'compared with the 1280 px mockups');
+
+    async function shoot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
+        // Let the fade-in of the panel and dialogs finish.
+        await page.waitForTimeout(400);
+        const body = await page.screenshot();
+        await testInfo.attach(name, { body, contentType: 'image/png' });
+        const dir = process.env.SHOTS_DIR;
+        if (dir) {
+            mkdirSync(dir, { recursive: true });
+            writeFileSync(join(dir, `${name}.png`), body);
+        }
+    }
+
+    test('room list and one panel per state', async ({ page }, testInfo) => {
+        await page.setViewportSize({ width: 1280, height: 1700 });
+        await openLounge(page);
+        await row(page, DEVICES.cool.name).hover();
+        await shoot(page, testInfo, 'room-states');
+
+        await page.setViewportSize({ width: 1280, height: 800 });
+        for (const key of ['cool', 'heat', 'auto', 'stop', 'lockout', 'off', 'unknown', 'offline', 'fault', 'dry'] as const) {
+            await openSettings(page, DEVICES[key].name);
+            await page.mouse.move(0, 0);
+            await shoot(page, testInfo, `detail-${key}`);
+        }
+
+        await openSettings(page, DEVICES.cool.name);
+        await modePill(page).click();
+        await expect(page.getByRole('dialog', { name: C.modeTitle })).toBeVisible();
+        await shoot(page, testInfo, 'popup-mode');
+        await page.keyboard.press('Escape');
+        await settings(page).getByRole('button', { name: C.more }).click();
+        await expect(page.getByRole('dialog', { name: C.more })).toBeVisible();
+        await shoot(page, testInfo, 'popup-more');
+        await page.keyboard.press('Escape');
+
+        await page.setViewportSize({ width: 1000, height: 768 });
+        // The open panel became a dialog on its own.
+        await expect(page.getByRole('dialog', { name: DEVICES.cool.name })).toBeVisible();
+        await shoot(page, testInfo, 'dialog-below-1024');
+    });
 });
