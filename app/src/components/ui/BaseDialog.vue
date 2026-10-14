@@ -1,3 +1,12 @@
+<script lang="ts">
+// Dialogs stack (the climate mode list opens over its settings dialog). The
+// page's own overflow is saved by the first and given back by the last, in
+// whatever order they go: a per-dialog save would restore another dialog's
+// 'hidden' and leave the page stuck.
+let scrollLocks = 0;
+let bodyOverflow = '';
+</script>
+
 <script setup lang="ts">
 // The app's only modal. Everything that interrupts — the colour picker, the
 // text field — is this shell with something in its body slot.
@@ -66,15 +75,15 @@ const titleId = useId();
 
 /** The control that had focus when the dialog opened, to give it back. */
 let opener: HTMLElement | null = null;
-/** `document.body`'s own overflow, restored when the dialog goes away. */
-let bodyOverflow = '';
 let scrollLocked = false;
 
 function lockScroll(): void {
     if (scrollLocked) return;
-    bodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     scrollLocked = true;
+    if (scrollLocks++ === 0) {
+        bodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+    }
 }
 
 // Also on unmount, not only on close: a dialog can be torn down while open
@@ -82,8 +91,8 @@ function lockScroll(): void {
 // permanently unscrollable is the classic way that goes wrong.
 function unlockScroll(): void {
     if (!scrollLocked) return;
-    document.body.style.overflow = bodyOverflow;
     scrollLocked = false;
+    if (--scrollLocks === 0) document.body.style.overflow = bodyOverflow;
 }
 
 onBeforeUnmount(unlockScroll);
