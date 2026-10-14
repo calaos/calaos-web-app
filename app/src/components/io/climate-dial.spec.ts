@@ -17,6 +17,13 @@ describe('angleOf', () => {
     });
 });
 
+describe('angleOf — a degenerate range', () => {
+    it('stays on the arc when min equals max, instead of going NaN', () => {
+        expect(angleOf(20, { min: 20, max: 20 })).toBe(-150);
+        expect(angleOf(25, { min: 20, max: 20 })).toBe(-150);
+    });
+});
+
 describe('polar', () => {
     it('measures from 12 o clock, clockwise', () => {
         const top = polar(100, 100, 50, 0);
