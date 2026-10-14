@@ -60,8 +60,7 @@ const knobs = computed(() => {
     const { cx, cy, radius } = geometry.value;
     const at = (temp: number, color: string) => ({ ...polar(cx, cy, radius, angleOf(temp, bounds)), color });
     if (props.setpoint === 'range' && props.low !== undefined && props.high !== undefined) {
-        // The pair is always warm below, cool above, whatever the device is doing.
-        return [at(props.low, PAINT.heat), at(props.high, PAINT.cool)];
+        return [at(props.low, PAINT[props.paint.ends[0]]), at(props.high, PAINT[props.paint.ends[1]])];
     }
     if (props.setpoint === 'single' && props.target !== undefined) return [at(props.target, PAINT[props.paint.knob])];
     return [];

@@ -193,21 +193,27 @@ export interface DialPaint {
     /** The arc between the two handles in `auto`. */
     between: Paint;
     knob: Paint;
+    /** The low and high handles in `auto`. */
+    ends: [Paint, Paint];
 }
 
 const MODE_PAINT: Record<string, Paint> = { heat: 'heat', cool: 'cool', dry: 'cool' };
 
 /**
  * Colour follows what the device is doing; with nothing running it is
- * neutral, and an unreachable device is dimmed.
+ * neutral, and an unreachable or faulty device is dimmed.
  */
 export function dialPaint(status: ClimateStatus, mode: string): DialPaint {
-    if (status.id === 'offline') return { fill: 'dim', between: 'dim', knob: 'muted' };
+    if (status.id === 'offline' || status.id === 'fault') {
+        return { fill: 'dim', between: 'dim', knob: 'muted', ends: ['muted', 'muted'] };
+    }
+    // Warm below, cool above, whatever the device is doing.
+    const ends: [Paint, Paint] = ['heat', 'cool'];
     const between: Paint = status.acting ? status.tone : 'dim';
-    if (status.acting || status.id === 'lockout') return { fill: status.tone, between, knob: status.tone };
+    if (status.acting || status.id === 'lockout') return { fill: status.tone, between, knob: status.tone, ends };
     if (status.id === 'mode') {
         const tone = MODE_PAINT[mode] ?? 'muted';
-        return { fill: tone, between, knob: tone === 'muted' ? 'white' : tone };
+        return { fill: tone, between, knob: tone === 'muted' ? 'white' : tone, ends };
     }
-    return { fill: 'muted', between, knob: 'white' };
+    return { fill: 'muted', between, knob: 'white', ends };
 }
