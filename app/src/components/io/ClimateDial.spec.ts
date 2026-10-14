@@ -4,7 +4,7 @@ import ClimateDial from './ClimateDial.vue';
 import type { DialPaint } from '../../protocol/climate';
 
 const BOUNDS = { min: 16, max: 30, step: 0.5, unit: '°C', minRange: 2 };
-const PAINT: DialPaint = { fill: 'cool', between: 'dim', knob: 'cool' };
+const PAINT: DialPaint = { fill: 'cool', between: 'dim', knob: 'cool', ends: ['heat', 'cool'] };
 
 function dial(props: Record<string, unknown> = {}, slot?: string) {
     return mount(ClimateDial, {
@@ -37,7 +37,7 @@ describe('ClimateDial', () => {
     });
 
     it('draws two knobs, warm then cool, and the stretch between them, for a range', () => {
-        const w = dial({ setpoint: 'range', low: 19.5, high: 24.5, paint: { fill: 'muted', between: 'heat', knob: 'white' } });
+        const w = dial({ setpoint: 'range', low: 19.5, high: 24.5, paint: { fill: 'muted', between: 'heat', knob: 'white', ends: ['heat', 'cool'] } });
 
         const knobs = w.findAll('.climate-dial__knob');
         expect(knobs.map((k) => k.attributes('style'))).toEqual([
@@ -46,6 +46,20 @@ describe('ClimateDial', () => {
         ]);
         expect(w.get('.climate-dial__fill').attributes('style')).toContain('var(--c-heat)');
         expect(Number(knobs[0].attributes('cx'))).toBeLessThan(Number(knobs[1].attributes('cx')));
+    });
+
+    it('takes the colours of the range ends from the paint, so an unreachable device can grey them', () => {
+        const w = dial({
+            setpoint: 'range',
+            low: 19.5,
+            high: 24.5,
+            paint: { fill: 'dim', between: 'dim', knob: 'muted', ends: ['muted', 'muted'] },
+        });
+
+        expect(w.findAll('.climate-dial__knob').map((k) => k.attributes('style'))).toEqual([
+            expect.stringContaining('var(--c-text-muted)'),
+            expect.stringContaining('var(--c-text-muted)'),
+        ]);
     });
 
     it('draws no knob and no stretch without a setpoint, or without bounds', () => {

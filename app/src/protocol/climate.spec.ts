@@ -255,8 +255,8 @@ describe('dialPaint', () => {
     };
 
     it('follows the running action', () => {
-        expect(paint({ action: 'heating' })).toEqual({ fill: 'heat', between: 'heat', knob: 'heat' });
-        expect(paint({ mode: 'cool', action: 'cooling' })).toEqual({ fill: 'cool', between: 'cool', knob: 'cool' });
+        expect(paint({ action: 'heating' })).toMatchObject({ fill: 'heat', between: 'heat', knob: 'heat' });
+        expect(paint({ mode: 'cool', action: 'cooling' })).toMatchObject({ fill: 'cool', between: 'cool', knob: 'cool' });
     });
 
     it('is amber while a lock-out holds the output', () => {
@@ -264,12 +264,20 @@ describe('dialPaint', () => {
     });
 
     it('is neutral with white knob when nothing runs, and dims the range between the knobs', () => {
-        expect(paint({ action: 'idle' })).toEqual({ fill: 'muted', between: 'dim', knob: 'white' });
+        expect(paint({ action: 'idle' })).toMatchObject({ fill: 'muted', between: 'dim', knob: 'white' });
         expect(paint({ mode: 'off' })).toMatchObject({ fill: 'muted', knob: 'white' });
     });
 
-    it('dims everything for an unreachable device', () => {
-        expect(paint({ connected: false })).toEqual({ fill: 'dim', between: 'dim', knob: 'muted' });
+    it('dims everything, the range knobs included, for an unreachable device or a fault', () => {
+        const dimmed = { fill: 'dim', between: 'dim', knob: 'muted', ends: ['muted', 'muted'] };
+
+        expect(paint({ connected: false })).toEqual(dimmed);
+        expect(paint({ fault: 'sensor_stale' })).toEqual(dimmed);
+    });
+
+    it('keeps the range ends warm below and cool above otherwise', () => {
+        expect(paint({ action: 'heating' }).ends).toEqual(['heat', 'cool']);
+        expect(paint({ mode: 'off' }).ends).toEqual(['heat', 'cool']);
     });
 
     it('takes the colour of the mode when the device does not say what it does', () => {

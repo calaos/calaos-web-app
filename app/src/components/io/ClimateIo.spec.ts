@@ -339,6 +339,19 @@ describe('ClimateIo — every status', () => {
         expect(fill({ action: 'idle' })).toContain('var(--c-text-muted)');
         expect(fill({ mode: 'off' })).toContain('var(--c-text-muted)');
         expect(fill({ connected: false })).toContain('var(--c-border-strong)');
+        expect(fill({ fault: 'sensor_stale' })).toContain('var(--c-border-strong)');
+    });
+
+    it('greys the knobs of an auto device that is offline or in fault', () => {
+        for (const state of [{ connected: false }, { fault: 'sensor_stale' }]) {
+            const w = mountClimate(wireDevice({}, { mode: 'auto', ...state }));
+            const knobs = w.findAll('.climate-dial__knob').map((k) => k.attributes('style'));
+
+            expect(knobs).toHaveLength(2);
+            for (const style of knobs) expect(style).toContain('var(--c-text-muted)');
+            w.unmount();
+            mounted = [];
+        }
     });
 });
 
