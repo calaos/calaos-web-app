@@ -143,11 +143,21 @@ function toDeviceState(raw: unknown): DeviceState {
     ] as const) {
         if (typeof obj[wire] === 'string') state[key] = obj[wire];
     }
+    if (typeof obj.fault === 'string' && obj.fault !== '') state.fault = obj.fault;
+    // `connected: true` carries nothing the absence does not already say.
+    if (obj.connected === false || obj.connected === 'false') state.connected = false;
+    if (isRecord(obj.lockout)) {
+        const remaining = toDeviceNumber(obj.lockout.remaining);
+        if (remaining !== null && remaining >= 0) {
+            state.lockout = { output: toWireString(obj.lockout.output), remaining };
+        }
+    }
     for (const [wire, key] of [
         ['current_temp', 'currentTemp'],
         ['target_temp', 'targetTemp'],
         ['target_temp_low', 'targetTempLow'],
         ['target_temp_high', 'targetTempHigh'],
+        ['humidity', 'humidity'],
     ] as const) {
         const n = toDeviceNumber(obj[wire]);
         if (n !== null) state[key] = n;
