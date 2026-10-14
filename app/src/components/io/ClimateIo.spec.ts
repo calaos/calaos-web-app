@@ -1041,6 +1041,87 @@ describe('ClimateIo — two commands in flight', () => {
     });
 });
 
+describe('ClimateIo — answers and outside changes while commands are in flight', () => {
+    it('lets the server win over three setpoints in flight when it jumps straight to the last one', async () => {
+        const w = mountClimate();
+        await openSettings(w);
+        for (let i = 0; i < 3; i++) {
+            await raise().trigger('click');
+            await vi.advanceTimersByTimeAsync(400);
+        }
+        expect(values()).toEqual(['{"target_temp":21.5}', '{"target_temp":22}', '{"target_temp":22.5}']);
+
+        changed(wireDevice({}, { target_temp: 22.5 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['22.5°']);
+
+        // Someone else sets 25: it shows at once, and the next tap starts from it.
+        changed(wireDevice({}, { target_temp: 25 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['25°']);
+
+        await raise().trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        expect(values().at(-1)).toBe('{"target_temp":25.5}');
+    });
+
+    it('shows an outside change of both range ends after each command was answered', async () => {
+        const w = mountClimate(wireDevice({}, { mode: 'auto' }));
+        await openSettings(w);
+        await button(t('climate.raiseLow')).trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        await button(t('climate.raiseLow')).trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        await button(t('climate.raiseHigh')).trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        expect(values()).toEqual([
+            '{"target_temp_low":19.5,"target_temp_high":24}',
+            '{"target_temp_low":20,"target_temp_high":24}',
+            '{"target_temp_low":20,"target_temp_high":24.5}',
+        ]);
+
+        // Every command comes back with both ends.
+        for (const [low, high] of [[19.5, 24], [20, 24], [20, 24.5]]) {
+            changed(wireDevice({}, { mode: 'auto', target_temp_low: low, target_temp_high: high }));
+            await w.vm.$nextTick();
+        }
+        expect(nums()).toEqual(['20°', '24.5°']);
+
+        changed(wireDevice({}, { mode: 'auto', target_temp_low: 18, target_temp_high: 26 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['18°', '26°']);
+    });
+
+    it('lets the server win when it answers with a value nobody sent, even with a later command out', async () => {
+        const w = mountClimate();
+        await openSettings(w);
+        await raise().trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        await raise().trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+
+        // Another client set 27 meanwhile.
+        changed(wireDevice({}, { target_temp: 27 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['27°']);
+    });
+
+    it('keeps a value the user took back on screen until the server has caught up with it', async () => {
+        const w = mountClimate();
+        await openSettings(w);
+        await raise().trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        await lower().trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        expect(values()).toEqual(['{"target_temp":21.5}', '{"target_temp":21}']);
+
+        // The 21.5 lands first; 21 is on its way.
+        changed(wireDevice({}, { target_temp: 21.5 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['21°']);
+    });
+});
+
 describe('ClimateIo — a refused command', () => {
     it('puts the server value back as soon as the refusal arrives, not 5 s later', async () => {
         const w = mountClimate();
