@@ -501,6 +501,11 @@ describe('toDeviceInfo', () => {
         expect(d?.state).toEqual({ mode: 'heat' });
     });
 
+    it('reads connected as the string "false" too, since the legacy state strings are strings', () => {
+        expect(toDeviceInfo({ family: 'climate', state: { connected: 'false' } })?.state).toEqual({ connected: false });
+        expect(toDeviceInfo({ family: 'climate', state: { connected: 'true' } })?.state).toEqual({});
+    });
+
     it('drops a malformed lockout, humidity or fault without costing the rest of the state', () => {
         const d = toDeviceInfo({
             family: 'climate',

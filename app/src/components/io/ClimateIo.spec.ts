@@ -1174,6 +1174,29 @@ describe('ClimateIo — the lock-out countdown', () => {
         expect(body().get('.climate-detail__gauge i').attributes('style')).toContain('50%');
     });
 
+    it('measures the gauge against the longest wait seen, not the latest publication', async () => {
+        const w = mountClimate(waiting(100));
+        await openSettings(w);
+
+        // A republication 80 s later: 20 s left of a 100 s wait.
+        changed(waiting(20));
+        await w.vm.$nextTick();
+
+        expect(body().get('.climate-detail__gauge i').attributes('style')).toContain('80%');
+    });
+
+    it('starts a new wait from zero once the previous one is over', async () => {
+        const w = mountClimate(waiting(100));
+        await openSettings(w);
+        changed(wireDevice({}, { action: 'heating' }));
+        await w.vm.$nextTick();
+
+        changed(waiting(30));
+        await w.vm.$nextTick();
+
+        expect(body().get('.climate-detail__gauge i').attributes('style')).toContain('0%');
+    });
+
     it('falls back to the action when the countdown ends before the server republishes', async () => {
         const w = mountClimate(waiting(3));
         await openSettings(w);
