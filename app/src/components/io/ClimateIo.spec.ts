@@ -1119,6 +1119,13 @@ describe('ClimateIo — answers and outside changes while commands are in flight
         changed(wireDevice({}, { target_temp: 21.5 }));
         await w.vm.$nextTick();
         expect(nums()).toEqual(['21°']);
+
+        // Then it does, and the draft is spent: an outside change shows.
+        changed(wireDevice({}, { target_temp: 21 }));
+        await w.vm.$nextTick();
+        changed(wireDevice({}, { target_temp: 25 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['25°']);
     });
 });
 

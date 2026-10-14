@@ -35,11 +35,13 @@ interface ClimatePatch {
 type Field = keyof ClimatePatch;
 
 interface InFlight {
-    /** What the server reported when the command left, per field. */
-    base: Partial<Record<Field, number | string | undefined>>;
     sent: Partial<ClimatePatch>;
+    /** The fields of `sent` still waiting for the server to report something. */
+    pending: Set<Field>;
     timer?: ReturnType<typeof setTimeout>;
 }
+
+const FIELDS: Field[] = ['target_temp', 'target_temp_low', 'target_temp_high', 'fan_mode', 'swing_mode'];
 
 export interface UseClimate {
     device: ComputedRef<DeviceInfo | undefined>;
@@ -147,6 +149,9 @@ export function useClimate(io: MaybeRefOrGetter<IoItem>): UseClimate {
     }
 
     let inFlight: InFlight[] = [];
+    /** Each field as the server last reported it: what a change is measured against. */
+    const known: Partial<Record<Field, number | string | undefined>> = {};
+    for (const f of FIELDS) known[f] = serverValue(f);
     const draftTimers = new Set<ReturnType<typeof setTimeout>>();
 
     function dropDraft(sent: Partial<ClimatePatch>, fields?: Iterable<Field>) {
@@ -168,11 +173,12 @@ export function useClimate(io: MaybeRefOrGetter<IoItem>): UseClimate {
     }
 
     const commands = useDebouncedMerge<ClimatePatch>((merged) => {
-        const fields = Object.keys(merged) as Field[];
-        const entry: InFlight = {
-            base: Object.fromEntries(fields.map((f) => [f, serverValue(f)])),
-            sent: merged,
-        };
+        // What the server is about to hold for a field: the last command in
+        // flight for it, else what it reports. A field that already has that
+        // value waits for nothing.
+        const expected = (f: Field) => [...inFlight].reverse().find((e) => e.pending.has(f))?.sent[f] ?? known[f];
+        const fields = (Object.keys(merged) as Field[]).filter((f) => merged[f] !== expected(f));
+        const entry: InFlight = { sent: merged, pending: new Set(fields) };
         // A refusal changes nothing on the server, so the republished device
         // looks like any unrelated update: only the verdict can end the draft
         // early.
@@ -183,6 +189,15 @@ export function useClimate(io: MaybeRefOrGetter<IoItem>): UseClimate {
             dropDraft(merged);
             return;
         }
+        // A value the server already has, and no command pending on it, needs
+        // no draft to bridge the round trip.
+        dropDraft(
+            merged,
+            (Object.keys(merged) as Field[]).filter(
+                (f) => !entry.pending.has(f) && !inFlight.some((e) => e.pending.has(f)),
+            ),
+        );
+        if (entry.pending.size === 0) return;
         inFlight.push(entry);
         // Rejected or ignored commands never change the server's value: the
         // draft must not outlive the store's own pending timeout.
@@ -199,26 +214,26 @@ export function useClimate(io: MaybeRefOrGetter<IoItem>): UseClimate {
     // The device arrives whole on every io_changed, including ones that only
     // move current_temp: a draft ends when the server reports a different
     // value for its own field, not when anything arrives.
+    //
+    // A new value either is the answer to one of the commands in flight for
+    // that field — then it and every earlier one are done, later ones still
+    // wait — or it is nobody's answer (another client, or the server bounding
+    // what was asked): then the server wins over all of them.
     watch(
         () => toValue(io).device,
         () => {
-            inFlight.forEach((entry, index) => {
-                const answered = (Object.keys(entry.base) as Field[]).filter(
-                    (f) => serverValue(f) !== entry.base[f],
-                );
-                if (answered.length === 0) return;
-                dropDraft(entry.sent, answered);
-                for (const f of answered) {
-                    delete entry.base[f];
-                    // A command sent while this one was out left from the same
-                    // base: what the server now holds is the answer to this
-                    // one, not to the later one.
-                    for (const later of inFlight.slice(index + 1)) {
-                        if (f in later.base) later.base[f] = serverValue(f);
-                    }
+            for (const f of FIELDS) {
+                const value = serverValue(f);
+                if (value === known[f]) continue;
+                known[f] = value;
+                const waiting = inFlight.filter((e) => e.pending.has(f));
+                const answered = waiting.findIndex((e) => e.sent[f] === value);
+                for (const entry of answered === -1 ? waiting : waiting.slice(0, answered + 1)) {
+                    entry.pending.delete(f);
+                    dropDraft(entry.sent, [f]);
                 }
-            });
-            inFlight = inFlight.filter((e) => Object.keys(e.base).length > 0);
+            }
+            for (const entry of inFlight.filter((e) => e.pending.size === 0)) retire(entry);
         },
     );
 
