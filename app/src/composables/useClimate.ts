@@ -202,14 +202,22 @@ export function useClimate(io: MaybeRefOrGetter<IoItem>): UseClimate {
     watch(
         () => toValue(io).device,
         () => {
-            for (const entry of inFlight) {
-                const answered = (Object.keys(entry.sent) as Field[]).filter(
+            inFlight.forEach((entry, index) => {
+                const answered = (Object.keys(entry.base) as Field[]).filter(
                     (f) => serverValue(f) !== entry.base[f],
                 );
-                if (answered.length === 0) continue;
+                if (answered.length === 0) return;
                 dropDraft(entry.sent, answered);
-                for (const f of answered) delete entry.base[f];
-            }
+                for (const f of answered) {
+                    delete entry.base[f];
+                    // A command sent while this one was out left from the same
+                    // base: what the server now holds is the answer to this
+                    // one, not to the later one.
+                    for (const later of inFlight.slice(index + 1)) {
+                        if (f in later.base) later.base[f] = serverValue(f);
+                    }
+                }
+            });
             inFlight = inFlight.filter((e) => Object.keys(e.base).length > 0);
         },
     );
