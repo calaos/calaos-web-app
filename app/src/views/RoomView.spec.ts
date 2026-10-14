@@ -8,6 +8,7 @@ import en from '../i18n/en.json';
 import { createAppRouter } from '../router';
 import { toHomeData } from '../protocol/guards';
 import { useAuthStore } from '../stores/auth';
+import { closeClimate, openClimate } from '../composables/useClimatePanel';
 import { useHomeStore } from '../stores/home';
 import type { WireRoom } from '../protocol/types';
 import type { Router } from 'vue-router';
@@ -84,6 +85,7 @@ const texts = (wrapper: VueWrapper, selector: string): string[] =>
     wrapper.findAll(selector).map((node) => node.text());
 
 beforeEach(() => {
+    closeClimate();
     setActivePinia(createPinia());
     useAuthStore().state = 'authed';
     router = createAppRouter(createMemoryHistory());
@@ -183,5 +185,26 @@ describe('RoomView — the IO list', () => {
 
         expect(wrapper.find('.room__ios').exists()).toBe(false);
         expect(wrapper.get('.room__empty').text()).toBe(en.room.empty);
+    });
+});
+
+describe('RoomView — room for a climate panel', () => {
+    it('makes room only while a device of this room has its settings open', async () => {
+        loadHouse();
+        const wrapper = await mountRoom('/home/1');
+        expect(wrapper.get('.room').classes()).not.toContain('room--panel');
+
+        // A device of another room: nothing to make room for here.
+        openClimate('light_cuisine');
+        await flushPromises();
+        expect(wrapper.get('.room').classes()).not.toContain('room--panel');
+
+        openClimate('light_salon');
+        await flushPromises();
+        expect(wrapper.get('.room').classes()).toContain('room--panel');
+
+        closeClimate('light_salon');
+        await flushPromises();
+        expect(wrapper.get('.room').classes()).not.toContain('room--panel');
     });
 });

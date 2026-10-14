@@ -89,14 +89,6 @@
             "fan_only": "Fan",
             "unknown": "Mode unknown"
         },
-        "action": {
-            "off": "Off",
-            "idle": "Idle",
-            "heating": "Heating",
-            "cooling": "Cooling",
-            "drying": "Drying",
-            "fan": "Fan running"
-        },
         "option": {
             "auto": "Auto",
             "low": "Low",
@@ -109,16 +101,56 @@
             "horizontal": "Horizontal",
             "both": "Both"
         },
-        "modes": "Mode of {name}",
-        "current": "Current temperature",
-        "currentUnknown": "Current temperature unknown",
-        "target": "Target temperature of {name}",
-        "targetLow": "Lowest temperature of {name}",
-        "targetHigh": "Highest temperature of {name}",
+        "swingOption": {
+            "off": "Fixed",
+            "vertical": "Vertical",
+            "horizontal": "Horizontal",
+            "both": "Both"
+        },
+        "status": {
+            "heating": "Heating",
+            "cooling": "Cooling",
+            "drying": "Drying",
+            "fan": "Fan running",
+            "idle": "Idle",
+            "off": "Stopped",
+            "unknown": "Mode unknown",
+            "offline": "Offline",
+            "lockout": "Starts in {time}",
+            "fault": "Fault"
+        },
+        "statusShort": {
+            "drying": "Drying",
+            "idle": "Idle",
+            "unknown": "Unknown",
+            "lockout": "Waiting"
+        },
+        "fault": {
+            "sensor_stale": "Sensor silent",
+            "sensor_missing": "Sensor missing",
+            "humidity_high": "Humidity too high",
+            "humidity_stale": "Humidity sensor silent"
+        },
+        "duration": {
+            "minutes": "{minutes} min {seconds}",
+            "seconds": "{seconds} s"
+        },
+        "room": "Room {temp}",
+        "rangeStop": "Minimum gap {gap}",
+        "more": "More settings",
+        "modeTitle": "Mode",
+        "close": "Close",
+        "fan": "Fan",
+        "swing": "Swing",
+        "humidity": "Humidity {value} %",
         "raise": "Raise the target of {name}",
         "lower": "Lower the target of {name}",
-        "fan": "Fan",
-        "swing": "Swing"
+        "raiseLow": "Raise the lowest temperature of {name}",
+        "lowerLow": "Lower the lowest temperature of {name}",
+        "raiseHigh": "Raise the highest temperature of {name}",
+        "lowerHigh": "Lower the highest temperature of {name}",
+        "open": "Settings of {name}",
+        "settings": "{name} settings"
     },
     "dialog": {
         "cancel": "Cancel",

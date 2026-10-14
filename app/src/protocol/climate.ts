@@ -92,3 +92,122 @@ export function moveRangeHandle(
 export function formatSetpoint(value: number, step: number): string {
     return value.toFixed(decimalsOf(step));
 }
+
+// ---------------------------------------------------------------- status ---
+
+/** What the status line says and which colour it takes; see UI_CLIMATE.md. */
+export type StatusId =
+    | 'offline'
+    | 'fault'
+    | 'unknown'
+    | 'off'
+    | 'lockout'
+    | 'heating'
+    | 'cooling'
+    | 'drying'
+    | 'fan'
+    | 'idle'
+    // The device does not report an action: the status falls back to its mode.
+    | 'mode';
+
+export type Tone = 'heat' | 'cool' | 'wait' | 'offline' | 'fan' | 'muted';
+
+export interface ClimateStatus {
+    id: StatusId;
+    tone: Tone;
+    /** A heating, cooling, drying or fan action is running right now. */
+    acting: boolean;
+    /** Raw `fault` string, only when `id` is `fault`. */
+    fault?: string;
+    /** Seconds before the output may start, only when `id` is `lockout`. */
+    seconds?: number;
+}
+
+const ACTION_STATUS: Record<string, { id: StatusId; tone: Tone }> = {
+    heating: { id: 'heating', tone: 'heat' },
+    cooling: { id: 'cooling', tone: 'cool' },
+    drying: { id: 'drying', tone: 'cool' },
+    fan: { id: 'fan', tone: 'fan' },
+};
+
+/**
+ * Precedence: a device that cannot be reached or is held by a safety rule
+ * says so before anything else, because every other field is stale or moot;
+ * then the mode (nothing runs in `off`, nothing is known in `''`); then the
+ * lock-out, which explains an idle output the user wants running.
+ *
+ * `lockoutSeconds` is the locally counted-down value; when it is 0 the
+ * lock-out is over even if the server has not republished yet.
+ */
+export function climateStatus(device: DeviceInfo, lockoutSeconds?: number): ClimateStatus {
+    const s = device.state;
+    const mode = s.mode ?? '';
+    if (s.connected === false) return { id: 'offline', tone: 'offline', acting: false };
+    if (s.fault !== undefined) return { id: 'fault', tone: 'offline', acting: false, fault: s.fault };
+    if (mode === '') return { id: 'unknown', tone: 'muted', acting: false };
+    if (mode === 'off') return { id: 'off', tone: 'muted', acting: false };
+
+    const remaining = lockoutSeconds ?? s.lockout?.remaining ?? 0;
+    if (s.lockout && remaining > 0) {
+        return { id: 'lockout', tone: 'wait', acting: false, seconds: Math.ceil(remaining) };
+    }
+    if (!device.capabilities.reportsAction || s.action === undefined) {
+        return { id: 'mode', tone: 'muted', acting: false };
+    }
+    const running = ACTION_STATUS[s.action];
+    if (running) return { ...running, acting: true };
+    return { id: 'idle', tone: 'muted', acting: false };
+}
+
+/** `140` → `{ minutes: 2, seconds: 20 }`; the view decides how to word it. */
+export function splitDuration(totalSeconds: number): { minutes: number; seconds: number } {
+    const total = Math.max(0, Math.floor(totalSeconds));
+    return { minutes: Math.floor(total / 60), seconds: total % 60 };
+}
+
+/** `21.5` → `21,5` in French, `21` for a whole number; the step caps the decimals. */
+export function formatTemp(value: number, step: number, locale: string): string {
+    const digits = Math.max(1, decimalsOf(step));
+    return value.toLocaleString(locale, { maximumFractionDigits: digits, minimumFractionDigits: 0 });
+}
+
+/** −/+ are refused while the device is unreachable or has no mode to set a target for. */
+export function canAdjust(status: ClimateStatus): boolean {
+    return status.id !== 'offline' && status.id !== 'unknown';
+}
+
+/** In `auto`, low and high are as close as `min_range` allows: the inner buttons are refused. */
+export function atRangeStop(low: number | undefined, high: number | undefined, minRange?: number): boolean {
+    if (minRange === undefined || minRange <= 0 || low === undefined || high === undefined) return false;
+    return high - low <= minRange + 1e-6;
+}
+
+// ------------------------------------------------------------------ paint ---
+
+/** Colour roles of the dial and of the status text; the view maps them to tokens. */
+export type Paint = Tone | 'dim' | 'white';
+
+export interface DialPaint {
+    /** The arc from the start up to the setpoint. */
+    fill: Paint;
+    /** The arc between the two handles in `auto`. */
+    between: Paint;
+    knob: Paint;
+}
+
+const MODE_PAINT: Record<string, Paint> = { heat: 'heat', cool: 'cool', dry: 'cool' };
+
+/**
+ * Colour follows what the device is doing; with nothing running it is
+ * neutral, and an unreachable device is dimmed.
+ */
+export function dialPaint(status: ClimateStatus, mode: string): DialPaint {
+    if (status.id === 'offline') return { fill: 'dim', between: 'dim', knob: 'muted' };
+    const between: Paint = status.acting ? status.tone : 'dim';
+    if (status.acting || status.id === 'lockout') return { fill: status.tone, between, knob: status.tone };
+    if (status.id === 'mode') {
+        const tone = MODE_PAINT[mode] ?? 'muted';
+        return { fill: tone, between, knob: tone === 'muted' ? 'white' : tone };
+    }
+    return { fill: 'muted', between, knob: 'white' };
+}

@@ -43,13 +43,20 @@ const props = withDefaults(
          * Server data, never translated.
          */
         eyebrow?: string;
-        /** Copy for the primary button. Same words as the control that opened it. */
-        confirmLabel: string;
-        cancelLabel: string;
+        /**
+         * Copy for the primary button. Same words as the control that opened
+         * it. Left out, the dialog has no primary button: a dialog that edits
+         * nothing (a list of choices that apply on tap) has nothing to confirm.
+         */
+        confirmLabel?: string;
+        /** Left out as well, the buttons row disappears and the body closes the dialog itself. */
+        cancelLabel?: string;
         /** Greys the primary button; Enter is refused too. */
         confirmDisabled?: boolean;
+        /** 35rem instead of 22rem, for a body that is a view rather than a form. */
+        wide?: boolean;
     }>(),
-    { eyebrow: '', confirmDisabled: false },
+    { eyebrow: '', confirmLabel: undefined, cancelLabel: undefined, confirmDisabled: false, wide: false },
 );
 
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
@@ -161,6 +168,7 @@ watch(
             <div
                 ref="panel"
                 class="base-dialog__panel fade-in-up"
+                :class="{ 'base-dialog__panel--wide': wide }"
                 role="dialog"
                 aria-modal="true"
                 :aria-labelledby="titleId"
@@ -180,8 +188,9 @@ watch(
                 <form class="base-dialog__form" @submit.prevent="emit('confirm')">
                     <div class="base-dialog__body"><slot /></div>
 
-                    <div class="base-dialog__actions">
+                    <div v-if="cancelLabel !== undefined || confirmLabel !== undefined" class="base-dialog__actions">
                         <button
+                            v-if="cancelLabel !== undefined"
                             type="button"
                             class="base-dialog__button base-dialog__button--quiet pressable"
                             @click="emit('cancel')"
@@ -189,6 +198,7 @@ watch(
                             {{ cancelLabel }}
                         </button>
                         <button
+                            v-if="confirmLabel !== undefined"
                             type="submit"
                             class="base-dialog__button base-dialog__button--primary pressable"
                             :disabled="confirmDisabled"
@@ -235,6 +245,10 @@ watch(
     border: 1px solid var(--c-border);
     border-radius: var(--radius-lg);
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.base-dialog__panel--wide {
+    inline-size: min(35rem, 100%);
 }
 
 .base-dialog__panel:focus-visible {

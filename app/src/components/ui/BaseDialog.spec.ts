@@ -218,4 +218,31 @@ describe('BaseDialog', () => {
         await nextTick();
         expect(document.body.style.overflow).toBe('');
     });
+
+    it('is the narrow 22rem form unless it asks to be wide', async () => {
+        wrapper = mountDialog({ open: true });
+        await nextTick();
+        expect(panel().classList.contains('base-dialog__panel--wide')).toBe(false);
+
+        await wrapper.setProps({ wide: true });
+        expect(panel().classList.contains('base-dialog__panel--wide')).toBe(true);
+    });
+
+    it('draws only the buttons it is given a label for', async () => {
+        wrapper = mountDialog({ open: true, confirmLabel: undefined });
+        await nextTick();
+        expect(buttons().map((b) => b.textContent?.trim())).toEqual(['Cancel']);
+
+        await wrapper.setProps({ confirmLabel: 'Apply', cancelLabel: undefined });
+        expect(buttons().map((b) => b.textContent?.trim())).toEqual(['Apply']);
+    });
+
+    it('has no buttons row at all when it has no labels, and Escape still closes it', async () => {
+        wrapper = mountDialog({ open: true, confirmLabel: undefined, cancelLabel: undefined });
+        await nextTick();
+        expect(document.querySelector('.base-dialog__actions')).toBeNull();
+
+        press('Escape');
+        expect(wrapper.emitted('cancel')).toHaveLength(1);
+    });
 });
