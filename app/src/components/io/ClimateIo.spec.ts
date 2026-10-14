@@ -588,6 +588,24 @@ describe('ClimateIo — the range in auto', () => {
         expect(sent).toEqual([]);
     });
 
+    it('clamps a step that would leave the ends closer than min_range, instead of sending it', async () => {
+        // Step 1 and a 2.5 gap: one step up from 19 would leave 20 – 22, too close.
+        const w = mountClimate(
+            auto(
+                { target_temp_low: 19, target_temp_high: 22 },
+                { target_temp: { min: 16, max: 30, step: 1, unit: '°C', min_range: 2.5 } },
+            ),
+        );
+        await openSettings(w);
+        expect(isDisabled(button(t('climate.raiseLow')))).toBe(false);
+
+        await button(t('climate.raiseLow')).trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+
+        expect(sent).toEqual([]);
+        expect(nums()).toEqual(['19°', '22°']);
+    });
+
     it('has no stop when the device publishes no min_range, and the ends may meet', async () => {
         const w = mountClimate(
             auto({ target_temp_low: 22.5, target_temp_high: 23 }, { target_temp: { min: 16, max: 30, step: 0.5, unit: '°C' } }),
