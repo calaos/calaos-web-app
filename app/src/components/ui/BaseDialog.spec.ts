@@ -245,4 +245,55 @@ describe('BaseDialog', () => {
         press('Escape');
         expect(wrapper.emitted('cancel')).toHaveLength(1);
     });
+
+    describe('stacked dialogs', () => {
+        const stack = async (): Promise<[ReturnType<typeof mountDialog>, ReturnType<typeof mountDialog>]> => {
+            const below = mountDialog();
+            const above = mountDialog();
+            await below.setProps({ open: true });
+            await above.setProps({ open: true });
+            await nextTick();
+            return [below, above];
+        };
+
+        it('leave the page scrollable again whichever is torn down first', async () => {
+            for (const order of ['below first', 'above first'] as const) {
+                const [below, above] = await stack();
+                expect(document.body.style.overflow).toBe('hidden');
+
+                // A route change tears them down; nobody closes the top one first.
+                if (order === 'below first') {
+                    below.unmount();
+                    above.unmount();
+                } else {
+                    above.unmount();
+                    below.unmount();
+                }
+                expect(document.body.style.overflow, order).toBe('');
+            }
+        });
+
+        it('keep the page locked while one of them is still open', async () => {
+            const [below, above] = await stack();
+
+            await above.setProps({ open: false });
+            await nextTick();
+            expect(document.body.style.overflow).toBe('hidden');
+
+            await below.setProps({ open: false });
+            await nextTick();
+            expect(document.body.style.overflow).toBe('');
+            below.unmount();
+            above.unmount();
+        });
+
+        it('give back the overflow the page had before the first one', async () => {
+            document.body.style.overflow = 'scroll';
+            const [below, above] = await stack();
+            above.unmount();
+            below.unmount();
+
+            expect(document.body.style.overflow).toBe('scroll');
+        });
+    });
 });
