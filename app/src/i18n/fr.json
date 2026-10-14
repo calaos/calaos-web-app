@@ -149,7 +149,6 @@
         "lowerLow": "Baisser la température basse de {name}",
         "raiseHigh": "Augmenter la température haute de {name}",
         "lowerHigh": "Baisser la température haute de {name}",
-        "open": "Réglages de {name}",
         "settings": "Réglages de {name}"
     },
     "dialog": {

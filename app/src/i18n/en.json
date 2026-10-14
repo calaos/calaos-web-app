@@ -149,7 +149,6 @@
         "lowerLow": "Lower the lowest temperature of {name}",
         "raiseHigh": "Raise the highest temperature of {name}",
         "lowerHigh": "Lower the highest temperature of {name}",
-        "open": "Settings of {name}",
         "settings": "{name} settings"
     },
     "dialog": {

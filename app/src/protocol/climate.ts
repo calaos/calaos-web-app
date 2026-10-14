@@ -7,8 +7,6 @@ import type { DeviceInfo, DeviceTargetTemp } from './types';
 export type SetpointKind = 'none' | 'single' | 'range';
 
 export interface ClimateGating {
-    /** Mode is `off`: setpoint, fan and swing are shown but cannot be used. */
-    off: boolean;
     setpoint: SetpointKind;
 }
 
@@ -24,19 +22,19 @@ function hasSingleSetpoint(device: DeviceInfo): boolean {
 
 /**
  * `mode` is '' when the server does not know it yet: that is not `off`, so the
- * controls stay usable, but nothing is selected.
+ * setpoint stays available, but nothing is selected.
  */
 export function climateGating(device: DeviceInfo): ClimateGating {
     const caps = device.capabilities;
     const mode = device.state.mode ?? '';
-    if (!caps.targetTemp || mode === 'fan_only') return { off: mode === 'off', setpoint: 'none' };
+    if (!caps.targetTemp || mode === 'fan_only') return { setpoint: 'none' };
 
     const single = hasSingleSetpoint(device);
     const range = caps.targetTempRange === true;
-    if (mode === 'auto' && range) return { off: false, setpoint: 'range' };
-    if (single) return { off: mode === 'off', setpoint: 'single' };
+    if (mode === 'auto' && range) return { setpoint: 'range' };
+    if (single) return { setpoint: 'single' };
     // Range-only device: the range is its only setpoint, in every mode.
-    return { off: mode === 'off', setpoint: 'range' };
+    return { setpoint: 'range' };
 }
 
 export function decimalsOf(n: number): number {
@@ -86,11 +84,6 @@ export function moveRangeHandle(
     }
     const floor = onGrid(current.low + gap, bounds, up);
     return { low: current.low, high: Math.max(v, floor) };
-}
-
-/** `21` at step 0.5 → `21.0`; the decimals follow the step so the thumb and text agree. */
-export function formatSetpoint(value: number, step: number): string {
-    return value.toFixed(decimalsOf(step));
 }
 
 // ---------------------------------------------------------------- status ---

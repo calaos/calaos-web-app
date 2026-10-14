@@ -18,6 +18,9 @@ export interface ClimateText {
     room: ComputedRef<string>;
     degrees: (value: number | undefined) => string;
     modeLabel: (mode: string) => string;
+    /** A fan mode; a value this client has no word for is shown as the server sent it. */
+    fanLabel: (value: string) => string;
+    swingLabel: (value: string) => string;
 }
 
 export function useClimateText(ctl: UseClimate): ClimateText {
@@ -55,6 +58,8 @@ export function useClimateText(ctl: UseClimate): ClimateText {
     }
 
     const modeLabel = (mode: string): string => lookup('mode', mode === '' ? 'unknown' : mode) ?? mode;
+    const fanLabel = (value: string): string => lookup('option', value) ?? value;
+    const swingLabel = (value: string): string => lookup('swingOption', value) ?? fanLabel(value);
 
     return {
         status: computed(() => (ctl.status.value ? say(ctl.status.value, false) : '')),
@@ -73,5 +78,7 @@ export function useClimateText(ctl: UseClimate): ClimateText {
         }),
         degrees,
         modeLabel,
+        fanLabel,
+        swingLabel,
     };
 }

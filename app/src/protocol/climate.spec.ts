@@ -5,7 +5,6 @@ import {
     climateGating,
     climateStatus,
     dialPaint,
-    formatSetpoint,
     formatTemp,
     moveRangeHandle,
     snapToStep,
@@ -40,45 +39,43 @@ function device(over: {
 
 describe('climateGating', () => {
     it.each([
-        ['heat', 'single', false],
-        ['cool', 'single', false],
-        ['dry', 'single', false],
-        ['auto', 'range', false],
-        ['fan_only', 'none', false],
-        ['off', 'single', true],
-        ['', 'single', false],
-    ] as const)('mode %j on a full device → %s setpoint, off=%s', (mode, setpoint, off) => {
+        ['heat', 'single'],
+        ['cool', 'single'],
+        ['dry', 'single'],
+        ['auto', 'range'],
+        ['fan_only', 'none'],
+        ['off', 'single'],
+        ['', 'single'],
+    ] as const)('mode %j on a full device → %s setpoint', (mode, setpoint) => {
         const state = mode === '' ? {} : { mode };
-        expect(climateGating(device({ state }))).toEqual({ off, setpoint });
+        expect(climateGating(device({ state }))).toEqual({ setpoint });
     });
 
     it('uses a single setpoint in auto when the device has no range', () => {
         expect(
             climateGating(device({ caps: { target_temp_range: false }, state: { mode: 'auto' } })),
-        ).toEqual({ off: false, setpoint: 'single' });
+        ).toEqual({ setpoint: 'single' });
     });
 
     it('offers no setpoint without a target_temp capability', () => {
         const d = device({ state: { mode: 'heat' } });
         delete d.capabilities.targetTemp;
-        expect(climateGating(d)).toEqual({ off: false, setpoint: 'none' });
-        d.state.mode = 'off';
-        expect(climateGating(d)).toEqual({ off: true, setpoint: 'none' });
+        expect(climateGating(d)).toEqual({ setpoint: 'none' });
     });
 
     describe('range-only device (range capability, no target_temp link)', () => {
         const rangeOnly = (mode: string) => device({ rangeOnly: true, state: { mode } });
 
         it.each([
-            ['auto', 'range', false],
-            ['heat', 'range', false],
-            ['cool', 'range', false],
-            ['dry', 'range', false],
-            ['off', 'range', true],
-            ['', 'range', false],
-            ['fan_only', 'none', false],
-        ] as const)('mode %j → %s setpoint, off=%s', (mode, setpoint, off) => {
-            expect(climateGating(rangeOnly(mode))).toEqual({ off, setpoint });
+            ['auto', 'range'],
+            ['heat', 'range'],
+            ['cool', 'range'],
+            ['dry', 'range'],
+            ['off', 'range'],
+            ['', 'range'],
+            ['fan_only', 'none'],
+        ] as const)('mode %j → %s setpoint', (mode, setpoint) => {
+            expect(climateGating(rangeOnly(mode))).toEqual({ setpoint });
         });
 
         it('stays range-only even if a stray target_temp value was received', () => {
@@ -142,14 +139,6 @@ describe('moveRangeHandle', () => {
     it('allows touching handles when there is no min_range', () => {
         const free = { min: 7, max: 35, step: 1, unit: '' };
         expect(moveRangeHandle('low', 30, { low: 10, high: 20 }, free)).toEqual({ low: 20, high: 20 });
-    });
-});
-
-describe('formatSetpoint', () => {
-    it('shows as many decimals as the step has', () => {
-        expect(formatSetpoint(21, 0.5)).toBe('21.0');
-        expect(formatSetpoint(21, 1)).toBe('21');
-        expect(formatSetpoint(21.25, 0.25)).toBe('21.25');
     });
 });
 

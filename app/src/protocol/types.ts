@@ -135,8 +135,8 @@ export interface DeviceState {
     action?: string;
     fanMode?: string;
     swingMode?: string;
-    // Not published by every server (CLIM-6, spec §5.3): absent means "not
-    // applicable", never "false" or "0".
+    // The four fields below come only from servers that publish them, and only
+    // while they apply: absent means "not applicable", never `false` or 0.
     humidity?: number;
     /** Only ever `false`: absent when the device is reachable. */
     connected?: boolean;

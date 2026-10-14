@@ -32,7 +32,7 @@ import type { IoItem } from '../../protocol/types';
 
 const props = defineProps<{ io: IoItem }>();
 
-const { t, te } = useI18n();
+const { t } = useI18n();
 const home = useHomeStore();
 const ctl = useClimate(() => props.io);
 const text = useClimateText(ctl);
@@ -105,16 +105,13 @@ function choose(mode: string) {
 const modeChoices = computed(() => ctl.modes.value.map((value) => ({ value, label: text.modeLabel(value) })));
 
 /** The server's own value stays on screen when this client has no word for it. */
-const fanChoices = computed(() => withCurrent(ctl.caps.value?.fanModes, ctl.fan.value).map((v) => ({ value: v, label: optionLabel(v) })));
-const swingChoices = computed(() => withCurrent(ctl.caps.value?.swingModes, ctl.swing.value).map((v) => ({ value: v, label: swingLabel(v) })));
+const fanChoices = computed(() => withCurrent(ctl.caps.value?.fanModes, ctl.fan.value).map((v) => ({ value: v, label: text.fanLabel(v) })));
+const swingChoices = computed(() => withCurrent(ctl.caps.value?.swingModes, ctl.swing.value).map((v) => ({ value: v, label: text.swingLabel(v) })));
 
 function withCurrent(list: string[] | undefined, current: string): string[] {
     const base = list ?? [];
     return current !== '' && !base.includes(current) ? [...base, current] : base;
 }
-
-const optionLabel = (value: string) => (te(`climate.option.${value}`) ? t(`climate.option.${value}`) : value);
-const swingLabel = (value: string) => (te(`climate.swingOption.${value}`) ? t(`climate.swingOption.${value}`) : optionLabel(value));
 </script>
 
 <template>
