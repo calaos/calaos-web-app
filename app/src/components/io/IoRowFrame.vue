@@ -29,13 +29,23 @@ import type { IoStatusInfo } from '../../protocol/types';
 
 const emit = defineEmits<{ open: [] }>();
 
+// A button opens on Enter's press and on Space's release; opening on Space's
+// press would let Firefox deliver the release as a click to whatever the
+// opened view put under the finger.
 function onKeydown(event: KeyboardEvent): void {
     // The row's own keys only: a key typed in a control inside it is not ours.
     if (event.target !== event.currentTarget) return;
-    if (event.key === 'Enter' || event.key === ' ') {
+    if (event.key === 'Enter') {
         event.preventDefault();
         emit('open');
+    } else if (event.key === ' ') {
+        // Space scrolls the page on its press otherwise.
+        event.preventDefault();
     }
+}
+
+function onKeyup(event: KeyboardEvent): void {
+    if (event.target === event.currentTarget && event.key === ' ') emit('open');
 }
 
 withDefaults(
@@ -76,6 +86,7 @@ withDefaults(
         :aria-expanded="opens ? expanded : undefined"
         @click="opens && emit('open')"
         @keydown="opens && onKeydown($event)"
+        @keyup="opens && onKeyup($event)"
     >
         <span class="io-row__lead">
             <slot name="icon" />
