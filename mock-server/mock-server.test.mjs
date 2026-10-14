@@ -490,6 +490,37 @@ describe('climate fixtures cover the capability combinations', () => {
     });
 });
 
+describe('climate fixtures cover every status of UI_CLIMATE.md', () => {
+    const states = () =>
+        FIXTURE.home.flatMap((r) => r.items).filter((i) => i.gui_type === 'climate').map((i) => i.device);
+    const has = (pred) => states().some(pred);
+
+    it('has heating, cooling, auto, a min_range stop, a lock-out, off, unknown, offline and a fault', () => {
+        expect(has((d) => d.state.mode === 'heat' && d.state.action === 'heating')).toBe(true);
+        expect(has((d) => d.state.mode === 'cool' && d.state.action === 'cooling')).toBe(true);
+        expect(has((d) => d.state.mode === 'auto' && d.state.action === 'heating' && d.capabilities.target_temp_range)).toBe(true);
+        expect(
+            has((d) => {
+                const { target_temp_low: lo, target_temp_high: hi, mode } = d.state;
+                return mode === 'auto' && hi - lo === d.capabilities.target_temp.min_range;
+            }),
+        ).toBe(true);
+        expect(has((d) => d.state.lockout?.remaining > 0)).toBe(true);
+        expect(has((d) => d.state.mode === 'off')).toBe(true);
+        expect(has((d) => d.state.mode === undefined)).toBe(true);
+        expect(has((d) => d.state.connected === false)).toBe(true);
+        expect(has((d) => typeof d.state.fault === 'string')).toBe(true);
+        expect(has((d) => typeof d.state.humidity === 'number')).toBe(true);
+    });
+
+    it('keeps the CLIM-6 fields on the wire when a client changes something else', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_state', data: { id: 'clim_veranda', value: '{"target_temp":22}' } });
+        const data = (await client.waitFor(ioChangedFor('clim_veranda'))).data.data;
+        expect(data.device.state).toMatchObject({ connected: false, target_temp: 22 });
+    });
+});
+
 describe('set_state on a climate device — ranges', () => {
     const expectReply = async (client, id, value, msgId) => {
         client.send({ msg: 'set_state', msg_id: msgId, data: { id, value } });
