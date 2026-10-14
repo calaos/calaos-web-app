@@ -1129,6 +1129,69 @@ describe('ClimateIo — answers and outside changes while commands are in flight
     });
 });
 
+describe('ClimateIo — the same value sent twice', () => {
+    async function plusMinusPlus() {
+        const w = mountClimate();
+        await openSettings(w);
+        await raise().trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        await lower().trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        await raise().trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        expect(values()).toEqual(['{"target_temp":21.5}', '{"target_temp":21}', '{"target_temp":21.5}']);
+        return w;
+    }
+
+    it('keeps the draft while the third command, which sent the same value as the first, is still out', async () => {
+        const w = await plusMinusPlus();
+
+        changed(wireDevice({}, { target_temp: 21.5 }));
+        await w.vm.$nextTick();
+        changed(wireDevice({}, { target_temp: 21 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['21.5°']);
+
+        // A tap now builds on what is on screen, not on the stale 21.
+        await raise().trigger('click');
+        await vi.advanceTimersByTimeAsync(400);
+        expect(values().at(-1)).toBe('{"target_temp":22}');
+    });
+
+    it('ends the draft once the last command that sent it is answered', async () => {
+        const w = await plusMinusPlus();
+        for (const target of [21.5, 21, 21.5]) {
+            changed(wireDevice({}, { target_temp: target }));
+            await w.vm.$nextTick();
+        }
+
+        changed(wireDevice({}, { target_temp: 25 }));
+        await w.vm.$nextTick();
+        expect(nums()).toEqual(['25°']);
+    });
+
+    it('keeps the draft when the first command is refused while the third is still out', async () => {
+        const w = await plusMinusPlus();
+
+        const { msg_id: msgId } = JSON.parse(sent[0]);
+        useHomeStore().applySetStateResult({ kind: 'set_state', msgId, success: false });
+        await w.vm.$nextTick();
+
+        expect(nums()).toEqual(['21.5°']);
+    });
+
+    it('keeps the draft when the first command times out while the third is still out', async () => {
+        const w = await plusMinusPlus();
+
+        // Sent at 400 ms, 800 ms and 1200 ms: at 5.5 s the first one's 5 s are
+        // up, the third one's are not.
+        await vi.advanceTimersByTimeAsync(5500 - 1200);
+        expect(nums()).toEqual(['21.5°']);
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(nums()).toEqual(['21°']);
+    });
+});
+
 describe('ClimateIo — a refused command', () => {
     it('puts the server value back as soon as the refusal arrives, not 5 s later', async () => {
         const w = mountClimate();
