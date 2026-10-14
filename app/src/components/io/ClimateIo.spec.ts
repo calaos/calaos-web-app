@@ -191,6 +191,16 @@ describe('ClimateIo — the row', () => {
         expect(w.find('.climate-dial__mark').exists()).toBe(false);
     });
 
+    it('shows no setpoint in fan_only, nor without a target_temp capability, like the settings', () => {
+        const fan = mountClimate(wireDevice({}, { mode: 'fan_only', action: 'fan' }));
+        expect(fan.find('.climate-io__set').exists()).toBe(false);
+        expect(fan.get('.io-row__value').text()).toBe('Room 23.4°');
+        expect(fan.find('.climate-io__dot').exists()).toBe(false);
+
+        const bare = mountClimate({ ...wireDevice(), capabilities: { modes: ['off', 'heat'] } });
+        expect(bare.find('.climate-io__set').exists()).toBe(false);
+    });
+
     it('formats numbers and words for the locale', () => {
         i18n.global.locale.value = 'fr';
         const w = mountClimate(wireDevice({}, { target_temp: 21.5, current_temp: 25.4, action: 'cooling' }));
