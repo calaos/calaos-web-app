@@ -24,7 +24,7 @@ const emit = defineEmits<{
     close: [];
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 </script>
 
 <template>
@@ -41,7 +41,7 @@ const { t } = useI18n();
                 <ClimateChoice v-for="m in swingModes" :key="m.value" :label="m.label" :selected="m.value === swing" @choose="emit('swing', m.value)" />
             </div>
         </section>
-        <p v-if="humidity !== undefined" class="climate-more__humidity">{{ t('climate.humidity', { value: humidity }) }}</p>
+        <p v-if="humidity !== undefined" class="climate-more__humidity">{{ t('climate.humidity', { value: humidity.toLocaleString(locale, { maximumFractionDigits: 1 }) }) }}</p>
     </BaseDialog>
 </template>
 
