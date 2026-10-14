@@ -16,6 +16,7 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import fr from '../app/src/i18n/fr.json';
 import { MESSAGES, expect, loginAs, test } from './fixtures';
 import type { MockControl } from './fixtures';
 import type { Locator, Page, TestInfo } from '@playwright/test';
@@ -333,48 +334,54 @@ test('keeps every row inside the viewport', async ({ page }) => {
 });
 
 // Screenshots of every state, for comparing with climate-mockups/round4/final/
-// web/*.png. They are attached to the report; SHOTS_DIR also writes them to disk.
-test.describe('screenshots of the states', () => {
-    test.skip(({ isMobile }) => isMobile, 'compared with the 1280 px mockups');
+// web/*.png. They are attached to the report; SHOTS_DIR also writes them to
+// disk, one folder per language (the mockups are in French).
+for (const lang of ['fr', 'en'] as const) {
+    test.describe(`screenshots of the states (${lang})`, () => {
+        test.skip(({ isMobile }) => isMobile, 'compared with the 1280 px mockups');
+        test.use({ locale: lang === 'fr' ? 'fr-FR' : 'en-US' });
 
-    async function shoot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
-        // Let the fade-in of the panel and dialogs finish.
-        await page.waitForTimeout(400);
-        const body = await page.screenshot();
-        await testInfo.attach(name, { body, contentType: 'image/png' });
-        const dir = process.env.SHOTS_DIR;
-        if (dir) {
-            mkdirSync(dir, { recursive: true });
-            writeFileSync(join(dir, `${name}.png`), body);
-        }
-    }
+        const L = lang === 'fr' ? fr.climate : C;
 
-    test('room list and one panel per state', async ({ page }, testInfo) => {
-        await page.setViewportSize({ width: 1280, height: 1700 });
-        await openLounge(page);
-        await row(page, DEVICES.cool.name).hover();
-        await shoot(page, testInfo, 'room-states');
-
-        await page.setViewportSize({ width: 1280, height: 800 });
-        for (const key of ['cool', 'heat', 'auto', 'stop', 'lockout', 'off', 'unknown', 'offline', 'fault', 'dry'] as const) {
-            await openSettings(page, DEVICES[key].name);
-            await page.mouse.move(0, 0);
-            await shoot(page, testInfo, `detail-${key}`);
+        async function shoot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
+            // Let the fade-in of the panel and dialogs finish.
+            await page.waitForTimeout(400);
+            const body = await page.screenshot();
+            await testInfo.attach(`${lang}/${name}`, { body, contentType: 'image/png' });
+            const dir = process.env.SHOTS_DIR;
+            if (dir) {
+                mkdirSync(join(dir, lang), { recursive: true });
+                writeFileSync(join(dir, lang, `${name}.png`), body);
+            }
         }
 
-        await openSettings(page, DEVICES.cool.name);
-        await modePill(page).click();
-        await expect(page.getByRole('dialog', { name: C.modeTitle })).toBeVisible();
-        await shoot(page, testInfo, 'popup-mode');
-        await page.keyboard.press('Escape');
-        await settings(page).getByRole('button', { name: C.more }).click();
-        await expect(page.getByRole('dialog', { name: C.more })).toBeVisible();
-        await shoot(page, testInfo, 'popup-more');
-        await page.keyboard.press('Escape');
+        test('room list and one panel per state', async ({ page }, testInfo) => {
+            await page.setViewportSize({ width: 1280, height: 1700 });
+            await openLounge(page);
+            await row(page, DEVICES.cool.name).hover();
+            await shoot(page, testInfo, 'room-states');
 
-        await page.setViewportSize({ width: 1000, height: 768 });
-        // The open panel became a dialog on its own.
-        await expect(page.getByRole('dialog', { name: DEVICES.cool.name })).toBeVisible();
-        await shoot(page, testInfo, 'dialog-below-1024');
+            await page.setViewportSize({ width: 1280, height: 800 });
+            for (const key of ['cool', 'heat', 'auto', 'stop', 'lockout', 'off', 'unknown', 'offline', 'fault', 'dry'] as const) {
+                await openSettings(page, DEVICES[key].name);
+                await page.mouse.move(0, 0);
+                await shoot(page, testInfo, `detail-${key}`);
+            }
+
+            await openSettings(page, DEVICES.cool.name);
+            await modePill(page).click();
+            await expect(page.getByRole('dialog', { name: L.modeTitle })).toBeVisible();
+            await shoot(page, testInfo, 'popup-mode');
+            await page.keyboard.press('Escape');
+            await settings(page).getByRole('button', { name: L.more }).click();
+            await expect(page.getByRole('dialog', { name: L.more })).toBeVisible();
+            await shoot(page, testInfo, 'popup-more');
+            await page.keyboard.press('Escape');
+
+            await page.setViewportSize({ width: 1000, height: 768 });
+            // The open panel became a dialog on its own.
+            await expect(page.getByRole('dialog', { name: DEVICES.cool.name })).toBeVisible();
+            await shoot(page, testInfo, 'dialog-below-1024');
+        });
     });
-});
+}
