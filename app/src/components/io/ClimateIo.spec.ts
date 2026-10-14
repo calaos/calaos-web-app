@@ -741,6 +741,15 @@ describe('ClimateIo — what the capabilities hide', () => {
         expect(body().get('.climate-more__humidity').text()).toBe('Humidity 48 %');
     });
 
+    it('formats the humidity for the language', async () => {
+        i18n.global.locale.value = 'fr';
+        const w = mountClimate(wireDevice({}, { humidity: 48.5 }));
+        await openSettings(w);
+        await body().get('.climate-detail__more').trigger('click');
+
+        expect(body().get('.climate-more__humidity').text()).toBe('Humidité 48,5 %');
+    });
+
     it('marks the current fan and swing, keeps a value it has no word for, and translates', async () => {
         const w = mountClimate(wireDevice({}, { fan_mode: 'turbo' }));
         await openSettings(w);
