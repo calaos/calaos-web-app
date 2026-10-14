@@ -24,6 +24,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import IoRow from '../components/io/IoRow.vue';
 import RoomIcon, { roomTypeLabelKey } from '../components/ui/RoomIcon.vue';
+import { openClimateId } from '../composables/useClimatePanel';
 import { useHomeStore } from '../stores/home';
 import type { IoItem } from '../protocol/types';
 
@@ -41,10 +42,14 @@ const ios = computed<IoItem[]>(() =>
         .map((id) => home.getIo(id))
         .filter((io): io is IoItem => io !== undefined && io.visible),
 );
+
+// A climate device's settings open in a panel beside the list: the list makes
+// the room (the CSS only does so where the panel is a panel and not a dialog).
+const panelOpen = computed(() => openClimateId.value !== null && ios.value.some((io) => io.id === openClimateId.value));
 </script>
 
 <template>
-    <div v-if="room !== undefined" class="room">
+    <div v-if="room !== undefined" class="room" :class="{ 'room--panel': panelOpen }">
         <header class="room__header fade-in-down">
             <span class="room__plate">
                 <RoomIcon :type="room.type" class="room__icon" />
@@ -74,6 +79,22 @@ const ios = computed<IoItem[]>(() =>
     max-inline-size: 44rem;
     margin-inline: auto;
     padding: var(--space-4);
+}
+
+/* The 460px panel plus its 16px margins take the right of the screen. Where
+   the list is capped at 44rem it stays that wide, shifted left, down to 1280px;
+   below that it shrinks into what is left. */
+@media (min-width: 64rem) {
+    .room--panel {
+        margin-inline: 0 auto;
+        max-inline-size: min(44rem, calc(100% - 28.75rem - var(--space-4) * 2));
+    }
+}
+
+@media (min-width: 80rem) {
+    .room--panel {
+        margin-inline-start: 6rem;
+    }
 }
 
 /* ---- header ----------------------------------------------------------- */

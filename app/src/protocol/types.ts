@@ -135,6 +135,20 @@ export interface DeviceState {
     action?: string;
     fanMode?: string;
     swingMode?: string;
+    // The four fields below come only from servers that publish them, and only
+    // while they apply: absent means "not applicable", never `false` or 0.
+    humidity?: number;
+    /** Only ever `false`: absent when the device is reachable. */
+    connected?: boolean;
+    /** A wanted output is waiting for its lock-out; `remaining` is seconds. */
+    lockout?: DeviceLockout;
+    /** A safety rule holds the outputs off (`sensor_stale`, `humidity_high`…). */
+    fault?: string;
+}
+
+export interface DeviceLockout {
+    output: string;
+    remaining: number;
 }
 
 /**

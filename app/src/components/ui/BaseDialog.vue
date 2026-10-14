@@ -1,3 +1,12 @@
+<script lang="ts">
+// Dialogs stack (the climate mode list opens over its settings dialog). The
+// page's own overflow is saved by the first and given back by the last, in
+// whatever order they go: a per-dialog save would restore another dialog's
+// 'hidden' and leave the page stuck.
+let scrollLocks = 0;
+let bodyOverflow = '';
+</script>
+
 <script setup lang="ts">
 // The app's only modal. Everything that interrupts — the colour picker, the
 // text field — is this shell with something in its body slot.
@@ -43,13 +52,20 @@ const props = withDefaults(
          * Server data, never translated.
          */
         eyebrow?: string;
-        /** Copy for the primary button. Same words as the control that opened it. */
-        confirmLabel: string;
-        cancelLabel: string;
+        /**
+         * Copy for the primary button. Same words as the control that opened
+         * it. Left out, the dialog has no primary button: a dialog that edits
+         * nothing (a list of choices that apply on tap) has nothing to confirm.
+         */
+        confirmLabel?: string;
+        /** Left out as well, the buttons row disappears and the body closes the dialog itself. */
+        cancelLabel?: string;
         /** Greys the primary button; Enter is refused too. */
         confirmDisabled?: boolean;
+        /** 35rem instead of 22rem, for a body that is a view rather than a form. */
+        wide?: boolean;
     }>(),
-    { eyebrow: '', confirmDisabled: false },
+    { eyebrow: '', confirmLabel: undefined, cancelLabel: undefined, confirmDisabled: false, wide: false },
 );
 
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
@@ -59,15 +75,15 @@ const titleId = useId();
 
 /** The control that had focus when the dialog opened, to give it back. */
 let opener: HTMLElement | null = null;
-/** `document.body`'s own overflow, restored when the dialog goes away. */
-let bodyOverflow = '';
 let scrollLocked = false;
 
 function lockScroll(): void {
     if (scrollLocked) return;
-    bodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     scrollLocked = true;
+    if (scrollLocks++ === 0) {
+        bodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+    }
 }
 
 // Also on unmount, not only on close: a dialog can be torn down while open
@@ -75,8 +91,8 @@ function lockScroll(): void {
 // permanently unscrollable is the classic way that goes wrong.
 function unlockScroll(): void {
     if (!scrollLocked) return;
-    document.body.style.overflow = bodyOverflow;
     scrollLocked = false;
+    if (--scrollLocks === 0) document.body.style.overflow = bodyOverflow;
 }
 
 onBeforeUnmount(unlockScroll);
@@ -161,6 +177,7 @@ watch(
             <div
                 ref="panel"
                 class="base-dialog__panel fade-in-up"
+                :class="{ 'base-dialog__panel--wide': wide }"
                 role="dialog"
                 aria-modal="true"
                 :aria-labelledby="titleId"
@@ -180,8 +197,9 @@ watch(
                 <form class="base-dialog__form" @submit.prevent="emit('confirm')">
                     <div class="base-dialog__body"><slot /></div>
 
-                    <div class="base-dialog__actions">
+                    <div v-if="cancelLabel !== undefined || confirmLabel !== undefined" class="base-dialog__actions">
                         <button
+                            v-if="cancelLabel !== undefined"
                             type="button"
                             class="base-dialog__button base-dialog__button--quiet pressable"
                             @click="emit('cancel')"
@@ -189,6 +207,7 @@ watch(
                             {{ cancelLabel }}
                         </button>
                         <button
+                            v-if="confirmLabel !== undefined"
                             type="submit"
                             class="base-dialog__button base-dialog__button--primary pressable"
                             :disabled="confirmDisabled"
@@ -235,6 +254,10 @@ watch(
     border: 1px solid var(--c-border);
     border-radius: var(--radius-lg);
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.base-dialog__panel--wide {
+    inline-size: min(35rem, 100%);
 }
 
 .base-dialog__panel:focus-visible {

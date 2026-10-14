@@ -85,23 +85,15 @@
             "heat": "Chauffage",
             "cool": "Froid",
             "auto": "Auto",
-            "dry": "Déshumidif.",
+            "dry": "Déshumidification",
             "fan_only": "Ventilation",
             "unknown": "Mode inconnu"
         },
-        "action": {
-            "off": "Arrêté",
-            "idle": "En veille",
-            "heating": "Chauffe",
-            "cooling": "Refroidit",
-            "drying": "Déshumidifie",
-            "fan": "Ventilation en cours"
-        },
         "option": {
             "auto": "Auto",
-            "low": "Bas",
+            "low": "Faible",
             "medium": "Moyen",
-            "high": "Haut",
+            "high": "Fort",
             "quiet": "Silencieux",
             "on": "Activé",
             "off": "Désactivé",
@@ -109,16 +101,55 @@
             "horizontal": "Horizontal",
             "both": "Les deux"
         },
-        "modes": "Mode de {name}",
-        "current": "Température actuelle",
-        "currentUnknown": "Température actuelle inconnue",
-        "target": "Consigne de {name}",
-        "targetLow": "Température basse de {name}",
-        "targetHigh": "Température haute de {name}",
+        "swingOption": {
+            "off": "Fixe",
+            "vertical": "Vertical",
+            "horizontal": "Horizontal",
+            "both": "Les deux"
+        },
+        "status": {
+            "heating": "Chauffe",
+            "cooling": "Refroidit",
+            "drying": "Déshumidifie",
+            "fan": "Ventile",
+            "idle": "En veille",
+            "off": "Arrêté",
+            "unknown": "Mode inconnu",
+            "offline": "Hors ligne",
+            "lockout": "Démarre dans {time}",
+            "fault": "Défaut"
+        },
+        "statusShort": {
+            "drying": "Sèche",
+            "idle": "Veille",
+            "unknown": "Inconnu",
+            "lockout": "Attente"
+        },
+        "fault": {
+            "sensor_stale": "Sonde muette",
+            "sensor_missing": "Sonde absente",
+            "humidity_high": "Humidité trop haute",
+            "humidity_stale": "Sonde d’humidité muette"
+        },
+        "duration": {
+            "minutes": "{minutes} min {seconds}",
+            "seconds": "{seconds} s"
+        },
+        "room": "Pièce {temp}",
+        "rangeStop": "Écart minimum {gap}",
+        "more": "Plus de réglages",
+        "modeTitle": "Mode",
+        "close": "Fermer",
+        "fan": "Ventilation",
+        "swing": "Oscillation",
+        "humidity": "Humidité {value} %",
         "raise": "Augmenter la consigne de {name}",
         "lower": "Baisser la consigne de {name}",
-        "fan": "Ventilation",
-        "swing": "Oscillation"
+        "raiseLow": "Augmenter la température basse de {name}",
+        "lowerLow": "Baisser la température basse de {name}",
+        "raiseHigh": "Augmenter la température haute de {name}",
+        "lowerHigh": "Baisser la température haute de {name}",
+        "settings": "Réglages de {name}"
     },
     "dialog": {
         "cancel": "Annuler",

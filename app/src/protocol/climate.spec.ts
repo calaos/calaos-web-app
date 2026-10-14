@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { climateGating, formatSetpoint, moveRangeHandle, snapToStep } from './climate';
+import {
+    atRangeStop,
+    canAdjust,
+    climateGating,
+    climateStatus,
+    dialPaint,
+    formatTemp,
+    moveRangeHandle,
+    snapToStep,
+    splitDuration,
+} from './climate';
 import { toDeviceInfo } from './guards';
 import type { DeviceInfo } from './types';
 
@@ -29,45 +39,43 @@ function device(over: {
 
 describe('climateGating', () => {
     it.each([
-        ['heat', 'single', false],
-        ['cool', 'single', false],
-        ['dry', 'single', false],
-        ['auto', 'range', false],
-        ['fan_only', 'none', false],
-        ['off', 'single', true],
-        ['', 'single', false],
-    ] as const)('mode %j on a full device → %s setpoint, off=%s', (mode, setpoint, off) => {
+        ['heat', 'single'],
+        ['cool', 'single'],
+        ['dry', 'single'],
+        ['auto', 'range'],
+        ['fan_only', 'none'],
+        ['off', 'single'],
+        ['', 'single'],
+    ] as const)('mode %j on a full device → %s setpoint', (mode, setpoint) => {
         const state = mode === '' ? {} : { mode };
-        expect(climateGating(device({ state }))).toEqual({ off, setpoint });
+        expect(climateGating(device({ state }))).toEqual({ setpoint });
     });
 
     it('uses a single setpoint in auto when the device has no range', () => {
         expect(
             climateGating(device({ caps: { target_temp_range: false }, state: { mode: 'auto' } })),
-        ).toEqual({ off: false, setpoint: 'single' });
+        ).toEqual({ setpoint: 'single' });
     });
 
     it('offers no setpoint without a target_temp capability', () => {
         const d = device({ state: { mode: 'heat' } });
         delete d.capabilities.targetTemp;
-        expect(climateGating(d)).toEqual({ off: false, setpoint: 'none' });
-        d.state.mode = 'off';
-        expect(climateGating(d)).toEqual({ off: true, setpoint: 'none' });
+        expect(climateGating(d)).toEqual({ setpoint: 'none' });
     });
 
     describe('range-only device (range capability, no target_temp link)', () => {
         const rangeOnly = (mode: string) => device({ rangeOnly: true, state: { mode } });
 
         it.each([
-            ['auto', 'range', false],
-            ['heat', 'range', false],
-            ['cool', 'range', false],
-            ['dry', 'range', false],
-            ['off', 'range', true],
-            ['', 'range', false],
-            ['fan_only', 'none', false],
-        ] as const)('mode %j → %s setpoint, off=%s', (mode, setpoint, off) => {
-            expect(climateGating(rangeOnly(mode))).toEqual({ off, setpoint });
+            ['auto', 'range'],
+            ['heat', 'range'],
+            ['cool', 'range'],
+            ['dry', 'range'],
+            ['off', 'range'],
+            ['', 'range'],
+            ['fan_only', 'none'],
+        ] as const)('mode %j → %s setpoint', (mode, setpoint) => {
+            expect(climateGating(rangeOnly(mode))).toEqual({ setpoint });
         });
 
         it('stays range-only even if a stray target_temp value was received', () => {
@@ -134,10 +142,158 @@ describe('moveRangeHandle', () => {
     });
 });
 
-describe('formatSetpoint', () => {
-    it('shows as many decimals as the step has', () => {
-        expect(formatSetpoint(21, 0.5)).toBe('21.0');
-        expect(formatSetpoint(21, 1)).toBe('21');
-        expect(formatSetpoint(21.25, 0.25)).toBe('21.25');
+describe('climateStatus', () => {
+    const acting = { caps: { reports_action: true } };
+
+    it('maps each running action to its word and colour', () => {
+        for (const [action, id, tone] of [
+            ['heating', 'heating', 'heat'],
+            ['cooling', 'cooling', 'cool'],
+            ['drying', 'drying', 'cool'],
+            ['fan', 'fan', 'fan'],
+        ] as const) {
+            expect(climateStatus(device({ ...acting, state: { action } }))).toEqual({ id, tone, acting: true });
+        }
+    });
+
+    it('says idle, neutral, for any action that is not running', () => {
+        for (const action of ['idle', 'off', 'something_new']) {
+            expect(climateStatus(device({ ...acting, state: { action } }))).toEqual({ id: 'idle', tone: 'muted', acting: false });
+        }
+    });
+
+    it('falls back to the mode when the device reports no action', () => {
+        expect(climateStatus(device({ state: { mode: 'cool', action: 'cooling' } })).id).toBe('mode');
+        expect(climateStatus(device({ ...acting, state: { mode: 'cool' } })).id).toBe('mode');
+    });
+
+    it('reports off and unknown as neutral, whatever the action says', () => {
+        expect(climateStatus(device({ ...acting, state: { mode: 'off', action: 'heating' } }))).toMatchObject({ id: 'off', acting: false });
+        expect(climateStatus(device({ ...acting, state: { mode: '', action: 'heating' } }))).toMatchObject({ id: 'unknown', acting: false });
+        expect(climateStatus(device({ ...acting, state: { mode: undefined } })).id).toBe('unknown');
+    });
+
+    it('reports a lock-out in amber with the seconds left, rounded up', () => {
+        const d = device({ ...acting, state: { action: 'idle', lockout: { output: 'heat', remaining: 140 } } });
+
+        expect(climateStatus(d)).toEqual({ id: 'lockout', tone: 'wait', acting: false, seconds: 140 });
+        expect(climateStatus(d, 12.2)).toMatchObject({ id: 'lockout', seconds: 13 });
+    });
+
+    it('ends the lock-out at zero seconds even if the server has not republished', () => {
+        const d = device({ ...acting, state: { action: 'idle', lockout: { output: 'heat', remaining: 140 } } });
+
+        expect(climateStatus(d, 0).id).toBe('idle');
+    });
+
+    it('reports an unreachable device before a fault, and a fault before the mode', () => {
+        const both = { connected: false, fault: 'sensor_stale', mode: 'off' };
+
+        expect(climateStatus(device({ state: both }))).toEqual({ id: 'offline', tone: 'offline', acting: false });
+        expect(climateStatus(device({ state: { fault: 'sensor_stale', mode: 'off' } }))).toEqual({
+            id: 'fault',
+            tone: 'offline',
+            acting: false,
+            fault: 'sensor_stale',
+        });
+    });
+
+    it('says a lock-out before an action but after off', () => {
+        const lock = { output: 'heat', remaining: 9 };
+
+        expect(climateStatus(device({ ...acting, state: { action: 'heating', lockout: lock } })).id).toBe('lockout');
+        expect(climateStatus(device({ ...acting, state: { mode: 'off', lockout: lock } })).id).toBe('off');
+    });
+});
+
+describe('canAdjust', () => {
+    it('refuses −/+ for an unreachable device and an unknown mode only', () => {
+        const can = (state: Record<string, unknown>) => canAdjust(climateStatus(device({ state })));
+
+        expect(can({ connected: false })).toBe(false);
+        expect(can({ mode: '' })).toBe(false);
+        expect(can({ mode: 'off' })).toBe(true);
+        expect(can({ fault: 'sensor_stale' })).toBe(true);
+        expect(can({ mode: 'heat' })).toBe(true);
+    });
+});
+
+describe('atRangeStop', () => {
+    it('is true when low and high are min_range apart or closer', () => {
+        expect(atRangeStop(21, 23, 2)).toBe(true);
+        expect(atRangeStop(21, 22.5, 2)).toBe(true);
+        expect(atRangeStop(21, 23.5, 2)).toBe(false);
+    });
+
+    it('is false without a gap to keep, or without both ends', () => {
+        expect(atRangeStop(21, 21, undefined)).toBe(false);
+        expect(atRangeStop(21, 21, 0)).toBe(false);
+        expect(atRangeStop(undefined, 23, 2)).toBe(false);
+        expect(atRangeStop(21, undefined, 2)).toBe(false);
+    });
+
+    it('shrugs off float noise at the stop', () => {
+        expect(atRangeStop(0.1 + 0.2, 2.3, 2)).toBe(true);
+    });
+});
+
+describe('dialPaint', () => {
+    const paint = (state: Record<string, unknown>, caps: Record<string, unknown> = { reports_action: true }) => {
+        const d = device({ caps, state });
+        return dialPaint(climateStatus(d), d.state.mode ?? '');
+    };
+
+    it('follows the running action', () => {
+        expect(paint({ action: 'heating' })).toMatchObject({ fill: 'heat', between: 'heat', knob: 'heat' });
+        expect(paint({ mode: 'cool', action: 'cooling' })).toMatchObject({ fill: 'cool', between: 'cool', knob: 'cool' });
+    });
+
+    it('is amber while a lock-out holds the output', () => {
+        expect(paint({ action: 'idle', lockout: { output: 'heat', remaining: 9 } })).toMatchObject({ fill: 'wait', knob: 'wait' });
+    });
+
+    it('is neutral with white knob when nothing runs, and dims the range between the knobs', () => {
+        expect(paint({ action: 'idle' })).toMatchObject({ fill: 'muted', between: 'dim', knob: 'white' });
+        expect(paint({ mode: 'off' })).toMatchObject({ fill: 'muted', knob: 'white' });
+    });
+
+    it('dims everything, the range knobs included, for an unreachable device or a fault', () => {
+        const dimmed = { fill: 'dim', between: 'dim', knob: 'muted', ends: ['muted', 'muted'] };
+
+        expect(paint({ connected: false })).toEqual(dimmed);
+        expect(paint({ fault: 'sensor_stale' })).toEqual(dimmed);
+    });
+
+    it('keeps the range ends warm below and cool above otherwise', () => {
+        expect(paint({ action: 'heating' }).ends).toEqual(['heat', 'cool']);
+        expect(paint({ mode: 'off' }).ends).toEqual(['heat', 'cool']);
+    });
+
+    it('takes the colour of the mode when the device does not say what it does', () => {
+        expect(paint({ mode: 'heat' }, {})).toMatchObject({ fill: 'heat', knob: 'heat' });
+        expect(paint({ mode: 'dry' }, {})).toMatchObject({ fill: 'cool', knob: 'cool' });
+        expect(paint({ mode: 'auto' }, {})).toMatchObject({ fill: 'muted', knob: 'white' });
+    });
+});
+
+describe('splitDuration', () => {
+    it('splits seconds into minutes and seconds, never negative', () => {
+        expect(splitDuration(140)).toEqual({ minutes: 2, seconds: 20 });
+        expect(splitDuration(59)).toEqual({ minutes: 0, seconds: 59 });
+        expect(splitDuration(60.9)).toEqual({ minutes: 1, seconds: 0 });
+        expect(splitDuration(-4)).toEqual({ minutes: 0, seconds: 0 });
+    });
+});
+
+describe('formatTemp', () => {
+    it('drops a useless decimal and uses the locale separator', () => {
+        expect(formatTemp(22, 0.5, 'en')).toBe('22');
+        expect(formatTemp(22.5, 0.5, 'en')).toBe('22.5');
+        expect(formatTemp(22.5, 0.5, 'fr')).toBe('22,5');
+    });
+
+    it('follows a finer step, and shows at least one decimal of a coarse one', () => {
+        expect(formatTemp(21.25, 0.25, 'en')).toBe('21.25');
+        expect(formatTemp(21.3, 1, 'en')).toBe('21.3');
     });
 });

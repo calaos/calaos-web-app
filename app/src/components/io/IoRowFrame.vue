@@ -15,6 +15,10 @@
 // on a resting row is its glyph, which is the app's rule for glyphs
 // everywhere (HomeView's tiles, the room header's plate).
 //
+// The one exception is a row with no controls of its own that leads to a view
+// (`opens`, the climate row): there the row IS the control, and it hovers the
+// way a room tile does.
+//
 // `aria-busy` rather than a live region for the pending state: a room can hold
 // a dozen rows, and a dozen polite announcements racing each other after one
 // tap is worse than silence. The dot is the visual half, `aria-busy` the
@@ -22,6 +26,27 @@
 
 import SensorStatusBadge from './SensorStatusBadge.vue';
 import type { IoStatusInfo } from '../../protocol/types';
+
+const emit = defineEmits<{ open: [] }>();
+
+// A button opens on Enter's press and on Space's release; opening on Space's
+// press would let Firefox deliver the release as a click to whatever the
+// opened view put under the finger.
+function onKeydown(event: KeyboardEvent): void {
+    // The row's own keys only: a key typed in a control inside it is not ours.
+    if (event.target !== event.currentTarget) return;
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        emit('open');
+    } else if (event.key === ' ') {
+        // Space scrolls the page on its press otherwise.
+        event.preventDefault();
+    }
+}
+
+function onKeyup(event: KeyboardEvent): void {
+    if (event.target === event.currentTarget && event.key === ' ') emit('open');
+}
 
 withDefaults(
     defineProps<{
@@ -42,13 +67,27 @@ withDefaults(
          * `SensorStatusIcon` into every row template.
          */
         status?: IoStatusInfo | null;
+        /** The whole row is a button that opens a view (see above). */
+        opens?: boolean;
+        /** With `opens`: that view is showing. */
+        expanded?: boolean;
     }>(),
-    { pending: false, note: '', status: null },
+    { pending: false, note: '', status: null, opens: false, expanded: false },
 );
 </script>
 
 <template>
-    <div class="io-row" :aria-busy="pending ? 'true' : undefined">
+    <div
+        class="io-row"
+        :class="{ 'io-row--opens': opens }"
+        :aria-busy="pending ? 'true' : undefined"
+        :role="opens ? 'button' : undefined"
+        :tabindex="opens ? 0 : undefined"
+        :aria-expanded="opens ? expanded : undefined"
+        @click="opens && emit('open')"
+        @keydown="opens && onKeydown($event)"
+        @keyup="opens && onKeyup($event)"
+    >
         <span class="io-row__lead">
             <slot name="icon" />
             <!-- Anchored to the glyph, not to the row: it is this control that
@@ -69,10 +108,6 @@ withDefaults(
         <SensorStatusBadge :status="status" />
 
         <span v-if="$slots.actions" class="io-row__actions"><slot name="actions" /></span>
-
-        <!-- A line of its own under the header, for rows whose controls do not
-             fit beside the name (a climate device). -->
-        <div v-if="$slots.panel" class="io-row__panel"><slot name="panel" /></div>
     </div>
 </template>
 
@@ -95,6 +130,19 @@ withDefaults(
     background-color: var(--c-surface);
     border: 1px solid var(--c-border);
     border-radius: var(--radius-md);
+}
+
+.io-row--opens {
+    cursor: pointer;
+    transition:
+        background-color 160ms ease,
+        border-color 160ms ease;
+}
+
+.io-row--opens:hover,
+.io-row--opens[aria-expanded='true'] {
+    background-color: var(--c-surface-raised);
+    border-color: var(--c-border-strong);
 }
 
 .io-row__lead {
@@ -173,13 +221,6 @@ withDefaults(
     max-inline-size: min(16rem, 45%);
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.io-row__panel {
-    flex: 1 1 100%;
-    min-inline-size: 0;
-    padding-block-start: var(--space-3);
-    border-block-start: 1px solid var(--c-border);
 }
 
 .io-row__actions {

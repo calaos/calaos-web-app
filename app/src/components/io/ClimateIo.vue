@@ -3,557 +3,311 @@
 // `device` object: which controls exist is `capabilities`, what they show is
 // `state`. Nothing here knows about proxies or thermostats.
 //
-// Commands go out through `set_state` (spec §5.2): a plain mode for the mode
-// buttons, a JSON partial update for everything else. Like the rest of the
-// app the row is not optimistic — the values on screen stay the server's — with
-// one exception: a value the user has just chosen stays on screen (the
-// "draft") until the server answers, so a +/- tap or a slider release does not
-// snap back for the round trip. Setpoint, fan and swing changes are debounced
-// into one merged command; see useDebouncedMerge.
+// The row only reads: a mini dial, the name, the setpoint, the room's
+// temperature and a status. Tapping it opens the settings — a side panel on
+// a wide screen, a centred dialog below 1024 px — and the mode and the
+// secondary settings open in dialogs of their own on top. The commands and
+// the "not optimistic" rules live in useClimate.
 
-import { computed, onScopeDispose, ref, useId, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import IconThermostat from '~icons/mdi/thermostat';
-import ActionButton from './ActionButton.vue';
-import { BUTTONS } from './calaos-icons';
+import IconChevronRight from '~icons/mdi/chevron-right';
+import IconClose from '~icons/mdi/close';
+import ClimateDetail from './ClimateDetail.vue';
+import ClimateDial from './ClimateDial.vue';
+import ClimateModeDialog from './ClimateModeDialog.vue';
+import ClimateMoreDialog from './ClimateMoreDialog.vue';
+import { PAINT } from './climate-dial';
 import IoRowFrame from './IoRowFrame.vue';
-import BaseSlider from '../ui/BaseSlider.vue';
-import RangeSlider from '../ui/RangeSlider.vue';
-import { useDebouncedMerge } from '../../composables/useDebouncedMerge';
-import { useIo } from '../../composables/useIo';
-import { climateGating, formatSetpoint, snapToStep } from '../../protocol/climate';
-import type { Range } from '../../protocol/climate';
-import type { DeviceTargetTemp, IoItem } from '../../protocol/types';
-
-/** Quiet period before a burst of setpoint/fan/swing changes becomes one command. */
-const DEBOUNCE_MS = 350;
-
-/** Matches the store's pending timeout: after this a silent server is a refusing one. */
-const DRAFT_TIMEOUT_MS = 5000;
-
-/** Fields the JSON partial update can carry from this widget. */
-interface ClimatePatch {
-    target_temp: number;
-    target_temp_low: number;
-    target_temp_high: number;
-    fan_mode: string;
-    swing_mode: string;
-}
-
-const ACTIVE_ACTIONS = new Set(['heating', 'cooling', 'drying', 'fan']);
+import BaseDialog from '../ui/BaseDialog.vue';
+import IconButton from '../ui/IconButton.vue';
+import { useClimate } from '../../composables/useClimate';
+import { useClimateText } from '../../composables/useClimateText';
+import { closeClimate, openClimate, openClimateId } from '../../composables/useClimatePanel';
+import { useMediaQuery } from '../../composables/useMediaQuery';
+import { dialPaint } from '../../protocol/climate';
+import { useHomeStore } from '../../stores/home';
+import type { IoItem } from '../../protocol/types';
 
 const props = defineProps<{ io: IoItem }>();
 
-const { t, te } = useI18n();
-const { isPending, set } = useIo(() => props.io.id);
-const uid = useId();
+const { t } = useI18n();
+const home = useHomeStore();
+const ctl = useClimate(() => props.io);
+const text = useClimateText(ctl);
 
-const device = computed(() => (props.io.device?.family === 'climate' ? props.io.device : undefined));
-const caps = computed(() => device.value?.capabilities);
-const state = computed(() => device.value?.state);
-const bounds = computed<DeviceTargetTemp | undefined>(() => caps.value?.targetTemp);
-const gating = computed(() => (device.value ? climateGating(device.value) : undefined));
+const device = ctl.device;
+const status = ctl.status;
+const paint = computed(() => (status.value ? dialPaint(status.value, ctl.mode.value) : undefined));
+const statusColor = computed(() => (status.value ? PAINT[status.value.tone] : undefined));
 
-const unit = computed(() => (bounds.value?.unit ? bounds.value.unit : '°C'));
-const modes = computed(() => caps.value?.modes ?? []);
-// '' is the server's "mode not known yet" — not `off`.
-const mode = computed(() => state.value?.mode ?? '');
+// The side panel needs 460 px next to a row list that is at least 532 px wide.
+const wide = useMediaQuery('(min-width: 64rem)');
 
-function label(group: 'mode' | 'action' | 'option', value: string): string {
-    const key = `climate.${group}.${value}`;
-    return te(key) ? t(key) : value;
-}
+const isOpen = computed(() => openClimateId.value === props.io.id);
+const roomName = computed(() => home.rooms.find((room) => room.ioIds.includes(props.io.id))?.name ?? '');
 
-// ---------------------------------------------------------------- drafts ---
-
-const draft = ref<Partial<ClimatePatch>>({});
-const previewSingle = ref<number | null>(null);
-const previewRange = ref<Range | null>(null);
-
-/** The server's value for a patch field, as the device reports it right now. */
-function serverValue(field: keyof ClimatePatch): number | string | undefined {
-    const s = state.value;
-    switch (field) {
-        case 'target_temp':
-            return s?.targetTemp;
-        case 'target_temp_low':
-            return s?.targetTempLow;
-        case 'target_temp_high':
-            return s?.targetTempHigh;
-        case 'fan_mode':
-            return s?.fanMode;
-        case 'swing_mode':
-            return s?.swingMode;
-    }
-}
-
-interface InFlight {
-    /** What the server reported when the command left, per field. */
-    base: Partial<Record<keyof ClimatePatch, number | string | undefined>>;
-    sent: Partial<ClimatePatch>;
-    timer?: ReturnType<typeof setTimeout>;
-}
-
-let inFlight: InFlight[] = [];
-const draftTimers = new Set<ReturnType<typeof setTimeout>>();
-
-function dropDraft(sent: Partial<ClimatePatch>, fields?: Iterable<keyof ClimatePatch>) {
-    const next = { ...draft.value };
-    for (const field of fields ?? (Object.keys(sent) as (keyof ClimatePatch)[])) {
-        // A newer choice on the same field is not this command's to retire.
-        if (next[field] === sent[field]) delete next[field];
-    }
-    draft.value = next;
-}
-
-function retire(entry: InFlight) {
-    if (entry.timer !== undefined) {
-        clearTimeout(entry.timer);
-        draftTimers.delete(entry.timer);
-    }
-    inFlight = inFlight.filter((e) => e !== entry);
-    dropDraft(entry.sent);
-}
-
-const commands = useDebouncedMerge<ClimatePatch>((merged) => {
-    const fields = Object.keys(merged) as (keyof ClimatePatch)[];
-    const entry: InFlight = {
-        base: Object.fromEntries(fields.map((f) => [f, serverValue(f)])),
-        sent: merged,
-    };
-    // A refusal changes nothing on the server, so the republished device looks
-    // like any unrelated update: only the verdict can end the draft early.
-    const sentOk = set(JSON.stringify(merged), (success) => {
-        if (!success) retire(entry);
-    });
-    if (!sentOk) {
-        dropDraft(merged);
-        return;
-    }
-    inFlight.push(entry);
-    // Rejected or ignored commands never change the server's value: the draft
-    // must not outlive the store's own pending timeout.
-    const timer = setTimeout(() => retire(entry), DRAFT_TIMEOUT_MS);
-    draftTimers.add(timer);
-    entry.timer = timer;
-}, DEBOUNCE_MS);
-
-function queue(patch: Partial<ClimatePatch>) {
-    draft.value = { ...draft.value, ...patch };
-    commands.push(patch);
-}
-
-// The device arrives whole on every io_changed, including ones that only move
-// current_temp: a draft ends when the server reports a different value for
-// its own field, not when anything arrives.
-watch(
-    () => props.io.device,
-    () => {
-        for (const entry of inFlight) {
-            const answered = (Object.keys(entry.sent) as (keyof ClimatePatch)[]).filter(
-                (f) => serverValue(f) !== entry.base[f],
-            );
-            if (answered.length === 0) continue;
-            dropDraft(entry.sent, answered);
-            for (const f of answered) delete entry.base[f];
-        }
-        inFlight = inFlight.filter((e) => Object.keys(e.base).length > 0);
-    },
-);
-
-onScopeDispose(() => {
-    for (const timer of draftTimers) clearTimeout(timer);
-});
-
-// ----------------------------------------------------------------- modes ---
-
-// The mode this widget asked for and has not seen answered. While it is out,
-// the displayed mode is a legitimate target again: clicking it takes the
-// request back.
-const modeInFlight = ref<string | null>(null);
-watch(isPending, (now) => {
-    if (!now) modeInFlight.value = null;
-});
-
-function selectMode(next: string) {
-    if (next === mode.value && modeInFlight.value === null) return;
-    // The mode must not overtake a setpoint the user chose just before it.
-    commands.flush();
-    if (set(next)) modeInFlight.value = next;
-}
-
-const modeUnselected = computed(() => !modes.value.includes(mode.value));
-
-// -------------------------------------------------------------- readings ---
-
-const currentTemp = computed(() => {
-    const value = state.value?.currentTemp;
-    return value === undefined ? '—' : `${value.toFixed(1)} ${unit.value}`;
-});
-
-const action = computed(() => (caps.value?.reportsAction ? state.value?.action : undefined));
-const actionActive = computed(() => action.value !== undefined && ACTIVE_ACTIONS.has(action.value));
-
-// -------------------------------------------------------------- setpoint ---
-
-const singleValue = computed(
-    () => previewSingle.value ?? draft.value.target_temp ?? state.value?.targetTemp,
-);
-
-// What the slider is told: never the live drag, or its own follow-the-server
-// logic would only ever see its own movement.
-const rangeLow = computed(() => draft.value.target_temp_low ?? state.value?.targetTempLow);
-const rangeHigh = computed(() => draft.value.target_temp_high ?? state.value?.targetTempHigh);
-
-function fmt(value: number | undefined): string {
-    return value === undefined || !bounds.value ? '—' : formatSetpoint(value, bounds.value.step);
-}
-
-const singleText = computed(() => `${fmt(singleValue.value)} ${unit.value}`);
-// The server refuses a partial range, so a half-known one is shown, not editable.
-const rangeKnown = computed(() => rangeLow.value !== undefined && rangeHigh.value !== undefined);
-const rangeText = computed(
+const hasMore = computed(
     () =>
-        `${fmt(previewRange.value?.low ?? rangeLow.value)} – ${fmt(previewRange.value?.high ?? rangeHigh.value)} ${unit.value}`,
+        (ctl.caps.value?.fanModes?.length ?? 0) > 0 ||
+        (ctl.caps.value?.swingModes?.length ?? 0) > 0 ||
+        ctl.state.value?.humidity !== undefined,
 );
 
-function nudge(direction: 1 | -1) {
-    const b = bounds.value;
-    if (!b) return;
-    const base = singleValue.value ?? (direction === 1 ? b.min : b.max);
-    const next = snapToStep(base + direction * b.step, b);
-    if (next !== singleValue.value) queue({ target_temp: next });
+// ------------------------------------------------------- open and close ---
+
+const modeOpen = ref(false);
+const moreOpen = ref(false);
+const panel = ref<HTMLElement | null>(null);
+let opener: HTMLElement | null = null;
+
+function open() {
+    opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    openClimate(props.io.id);
 }
 
-function commitRange(range: Range) {
-    queue({ target_temp_low: range.low, target_temp_high: range.high });
+function close() {
+    modeOpen.value = false;
+    moreOpen.value = false;
+    closeClimate(props.io.id);
 }
 
-// ------------------------------------------------------------ fan, swing ---
+// The dialog restores focus itself; the panel is not modal and does it here.
+watch(isOpen, async (now, was) => {
+    if (now && wide.value) {
+        await nextTick();
+        panel.value?.focus();
+    } else if (was && !now) {
+        modeOpen.value = false;
+        moreOpen.value = false;
+        if (wide.value) opener?.focus();
+        opener = null;
+    }
+});
 
-const fanId = `climate-fan-${uid}`;
-const swingId = `climate-swing-${uid}`;
+// The room can go away under an open panel (navigation, the device vanishing).
+onBeforeUnmount(() => closeClimate(props.io.id));
+watch(device, (d) => {
+    if (d === undefined) close();
+});
 
-const fanValue = computed(() => draft.value.fan_mode ?? state.value?.fanMode ?? '');
-const swingValue = computed(() => draft.value.swing_mode ?? state.value?.swingMode ?? '');
+function onPanelKeydown(event: KeyboardEvent) {
+    // A dialog on top owns Escape; it stops the event before it reaches here.
+    if (event.key === 'Escape') close();
+}
 
-/** The list, plus the current value if the server holds one outside it. */
-function optionsFor(list: string[] | undefined, current: string): string[] {
+function choose(mode: string) {
+    ctl.selectMode(mode);
+    modeOpen.value = false;
+}
+
+const modeChoices = computed(() => ctl.modes.value.map((value) => ({ value, label: text.modeLabel(value) })));
+
+/** The server's own value stays on screen when this client has no word for it. */
+const fanChoices = computed(() => withCurrent(ctl.caps.value?.fanModes, ctl.fan.value).map((v) => ({ value: v, label: text.fanLabel(v) })));
+const swingChoices = computed(() => withCurrent(ctl.caps.value?.swingModes, ctl.swing.value).map((v) => ({ value: v, label: text.swingLabel(v) })));
+
+function withCurrent(list: string[] | undefined, current: string): string[] {
     const base = list ?? [];
     return current !== '' && !base.includes(current) ? [...base, current] : base;
-}
-
-function onSelect(field: 'fan_mode' | 'swing_mode', event: Event) {
-    queue({ [field]: (event.target as HTMLSelectElement).value });
 }
 </script>
 
 <template>
-    <IoRowFrame :name="io.name" :status="io.status" :pending="isPending">
+    <IoRowFrame
+        class="climate-io"
+        :name="io.name"
+        :status="io.status"
+        :pending="ctl.isPending.value"
+        :opens="device !== undefined"
+        :expanded="isOpen"
+        @open="open"
+    >
         <template #icon>
-            <IconThermostat
-                class="climate-io__icon"
-                :class="{ 'climate-io__icon--on': actionActive }"
-                aria-hidden="true"
+            <ClimateDial
+                v-if="device && paint"
+                mini
+                :size="28"
+                :stroke="3"
+                :knob="3"
+                :bounds="ctl.bounds.value"
+                :setpoint="ctl.gating.value?.setpoint ?? 'none'"
+                :target="ctl.single.value"
+                :low="ctl.low.value"
+                :high="ctl.high.value"
+                :current="ctl.state.value?.currentTemp"
+                :paint="paint"
             />
+            <IconThermostat v-else class="climate-io__icon" aria-hidden="true" />
         </template>
+
         <template #value>
-            <span
-                v-if="device && action !== undefined"
-                class="climate-io__chip"
-                :class="{ 'climate-io__chip--active': actionActive }"
-            >
-                {{ label('action', action) }}
-            </span>
-            <span v-if="device" class="climate-io__current">
-                <span class="visually-hidden">
-                    {{ state?.currentTemp === undefined ? t('climate.currentUnknown') : t('climate.current') }}
-                </span>
-                {{ currentTemp }}
-            </span>
+            <template v-if="device">
+                <span v-if="text.setpoint.value !== ''" class="climate-io__set">{{ text.setpoint.value }}</span>
+                <template v-if="text.room.value !== ''">
+                    <span v-if="text.setpoint.value !== ''" class="climate-io__dot" aria-hidden="true">·</span>
+                    <span>{{ text.room.value }}</span>
+                </template>
+            </template>
             <span v-else>{{ io.state }}</span>
         </template>
 
-        <template v-if="device" #panel>
-            <div class="climate-io__panel" :class="{ 'climate-io__panel--off': gating?.off }">
-                <div class="climate-io__head">
-                    <div
-                        v-if="modes.length > 0"
-                        class="climate-io__modes"
-                        role="group"
-                        :aria-label="t('climate.modes', { name: io.name })"
-                    >
-                        <button
-                            v-for="m in modes"
-                            :key="m"
-                            type="button"
-                            class="climate-io__mode"
-                            :aria-pressed="m === mode"
-                            @click="selectMode(m)"
-                        >
-                            {{ label('mode', m) }}
-                        </button>
-                    </div>
-                    <span v-if="modeUnselected" class="climate-io__chip climate-io__chip--unknown">
-                        {{ mode === '' ? t('climate.mode.unknown') : label('mode', mode) }}
-                    </span>
-                </div>
-
-                <div
-                    v-if="bounds && gating?.setpoint === 'single'"
-                    class="climate-io__setpoint"
-                    :class="{ 'climate-io__setpoint--off': gating.off }"
-                >
-                    <div class="climate-io__dial">
-                        <ActionButton
-                            :label="t('climate.lower', { name: io.name })"
-                            :face="BUTTONS.minus"
-                            :disabled="gating.off || (singleValue !== undefined && singleValue <= bounds.min)"
-                            @click="nudge(-1)"
-                        />
-                        <output class="climate-io__target">{{ singleText }}</output>
-                        <ActionButton
-                            :label="t('climate.raise', { name: io.name })"
-                            :face="BUTTONS.plus"
-                            :disabled="gating.off || (singleValue !== undefined && singleValue >= bounds.max)"
-                            @click="nudge(1)"
-                        />
-                    </div>
-                    <BaseSlider
-                        class="climate-io__slider"
-                        :model-value="singleValue ?? bounds.min"
-                        :min="bounds.min"
-                        :max="bounds.max"
-                        :step="bounds.step"
-                        :label="t('climate.target', { name: io.name })"
-                        :aria-valuetext="singleText"
-                        :disabled="gating.off"
-                        @live="previewSingle = $event"
-                        @commit="queue({ target_temp: $event })"
-                    />
-                </div>
-
-                <div
-                    v-else-if="bounds && gating?.setpoint === 'range'"
-                    class="climate-io__setpoint"
-                    :class="{ 'climate-io__setpoint--off': gating.off || !rangeKnown }"
-                >
-                    <div class="climate-io__dial">
-                        <output class="climate-io__target">{{ rangeText }}</output>
-                    </div>
-                    <RangeSlider
-                        :low="rangeLow ?? bounds.min"
-                        :high="rangeHigh ?? bounds.max"
-                        :bounds="bounds"
-                        :label-low="t('climate.targetLow', { name: io.name })"
-                        :label-high="t('climate.targetHigh', { name: io.name })"
-                        :disabled="gating.off || !rangeKnown"
-                        @live="previewRange = $event"
-                        @commit="commitRange"
-                    />
-                </div>
-
-                <div v-if="caps?.fanModes?.length || caps?.swingModes?.length" class="climate-io__selects">
-                    <div v-if="caps?.fanModes?.length" class="climate-io__field">
-                        <label :for="fanId">
-                            {{ t('climate.fan') }}<span class="visually-hidden">{{ ' ' + io.name }}</span>
-                        </label>
-                        <select
-                            :id="fanId"
-                            class="climate-io__select"
-                            :value="fanValue"
-                            :disabled="gating?.off"
-                            @change="onSelect('fan_mode', $event)"
-                        >
-                            <option v-if="fanValue === ''" value="" disabled>—</option>
-                            <option v-for="o in optionsFor(caps.fanModes, fanValue)" :key="o" :value="o">
-                                {{ label('option', o) }}
-                            </option>
-                        </select>
-                    </div>
-                    <div v-if="caps?.swingModes?.length" class="climate-io__field">
-                        <label :for="swingId">
-                            {{ t('climate.swing') }}<span class="visually-hidden">{{ ' ' + io.name }}</span>
-                        </label>
-                        <select
-                            :id="swingId"
-                            class="climate-io__select"
-                            :value="swingValue"
-                            :disabled="gating?.off"
-                            @change="onSelect('swing_mode', $event)"
-                        >
-                            <option v-if="swingValue === ''" value="" disabled>—</option>
-                            <option v-for="o in optionsFor(caps.swingModes, swingValue)" :key="o" :value="o">
-                                {{ label('option', o) }}
-                            </option>
-                        </select>
-                    </div>
-                </div>
-            </div>
+        <template v-if="device" #actions>
+            <span class="climate-io__status" :style="{ color: statusColor }">{{ text.statusShort.value }}</span>
+            <IconChevronRight class="climate-io__chevron" aria-hidden="true" />
         </template>
     </IoRowFrame>
+
+    <Teleport v-if="device && isOpen && wide" to="body">
+        <section
+            ref="panel"
+            class="climate-panel fade-in"
+            tabindex="-1"
+            :aria-label="t('climate.settings', { name: io.name })"
+            @keydown="onPanelKeydown"
+        >
+            <header class="climate-panel__head">
+                <div class="climate-panel__titles">
+                    <p v-if="roomName !== ''" class="climate-panel__eyebrow">{{ roomName }}</p>
+                    <h2 class="climate-panel__name">{{ io.name }}</h2>
+                </div>
+                <IconButton :label="t('climate.close')" @click="close">
+                    <IconClose />
+                </IconButton>
+            </header>
+            <ClimateDetail :io="io" :ctl="ctl" :has-more="hasMore" @mode="modeOpen = true" @more="moreOpen = true" />
+        </section>
+    </Teleport>
+
+    <BaseDialog
+        v-if="device"
+        :open="isOpen && !wide"
+        wide
+        :eyebrow="roomName"
+        :title="io.name"
+        @cancel="close"
+    >
+        <IconButton class="climate-dialog__close" data-autofocus :label="t('climate.close')" @click="close">
+            <IconClose />
+        </IconButton>
+        <ClimateDetail compact :io="io" :ctl="ctl" :has-more="hasMore" @mode="modeOpen = true" @more="moreOpen = true" />
+    </BaseDialog>
+
+    <ClimateModeDialog
+        v-if="device"
+        :open="modeOpen"
+        :eyebrow="io.name"
+        :modes="modeChoices"
+        :current="ctl.mode.value"
+        @choose="choose"
+        @close="modeOpen = false"
+    />
+
+    <ClimateMoreDialog
+        v-if="device"
+        :open="moreOpen"
+        :eyebrow="io.name"
+        :fan-modes="ctl.caps.value?.fanModes ? fanChoices : undefined"
+        :fan="ctl.fan.value"
+        :swing-modes="ctl.caps.value?.swingModes ? swingChoices : undefined"
+        :swing="ctl.swing.value"
+        :humidity="ctl.state.value?.humidity"
+        @fan="ctl.setOption('fan_mode', $event)"
+        @swing="ctl.setOption('swing_mode', $event)"
+        @close="moreOpen = false"
+    />
 </template>
 
 <style scoped>
 .climate-io__icon {
     color: var(--c-text-muted);
-    transition: color 500ms ease;
 }
 
-/* Cyan means "doing something" in this app; the chip says what. */
-.climate-io__icon--on {
-    color: var(--c-accent);
-    filter: drop-shadow(0 0 6px var(--c-accent-glow));
+/* The row's own value slot caps at 45%: a setpoint range and the room's
+   temperature are the point of this row. */
+.climate-io :deep(.io-row__value) {
+    max-inline-size: none;
 }
 
-.climate-io__current {
-    margin-inline-start: var(--space-2);
-    color: var(--c-text);
+.climate-io__set {
+    font-size: 1.0625rem;
+    color: var(--c-heat);
 }
 
-/* Same rail as RangeSlider, so the width does not jump between heat and auto. */
-.climate-io__setpoint .climate-io__slider {
-    inline-size: calc(100% - 1rem);
-    margin-inline: 0.5rem;
+.climate-io__dot {
+    margin-inline: 0.375rem;
 }
 
-.climate-io__panel {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-}
-
-.climate-io__head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2) var(--space-3);
-}
-
-.climate-io__modes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-}
-
-.climate-io__mode {
-    min-block-size: 2.75rem;
-    min-inline-size: 2.75rem;
-    padding-inline: var(--space-3);
-    font-size: 0.875rem;
-    background: var(--c-surface-raised);
-    border: 1px solid var(--c-border);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition:
-        transform var(--press-duration) ease,
-        border-color 160ms ease,
-        background-color 160ms ease;
-}
-
-.climate-io__mode:active {
-    transform: scale(var(--press-scale));
-}
-
-.climate-io__mode[aria-pressed='true'] {
-    color: var(--c-accent);
-    border-color: var(--c-accent);
-    background: color-mix(in srgb, var(--c-accent) 14%, var(--c-surface-raised));
-    box-shadow: 0 0 8px var(--c-accent-glow);
-}
-
-.climate-io__chip {
-    display: inline-block;
-    padding: 0.125rem var(--space-2);
-    line-height: 1.4;
+.climate-io__status {
+    min-inline-size: 4.5rem;
     font-size: 0.8125rem;
-    color: var(--c-text-muted);
-    border: 1px solid var(--c-border);
-    border-radius: var(--radius-lg);
+    text-align: end;
     white-space: nowrap;
 }
 
-.climate-io__chip--active {
-    color: var(--c-accent);
-    border-color: var(--c-accent);
+.climate-io__chevron {
+    margin-inline-start: var(--space-1);
+    font-size: 1.125rem;
+    color: var(--c-text-muted);
+    transition: color 160ms ease;
 }
 
-.climate-io__chip--unknown {
-    color: var(--c-warn);
-    border-color: var(--c-warn);
+.climate-io:hover .climate-io__chevron,
+.climate-io[aria-expanded='true'] .climate-io__chevron {
+    color: var(--c-text);
 }
 
-.climate-io__setpoint {
+/* Between the bars, beside the room: the room view makes the space
+   (RoomView `room--panel`). */
+.climate-panel {
+    position: fixed;
+    z-index: 50;
+    inset-block: calc(var(--h-navbar) + var(--space-4)) calc(var(--h-footer) + var(--space-4));
+    inset-inline-end: var(--space-4);
+    inline-size: 28.75rem;
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
-    transition: opacity 200ms ease;
-}
-
-/* Greyed, not hidden: the user can still see what the setpoint is while off. */
-.climate-io__setpoint--off {
-    opacity: 0.45;
-}
-
-.climate-io__dial {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-3);
-}
-
-/* The one loud thing in the row: the number a person came to read or change. */
-.climate-io__target {
-    min-inline-size: 7rem;
-    font-size: 1.75rem;
-    font-weight: 500;
-    letter-spacing: var(--tracking-tight);
-    font-variant-numeric: tabular-nums;
-    text-align: center;
-}
-
-.climate-io__selects {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-}
-
-.climate-io__field {
-    display: flex;
-    flex: 1 1 11rem;
-    align-items: center;
-    gap: var(--space-2);
-    font-size: 0.8125rem;
-    color: var(--c-text-muted);
-}
-
-.climate-io__field label {
-    /* Both selects start at the same x when the fields stack on a phone. */
-    min-inline-size: 4.5rem;
-}
-
-.climate-io__select {
-    flex: 1;
-    min-inline-size: 0;
-    min-block-size: 2.75rem;
-    padding-inline: var(--space-2);
-    font-size: 0.9375rem;
-    color: var(--c-text);
-    background: var(--c-surface-raised);
+    padding: 1.25rem var(--space-6);
+    overflow-y: auto;
+    background: var(--c-surface);
     border: 1px solid var(--c-border);
     border-radius: var(--radius-md);
 }
 
-.climate-io__panel--off .climate-io__field {
-    opacity: 0.45;
+.climate-panel:focus-visible {
+    outline: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .climate-io__icon,
-    .climate-io__mode,
-    .climate-io__setpoint {
-        transition: none;
-    }
+.climate-panel :deep(.climate-detail) {
+    flex: 1;
+}
+
+.climate-panel__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-block-end: var(--space-2);
+}
+
+.climate-panel__eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--c-text-muted);
+}
+
+.climate-panel__name {
+    margin-block-start: 0.125rem;
+    font-size: 1.375rem;
+    font-weight: 400;
+    line-height: 1.2;
+}
+
+.climate-dialog__close {
+    position: absolute;
+    inset-block-start: var(--space-4);
+    inset-inline-end: var(--space-4);
 }
 </style>

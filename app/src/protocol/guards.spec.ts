@@ -478,6 +478,50 @@ describe('toDeviceInfo', () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
+    it('decodes the CLIM-6 fields: humidity, connected, lockout, fault', () => {
+        const d = toDeviceInfo({
+            family: 'climate',
+            state: {
+                humidity: 48,
+                connected: false,
+                lockout: { output: 'heat', remaining: 140 },
+                fault: 'sensor_stale',
+            },
+        });
+        expect(d?.state).toEqual({
+            humidity: 48,
+            connected: false,
+            lockout: { output: 'heat', remaining: 140 },
+            fault: 'sensor_stale',
+        });
+    });
+
+    it('leaves the CLIM-6 fields absent when the server does not send them', () => {
+        const d = toDeviceInfo({ family: 'climate', state: { mode: 'heat', connected: true, fault: '' } });
+        expect(d?.state).toEqual({ mode: 'heat' });
+    });
+
+    it('reads connected as the string "false" too, since the legacy state strings are strings', () => {
+        expect(toDeviceInfo({ family: 'climate', state: { connected: 'false' } })?.state).toEqual({ connected: false });
+        expect(toDeviceInfo({ family: 'climate', state: { connected: 'true' } })?.state).toEqual({});
+    });
+
+    it('drops a malformed lockout, humidity or fault without costing the rest of the state', () => {
+        const d = toDeviceInfo({
+            family: 'climate',
+            state: {
+                mode: 'heat',
+                lockout: { output: 'heat', remaining: 'soon' },
+                humidity: 'wet',
+                fault: 3,
+                connected: 'maybe',
+            },
+        });
+        expect(d?.state).toEqual({ mode: 'heat' });
+        expect(toDeviceInfo({ family: 'climate', state: { lockout: 'heat' } })?.state).toEqual({});
+        expect(toDeviceInfo({ family: 'climate', state: { lockout: { remaining: -3 } } })?.state).toEqual({});
+    });
+
     it('never throws on wrong section types', () => {
         expect(() =>
             toDeviceInfo({ family: 'climate', capabilities: 3, state: [], ios: 'x' }),
