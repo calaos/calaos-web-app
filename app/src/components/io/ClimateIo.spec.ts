@@ -302,6 +302,7 @@ describe('ClimateIo — every status', () => {
         expect(say('humidity_stale')).toBe('Humidity sensor silent');
         expect(say('sensor_waiting')).toBe('Waiting for the sensor');
         expect(say('sensor_disconnected')).toBe('Sensor disconnected');
+        expect(say('sensor_out_of_range')).toBe('Sensor out of range');
         expect(say('something_new')).toBe('Fault');
     });
 
@@ -312,14 +313,16 @@ describe('ClimateIo — every status', () => {
 
         expect(say('sensor_waiting')).toBe('En attente de la sonde');
         expect(say('sensor_disconnected')).toBe('Sonde déconnectée');
+        expect(say('sensor_out_of_range')).toBe('Sonde hors limites');
     });
 
     it('keeps a thermostat with a disconnected or waiting sensor adjustable, unlike an unreachable device', async () => {
-        for (const fault of ['sensor_disconnected', 'sensor_waiting']) {
+        for (const fault of ['sensor_disconnected', 'sensor_waiting', 'sensor_out_of_range']) {
             const w = mountClimate(wireDevice({}, { fault }));
             await openSettings(w);
 
-            expect(word().text()).toBe(fault === 'sensor_waiting' ? 'Waiting for the sensor' : 'Sensor disconnected');
+            const said = { sensor_waiting: 'Waiting for the sensor', sensor_disconnected: 'Sensor disconnected', sensor_out_of_range: 'Sensor out of range' };
+            expect(word().text()).toBe(said[fault as keyof typeof said]);
             expect(word().attributes('style')).toContain('var(--c-danger)');
             expect(isDisabled(raise())).toBe(false);
             expect(isDisabled(lower())).toBe(false);
