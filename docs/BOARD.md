@@ -74,4 +74,4 @@ Critical path: T01→T02→T03→T05→T06→T07→T08→T09→T10→(T11,T12,T1
 
 At the end of each milestone: `.env.development.local` → `CALAOS_SERVER=http://192.168.30.17:5454`, run `npm run dev:next`, verify the milestone demo against the real calaos_server. T20 has the full pre-push checklist.
 
-Devices / climate effort: tickets live on the calaos_base board, `docs/devices/BOARD.md` (this repo: WEB-1 decoding, WEB-2 UI, WEB-3 redesign after `docs/devices/UI_CLIMATE.md`).
+Devices / climate effort: tickets live on the calaos_base board, `docs/devices/BOARD.md` (this repo: WEB-1 decoding, WEB-2 UI, WEB-3 redesign after `docs/devices/UI_CLIMATE.md`, WEB-4 labels of the thermostat sensor faults).
