@@ -131,7 +131,8 @@
             "humidity_high": "Humidité trop haute",
             "humidity_stale": "Sonde d’humidité muette",
             "sensor_waiting": "En attente de la sonde",
-            "sensor_disconnected": "Sonde déconnectée"
+            "sensor_disconnected": "Sonde déconnectée",
+            "sensor_out_of_range": "Sonde hors limites"
         },
         "duration": {
             "minutes": "{minutes} min {seconds}",

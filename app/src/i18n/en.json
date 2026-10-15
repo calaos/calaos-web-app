@@ -131,7 +131,8 @@
             "humidity_high": "Humidity too high",
             "humidity_stale": "Humidity sensor silent",
             "sensor_waiting": "Waiting for the sensor",
-            "sensor_disconnected": "Sensor disconnected"
+            "sensor_disconnected": "Sensor disconnected",
+            "sensor_out_of_range": "Sensor out of range"
         },
         "duration": {
             "minutes": "{minutes} min {seconds}",
