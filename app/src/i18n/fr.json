@@ -129,7 +129,9 @@
             "sensor_stale": "Sonde muette",
             "sensor_missing": "Sonde absente",
             "humidity_high": "Humidité trop haute",
-            "humidity_stale": "Sonde d’humidité muette"
+            "humidity_stale": "Sonde d’humidité muette",
+            "sensor_waiting": "En attente de la sonde",
+            "sensor_disconnected": "Sonde déconnectée"
         },
         "duration": {
             "minutes": "{minutes} min {seconds}",
