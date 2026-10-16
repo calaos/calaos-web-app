@@ -14,7 +14,7 @@
   "dependencies": {
     "@ckpack/vue-color": "^1.6.0",
     "pinia": "^3.0.4",
-    "vue": "^3.5.41",
+    "vue": "^3.5.44",
     "vue-i18n": "11.4.2",
     "vue-router": "5.0.6"
   },
