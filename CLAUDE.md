@@ -36,3 +36,10 @@ Web frontend for the Calaos home automation server: Vue 3 + TypeScript + Vite, P
 - **Git tags are the only version source.** Tags are bare (`3.0.1`, no `v` prefix). `package.json` is pinned to the placeholder `0.0.0-git` — never bump it; `release.yml` injects the CI-computed version with `npm version --no-git-tag-version`. Never create a release tag by hand.
 - Every push to `master` auto-cuts a `-dev.N` prerelease (`3.0.1` → `3.0.2-dev.0` → …) via `calaos/action-bump-version@2`, which bumps the highest existing tag.
 - Promote to a real release with the `/release` skill (`/release patch|minor|major`, default patch) → `gh workflow run release.yml -f vincrement=…`. Requires `secrets.ACTION_DISPATCH` (org PAT) for tag, release and the pkgdebs dispatch.
+
+## Climate pitfalls
+
+Cross-repo notes (wire format, IODoc, workflow): [calaos_base docs/18_stack_notes.md](https://github.com/calaos/calaos_base/blob/master/docs/18_stack_notes.md) (in French).
+
+- The mode chooser is built from `capabilities.modes` (`app/src/composables/useClimate.ts:83`); do not hardcode the modes, they depend on the appliance.
+- The range is offered only with `target_temp_range` (`app/src/protocol/climate.ts:27-38`, `climateGating`).
