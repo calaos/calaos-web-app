@@ -239,6 +239,8 @@ test('package names need the session: shown unlocked, gone once the session expi
     await expect(admin.error).toHaveText('');
     await expect(admin.updates).toHaveCount(0);
     expect((await mock.adminActions()).filter((action) => action === 'update_upgrade_all')).toHaveLength(1);
+    // The run is still followed, now in the household view: a read at once, then the poll.
+    await expect.poll(async () => (await mock.statusSessions()).slice(-2), { timeout: 8_000 }).toEqual([false, false]);
 
     // Back on the tab while locked: a sessionless read, answered with the
     // household view — the run's progress without any package name.

@@ -95,6 +95,8 @@ export interface UpgradeStatus {
     pkgCount: number;
     message: string;
     error: string;
+    /** `packages[].name` by position (index 1 is `[0]`); empty in the household view. */
+    packageNames: string[];
 }
 
 /** The daemon's `<Job>`. */
@@ -226,6 +228,9 @@ export function toUpgradeStatus(raw: unknown): UpgradeStatus {
         pkgCount: toNumber(r.pkg_count),
         message: toWireString(r.message),
         error: toWireString(r.error),
+        packageNames: Array.isArray(r.packages)
+            ? r.packages.map((entry) => (isRecord(entry) ? toWireString(entry.name) : ''))
+            : [],
     };
 }
 

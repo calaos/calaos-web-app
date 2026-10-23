@@ -159,8 +159,19 @@ export const useAdminStore = defineStore('admin', () => {
     const seenRunning = new Set<string>();
     /** When the reply to our `update_upgrade_all` was lost to a drop. */
     let lostUpgradeAt: number | null = null;
-    /** A poll is out: an event must not send a second one. */
-    let statusInFlight = false;
+    /** `update_status` reads out: an event must not send another one. */
+    let statusReads = 0;
+    /** The run ended while a read was out: that read may predate the end. */
+    let rereadAfter = false;
+    /** Bumped by every event, so a read sent before one cannot undo it. */
+    let progressRev = 0;
+    /**
+     * `packages[].name` of the last full read: household events carry only
+     * `pkg_index`, which moves back and forth between the packages of one run.
+     */
+    let packageNames: string[] = [];
+    /** The index a name-fetching read was last sent for. */
+    let namesAskedFor = 0;
 
     const isUnlocked = computed(() => gate.value === 'unlocked' && session.value !== null);
     const isUpgrading = computed(
@@ -425,11 +436,25 @@ export const useAdminStore = defineStore('admin', () => {
 
     // ------------------------------------------------------------- actions ---
 
-    function applyStatus(data: Record<string, unknown>): void {
+    function withName(status: UpgradeStatus): UpgradeStatus {
+        if (status.currentPkg !== '' || status.pkgIndex < 1) return status;
+        const name = packageNames[status.pkgIndex - 1] ?? '';
+        return name === '' ? status : { ...status, currentPkg: name };
+    }
+
+    /** `stale`: an event landed while the read was out, and is newer than it. */
+    function applyStatus(data: Record<string, unknown>, stale: boolean): void {
         const result = typeof data.result === 'object' && data.result !== null ? data.result : {};
         const r = result as Record<string, unknown>;
-        progress.value = toUpgradeStatus(r.progress);
         const next = toUpgradeJob(r.job);
+        const read = toUpgradeStatus(r.progress);
+        if (next?.id !== job.value?.id) {
+            packageNames = [];
+            namesAskedFor = 0;
+        }
+        if (read.packageNames.some((name) => name !== '')) packageNames = read.packageNames;
+        if (stale && progress.value !== null) progress.value = withName(progress.value);
+        else progress.value = withName(read);
         // A run this client did not see start (lost reply, kiosk) makes the
         // last check stale: "Install updates" must not offer a second run.
         if (next !== null && next.id !== job.value?.id) updates.value = null;
@@ -446,14 +471,40 @@ export const useAdminStore = defineStore('admin', () => {
         }
     }
 
-    /** `update_status` as the probe: fixes the gate and refreshes the upgrade state. */
-    async function probe(): Promise<void> {
-        retryTimer = clearTimer(retryTimer);
-        if (gate.value === 'idle') gate.value = 'probing';
+    /** One `update_status`, with the session when one is held (the full view). */
+    async function readStatus(): Promise<{ outcome: Outcome; stale: boolean }> {
+        statusReads += 1;
+        const rev = progressRev;
         const outcome = await request(
             (id) => encodeAdminAction('update_status', session.value, id),
             ADMIN_REPLY_TIMEOUT_MS,
         );
+        statusReads -= 1;
+        return { outcome, stale: rev !== progressRev };
+    }
+
+    /**
+     * Once the gate has handled the reply: a refused session is followed by a
+     * household read, so a running job is still polled, and a run that ended
+     * during the read is read again. Neither loops: the session is gone by
+     * then, and the flag is reset.
+     */
+    function afterStatusRead(outcome: Outcome): void {
+        if (!outcome.ok && outcome.error.code === 'bad_session') {
+            void refreshStatus();
+            return;
+        }
+        if (rereadAfter && statusReads === 0) {
+            rereadAfter = false;
+            void refreshStatus();
+        }
+    }
+
+    /** `update_status` as the probe: fixes the gate and refreshes the upgrade state. */
+    async function probe(): Promise<void> {
+        retryTimer = clearTimer(retryTimer);
+        if (gate.value === 'idle') gate.value = 'probing';
+        const { outcome, stale } = await readStatus();
         if (!outcome.ok) {
             if (applyGateError(outcome.error)) {
                 if (outcome.error.code === 'disconnected' && gate.value === 'probing') gate.value = 'idle';
@@ -465,28 +516,23 @@ export const useAdminStore = defineStore('admin', () => {
                 enterBlocked('unreachable');
             }
             if (gate.value !== 'locked') replay = null;
+            afterStatusRead(outcome);
             return;
         }
         leaveBlocked();
-        applyStatus(outcome.data);
+        applyStatus(outcome.data, stale);
         gate.value = session.value !== null ? 'unlocked' : 'locked';
         if (gate.value !== 'locked') replay = null;
+        afterStatusRead(outcome);
     }
 
     /** `update_status` without touching the gate — the poll during an upgrade. */
     async function refreshStatus(): Promise<void> {
-        statusInFlight = true;
-        const outcome = await request(
-            (id) => encodeAdminAction('update_status', session.value, id),
-            ADMIN_REPLY_TIMEOUT_MS,
-        );
-        statusInFlight = false;
-        if (outcome.ok) {
-            applyStatus(outcome.data);
-            return;
-        }
+        const { outcome, stale } = await readStatus();
+        if (outcome.ok) applyStatus(outcome.data, stale);
         // A transient failure must not end the follow-up of a running job.
-        if (!applyGateError(outcome.error) && isUpgrading.value) schedulePoll();
+        else if (!applyGateError(outcome.error) && isUpgrading.value) schedulePoll();
+        afterStatusRead(outcome);
     }
 
     async function unlock(adminPass: string): Promise<boolean> {
@@ -662,7 +708,10 @@ export const useAdminStore = defineStore('admin', () => {
             pkgCount: updates.value?.length ?? 0,
             message: '',
             error: '',
+            packageNames: [],
         };
+        packageNames = [];
+        namesAskedFor = 0;
         updates.value = null;
         schedulePoll();
     }
@@ -683,26 +732,27 @@ export const useAdminStore = defineStore('admin', () => {
     function handleEvent(msg: AdminEventMessage): void {
         switch (msg.type) {
             case 'upgrade_progress': {
-                // Events are always the household view: keep the name the
-                // last full read gave for this package, and fetch the next one.
-                const next = toUpgradeStatus(msg.data);
-                const prev = progress.value;
-                if (next.currentPkg === '' && prev !== null && prev.pkgIndex === next.pkgIndex) {
-                    next.currentPkg = prev.currentPkg;
-                    next.message = prev.message;
-                } else if (
-                    next.currentPkg === '' &&
-                    next.status === 'upgrading' &&
-                    session.value !== null &&
-                    !statusInFlight
-                ) {
-                    void refreshStatus();
-                }
+                // Events are the household view: the name comes from the
+                // last full read. Only an index past its list is worth a read.
+                progressRev += 1;
+                const next = withName(toUpgradeStatus(msg.data));
                 progress.value = next;
                 if (next.status === 'done' || next.status === 'error') {
                     // The job's `reboot_required` / `error` only come from
                     // update_status; events never carry the job.
                     pollTimer = clearTimer(pollTimer);
+                    if (statusReads > 0) rereadAfter = true;
+                    else void refreshStatus();
+                    return;
+                }
+                if (
+                    next.status === 'upgrading' &&
+                    next.pkgIndex > packageNames.length &&
+                    next.pkgIndex !== namesAskedFor &&
+                    session.value !== null &&
+                    statusReads === 0
+                ) {
+                    namesAskedFor = next.pkgIndex;
                     void refreshStatus();
                 }
                 return;
@@ -796,7 +846,9 @@ export const useAdminStore = defineStore('admin', () => {
         credentialDraft = null;
         ownSetPending = false;
         lostUpgradeAt = null;
-        statusInFlight = false;
+        rereadAfter = false;
+        packageNames = [];
+        namesAskedFor = 0;
         seenRunning.clear();
     }
 

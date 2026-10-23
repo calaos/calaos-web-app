@@ -58,8 +58,9 @@ function idleProgress() {
     };
 }
 
-// What calaos_server lets a household client see of <Status> and <Job>: an
-// allow list, so a field the daemon adds later is not leaked.
+// What calaos_server lets a household client see of <Status> and <Job>
+// (CB3's AdminEvents): allow lists of scalars, so a field the daemon adds
+// later is not leaked.
 const HOUSEHOLD_STATUS_FIELDS = [
     'status',
     'total_percent',
@@ -70,17 +71,22 @@ const HOUSEHOLD_STATUS_FIELDS = [
     'progress',
     'progress_total',
 ];
+const HOUSEHOLD_JOB_FIELDS = ['id', 'kind', 'status', 'reboot_required', 'daemon_restart', 'started_at', 'finished_at'];
+
+function copyScalars(from, keys) {
+    const out = {};
+    for (const key of keys) {
+        const value = from[key];
+        if (value !== null && ['string', 'number', 'boolean'].includes(typeof value)) out[key] = value;
+    }
+    return out;
+}
 
 export function householdStatus(status) {
-    const out = {};
-    for (const key of HOUSEHOLD_STATUS_FIELDS) {
-        if (key in status) out[key] = status[key];
-    }
+    const out = copyScalars(status, HOUSEHOLD_STATUS_FIELDS);
     if (Array.isArray(status.packages)) {
         out.packages = status.packages.map((entry) =>
-            typeof entry === 'object' && entry !== null
-                ? { state: entry.state, percent: entry.percent }
-                : { state: 'pending', percent: 0 },
+            typeof entry === 'object' && entry !== null ? copyScalars(entry, ['state', 'percent']) : {},
         );
     }
     if (typeof status.error === 'string' && status.error !== '') out.error = 'upgrade failed';
@@ -89,12 +95,11 @@ export function householdStatus(status) {
 
 export function householdJob(job) {
     if (job === null) return null;
-    const { error, ...rest } = job;
-    delete rest.package;
-    if (typeof error === 'string' && error !== '') {
-        rest.error = error === 'interrupted' ? 'interrupted' : 'upgrade failed';
+    const out = copyScalars(job, HOUSEHOLD_JOB_FIELDS);
+    if (typeof job.error === 'string' && job.error !== '') {
+        out.error = job.error === 'interrupted' ? 'interrupted' : 'upgrade failed';
     }
-    return rest;
+    return out;
 }
 
 function failure(error, msg, extra = {}) {
@@ -215,7 +220,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             ...idleProgress(),
             status: 'upgrading',
             pkg_count: packages.length,
-            packages,
+            packages: packages.map((name) => ({ name, state: 'pending', percent: 0 })),
             current_pkg: packages[0] ?? '',
             pkg_index: packages.length > 0 ? 1 : 0,
             current_step: 'download',
@@ -237,6 +242,10 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             p.current_pkg = packages[index];
             p.current_step = p.total_percent % 20 === 0 ? 'install' : 'download';
             p.current_percent = (p.total_percent * packages.length) % 100;
+            p.packages.forEach((entry, i) => {
+                entry.state = i < index ? 'done' : i === index ? p.current_step : 'pending';
+                entry.percent = i < index ? 100 : i === index ? p.current_percent : 0;
+            });
         }
 
         if (state.failAtPercent !== null && p.total_percent >= state.failAtPercent) {
@@ -268,7 +277,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         p.message = status === 'done' ? 'upgrade finished' : error;
         if (status === 'done') {
             p.total_percent = 100;
-            for (const name of p.packages) delete state.updates[name];
+            for (const entry of p.packages) delete state.updates[entry.name];
         }
         state.job = {
             ...state.job,

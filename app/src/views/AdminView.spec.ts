@@ -120,6 +120,7 @@ describe('UpdatesPanel while an upgrade runs', () => {
             pkgCount: 3,
             message: '',
             error: '',
+            packageNames: [],
         };
     }
 

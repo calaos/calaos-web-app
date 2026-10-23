@@ -1426,13 +1426,16 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
         await ask('admin', { action: 'update_upgrade_all', admin_session: session });
 
         const full = await ask('admin', { action: 'update_status', admin_session: session });
-        expect(full.result.progress).toMatchObject({ current_pkg: 'calaos-server', packages: ['calaos-server'] });
+        expect(full.result.progress).toMatchObject({
+            current_pkg: 'calaos-server',
+            packages: [{ name: 'calaos-server', state: expect.any(String), percent: expect.any(Number) }],
+        });
 
         for (const admin_session of [undefined, '', 'not-hex']) {
             const household = await ask('admin', { action: 'update_status', admin_session });
             expect(household.result.progress).not.toHaveProperty('current_pkg');
             expect(household.result.progress).not.toHaveProperty('message');
-            expect(household.result.progress.packages).toEqual([{ state: 'pending', percent: 0 }]);
+            expect(household.result.progress.packages).toEqual([{ state: expect.any(String), percent: expect.any(Number) }]);
             expect(household.result.job).toMatchObject({ kind: 'upgrade_all', status: 'running' });
         }
         // Events never carry the package names.

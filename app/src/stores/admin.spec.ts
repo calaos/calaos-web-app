@@ -389,39 +389,105 @@ describe('update_status and the session', () => {
         expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
     });
 
-    it('keeps the known name across household events for the same package, and rereads on the next one', async () => {
+    /** Unlocked, with a run started and its first full read answered. */
+    async function running(): Promise<ReturnType<typeof useAdminStore>> {
         const admin = await unlocked();
         void admin.upgradeAll();
-        answer(admin, { success: 'true', result: { id: '3f9c', status: 'running' } });
+        answer(admin, { success: 'true', result: { id: '3f9c', kind: 'upgrade_all', status: 'running' } });
         await flush();
         vi.advanceTimersByTime(5_000);
         statusOk(
             admin,
-            { status: 'upgrading', total_percent: 10, current_pkg: 'calaos-server', pkg_index: 1, pkg_count: 2 },
-            { id: '3f9c', status: 'running' },
+            {
+                status: 'upgrading',
+                total_percent: 10,
+                current_pkg: 'calaos-server',
+                pkg_index: 1,
+                pkg_count: 2,
+                packages: [
+                    { name: 'calaos-server', state: 'download', percent: 10 },
+                    { name: 'calaos-container', state: 'pending', percent: 0 },
+                ],
+            },
+            { id: '3f9c', kind: 'upgrade_all', status: 'running' },
         );
         await flush();
+        return admin;
+    }
 
+    it('names household events from the package list of the last full read, with no extra read', async () => {
+        const admin = await running();
         const before = sent.length;
-        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 20, pkg_index: 1, pkg_count: 2 });
-        expect(admin.progress).toMatchObject({ totalPercent: 20, currentPkg: 'calaos-server' });
+        // pkg_index moves back and forth between the packages of one run.
+        for (const [percent, index] of [[20, 2], [30, 1], [40, 2]] as const) {
+            event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: percent, pkg_index: index, pkg_count: 2 });
+            expect(admin.progress?.currentPkg).toBe(index === 1 ? 'calaos-server' : 'calaos-container');
+        }
         expect(sent).toHaveLength(before);
+    });
 
-        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 60, pkg_index: 2, pkg_count: 2 });
-        expect(admin.progress).toMatchObject({ totalPercent: 60, currentPkg: '', pkgIndex: 2 });
+    it('reads once for an index past the known list, and not again for the same one', async () => {
+        const admin = await running();
+        const before = sent.length;
+        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 50, pkg_index: 3, pkg_count: 3 });
+        expect(admin.progress?.currentPkg).toBe('');
         expect(sent).toHaveLength(before + 1);
         expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
         // One read at a time.
-        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 70, pkg_index: 3, pkg_count: 3 });
+        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 55, pkg_index: 4, pkg_count: 4 });
         expect(sent).toHaveLength(before + 1);
+        fail(admin, 'internal');
+        await flush();
+        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 60, pkg_index: 4, pkg_count: 4 });
+        expect(sent).toHaveLength(before + 2);
+        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 65, pkg_index: 4, pkg_count: 4 });
+        expect(sent).toHaveLength(before + 2);
     });
 
-    it('asks for the password again, silently, when the poll gets bad_session, and replays nothing', async () => {
-        const admin = await unlocked();
-        void admin.upgradeAll();
-        answer(admin, { success: 'true', result: { id: '3f9c', status: 'running' } });
+    it('never lets a read sent before an event move the bar back', async () => {
+        const admin = await running();
+        vi.advanceTimersByTime(5_000);
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
+        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 60, pkg_index: 2, pkg_count: 2 });
+        // The poll's reply was computed before that event.
+        statusOk(
+            admin,
+            {
+                status: 'upgrading',
+                total_percent: 30,
+                current_pkg: 'calaos-server',
+                pkg_index: 1,
+                pkg_count: 2,
+                packages: [
+                    { name: 'calaos-server', state: 'install', percent: 60 },
+                    { name: 'calaos-container', state: 'pending', percent: 0 },
+                ],
+            },
+            { id: '3f9c', kind: 'upgrade_all', status: 'running' },
+        );
         await flush();
+        expect(admin.progress).toMatchObject({ totalPercent: 60, pkgIndex: 2, currentPkg: 'calaos-container' });
+        expect(admin.isUpgrading).toBe(true);
+    });
 
+    it('reads the job again when the run ends while a read is out', async () => {
+        const admin = await running();
+        vi.advanceTimersByTime(5_000);
+        const before = sent.length;
+        event(admin, 'upgrade_progress', { status: 'done', total_percent: 100, pkg_index: 2, pkg_count: 2 });
+        expect(sent).toHaveLength(before);
+        statusOk(admin, { status: 'upgrading', total_percent: 90 }, { id: '3f9c', status: 'running' });
+        await flush();
+        expect(sent).toHaveLength(before + 1);
+        expect(admin.progress?.status).toBe('done');
+        statusOk(admin, { status: 'idle' }, { id: '3f9c', status: 'done', reboot_required: true });
+        await flush();
+        expect(admin.isUpgrading).toBe(false);
+        expect(admin.job?.rebootRequired).toBe(true);
+    });
+
+    it('asks for the password again, silently, when the poll gets bad_session, and keeps following the run', async () => {
+        const admin = await running();
         vi.advanceTimersByTime(5_000);
         expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
         fail(admin, 'bad_session');
@@ -431,6 +497,22 @@ describe('update_status and the session', () => {
         expect(admin.notice).toBeNull();
         expect(admin.info).toBeNull();
 
+        // Straight away, the household view, and the poll goes on from there.
+        expect(last().data).toEqual({ action: 'update_status' });
+        statusOk(
+            admin,
+            { status: 'upgrading', total_percent: 50, pkg_index: 2, pkg_count: 2, packages: [{}, {}] },
+            { id: '3f9c', kind: 'upgrade_all', status: 'running' },
+        );
+        await flush();
+        expect(admin.progress?.totalPercent).toBe(50);
+        expect(admin.gate).toBe('locked');
+        vi.advanceTimersByTime(5_000);
+        expect(last().data).toEqual({ action: 'update_status' });
+        statusOk(admin, { status: 'idle' }, { id: '3f9c', status: 'done' });
+        await flush();
+        expect(admin.isUpgrading).toBe(false);
+
         void admin.unlock('x');
         answer(admin, { success: 'true', admin_session: SESSION, expires_in: '900' });
         await flush();
@@ -439,16 +521,21 @@ describe('update_status and the session', () => {
         expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
     });
 
-    it('treats bad_session on a probe the same way', async () => {
-        const admin = await unlocked();
-        admin.deactivate();
-        admin.activate();
+    it('treats bad_session on a reconnect probe the same way', async () => {
+        const admin = await running();
+        admin.handleTransportLost();
+        admin.handleLoggedIn();
         expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
         fail(admin, 'bad_session');
         await flush();
         expect(admin.gate).toBe('locked');
         expect(admin.session).toBeNull();
         expect(admin.notice).toBeNull();
+        expect(last().data).toEqual({ action: 'update_status' });
+        statusOk(admin, { status: 'upgrading', total_percent: 70 }, { id: '3f9c', status: 'running' });
+        await flush();
+        vi.advanceTimersByTime(5_000);
+        expect(last().data).toEqual({ action: 'update_status' });
     });
 });
 

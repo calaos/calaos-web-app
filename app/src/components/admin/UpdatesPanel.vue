@@ -73,7 +73,8 @@ const packageLine = computed(() => {
     if (p.currentPkg !== '' && p.pkgCount > 0) {
         return t('admin.updates.packageOf', { name: p.currentPkg, index, count: p.pkgCount });
     }
-    if (p.pkgCount > 0) return t('admin.updates.packageIndex', { index, count: p.pkgCount });
+    // Index 0 is the client's own placeholder before the daemon reported anything.
+    if (p.pkgCount > 0 && p.pkgIndex > 0) return t('admin.updates.packageIndex', { index, count: p.pkgCount });
     return p.message;
 });
 
