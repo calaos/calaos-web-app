@@ -154,6 +154,8 @@ CALAOS_SERVER=http://192.168.30.17:5454
 
 Default proxy target is the mock server (`http://localhost:5454`), so `npm run dev:next` + `npm run mock` is a fully offline loop. Belt-and-braces: `vite.config.ts` throws if `mode === 'production'` and any `VITE_CALAOS*` var is set. Camera URLs are relative (`/api?...`) so the proxy covers them too — no SCE-whitelist analog.
 
+**Origin.** Once an admin is set, calaos_server refuses any `Origin` not on its allow-list (WS handshake and HTTP `/api.php`), and accepts an absent one. The proxy therefore drops the `Origin` of the dev page itself (`dev-proxy-origin.ts`: same host as the request, `localhost` or an IP literal only), so nothing has to be configured on the box. Any other `Origin` (cross-site page, DNS-rebound name) is forwarded untouched and the server still refuses it. `changeOrigin` sets `Host` to the target.
+
 ## Router
 
 `createWebHashHistory` (deep-link reloads must work on dumb static servers — calaos_server and static-web-server have no SPA fallback). Routes: `/login`, `/home`, `/home/:roomId(\d+)`, `/audio`, `/audio/:playerId`, `/security`, `/security/:cameraId(\d+)`; all but login `meta.requiresAuth`. Guard: unauthenticated → `/login`; out-of-bounds index params → redirect to parent list. NavBar back button on the three detail routes (`meta.detail`).
