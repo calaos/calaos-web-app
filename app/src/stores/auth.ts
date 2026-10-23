@@ -24,6 +24,7 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { encodeLogin } from '../protocol/messages';
+import { useAdminStore } from './admin';
 import { useAudioStore } from './audio';
 import { useHomeStore } from './home';
 
@@ -55,11 +56,14 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Not state: the socket sender (injected by the service) and the flag
     // telling apart a user-initiated sign-in from a reconnect re-login.
-    let send: FrameSender = (frame) => {
-        console.warn('calaos auth: no transport attached, dropping frame:', frame);
+    let send: FrameSender = () => {
+        console.warn('calaos auth: no transport attached, dropping frame');
         return false;
     };
     let interactive = false;
+    // A re-login with NEW credentials on a live session (after change_cred):
+    // the one case where a login answer must be read while already 'authed'.
+    let rotating = false;
 
     const isAuthed = computed(() => state.value === 'authed');
     const isPending = computed(() => state.value === 'pending');
@@ -105,12 +109,34 @@ export const useAuthStore = defineStore('auth', () => {
         // `interactive` is deliberately left alone: a sign-in submitted while
         // the socket was still connecting is still the user's, and must still
         // navigate once the house data arrives.
+        // A credential rotation cut short by the drop is now this login.
+        rotating = false;
         state.value = 'pending';
+        return sendLogin();
+    }
+
+    /**
+     * The household password was just changed through `settings` /
+     * `change_cred`: the server dropped its `loggedin` flag but the socket
+     * is still open, so the new credentials go out on it at once. The state
+     * stays 'authed' — the chrome must not blink — and a refusal is handled
+     * like a refused re-login (the router sends the user to /login).
+     */
+    function rotateCredentials(nextUser: string, nextPass: string): boolean {
+        user.value = nextUser;
+        pass.value = nextPass;
+        rotating = true;
         return sendLogin();
     }
 
     /** Called by services/calaos.ts for every decoded login answer. */
     function handleLoginResult(success: boolean): void {
+        if (rotating) {
+            rotating = false;
+            state.value = success ? 'authed' : 'failed';
+            if (!success) interactive = false;
+            return;
+        }
         if (state.value === 'authed') {
             // Old code ignored login frames while already authenticated
             // (`obj.msg == 'login' && !auth`); a stray failure must not log
@@ -160,10 +186,13 @@ export const useAuthStore = defineStore('auth', () => {
         // listening to is not the next account's business, and a cover reply
         // still in flight must not attach artwork to a new session's player.
         useAudioStore().clear();
+        // The admin session belongs to the account that unlocked it.
+        useAdminStore().reset();
         user.value = '';
         pass.value = '';
         state.value = 'idle';
         interactive = false;
+        rotating = false;
         pendingNavigation.value = 'login';
     }
 
@@ -179,6 +208,7 @@ export const useAuthStore = defineStore('auth', () => {
         attachTransport,
         signIn,
         resumeSession,
+        rotateCredentials,
         handleLoginResult,
         notifyHomeLoaded,
         consumeNavigation,

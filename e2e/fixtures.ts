@@ -48,7 +48,50 @@ export type ControlOp =
     | { op: 'scenario'; name: ScenarioName }
     | { op: 'latency'; ms: number }
     | { op: 'log' }
+    | ({ op: 'admin' } & AdminPatch)
+    | { op: 'admin_status' }
+    | { op: 'credentials'; user: string; pass: string }
     | { op: 'reset' };
+
+/** The fake daemon's knobs (mock-server/admin.mjs `configure`). */
+export type AdminScenario =
+    | 'unavailable'
+    | 'old_server'
+    | 'daemon_too_old'
+    | 'https_required'
+    | 'daemon_unreachable';
+
+export interface AdminPatch {
+    /** false also forgets the password and every session. */
+    set?: boolean;
+    /** Setting a password marks the admin as set. */
+    password?: string;
+    apiAllowedHosts?: string;
+    /** null switches the scenario off. */
+    scenario?: AdminScenario | null;
+    /** Package names, each pending 1.0.0 → 2.0.0. */
+    updates?: string[];
+    /** Whole-run duration; progress climbs by 10 % steps. */
+    upgradeMs?: number;
+    /** Kill every socket once at this percentage (calaos-server restarting). */
+    dropAtPercent?: number | null;
+    failAtPercent?: number | null;
+    rebootRequired?: boolean;
+    clearSessions?: boolean;
+}
+
+/** `{op:'admin_status'}` — what the fake daemon holds and has counted. */
+export interface AdminStatus {
+    set: boolean;
+    scenario: AdminScenario | null;
+    sessions: number;
+    updates: string[];
+    progress: { status: string; total_percent: number };
+    job: { id: string; status: string; reboot_required: boolean } | null;
+    reboots: number;
+    restarts: number;
+    mcpRegenerations: number;
+}
 
 /**
  * Every frame a cold sign-in produces against the fixture house, in order.
@@ -119,6 +162,15 @@ export interface MockControl {
     scenario(name: ScenarioName): Promise<void>;
     /** Delays every outgoing WS frame (and camera snapshot) by `ms`. */
     latency(ms: number): Promise<void>;
+    /** Configures the fake daemon behind the admin messages. */
+    admin(patch: AdminPatch): Promise<void>;
+    adminStatus(): Promise<AdminStatus>;
+    /** The household account the mock accepts from now on (reset restores demo/demo). */
+    credentials(user: string, pass: string): Promise<void>;
+    /** The `admin` frames sent so far, by `data.action`. */
+    adminActions(): Promise<string[]>;
+    /** Whether each `update_status` the app sent carried an admin session, in order. */
+    statusSessions(): Promise<boolean[]>;
     /** Escape hatch: any op, raw response body. */
     send<T = Record<string, unknown>>(op: ControlOp): Promise<T>;
 }
@@ -191,6 +243,30 @@ export function createMockControl(
         async latency(ms) {
             await send({ op: 'latency', ms });
         },
+
+        async admin(patch) {
+            await send({ op: 'admin', ...patch });
+        },
+
+        async adminStatus() {
+            return await send<AdminStatus>({ op: 'admin_status' });
+        },
+
+        async credentials(user, pass) {
+            await send({ op: 'credentials', user, pass });
+        },
+
+        async adminActions() {
+            return (await log())
+                .filter((entry) => entry.frame?.msg === 'admin')
+                .map((entry) => String(entry.frame?.data?.action ?? ''));
+        },
+
+        async statusSessions() {
+            return (await log())
+                .filter((entry) => entry.frame?.msg === 'admin' && entry.frame?.data?.action === 'update_status')
+                .map((entry) => typeof entry.frame?.data?.admin_session === 'string');
+        },
     };
 }
 
@@ -232,6 +308,35 @@ export function loginForm(page: Page): {
  */
 export function connectionBanner(page: Page): Locator {
     return page.getByRole('status').filter({ hasText: MESSAGES.chrome.connection.lost });
+}
+
+/** The Admin tab's screens. Copy comes from the catalogue, like everything else. */
+export function adminScreen(page: Page): {
+    tab: Locator;
+    /** The gate's heading (unlock / choose / household) or a notice's title. */
+    heading: Locator;
+    adminPassword: Locator;
+    confirmPassword: Locator;
+    submit: Locator;
+    /** The refusal under the password form. */
+    error: Locator;
+    updates: Locator;
+    updatesHeadline: Locator;
+    progress: Locator;
+    info: Locator;
+} {
+    return {
+        tab: appChrome(page).footerNav.getByRole('link', { name: MESSAGES.chrome.tabs.admin }),
+        heading: page.locator('.admin__heading, .admin-notice__title'),
+        adminPassword: page.locator('.admin-password input[type="password"]').first(),
+        confirmPassword: page.locator('.admin-password input[type="password"]').nth(1),
+        submit: page.locator('.admin-password__submit'),
+        error: page.locator('.admin-password__error'),
+        updates: page.locator('.updates'),
+        updatesHeadline: page.locator('.updates__headline'),
+        progress: page.getByRole('progressbar'),
+        info: page.locator('.admin__info'),
+    };
 }
 
 /** The chrome that App.vue mounts only while `auth.isAuthed` — i.e. proof of session. */

@@ -304,3 +304,36 @@ describe('signOut', () => {
         expect(sent).toEqual([]);
     });
 });
+
+describe('rotateCredentials — re-login after change_cred', () => {
+    it('sends the new pair, stays authed, and reads the answer', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        store.consumeNavigation();
+        sent.length = 0;
+
+        expect(store.rotateCredentials('raoul', 'n3w')).toBe(true);
+        expect(sent).toEqual(['{"msg":"login","data":{"cn_user":"raoul","cn_pass":"n3w"}}']);
+        // No blink of the chrome: still authed while the answer is in flight.
+        expect(store.isAuthed).toBe(true);
+
+        store.handleLoginResult(true);
+        expect(store.isAuthed).toBe(true);
+        expect(store.user).toBe('raoul');
+        expect(store.pendingNavigation).toBeNull();
+    });
+
+    it('treats a refusal of the new pair like a refused re-login', () => {
+        const store = makeStore();
+        completeSignIn(store);
+
+        store.rotateCredentials('raoul', 'n3w');
+        store.handleLoginResult(false);
+        expect(store.hasFailed).toBe(true);
+
+        // Once settled, a stray answer is ignored again as before.
+        store.state = 'authed';
+        store.handleLoginResult(false);
+        expect(store.isAuthed).toBe(true);
+    });
+});

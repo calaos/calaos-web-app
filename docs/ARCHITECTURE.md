@@ -154,9 +154,11 @@ CALAOS_SERVER=http://192.168.30.17:5454
 
 Default proxy target is the mock server (`http://localhost:5454`), so `npm run dev:next` + `npm run mock` is a fully offline loop. Belt-and-braces: `vite.config.ts` throws if `mode === 'production'` and any `VITE_CALAOS*` var is set. Camera URLs are relative (`/api?...`) so the proxy covers them too — no SCE-whitelist analog.
 
+**Origin.** Once an admin is set, calaos_server refuses any `Origin` not on its allow-list (WS handshake and HTTP `/api.php`), and accepts an absent one. The proxy therefore drops the `Origin` of the dev page itself (`dev-proxy-origin.ts`: same host as the request, `localhost` or an IP literal only), so nothing has to be configured on the box. Any other `Origin` (cross-site page, DNS-rebound name) is forwarded untouched and the server still refuses it. `changeOrigin` sets `Host` to the target.
+
 ## Router
 
-`createWebHashHistory` (deep-link reloads must work on dumb static servers — calaos_server and static-web-server have no SPA fallback). Routes: `/login`, `/home`, `/home/:roomId(\d+)`, `/audio`, `/audio/:playerId`, `/security`, `/security/:cameraId(\d+)`; all but login `meta.requiresAuth`. Guard: unauthenticated → `/login`; out-of-bounds index params → redirect to parent list. NavBar back button on the three detail routes (`meta.detail`).
+`createWebHashHistory` (deep-link reloads must work on dumb static servers — calaos_server and static-web-server have no SPA fallback). Routes: `/login`, `/home`, `/home/:roomId(\d+)`, `/audio`, `/audio/:playerId`, `/security`, `/security/:cameraId(\d+)`, `/admin` (lazy chunk); all but login `meta.requiresAuth`. Guard: unauthenticated → `/login`; out-of-bounds index params → redirect to parent list. NavBar back button on the three detail routes (`meta.detail`).
 
 ## Styling / icons / fonts (light refresh)
 
@@ -180,7 +182,12 @@ Plain Node ≥18 ESM, single dep `ws`, one HTTP server on PORT (default 5454):
 
 1. **WS `/api`**: `login` (valid creds `demo`/`demo`, env-overridable), `get_home` from `fixtures/home.json` (covers ALL 14 gui_types with realistic states — `shutter_smart:"up 100"`, dimmer `"set 50"`, rgb `"#ff2200"`, empty var_string — unsorted `hits`, one `visible:"false"` IO, one `rw:"false"` IO, 2 cameras, 1 audio player), `set_state` applies naive transitions then **broadcasts `io_changed`** to all clients.
 2. **HTTP `/api?action=camera&type=get_picture&id=..`**: validates creds, returns `fixtures/camera.png`, 403 on bad creds.
-3. **HTTP POST `/control`** (test API): `{op:'push_io',id,state}` · `{op:'drop'}` (kill sockets) · `{op:'scenario',name}` (`login_fail_once`|`silent_login`|`reject_all_logins`|`reset`) · `{op:'latency',ms}` · `{op:'log'}` (every received frame — E2E asserts exact `set_state` frames) · `{op:'reset'}`.
+3. **HTTP POST `/control`** (test API): `{op:'push_io',id,state}` · `{op:'drop'}` (kill sockets) · `{op:'scenario',name}` (`login_fail_once`|`silent_login`|`reject_all_logins`|`reset`) · `{op:'latency',ms}` · `{op:'log'}` (every received frame — E2E asserts exact `set_state` frames) · `{op:'admin',…}` / `{op:'admin_status'}` / `{op:'credentials',user,pass}` (below) · `{op:'reset'}`.
+4. **Admin** (`admin.mjs`): `admin_unlock` / `admin_set` / `admin` / `admin_event` and `settings`/`change_cred`, per the contract in calaos_base `docs/08_http_api.md` "Administration" — session tokens, the `bad_session` / `admin_not_set` / `household_password_required` rules, a 5-failures-per-minute limiter, and a timer-driven upgrade (`upgrade_progress` events in 10 % steps over `upgradeMs`, `dropAtPercent` cuts every socket once like calaos-server restarting itself, `failAtPercent` ends in error). `{op:'admin', scenario}` answers every admin message with one contract error (`unavailable`, `daemon_too_old`, `https_required`, `daemon_unreachable`) or, for `old_server`, never answers at all.
+
+## Admin (`stores/admin.ts`, `views/AdminView.vue`)
+
+calaos_server keeps no admin state: the `admin_session` lives in this store (memory only) and is resent with every message that needs one, so it survives a server restart. `admin {update_status}` needs no session and is the probe for everything (gate, upgrade state); it carries the session whenever one is held, since without it calaos_server answers the household view (no package names, generic error), and `upgrade_progress` events are always that view; it runs when the tab opens, after every login (reconnects included), every 5 s while a job runs, and on the retry cadences of the contract (`admin_unavailable`: 5 s for 2 min then 60 s; `daemon_too_old` / `daemon_unreachable`: growing delay, "restart the box" after 2 min). Replies are correlated by `msg_id` with the contract's timeouts (5 s, 125 s for `update_check`); no reply means an old calaos_server, a dropped socket is not (the reconnect probes again). `bad_session` asks for the password again with no error and replays the refused action, except an upgrade. The gate is one screen at a time: household password first (factory `user`/`pass`), choose the admin password, unlock, or a notice to wait on.
 
 ## Testing strategy
 

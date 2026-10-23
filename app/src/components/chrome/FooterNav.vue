@@ -20,6 +20,7 @@ import { useI18n } from 'vue-i18n';
 import { RouterLink, useRoute } from 'vue-router';
 import IconCctv from '~icons/mdi/cctv';
 import IconHome from '~icons/mdi/home-variant';
+import IconShield from '~icons/mdi/shield-account-outline';
 import IconSpeaker from '~icons/mdi/speaker';
 
 const { t } = useI18n();
@@ -29,6 +30,7 @@ const tabs = [
     { key: 'home', to: '/home', icon: IconHome },
     { key: 'audio', to: '/audio', icon: IconSpeaker },
     { key: 'security', to: '/security', icon: IconCctv },
+    { key: 'admin', to: '/admin', icon: IconShield },
 ] as const;
 
 /** Index of the section containing the current route; -1 when outside all. */
@@ -38,7 +40,11 @@ const activeIndex = computed(() =>
 </script>
 
 <template>
-    <nav class="footer-nav fade-in-up" :aria-label="t('chrome.sections')">
+    <nav
+        class="footer-nav fade-in-up"
+        :style="{ '--tab-count': tabs.length }"
+        :aria-label="t('chrome.sections')"
+    >
         <span
             class="footer-nav__light"
             :class="{ 'footer-nav__light--off': activeIndex < 0 }"
@@ -71,7 +77,7 @@ const activeIndex = computed(() =>
 .footer-nav {
     position: relative;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(var(--tab-count), 1fr);
     block-size: var(--h-footer);
     /* content-box (overriding the global border-box) so the home-indicator
        inset is added below the tabs instead of shrinking them. */
@@ -133,7 +139,7 @@ const activeIndex = computed(() =>
     position: absolute;
     inset-block-start: 0;
     inset-inline-start: 0;
-    inline-size: calc(100% / 3);
+    inline-size: calc(100% / var(--tab-count));
     block-size: 100%;
     transform: translateX(calc(var(--tab-index) * 100%));
     transition:

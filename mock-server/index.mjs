@@ -3,7 +3,8 @@
 // Playwright `webServer`, and its own vitest regression suite.
 //
 // One HTTP server on PORT (default 5454) serving three things:
-//   1. WebSocket upgrade on /api    — login / get_home / set_state
+//   1. WebSocket upgrade on /api    — login / get_home / set_state, and the
+//      admin messages (admin.mjs)
 //   2. GET /api?action=camera&...   — a PNG snapshot, 403 on bad credentials
 //   3. GET|POST /control            — the test API (see control.mjs)
 //
@@ -15,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { WebSocketServer } from 'ws';
 
+import { createAdmin } from './admin.mjs';
 import { createState } from './state.mjs';
 import { handleControlRequest, readJsonBody } from './control.mjs';
 
@@ -63,6 +65,9 @@ export function startServer(options = {}) {
         port,
         user,
         pass,
+        /** What `/control {op:'reset'}` restores after a `change_cred`. */
+        defaultUser: user,
+        defaultPass: pass,
         /** @type {Set<import('ws').WebSocket>} */
         clients: new Set(),
         /** Every WS frame received, in arrival order (`/control {op:'log'}`). */
@@ -71,6 +76,7 @@ export function startServer(options = {}) {
         scenario: { name: null, consumed: false },
         latencyMs: 0,
         state: null,
+        admin: null,
         dropClients: null,
     };
 
@@ -90,6 +96,7 @@ export function startServer(options = {}) {
     }
 
     hub.state = createState({ broadcast });
+    hub.admin = createAdmin({ hub, send, broadcast, withMsgId });
 
     hub.dropClients = () => {
         const n = hub.clients.size;
@@ -139,6 +146,10 @@ export function startServer(options = {}) {
         }
 
         const msgId = frame.msg_id;
+
+        // admin_unlock / admin_set / admin / settings, answered (or
+        // deliberately not) by the fake daemon.
+        if (hub.admin.handleFrame(ws, frame)) return;
 
         switch (frame.msg) {
             case 'login':

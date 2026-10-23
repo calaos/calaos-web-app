@@ -15,12 +15,12 @@ Web frontend for the Calaos home automation server: Vue 3 + TypeScript + Vite, P
 
 - The app always talks to **same-origin `/api`** (WebSocket + camera snapshots); in production it is served by calaos_server itself. The WS URL is derived from `location.host` (`app/src/protocol/server-url.ts`) — never ship a hardcoded host, and no `VITE_*` var may reach the bundle (`vite.config.ts` refuses production builds if `VITE_CALAOS*` is set).
 - Dev against a real server: put `CALAOS_SERVER=http://<host>:5454` in `.env.development.local` (gitignored, never commit it); the Vite dev/preview proxy forwards `/api` there. Default target is the mock server.
-- `npm run mock` starts the mock calaos_server on :5454 (creds `demo`/`demo`, test API on `POST /control`) — `npm run mock` + `npm run dev` is a fully offline loop.
+- `npm run mock` starts the mock calaos_server on :5454 (creds `demo`/`demo`, test API on `POST /control`, a fake calaos-container behind the admin messages — `{op:'admin', password:'…'}` to set one) — `npm run mock` + `npm run dev` is a fully offline loop.
 - **Gotcha: production serves the app under `/app/`, not at `/`** (calaos_server 301s `/`→`/app/index.html`, static only under `/app/`, `text/html` 404 for everything else). `base: './'` in `vite.config.ts` must stay — absolute `/assets/…` URLs escape the prefix and the app dies on a MIME error. The app's own `/api` URLs stay absolute. Pinned by `e2e/app-prefix.spec.ts` + `e2e/calaos-server-sim.mjs`.
 
 ## Protocol layer
 
-`app/src/protocol/` (types, guards, message codecs, per-gui_type state parsers, WS client) has **no Vue imports** — keep it framework-free. All wire values are strings; guards never throw on malformed frames. Exception: the `device` object of climate devices carries real JSON numbers/booleans (spec §5.3), and is always sent whole (replace, never merge). The audio protocol spec is `docs/audio-protocol.md` — items marked "Unverified" there have not been validated against a real calaos_server yet.
+`app/src/protocol/` (types, guards, message codecs, per-gui_type state parsers, WS client) has **no Vue imports** — keep it framework-free. All wire values are strings; guards never throw on malformed frames. Exceptions: the `device` object of climate devices carries real JSON numbers/booleans (spec §5.3), and is always sent whole (replace, never merge); and the `result` of an `admin` reply / the `data` of `admin_event` (daemon JSON, real types). The audio protocol spec is `docs/audio-protocol.md` — items marked "Unverified" there have not been validated against a real calaos_server yet.
 
 ## npm scripts
 

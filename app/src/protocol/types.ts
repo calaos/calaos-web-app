@@ -402,6 +402,32 @@ export interface UnknownEventMessage {
     data: unknown;
 }
 
+/**
+ * The answer to `admin_unlock`, `admin_set` or `admin`. All three share one
+ * `{success, error, msg}` failure shape and a success shape that differs per
+ * message, so `data` is handed over raw and protocol/admin.ts reads it.
+ */
+export interface AdminReplyMessage {
+    kind: 'admin_reply';
+    msg: 'admin_unlock' | 'admin_set' | 'admin';
+    msgId: string;
+    data: unknown;
+}
+
+/** An unsolicited `admin_event` push (upgrade progress, admin set/reset). */
+export interface AdminEventMessage {
+    kind: 'admin_event';
+    type: string;
+    ts: string;
+    data: unknown;
+}
+
+/** The answer to `settings` / `change_cred` (household password change). */
+export interface ChangeCredMessage {
+    kind: 'change_cred';
+    success: boolean;
+}
+
 // Typed fallback for malformed or unrecognized frames — decode never throws.
 export interface UnknownMessage {
     kind: 'unknown';
@@ -416,4 +442,7 @@ export type ServerMessage =
     | SetStateResultMessage
     | IoChangedMessage
     | UnknownEventMessage
+    | AdminReplyMessage
+    | AdminEventMessage
+    | ChangeCredMessage
     | UnknownMessage;

@@ -1285,3 +1285,317 @@ describe('http routing', () => {
         await expect(c.opened).rejects.toThrow();
     });
 });
+
+// ------------------------------------------------------------- admin ---
+
+describe('admin: unlock, set, actions (admin.mjs)', () => {
+    const isReply = (msg, msgId) => (f) => f.msg === msg && f.msg_id === msgId;
+    const isAdminEvent = (type) => (f) => f.msg === 'admin_event' && f.data?.type === type;
+
+    /** Authenticated client with a helper that sends one admin frame and awaits its answer. */
+    async function adminClient() {
+        const { client } = await login();
+        let seq = 0;
+        return {
+            client,
+            async ask(msg, data) {
+                const msgId = `t${++seq}`;
+                client.send({ msg, msg_id: msgId, data });
+                return (await client.waitFor(isReply(msg, msgId))).data;
+            },
+        };
+    }
+
+    async function unlock(ask, password = 'correct horse battery') {
+        await control({ op: 'admin', password });
+        const reply = await ask('admin_unlock', { admin_pass: password });
+        expect(reply.success).toBe('true');
+        return reply.admin_session;
+    }
+
+    it('ignores admin messages before login, like every other message', async () => {
+        const c = createClient();
+        await c.opened;
+        c.send({ msg: 'admin', msg_id: '1', data: { action: 'update_status' } });
+        await sleep(100);
+        expect(c.frames).toEqual([]);
+    });
+
+    it('answers admin_not_set with api_allowed_hosts while no admin exists', async () => {
+        await control({ op: 'admin', apiAllowedHosts: 'home.example.org' });
+        const { ask } = await adminClient();
+
+        const status = await ask('admin', { action: 'update_status' });
+        expect(status).toEqual({
+            success: 'false',
+            error: 'admin_not_set',
+            msg: expect.any(String),
+            api_allowed_hosts: 'home.example.org',
+        });
+        const unlockReply = await ask('admin_unlock', { admin_pass: 'x' });
+        expect(unlockReply.error).toBe('admin_not_set');
+    });
+
+    it('refuses the bootstrap on the factory household account', async () => {
+        await control({ op: 'credentials', user: 'user', pass: 'pass' });
+        const { client } = await login('user', 'pass');
+        client.send({ msg: 'admin_set', msg_id: '1', data: { new_pass: 'a long admin password' } });
+        const reply = (await client.waitFor(isReply('admin_set', '1'))).data;
+        expect(reply.error).toBe('household_password_required');
+    });
+
+    it('change_cred rotates the household account and drops the session', async () => {
+        await control({ op: 'credentials', user: 'user', pass: 'pass' });
+        const { client } = await login('user', 'pass');
+        client.send({
+            msg: 'settings',
+            data: { action: 'change_cred', old_user: 'user', old_pw: 'pass', new_user: 'raoul', new_pw: 's3cret' },
+        });
+        const reply = await client.waitFor((f) => f.msg === 'settings');
+        expect(reply.data).toEqual({ action: 'change_cred', success: 'true' });
+
+        // Logged out: get_home is ignored until a new login with the new pair.
+        client.send({ msg: 'get_home' });
+        await sleep(100);
+        expect(client.frames.some(isGetHome)).toBe(false);
+        client.send({ msg: 'login', data: { cn_user: 'raoul', cn_pass: 's3cret' } });
+        expect((await client.waitFor(isLogin)).data.success).toBe('true');
+        expect((await control({ op: 'reset' })).status).toBe(200);
+        // And reset restores the startup account.
+        expect((await login()).reply.data.success).toBe('true');
+    });
+
+    it('bootstrap: password rules, admin_set event, then unlock and change', async () => {
+        const { client, ask } = await adminClient();
+
+        expect((await ask('admin_set', { new_pass: 'short' })).error).toBe('password_too_short');
+        expect((await ask('admin_set', { new_pass: 'short' })).min_length).toBe('10');
+        expect(await ask('admin_set', { new_pass: 'a long admin password' })).toEqual({
+            success: 'true',
+            mode: 'bootstrap',
+        });
+        const evt = await client.waitFor(isAdminEvent('admin_set'));
+        expect(evt.data).toEqual({ type: 'admin_set', ts: expect.any(String) });
+
+        expect((await ask('admin_set', { new_pass: 'another long password' })).error).toBe('admin_already_set');
+        expect((await ask('admin_unlock', { admin_pass: 'nope nope nope' })).error).toBe('bad_password');
+
+        const unlocked = await ask('admin_unlock', { admin_pass: 'a long admin password' });
+        expect(unlocked.success).toBe('true');
+        expect(unlocked.admin_session).toMatch(/^[0-9a-f]{64}$/);
+        expect(unlocked.expires_in).toBe('900');
+
+        // A change invalidates every session, the caller's included.
+        expect(
+            await ask('admin_set', { new_pass: 'another long password', admin_session: unlocked.admin_session }),
+        ).toEqual({ success: 'true', mode: 'change' });
+        expect((await ask('admin', { action: 'system_info', admin_session: unlocked.admin_session })).error).toBe(
+            'bad_session',
+        );
+        expect((await ask('admin_unlock', { admin_pass: 'another long password' })).success).toBe('true');
+    });
+
+    it('rate-limits after five wrong passwords', async () => {
+        await control({ op: 'admin', password: 'correct horse battery' });
+        const { ask } = await adminClient();
+        for (let i = 0; i < 5; i++) {
+            expect((await ask('admin_unlock', { admin_pass: 'wrong' })).error).toBe('bad_password');
+        }
+        const limited = await ask('admin_unlock', { admin_pass: 'correct horse battery' });
+        expect(limited.error).toBe('rate_limited');
+        expect(Number(limited.retry_after)).toBeGreaterThan(0);
+    });
+
+    it('update_status needs no session; the other actions do', async () => {
+        await control({ op: 'admin', password: 'correct horse battery' });
+        const { ask } = await adminClient();
+
+        const status = await ask('admin', { action: 'update_status' });
+        expect(status.success).toBe('true');
+        expect(status.result).toEqual({ progress: expect.objectContaining({ status: 'idle' }), job: null });
+
+        expect((await ask('admin', { action: 'update_check' })).error).toBe('bad_session');
+        expect((await ask('admin', { action: 'update_check', admin_session: '' })).error).toBe('bad_session');
+        expect((await ask('admin', { action: 'network_list', admin_session: 'x' })).error).toBe('not_allowed');
+    });
+
+    it('update_status is the household view without a session, the full one with it', async () => {
+        await control({ op: 'admin', password: 'correct horse battery', upgradeMs: 5_000, updates: ['calaos-server'] });
+        const { client, ask } = await adminClient();
+        const session = await unlock(ask);
+        await ask('admin', { action: 'update_upgrade_all', admin_session: session });
+
+        const full = await ask('admin', { action: 'update_status', admin_session: session });
+        expect(full.result.progress).toMatchObject({
+            current_pkg: 'calaos-server',
+            packages: [{ name: 'calaos-server', state: expect.any(String), percent: expect.any(Number) }],
+        });
+
+        for (const admin_session of [undefined, '', 'not-hex']) {
+            const household = await ask('admin', { action: 'update_status', admin_session });
+            expect(household.result.progress).not.toHaveProperty('current_pkg');
+            expect(household.result.progress).not.toHaveProperty('message');
+            expect(household.result.progress.packages).toEqual([{ state: expect.any(String), percent: expect.any(Number) }]);
+            expect(household.result.job).toMatchObject({ kind: 'upgrade_all', status: 'running' });
+        }
+        // Events never carry the package names.
+        const progress = client.frames.filter(isAdminEvent('upgrade_progress'));
+        expect(progress.length).toBeGreaterThan(0);
+        for (const f of progress) expect(f.data.data).not.toHaveProperty('current_pkg');
+
+        // A well-formed session the daemon does not know is refused.
+        await control({ op: 'admin', clearSessions: true });
+        expect((await ask('admin', { action: 'update_status', admin_session: session })).error).toBe('bad_session');
+    });
+
+    it('the household job loses its package and gets a generic error', async () => {
+        await control({ op: 'admin', upgradeMs: 200, failAtPercent: 50 });
+        const { ask } = await adminClient();
+        const session = await unlock(ask);
+        await ask('admin', { action: 'update_upgrade', admin_session: session, params: { package: 'calaos-server' } });
+        await sleep(400);
+        const household = await ask('admin', { action: 'update_status' });
+        expect(household.result.job).toMatchObject({ kind: 'upgrade', status: 'error', error: 'upgrade failed' });
+        expect(household.result.job).not.toHaveProperty('package');
+        const full = await ask('admin', { action: 'update_status', admin_session: session });
+        expect(full.result.job).toMatchObject({ package: 'calaos-server', error: 'apt-get returned 100' });
+    });
+
+    it('runs an upgrade: progress events, a drop on the way, done with reboot_required', async () => {
+        await control({ op: 'admin', upgradeMs: 300, dropAtPercent: 40, rebootRequired: true });
+        const { client, ask } = await adminClient();
+        const session = await unlock(ask);
+
+        const check = await ask('admin', { action: 'update_check', admin_session: session });
+        expect(Object.keys(check.result)).toEqual(['calaos-server', 'calaos-container']);
+        expect(check.result['calaos-server']).toEqual({
+            name: 'calaos-server',
+            version: '4.6.0',
+            current_version: '4.5.0',
+        });
+
+        const started = await ask('admin', { action: 'update_upgrade_all', admin_session: session });
+        expect(started.result).toMatchObject({ kind: 'upgrade_all', status: 'running', reboot_required: false });
+        expect(started.result.id).toMatch(/^[0-9a-f]{16}$/);
+
+        // A second run, a check and a reboot are refused while it runs.
+        const busy = await ask('admin', { action: 'update_upgrade_all', admin_session: session });
+        expect(busy).toMatchObject({ error: 'upgrade_in_progress', job_id: started.result.id });
+        expect((await ask('admin', { action: 'system_reboot', admin_session: session })).error).toBe(
+            'upgrade_in_progress',
+        );
+
+        // The socket is cut at 40 % with no close frame, and the run goes on.
+        expect(await client.closed).toBe(1006);
+        await sleep(400);
+        const { ask: askAgain } = await adminClient();
+        const final = await askAgain('admin', { action: 'update_status' });
+        // Idle once the run is over: the job alone says how it ended.
+        expect(final.result.progress).toMatchObject({ status: 'idle', total_percent: 0 });
+        expect(final.result.job).toMatchObject({
+            id: started.result.id,
+            status: 'done',
+            reboot_required: true,
+            finished_at: expect.any(String),
+        });
+        // Installed: nothing left to update, and the same session still works.
+        expect((await askAgain('admin', { action: 'update_available', admin_session: session })).result).toEqual({});
+        expect((await control({ op: 'admin_status' })).body.job.status).toBe('done');
+    });
+
+    it('publishes upgrade_progress events to the clients that stay connected', async () => {
+        await control({ op: 'admin', upgradeMs: 200, updates: ['calaos-server'] });
+        const { client, ask } = await adminClient();
+        const session = await unlock(ask);
+        await ask('admin', { action: 'update_upgrade_all', admin_session: session });
+
+        const done = await client.waitFor(
+            (f) => f.msg === 'admin_event' && f.data?.type === 'upgrade_progress' && f.data?.data?.status === 'done',
+        );
+        expect(done.data.data.total_percent).toBe(100);
+        const percents = client.frames
+            .filter(isAdminEvent('upgrade_progress'))
+            .map((f) => f.data.data.total_percent);
+        expect(percents[0]).toBe(0);
+        expect(percents).toEqual([...percents].sort((a, b) => a - b));
+    });
+
+    it('publishes done while the job still runs, then idle, then ends the job', async () => {
+        await control({ op: 'admin', upgradeMs: 200, updates: ['calaos-server'] });
+        const { client, ask } = await adminClient();
+        const session = await unlock(ask);
+        await ask('admin', { action: 'update_upgrade_all', admin_session: session });
+
+        await client.waitFor(
+            (f) => f.msg === 'admin_event' && f.data?.type === 'upgrade_progress' && f.data?.data?.status === 'done',
+        );
+        expect((await ask('admin', { action: 'update_status' })).result.job.status).toBe('running');
+        await client.waitFor(
+            (f) => f.msg === 'admin_event' && f.data?.type === 'upgrade_progress' && f.data?.data?.status === 'idle',
+        );
+        const statuses = client.frames.filter(isAdminEvent('upgrade_progress')).map((f) => f.data.data.status);
+        expect(statuses.slice(-2)).toEqual(['done', 'idle']);
+        expect((await ask('admin', { action: 'update_status' })).result.job.status).toBe('done');
+    });
+
+    it('fails the run at failAtPercent with the error in the job', async () => {
+        await control({ op: 'admin', upgradeMs: 200, failAtPercent: 50 });
+        const { ask } = await adminClient();
+        const session = await unlock(ask);
+        await ask('admin', { action: 'update_upgrade_all', admin_session: session });
+        await sleep(400);
+        const status = await ask('admin', { action: 'update_status' });
+        expect(status.result.progress.status).toBe('idle');
+        expect(status.result.job).toMatchObject({ status: 'error', error: expect.any(String) });
+        // The packages are still pending.
+        expect(Object.keys((await ask('admin', { action: 'update_available', admin_session: session })).result)).toHaveLength(2);
+    });
+
+    it('update_upgrade validates the package name and its pending update', async () => {
+        const { ask } = await adminClient();
+        const session = await unlock(ask);
+        expect((await ask('admin', { action: 'update_upgrade', admin_session: session, params: { package: '../etc' } })).error).toBe('invalid_request');
+        expect((await ask('admin', { action: 'update_upgrade', admin_session: session, params: { package: 'nope' } })).error).toBe('package_not_found');
+        const started = await ask('admin', { action: 'update_upgrade', admin_session: session, params: { package: 'calaos-server' } });
+        expect(started.result).toMatchObject({ kind: 'upgrade', package: 'calaos-server', status: 'running' });
+    });
+
+    it('reboot, restart and mcp_regenerate are counted', async () => {
+        const { ask } = await adminClient();
+        const session = await unlock(ask);
+        expect(await ask('admin', { action: 'system_reboot', admin_session: session })).toEqual({ success: 'true', result: null });
+        expect(await ask('admin', { action: 'system_restart', admin_session: session })).toEqual({ success: 'true', result: null });
+        expect(await ask('admin', { action: 'mcp_regenerate', admin_session: session })).toEqual({ success: 'true', result: {} });
+        const info = await ask('admin', { action: 'system_info', admin_session: session });
+        expect(info.result).toMatchObject({ hostname: 'calaos-mock' });
+        expect((await control({ op: 'admin_status' })).body).toMatchObject({ reboots: 1, restarts: 1, mcpRegenerations: 1 });
+    });
+
+    it.each([
+        ['unavailable', 'admin_unavailable'],
+        ['daemon_too_old', 'daemon_too_old'],
+        ['https_required', 'https_required'],
+        ['daemon_unreachable', 'daemon_unreachable'],
+    ])('scenario %s answers every admin message with %s', async (scenario, code) => {
+        await control({ op: 'admin', scenario, password: 'correct horse battery' });
+        const { ask } = await adminClient();
+        expect((await ask('admin', { action: 'update_status' })).error).toBe(code);
+        expect((await ask('admin_unlock', { admin_pass: 'correct horse battery' })).error).toBe(code);
+        expect((await ask('admin_set', { new_pass: 'a long admin password' })).error).toBe(code);
+    });
+
+    it('scenario old_server never answers an admin message', async () => {
+        await control({ op: 'admin', scenario: 'old_server', password: 'correct horse battery' });
+        const { client } = await login();
+        client.send({ msg: 'admin_unlock', msg_id: '1', data: { admin_pass: 'correct horse battery' } });
+        client.send({ msg: 'admin', msg_id: '2', data: { action: 'update_status' } });
+        await sleep(200);
+        expect(client.frames.filter((f) => f.msg !== 'login')).toEqual([]);
+    });
+
+    it('rejects an unknown admin scenario', async () => {
+        const bad = await control({ op: 'admin', scenario: 'teleport' });
+        expect(bad.status).toBe(400);
+        expect(bad.body.known).toContain('old_server');
+    });
+});

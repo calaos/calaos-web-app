@@ -530,3 +530,15 @@ describe('close', () => {
         expect(socket.isOpen).toBe(true);
     });
 });
+
+describe('dropped frames never reach the console', () => {
+    it('warns without the payload when sending on a socket that is not open', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const socket = new CalaosSocket('ws://x/api', { WebSocketCtor: FakeWebSocket as unknown as typeof WebSocket });
+        // Never connected: the frame (an admin unlock carrying a password) is dropped.
+        expect(socket.send('{"msg":"admin_unlock","msg_id":"1","data":{"admin_pass":"hunter2-secret"}}')).toBe(false);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(JSON.stringify(warn.mock.calls)).not.toContain('hunter2-secret');
+        warn.mockRestore();
+    });
+});
