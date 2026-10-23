@@ -103,9 +103,12 @@ function changeHousehold(user: string, password: string): void {
                     <h2 class="admin__heading">{{ t('admin.bootstrap.title') }}</h2>
                     <p class="admin__hint">{{ t('admin.bootstrap.hint', { min: minLength }) }}</p>
                 </header>
-                <p v-if="admin.apiAllowedHosts !== ''" class="admin__hosts fade-in">
+                <p class="admin__hosts fade-in">
                     <span class="admin__hosts-label">{{ t('admin.bootstrap.allowedHosts') }}</span>
-                    <span>{{ t('admin.bootstrap.allowedHostsHint', { hosts: admin.apiAllowedHosts }) }}</span>
+                    <span v-if="admin.apiAllowedHosts !== ''">
+                        {{ t('admin.bootstrap.allowedHostsHint', { hosts: admin.apiAllowedHosts }) }}
+                    </span>
+                    <span v-else>{{ t('admin.bootstrap.allowedHostsNone') }}</span>
                 </p>
                 <AdminPasswordForm
                     class="fade-in-up"

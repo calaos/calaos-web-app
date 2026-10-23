@@ -61,6 +61,10 @@ describe('admin error payload', () => {
         expect(toAdminError({ error: 'admin_not_set', api_allowed_hosts: 'h' }).apiAllowedHosts).toBe('h');
     });
 
+    it('keeps package_held as its own code', () => {
+        expect(toAdminError({ error: 'package_held', msg: 'calaos-server is held' }).code).toBe('package_held');
+    });
+
     it('maps an unlisted code to unknown and keeps the msg', () => {
         expect(toAdminError({ error: 'brand_new', msg: 'x' })).toMatchObject({ code: 'unknown', msg: 'x' });
         expect(toAdminError('garbage').code).toBe('unknown');
