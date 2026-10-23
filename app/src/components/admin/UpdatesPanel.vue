@@ -52,8 +52,11 @@ const hint = computed(() => {
                 ? `${t('admin.updates.externalRun')} ${t('admin.updates.upgradingHint')}`
                 : t('admin.updates.upgradingHint');
         case 'failed': {
+            // The household view reduces every error to these two; only the
+            // full view (admin session) carries the daemon's own reason.
             const reason = admin.job?.error || admin.progress?.error || '';
-            return reason !== ''
+            if (reason === 'interrupted') return t('admin.updates.failedInterrupted');
+            return reason !== '' && reason !== 'upgrade failed'
                 ? t('admin.updates.failedReason', { error: reason })
                 : t('admin.updates.failedHint');
         }
@@ -66,9 +69,11 @@ const hint = computed(() => {
 const packageLine = computed(() => {
     const p = admin.progress;
     if (phase.value !== 'upgrading' || p === null) return '';
+    const index = Math.max(1, p.pkgIndex);
     if (p.currentPkg !== '' && p.pkgCount > 0) {
-        return t('admin.updates.packageOf', { name: p.currentPkg, index: Math.max(1, p.pkgIndex), count: p.pkgCount });
+        return t('admin.updates.packageOf', { name: p.currentPkg, index, count: p.pkgCount });
     }
+    if (p.pkgCount > 0) return t('admin.updates.packageIndex', { index, count: p.pkgCount });
     return p.message;
 });
 

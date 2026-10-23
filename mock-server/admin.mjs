@@ -58,6 +58,45 @@ function idleProgress() {
     };
 }
 
+// What calaos_server lets a household client see of <Status> and <Job>: an
+// allow list, so a field the daemon adds later is not leaked.
+const HOUSEHOLD_STATUS_FIELDS = [
+    'status',
+    'total_percent',
+    'current_step',
+    'current_percent',
+    'pkg_index',
+    'pkg_count',
+    'progress',
+    'progress_total',
+];
+
+export function householdStatus(status) {
+    const out = {};
+    for (const key of HOUSEHOLD_STATUS_FIELDS) {
+        if (key in status) out[key] = status[key];
+    }
+    if (Array.isArray(status.packages)) {
+        out.packages = status.packages.map((entry) =>
+            typeof entry === 'object' && entry !== null
+                ? { state: entry.state, percent: entry.percent }
+                : { state: 'pending', percent: 0 },
+        );
+    }
+    if (typeof status.error === 'string' && status.error !== '') out.error = 'upgrade failed';
+    return out;
+}
+
+export function householdJob(job) {
+    if (job === null) return null;
+    const { error, ...rest } = job;
+    delete rest.package;
+    if (typeof error === 'string' && error !== '') {
+        rest.error = error === 'interrupted' ? 'interrupted' : 'upgrade failed';
+    }
+    return rest;
+}
+
 function failure(error, msg, extra = {}) {
     return { success: 'false', error, msg, ...extra };
 }
@@ -102,7 +141,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
 
     function event(type, data) {
         const frame = { msg: 'admin_event', data: { type, ts: new Date().toISOString() } };
-        if (data !== undefined) frame.data.data = data;
+        if (data !== undefined) frame.data.data = type === 'upgrade_progress' ? householdStatus(data) : data;
         broadcast(frame);
     }
 
@@ -116,8 +155,12 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         return token;
     }
 
+    function wellFormedSession(token) {
+        return typeof token === 'string' && /^[0-9a-f]{64}$/.test(token);
+    }
+
     function sessionValid(token) {
-        if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token)) return false;
+        if (!wellFormedSession(token)) return false;
         const expiry = state.sessions.get(token);
         if (expiry === undefined) return false;
         if (expiry < Date.now()) {
@@ -337,13 +380,22 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 api_allowed_hosts: state.apiAllowedHosts,
             }));
         }
-        if (action !== 'update_status' && !sessionValid(data.admin_session)) {
+        if (action === 'update_status') {
+            // No well-formed session: calaos_server answers the household
+            // view itself; a well-formed one goes to the daemon, which may refuse it.
+            if (!wellFormedSession(data.admin_session)) {
+                return ok({ progress: householdStatus(state.progress), job: householdJob(state.job) });
+            }
+            if (!sessionValid(data.admin_session)) {
+                return respond(failure('bad_session', 'Admin session required'));
+            }
+            return ok({ progress: state.progress, job: state.job });
+        }
+        if (!sessionValid(data.admin_session)) {
             return respond(failure('bad_session', 'Admin session required'));
         }
 
         switch (action) {
-            case 'update_status':
-                return ok({ progress: state.progress, job: state.job });
             case 'update_check':
             case 'update_available':
                 if (running()) {

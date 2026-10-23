@@ -169,6 +169,8 @@ export interface MockControl {
     credentials(user: string, pass: string): Promise<void>;
     /** The `admin` frames sent so far, by `data.action`. */
     adminActions(): Promise<string[]>;
+    /** Whether each `update_status` the app sent carried an admin session, in order. */
+    statusSessions(): Promise<boolean[]>;
     /** Escape hatch: any op, raw response body. */
     send<T = Record<string, unknown>>(op: ControlOp): Promise<T>;
 }
@@ -258,6 +260,12 @@ export function createMockControl(
             return (await log())
                 .filter((entry) => entry.frame?.msg === 'admin')
                 .map((entry) => String(entry.frame?.data?.action ?? ''));
+        },
+
+        async statusSessions() {
+            return (await log())
+                .filter((entry) => entry.frame?.msg === 'admin' && entry.frame?.data?.action === 'update_status')
+                .map((entry) => typeof entry.frame?.data?.admin_session === 'string');
         },
     };
 }

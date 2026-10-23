@@ -7,7 +7,9 @@
 // `update_status` needs no session and is the probe for everything — it tells
 // whether an admin exists, whether the daemon is reachable, and where an
 // upgrade stands — which is why a reconnect, a retry and the first visit of
-// the tab all go through `probe()`.
+// the tab all go through `probe()`. Without a session the server answers a
+// household view (no package names, generic error), so the session is sent
+// whenever one is held.
 
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
@@ -157,6 +159,8 @@ export const useAdminStore = defineStore('admin', () => {
     const seenRunning = new Set<string>();
     /** When the reply to our `update_upgrade_all` was lost to a drop. */
     let lostUpgradeAt: number | null = null;
+    /** A poll is out: an event must not send a second one. */
+    let statusInFlight = false;
 
     const isUnlocked = computed(() => gate.value === 'unlocked' && session.value !== null);
     const isUpgrading = computed(
@@ -447,7 +451,7 @@ export const useAdminStore = defineStore('admin', () => {
         retryTimer = clearTimer(retryTimer);
         if (gate.value === 'idle') gate.value = 'probing';
         const outcome = await request(
-            (id) => encodeAdminAction('update_status', null, id),
+            (id) => encodeAdminAction('update_status', session.value, id),
             ADMIN_REPLY_TIMEOUT_MS,
         );
         if (!outcome.ok) {
@@ -471,10 +475,12 @@ export const useAdminStore = defineStore('admin', () => {
 
     /** `update_status` without touching the gate — the poll during an upgrade. */
     async function refreshStatus(): Promise<void> {
+        statusInFlight = true;
         const outcome = await request(
-            (id) => encodeAdminAction('update_status', null, id),
+            (id) => encodeAdminAction('update_status', session.value, id),
             ADMIN_REPLY_TIMEOUT_MS,
         );
+        statusInFlight = false;
         if (outcome.ok) {
             applyStatus(outcome.data);
             return;
@@ -677,7 +683,21 @@ export const useAdminStore = defineStore('admin', () => {
     function handleEvent(msg: AdminEventMessage): void {
         switch (msg.type) {
             case 'upgrade_progress': {
+                // Events are always the household view: keep the name the
+                // last full read gave for this package, and fetch the next one.
                 const next = toUpgradeStatus(msg.data);
+                const prev = progress.value;
+                if (next.currentPkg === '' && prev !== null && prev.pkgIndex === next.pkgIndex) {
+                    next.currentPkg = prev.currentPkg;
+                    next.message = prev.message;
+                } else if (
+                    next.currentPkg === '' &&
+                    next.status === 'upgrading' &&
+                    session.value !== null &&
+                    !statusInFlight
+                ) {
+                    void refreshStatus();
+                }
                 progress.value = next;
                 if (next.status === 'done' || next.status === 'error') {
                     // The job's `reboot_required` / `error` only come from
@@ -776,6 +796,7 @@ export const useAdminStore = defineStore('admin', () => {
         credentialDraft = null;
         ownSetPending = false;
         lostUpgradeAt = null;
+        statusInFlight = false;
         seenRunning.clear();
     }
 

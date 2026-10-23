@@ -1419,6 +1419,45 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
         expect((await ask('admin', { action: 'network_list', admin_session: 'x' })).error).toBe('not_allowed');
     });
 
+    it('update_status is the household view without a session, the full one with it', async () => {
+        await control({ op: 'admin', password: 'correct horse battery', upgradeMs: 5_000, updates: ['calaos-server'] });
+        const { client, ask } = await adminClient();
+        const session = await unlock(ask);
+        await ask('admin', { action: 'update_upgrade_all', admin_session: session });
+
+        const full = await ask('admin', { action: 'update_status', admin_session: session });
+        expect(full.result.progress).toMatchObject({ current_pkg: 'calaos-server', packages: ['calaos-server'] });
+
+        for (const admin_session of [undefined, '', 'not-hex']) {
+            const household = await ask('admin', { action: 'update_status', admin_session });
+            expect(household.result.progress).not.toHaveProperty('current_pkg');
+            expect(household.result.progress).not.toHaveProperty('message');
+            expect(household.result.progress.packages).toEqual([{ state: 'pending', percent: 0 }]);
+            expect(household.result.job).toMatchObject({ kind: 'upgrade_all', status: 'running' });
+        }
+        // Events never carry the package names.
+        const progress = client.frames.filter(isAdminEvent('upgrade_progress'));
+        expect(progress.length).toBeGreaterThan(0);
+        for (const f of progress) expect(f.data.data).not.toHaveProperty('current_pkg');
+
+        // A well-formed session the daemon does not know is refused.
+        await control({ op: 'admin', clearSessions: true });
+        expect((await ask('admin', { action: 'update_status', admin_session: session })).error).toBe('bad_session');
+    });
+
+    it('the household job loses its package and gets a generic error', async () => {
+        await control({ op: 'admin', upgradeMs: 200, failAtPercent: 50 });
+        const { ask } = await adminClient();
+        const session = await unlock(ask);
+        await ask('admin', { action: 'update_upgrade', admin_session: session, params: { package: 'calaos-server' } });
+        await sleep(400);
+        const household = await ask('admin', { action: 'update_status' });
+        expect(household.result.job).toMatchObject({ kind: 'upgrade', status: 'error', error: 'upgrade failed' });
+        expect(household.result.job).not.toHaveProperty('package');
+        const full = await ask('admin', { action: 'update_status', admin_session: session });
+        expect(full.result.job).toMatchObject({ package: 'calaos-server', error: 'apt-get returned 100' });
+    });
+
     it('runs an upgrade: progress events, a drop on the way, done with reboot_required', async () => {
         await control({ op: 'admin', upgradeMs: 300, dropAtPercent: 40, rebootRequired: true });
         const { client, ask } = await adminClient();

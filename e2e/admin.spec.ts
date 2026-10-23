@@ -198,6 +198,63 @@ test('bad_session asks for the password again, silently, and replays only the re
     expect(actions).not.toContain('update_upgrade_all');
 });
 
+test('package names need the session: shown unlocked, gone once the session expires mid-upgrade', async ({
+    page,
+    mock,
+}) => {
+    // Every update_status reply the app receives, to see what a locked tab is told.
+    const statusReplies: string[] = [];
+    page.on('websocket', (ws) => {
+        ws.on('framereceived', ({ payload }) => {
+            const text = typeof payload === 'string' ? payload : payload.toString();
+            if (text.includes('"msg":"admin"') && text.includes('"progress"')) statusReplies.push(text);
+        });
+    });
+    await mock.admin({ password: ADMIN_PASSWORD, upgradeMs: 30_000 });
+
+    // Locked: the probe goes out without a session.
+    await page.goto('/');
+    await loginAs(page);
+    const admin = adminScreen(page);
+    await admin.tab.click();
+    await expect(admin.heading).toHaveText(MESSAGES.admin.unlock.title);
+    expect(await mock.statusSessions()).toEqual([false]);
+
+    await admin.adminPassword.fill(ADMIN_PASSWORD);
+    await admin.submit.click();
+    await page.getByRole('button', { name: MESSAGES.admin.updates.check }).click();
+    await expect(admin.updatesHeadline).toHaveText('2 updates available');
+    await page.getByRole('button', { name: MESSAGES.admin.updates.upgrade }).click();
+
+    // Unlocked: the polls carry the session, and the full view names the package.
+    await expect(page.locator('.updates__package')).toHaveText(/^calaos-(server|container) \(\d of 2\)$/, {
+        timeout: 10_000,
+    });
+    expect((await mock.statusSessions()).slice(1).every(Boolean)).toBe(true);
+
+    // The daemon drops the session: the next poll is refused and the password
+    // is asked again, with no error, and nothing is started twice.
+    await mock.admin({ clearSessions: true });
+    await expect(admin.heading).toHaveText(MESSAGES.admin.unlock.title, { timeout: 10_000 });
+    await expect(admin.error).toHaveText('');
+    await expect(admin.updates).toHaveCount(0);
+    expect((await mock.adminActions()).filter((action) => action === 'update_upgrade_all')).toHaveLength(1);
+
+    // Back on the tab while locked: a sessionless read, answered with the
+    // household view — the run's progress without any package name.
+    const before = statusReplies.length;
+    await page.goto('/#/');
+    await admin.tab.click();
+    await expect.poll(() => statusReplies.length).toBeGreaterThan(before);
+    expect((await mock.statusSessions()).slice(-1)).toEqual([false]);
+    const household = JSON.parse(statusReplies[statusReplies.length - 1]).data.result;
+    expect(household.progress.status).toBe('upgrading');
+    expect(household.progress).not.toHaveProperty('current_pkg');
+    expect(household.job).not.toHaveProperty('package');
+    expect(JSON.stringify(household)).not.toContain('calaos-');
+    await expect(admin.heading).toHaveText(MESSAGES.admin.unlock.title);
+});
+
 test('an old calaos-server that never answers gets a clear message after 5 s', async ({ page, mock }) => {
     await mock.admin({ password: ADMIN_PASSWORD, scenario: 'old_server' });
     await page.goto('/');

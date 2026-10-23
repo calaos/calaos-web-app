@@ -267,6 +267,7 @@
             "upgradingHint": "Laissez la box allumée. L’application peut perdre la connexion un instant pendant le redémarrage de calaos-server ; elle revient d’elle-même.",
             "externalRun": "Une mise à jour lancée ailleurs est en cours.",
             "packageOf": "{name} ({index} sur {count})",
+            "packageIndex": "Paquet {index} sur {count}",
             "done": "Mise à jour terminée",
             "doneHint": "Tout est installé. La box est prête.",
             "doneReboot": "Mise à jour terminée — redémarrez la box",
@@ -274,6 +275,7 @@
             "failed": "La mise à jour a échoué",
             "failedHint": "Réessayez. Si cela échoue encore, le détail est dans les journaux de la box.",
             "failedReason": "Raison : {error}",
+            "failedInterrupted": "La mise à jour a été interrompue avant la fin. Réessayez.",
             "versions": "{from} → {to}",
             "progress": "Avancement de la mise à jour"
         },

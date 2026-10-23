@@ -233,8 +233,8 @@ describe('unlock', () => {
         expect(await done).toBe(true);
         expect(admin.gate).toBe('unlocked');
         expect(admin.session).toBe(SESSION);
-        // The follow-up: update_status, still without a session.
-        expect(last().data).toEqual({ action: 'update_status' });
+        // The follow-up: update_status, now with the session (full view).
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
     });
 
     it('locks itself again when the session lifetime is over', async () => {
@@ -323,7 +323,7 @@ describe('bad_session', () => {
         void admin.unlock('x');
         answer(admin, { success: 'true', admin_session: 'b'.repeat(64), expires_in: '900' });
         await flush();
-        expect(last().data).toEqual({ action: 'update_status' });
+        expect(last().data).toEqual({ action: 'update_status', admin_session: 'b'.repeat(64) });
     });
 
     it('forgets the session on an admin_set event from elsewhere', async () => {
@@ -332,6 +332,123 @@ describe('bad_session', () => {
         expect(admin.gate).toBe('locked');
         expect(admin.session).toBeNull();
         expect(admin.info).toBe('session_invalidated');
+    });
+});
+
+describe('update_status and the session', () => {
+    async function unlocked(): Promise<ReturnType<typeof useAdminStore>> {
+        const admin = store();
+        admin.activate();
+        statusOk(admin);
+        await flush();
+        void admin.unlock('x');
+        answer(admin, { success: 'true', admin_session: SESSION, expires_in: '900' });
+        await flush();
+        statusOk(admin);
+        await flush();
+        return admin;
+    }
+
+    it('probes without a session while locked and keeps the household view as is', async () => {
+        const admin = store();
+        admin.activate();
+        expect(last().data).toEqual({ action: 'update_status' });
+        statusOk(
+            admin,
+            { status: 'upgrading', total_percent: 30, pkg_index: 1, pkg_count: 2, packages: [{ state: 'installing', percent: 30 }] },
+            { id: '3f9c', kind: 'upgrade_all', status: 'running' },
+        );
+        await flush();
+        expect(admin.gate).toBe('locked');
+        expect(admin.progress).toMatchObject({ currentPkg: '', message: '', pkgIndex: 1, pkgCount: 2 });
+        expect(admin.job?.package).toBe('');
+        // The poll of a running job stays sessionless too.
+        vi.advanceTimersByTime(5_000);
+        expect(last().data).toEqual({ action: 'update_status' });
+    });
+
+    it('sends the session on every probe and poll once unlocked, and gets the names', async () => {
+        const admin = await unlocked();
+        void admin.upgradeAll();
+        answer(admin, { success: 'true', result: { id: '3f9c', kind: 'upgrade_all', status: 'running' } });
+        await flush();
+
+        vi.advanceTimersByTime(5_000);
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
+        statusOk(
+            admin,
+            { status: 'upgrading', total_percent: 40, current_pkg: 'calaos-server', pkg_index: 1, pkg_count: 2 },
+            { id: '3f9c', kind: 'upgrade_all', status: 'running' },
+        );
+        await flush();
+        expect(admin.progress?.currentPkg).toBe('calaos-server');
+
+        // A reconnect's probe carries it as well.
+        admin.handleTransportLost();
+        admin.handleLoggedIn();
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
+    });
+
+    it('keeps the known name across household events for the same package, and rereads on the next one', async () => {
+        const admin = await unlocked();
+        void admin.upgradeAll();
+        answer(admin, { success: 'true', result: { id: '3f9c', status: 'running' } });
+        await flush();
+        vi.advanceTimersByTime(5_000);
+        statusOk(
+            admin,
+            { status: 'upgrading', total_percent: 10, current_pkg: 'calaos-server', pkg_index: 1, pkg_count: 2 },
+            { id: '3f9c', status: 'running' },
+        );
+        await flush();
+
+        const before = sent.length;
+        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 20, pkg_index: 1, pkg_count: 2 });
+        expect(admin.progress).toMatchObject({ totalPercent: 20, currentPkg: 'calaos-server' });
+        expect(sent).toHaveLength(before);
+
+        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 60, pkg_index: 2, pkg_count: 2 });
+        expect(admin.progress).toMatchObject({ totalPercent: 60, currentPkg: '', pkgIndex: 2 });
+        expect(sent).toHaveLength(before + 1);
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
+        // One read at a time.
+        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 70, pkg_index: 3, pkg_count: 3 });
+        expect(sent).toHaveLength(before + 1);
+    });
+
+    it('asks for the password again, silently, when the poll gets bad_session, and replays nothing', async () => {
+        const admin = await unlocked();
+        void admin.upgradeAll();
+        answer(admin, { success: 'true', result: { id: '3f9c', status: 'running' } });
+        await flush();
+
+        vi.advanceTimersByTime(5_000);
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
+        fail(admin, 'bad_session');
+        await flush();
+        expect(admin.gate).toBe('locked');
+        expect(admin.session).toBeNull();
+        expect(admin.notice).toBeNull();
+        expect(admin.info).toBeNull();
+
+        void admin.unlock('x');
+        answer(admin, { success: 'true', admin_session: SESSION, expires_in: '900' });
+        await flush();
+        const actions = sent.filter((f) => f.msg === 'admin').map((f) => f.data.action);
+        expect(actions.filter((a) => a === 'update_upgrade_all')).toHaveLength(1);
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
+    });
+
+    it('treats bad_session on a probe the same way', async () => {
+        const admin = await unlocked();
+        admin.deactivate();
+        admin.activate();
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
+        fail(admin, 'bad_session');
+        await flush();
+        expect(admin.gate).toBe('locked');
+        expect(admin.session).toBeNull();
+        expect(admin.notice).toBeNull();
     });
 });
 
@@ -446,7 +563,7 @@ describe('updates', () => {
         const before = sent.length;
         event(admin, 'upgrade_progress', { status: 'done', total_percent: 100 });
         expect(sent).toHaveLength(before + 1);
-        expect(last().data).toEqual({ action: 'update_status' });
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
         statusOk(admin, { status: 'done', total_percent: 100 }, { id: '3f9c', status: 'done', reboot_required: true });
         await flush();
         expect(admin.isUpgrading).toBe(false);
@@ -462,7 +579,7 @@ describe('updates', () => {
         const before = sent.length;
         vi.advanceTimersByTime(5_000);
         expect(sent).toHaveLength(before + 1);
-        expect(last().data).toEqual({ action: 'update_status' });
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
 
         // calaos-server restarts: the socket dies, the poll stops…
         admin.handleTransportLost();
@@ -470,14 +587,14 @@ describe('updates', () => {
         expect(sent).toHaveLength(before + 1);
         // …and the re-login resumes it, session kept.
         admin.handleLoggedIn();
-        expect(last().data).toEqual({ action: 'update_status' });
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
         expect(admin.session).toBe(SESSION);
         statusOk(admin, { status: 'upgrading', total_percent: 70 }, { id: '3f9c', status: 'running' });
         await flush();
         expect(admin.gate).toBe('unlocked');
         expect(admin.progress?.totalPercent).toBe(70);
         vi.advanceTimersByTime(5_000);
-        expect(last().data).toEqual({ action: 'update_status' });
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
     });
 
     it('surfaces upgrade_in_progress and internal inline', async () => {
@@ -556,7 +673,7 @@ describe('review fixes', () => {
 
         // The poll goes out and nobody answers.
         vi.advanceTimersByTime(5_000);
-        expect(last().data).toEqual({ action: 'update_status' });
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
         vi.advanceTimersByTime(5_000);
         await flush();
         expect(admin.gate).toBe('unlocked');
@@ -611,7 +728,7 @@ describe('review fixes', () => {
         void admin.unlock('x');
         answer(admin, { success: 'true', admin_session: 'b'.repeat(64), expires_in: '900' });
         await flush();
-        expect(last().data).toEqual({ action: 'update_status' });
+        expect(last().data).toEqual({ action: 'update_status', admin_session: 'b'.repeat(64) });
         expect(sent.some((f) => f.data.action === 'system_reboot' && f.data.admin_session === 'b'.repeat(64))).toBe(false);
     });
 
@@ -627,7 +744,7 @@ describe('review fixes', () => {
         void admin.unlock('x');
         answer(admin, { success: 'true', admin_session: 'b'.repeat(64), expires_in: '900' });
         await flush();
-        expect(last().data).toEqual({ action: 'update_status' });
+        expect(last().data).toEqual({ action: 'update_status', admin_session: 'b'.repeat(64) });
 
         void admin.checkUpdates();
         fail(admin, 'bad_session');
@@ -636,7 +753,7 @@ describe('review fixes', () => {
         void admin.unlock('x');
         answer(admin, { success: 'true', admin_session: 'c'.repeat(64), expires_in: '900' });
         await flush();
-        expect(last().data).toEqual({ action: 'update_status' });
+        expect(last().data).toEqual({ action: 'update_status', admin_session: 'c'.repeat(64) });
     });
 
     it('reports a refused change_cred as household_refused', async () => {
@@ -704,7 +821,7 @@ describe('review fixes', () => {
         void admin.upgradeAll();
         fail(admin, 'upgrade_in_progress', { job_id: 'kiosk' });
         await flush();
-        expect(last().data).toEqual({ action: 'update_status' });
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
     });
 
     it('shows an old finished job as history, a fresh one as news', async () => {
@@ -729,7 +846,7 @@ describe('review fixes', () => {
         // the daemon (busy with dpkg) lets that probe run past 5 s.
         admin.handleTransportLost();
         admin.handleLoggedIn();
-        expect(last().data).toEqual({ action: 'update_status' });
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
         vi.advanceTimersByTime(5_000);
         await flush();
         expect(admin.gate).toBe('unlocked');
@@ -738,7 +855,7 @@ describe('review fixes', () => {
         const before = sent.length;
         vi.advanceTimersByTime(5_000);
         expect(sent).toHaveLength(before + 1);
-        expect(last().data).toEqual({ action: 'update_status' });
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
     });
 
     it('adopts the run seen right after a lost update_upgrade_all reply as its own', async () => {
