@@ -5,6 +5,7 @@ import { createI18n } from 'vue-i18n';
 import AdminView from './AdminView.vue';
 import en from '../i18n/en.json';
 import fr from '../i18n/fr.json';
+import { toAdminError } from '../protocol/admin';
 import { useAdminStore } from '../stores/admin';
 import { useAuthStore } from '../stores/auth';
 import type { VueWrapper } from '@vue/test-utils';
@@ -92,6 +93,43 @@ describe('AdminView gate screens', () => {
         await flushPromises();
         expect(wrapper.find('.admin__heading').text()).toBe(en.admin.unlock.title);
         expect(wrapper.find('.admin-password input[type="password"]').exists()).toBe(true);
+    });
+});
+
+describe('AdminView bootstrap screen', () => {
+    it('says which addresses will be accepted even when api_allowed_hosts is empty', async () => {
+        useAdminStore().gate = 'bootstrap';
+        const wrapper = mountView();
+        await flushPromises();
+        expect(wrapper.find('.admin__hosts').text()).toContain(en.admin.bootstrap.allowedHostsNone);
+    });
+
+    it('lists the allowed hosts when there are some', async () => {
+        const admin = useAdminStore();
+        admin.gate = 'bootstrap';
+        admin.apiAllowedHosts = 'calaos.example.net';
+        const wrapper = mountView('fr');
+        await flushPromises();
+        const text = wrapper.find('.admin__hosts').text();
+        expect(text).toContain(fr.admin.bootstrap.allowedHostsHint.replace('{hosts}', 'calaos.example.net'));
+        expect(text).toContain('n’importe quel nom en https');
+        expect(text).not.toContain(fr.admin.bootstrap.allowedHostsNone);
+    });
+});
+
+describe('UpdatesPanel errors', () => {
+    it.each([
+        ['en', en.admin.error.package_held],
+        ['fr', fr.admin.error.package_held],
+    ] as const)('says a held package will not be updated (%s)', async (locale, sentence) => {
+        const admin = useAdminStore();
+        admin.gate = 'unlocked';
+        admin.session = 'a'.repeat(64);
+        admin.notice = toAdminError({ error: 'package_held', msg: 'calaos-server is held' });
+        admin.noticeSource = 'updates';
+        const wrapper = mountView(locale);
+        await flushPromises();
+        expect(wrapper.find('.updates__error').text()).toBe(sentence);
     });
 });
 

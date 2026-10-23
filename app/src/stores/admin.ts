@@ -442,6 +442,17 @@ export const useAdminStore = defineStore('admin', () => {
         return name === '' ? status : { ...status, currentPkg: name };
     }
 
+    /**
+     * While a run is followed, its last frames (`done`, then `idle` with 0 %)
+     * must not rewind the bar before the job's end is read back.
+     */
+    function held(next: UpgradeStatus): UpgradeStatus {
+        const prev = progress.value;
+        if (prev === null || !isUpgrading.value) return next;
+        if (next.status === 'idle') return prev;
+        return next.totalPercent < prev.totalPercent ? { ...next, totalPercent: prev.totalPercent } : next;
+    }
+
     /** `stale`: an event landed while the read was out, and is newer than it. */
     function applyStatus(data: Record<string, unknown>, stale: boolean): void {
         const result = typeof data.result === 'object' && data.result !== null ? data.result : {};
@@ -454,7 +465,7 @@ export const useAdminStore = defineStore('admin', () => {
         }
         if (read.packageNames.some((name) => name !== '')) packageNames = read.packageNames;
         if (stale && progress.value !== null) progress.value = withName(progress.value);
-        else progress.value = withName(read);
+        else progress.value = next?.status === 'running' ? held(withName(read)) : withName(read);
         // A run this client did not see start (lost reply, kiosk) makes the
         // last check stale: "Install updates" must not offer a second run.
         if (next !== null && next.id !== job.value?.id) updates.value = null;
@@ -735,9 +746,10 @@ export const useAdminStore = defineStore('admin', () => {
                 // Events are the household view: the name comes from the
                 // last full read. Only an index past its list is worth a read.
                 progressRev += 1;
+                const following = isUpgrading.value;
                 const next = withName(toUpgradeStatus(msg.data));
-                progress.value = next;
-                if (next.status === 'done' || next.status === 'error') {
+                progress.value = held(next);
+                if (next.status === 'done' || next.status === 'error' || (following && next.status === 'idle')) {
                     // The job's `reboot_required` / `error` only come from
                     // update_status; events never carry the job.
                     pollTimer = clearTimer(pollTimer);

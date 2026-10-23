@@ -161,6 +161,36 @@ test('an upgrade survives calaos-server restarting in the middle of it', async (
     await expect(admin.updatesHeadline).toHaveText(MESSAGES.admin.updates.upToDate);
 });
 
+test('the end of a run never rewinds the bar and shows the outcome without waiting for the poll', async ({
+    page,
+    mock,
+}) => {
+    await mock.admin({ password: ADMIN_PASSWORD, upgradeMs: 1_000, rebootRequired: true });
+    const admin = await openUnlocked(page);
+    await page.getByRole('button', { name: MESSAGES.admin.updates.check }).click();
+    await expect(admin.updatesHeadline).toHaveText('2 updates available');
+
+    await page.evaluate(() => {
+        const headline = document.querySelector('.updates__headline');
+        const seen: string[] = [];
+        (window as unknown as { seenHeadlines: string[] }).seenHeadlines = seen;
+        if (headline === null) return;
+        new MutationObserver(() => seen.push(headline.textContent ?? '')).observe(headline, {
+            childList: true,
+            characterData: true,
+            subtree: true,
+        });
+    });
+    await page.getByRole('button', { name: MESSAGES.admin.updates.upgrade }).click();
+
+    // The 5 s poll would be too late: the outcome comes from the read sent on idle.
+    await expect(admin.updatesHeadline).toHaveText(MESSAGES.admin.updates.doneReboot, { timeout: 4_000 });
+    const seen = await page.evaluate(() => (window as unknown as { seenHeadlines: string[] }).seenHeadlines);
+    const percents = seen.map((text) => /(\d+) %/.exec(text)?.[1]).filter((p) => p !== undefined).map(Number);
+    expect(percents.length).toBeGreaterThan(1);
+    expect(percents).toEqual([...percents].sort((a, b) => a - b));
+});
+
 test('a job that ends while calaos-server is away is read back from the job, not the events', async ({
     page,
     mock,

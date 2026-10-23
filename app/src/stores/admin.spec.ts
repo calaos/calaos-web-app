@@ -657,6 +657,65 @@ describe('updates', () => {
         expect(admin.job?.rebootRequired).toBe(true);
     });
 
+    it('keeps the last percentage through done then idle, and reads the end at once', async () => {
+        const admin = await unlocked();
+        void admin.upgradeAll();
+        answer(admin, { success: 'true', result: { id: '3f9c', kind: 'upgrade_all', status: 'running' } });
+        await flush();
+        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 90, current_pkg: 'calaos-server' });
+
+        // The daemon publishes done while the job still runs (snapshot, version refresh).
+        event(admin, 'upgrade_progress', { status: 'done', total_percent: 100 });
+        expect(admin.progress?.totalPercent).toBe(100);
+        statusOk(admin, { status: 'done', total_percent: 100 }, { id: '3f9c', status: 'running' });
+        await flush();
+        expect(admin.isUpgrading).toBe(true);
+
+        const before = sent.length;
+        event(admin, 'upgrade_progress', { status: 'idle', total_percent: 0 });
+        expect(admin.isUpgrading).toBe(true);
+        expect(admin.progress?.totalPercent).toBe(100);
+        expect(sent).toHaveLength(before + 1);
+        expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
+
+        statusOk(admin, { status: 'idle', total_percent: 0 }, { id: '3f9c', status: 'done', reboot_required: true });
+        await flush();
+        expect(admin.isUpgrading).toBe(false);
+        expect(admin.recentJob).toMatchObject({ id: '3f9c', status: 'done', rebootRequired: true });
+        // The terminal state came from that read, not from the 5 s poll.
+        vi.advanceTimersByTime(5_000);
+        expect(sent).toHaveLength(before + 1);
+    });
+
+    it('rereads at once when idle lands while the read sent on done is out', async () => {
+        const admin = await unlocked();
+        void admin.upgradeAll();
+        answer(admin, { success: 'true', result: { id: '3f9c', kind: 'upgrade_all', status: 'running' } });
+        await flush();
+        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 60 });
+        // A frame from earlier in the run must not rewind the bar either.
+        event(admin, 'upgrade_progress', { status: 'upgrading', total_percent: 50 });
+        expect(admin.progress?.totalPercent).toBe(60);
+
+        const before = sent.length;
+        event(admin, 'upgrade_progress', { status: 'done', total_percent: 100 });
+        event(admin, 'upgrade_progress', { status: 'idle', total_percent: 0 });
+        expect(sent).toHaveLength(before + 1);
+        expect(admin.progress?.totalPercent).toBe(100);
+
+        // The read sent on done predates the end of the job.
+        statusOk(admin, { status: 'idle', total_percent: 0 }, { id: '3f9c', status: 'running' });
+        await flush();
+        expect(admin.isUpgrading).toBe(true);
+        expect(admin.progress?.totalPercent).toBe(100);
+        expect(sent).toHaveLength(before + 2);
+
+        statusOk(admin, { status: 'idle', total_percent: 0 }, { id: '3f9c', status: 'done' });
+        await flush();
+        expect(admin.isUpgrading).toBe(false);
+        expect(admin.job?.status).toBe('done');
+    });
+
     it('polls update_status while a job runs, and across a reconnect', async () => {
         const admin = await unlocked();
         void admin.upgradeAll();

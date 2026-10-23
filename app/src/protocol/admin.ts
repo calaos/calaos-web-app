@@ -37,6 +37,7 @@ export const ADMIN_ERROR_CODES = [
     'not_allowed',
     'invalid_request',
     'package_not_found',
+    'package_held',
     'internal',
 ] as const;
 
