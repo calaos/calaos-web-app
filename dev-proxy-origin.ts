@@ -5,7 +5,8 @@ import { isIP } from 'node:net';
  * True when `origin` is the page served by this Vite dev/preview server.
  *
  * Rebinding names are not trusted: the proxied WS upgrade bypasses Vite's
- * `allowedHosts` check, so only loopback names and IP literals qualify.
+ * `allowedHosts` check, so only `localhost` and IP literals qualify
+ * (`*.localhost` may reach DNS on resolvers without RFC 6761 handling).
  */
 export function isDevServerOrigin(origin: string | undefined, host: string | undefined): boolean {
     if (!origin || !host) return false;
@@ -23,7 +24,7 @@ export function isDevServerOrigin(origin: string | undefined, host: string | und
     if (url.host !== hostUrl.host) return false;
 
     const name = url.hostname.replace(/^\[(.*)\]$/, '$1');
-    return name === 'localhost' || name.endsWith('.localhost') || isIP(name) !== 0;
+    return name === 'localhost' || isIP(name) !== 0;
 }
 
 /**
