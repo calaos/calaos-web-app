@@ -18,9 +18,30 @@
 //                               | 'reject_all_logins' | 'reset'
 //   {op:'latency', ms}          delay every outgoing WS frame by ms
 //   {op:'log'}                  every WS frame received, in order
-//   {op:'reset'}                reload fixtures, clear log, scenario, latency
+//   {op:'admin', ...patch}      configure the fake daemon (admin.mjs
+//                               `configure`): set, password, apiAllowedHosts,
+//                               scenario, updates, upgradeMs, dropAtPercent,
+//                               failAtPercent, rebootRequired, clearSessions
+//   {op:'admin_status'}         the fake daemon's state and counters
+//   {op:'credentials', user, pass}
+//                               the household account the mock accepts
+//   {op:'reset'}                reload fixtures, clear log, scenario, latency,
+//                               admin state and credentials
 
 export const SCENARIOS = ['login_fail_once', 'silent_login', 'reject_all_logins', 'reset'];
+
+const KNOWN_OPS = [
+    'push_io',
+    'push_audio',
+    'drop',
+    'scenario',
+    'latency',
+    'log',
+    'admin',
+    'admin_status',
+    'credentials',
+    'reset',
+];
 
 /** Read a request body and JSON.parse it; `{}` for an empty body. */
 export async function readJsonBody(req, limitBytes = 1_000_000) {
@@ -98,8 +119,29 @@ export function applyControlOp(hub, body) {
         case 'log':
             return { status: 200, body: { ok: true, op, log: hub.log } };
 
+        case 'admin': {
+            const result = hub.admin.configure(body);
+            return { status: result.ok ? 200 : 400, body: { op, ...result } };
+        }
+
+        case 'admin_status':
+            return { status: 200, body: { ok: true, op, ...hub.admin.status() } };
+
+        case 'credentials': {
+            const { user, pass } = body;
+            if (typeof user !== 'string' || user === '' || typeof pass !== 'string' || pass === '') {
+                return { status: 400, body: { ok: false, error: 'credentials requires user and pass' } };
+            }
+            hub.user = user;
+            hub.pass = pass;
+            return { status: 200, body: { ok: true, op, user } };
+        }
+
         case 'reset': {
             hub.state.reset();
+            hub.admin.reset();
+            hub.user = hub.defaultUser;
+            hub.pass = hub.defaultPass;
             hub.log.length = 0;
             hub.scenario = { name: null, consumed: false };
             hub.latencyMs = 0;
@@ -112,7 +154,7 @@ export function applyControlOp(hub, body) {
                 body: {
                     ok: false,
                     error: `unknown op '${op}'`,
-                    known: ['push_io', 'push_audio', 'drop', 'scenario', 'latency', 'log', 'reset'],
+                    known: KNOWN_OPS,
                 },
             };
     }
@@ -129,7 +171,7 @@ export function controlStatus(hub) {
         scenario: hub.scenario.name,
         latencyMs: hub.latencyMs,
         logSize: hub.log.length,
-        ops: ['push_io', 'push_audio', 'drop', 'scenario', 'latency', 'log', 'reset'],
+        ops: KNOWN_OPS,
     };
 }
 

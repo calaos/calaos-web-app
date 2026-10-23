@@ -189,11 +189,141 @@
         "tabs": {
             "home": "Accueil",
             "audio": "Audio",
-            "security": "Sécurité"
+            "security": "Sécurité",
+            "admin": "Admin"
         },
         "connection": {
             "lost": "Connexion perdue",
             "retrying": "Reconnexion…"
         }
+    },
+    "admin": {
+        "title": "Administration",
+        "probing": "Vérification de la box…",
+        "unlock": {
+            "title": "Mot de passe admin",
+            "hint": "Les mises à jour et les redémarrages sont protégés par le mot de passe admin. Ce n’est pas celui de la connexion.",
+            "label": "Mot de passe admin",
+            "submit": "Déverrouiller",
+            "submitting": "Vérification…"
+        },
+        "bootstrap": {
+            "title": "Choisissez un mot de passe admin",
+            "hint": "Il protège les mises à jour et les redémarrages, indépendamment du mot de passe de connexion. Au moins {min} caractères.",
+            "allowedHosts": "Adresses autorisées",
+            "allowedHostsHint": "Une fois le mot de passe admin défini, l’application n’est acceptée que depuis l’adresse de la box, en https, et depuis : {hosts}",
+            "label": "Nouveau mot de passe admin",
+            "confirm": "Répétez le mot de passe",
+            "submit": "Définir le mot de passe admin",
+            "submitting": "Enregistrement…"
+        },
+        "household": {
+            "title": "Changez d’abord votre mot de passe de connexion",
+            "hint": "Votre box utilise encore un identifiant par défaut. Choisissez le vôtre avant de définir un mot de passe admin.",
+            "user": "Nom d’utilisateur",
+            "password": "Nouveau mot de passe",
+            "confirm": "Répétez le mot de passe",
+            "submit": "Enregistrer et continuer",
+            "submitting": "Enregistrement…"
+        },
+        "change": {
+            "title": "Changer le mot de passe admin",
+            "label": "Nouveau mot de passe admin",
+            "confirm": "Répétez le mot de passe",
+            "submit": "Changer le mot de passe",
+            "hint": "Au moins {min} caractères. La session admin reste ouverte avec le nouveau mot de passe."
+        },
+        "mismatch": "Les deux mots de passe sont différents.",
+        "tooShort": "Au moins {min} caractères.",
+        "notice": {
+            "unavailable": "Administration indisponible",
+            "unavailableHint": "L’administration depuis l’application n’est disponible que sur Calaos OS. Nouvel essai automatique.",
+            "activating": "Activation de l’administration en cours",
+            "activatingHint": "La box termine sa mise à jour. Cela prend généralement une minute ; nouvel essai automatique.",
+            "rebootBox": "Redémarrez la box",
+            "rebootBoxHint": "L’activation prend trop de temps. Débranchez la box puis rebranchez-la — ou, en SSH : ssh root{'@'}<adresse de la box>, puis reboot.",
+            "unreachable": "La box ne répond pas",
+            "unreachableHint": "Nouvel essai automatique. Votre session admin est conservée.",
+            "oldServer": "calaos-server est trop ancien",
+            "oldServerHint": "Cette box ne peut pas encore être administrée depuis l’application. Mettez-la à jour une fois avec l’outil habituel (le bouton de l’écran tactile, ou calaos-os upgrade) ; ensuite, les mises à jour se feront d’ici.",
+            "https": "Utilisez https://",
+            "httpsHint": "L’administration ne fonctionne que sur une connexion sécurisée. Rouvrez l’application avec une adresse qui commence par https://.",
+            "httpsOpen": "Ouvrir en https://",
+            "retrying": "Nouvel essai…"
+        },
+        "updates": {
+            "title": "Mises à jour",
+            "unknown": "Mises à jour pas encore vérifiées",
+            "unknownHint": "La vérification contacte les serveurs Calaos et peut prendre jusqu’à une minute.",
+            "upToDate": "Votre box est à jour",
+            "upToDateHint": "Rien à installer.",
+            "available": "{count} mise à jour disponible | {count} mises à jour disponibles",
+            "availableHint": "L’installation prend quelques minutes. La box reste utilisable ; l’application peut perdre la connexion un instant et revient d’elle-même.",
+            "check": "Vérifier les mises à jour",
+            "checking": "Vérification…",
+            "upgrade": "Installer les mises à jour",
+            "starting": "Démarrage…",
+            "upgrading": "Mise à jour… {percent} %",
+            "upgradingHint": "Laissez la box allumée. L’application peut perdre la connexion un instant pendant le redémarrage de calaos-server ; elle revient d’elle-même.",
+            "externalRun": "Une mise à jour lancée ailleurs est en cours.",
+            "packageOf": "{name} ({index} sur {count})",
+            "done": "Mise à jour terminée",
+            "doneHint": "Tout est installé. La box est prête.",
+            "doneReboot": "Mise à jour terminée — redémarrez la box",
+            "doneRebootHint": "Une partie de ce qui a été installé ne prend effet qu’après un redémarrage.",
+            "failed": "La mise à jour a échoué",
+            "failedHint": "Réessayez. Si cela échoue encore, le détail est dans les journaux de la box.",
+            "failedReason": "Raison : {error}",
+            "versions": "{from} → {to}",
+            "progress": "Avancement de la mise à jour"
+        },
+        "actions": {
+            "title": "Box",
+            "password": "Mot de passe admin",
+            "passwordHint": "Changer le mot de passe qui protège cette page.",
+            "change": "Changer",
+            "reboot": "Redémarrer la box",
+            "rebootHint": "Environ une minute. Vos lumières et volets gardent leur état.",
+            "rebootConfirmTitle": "Redémarrer la box ?",
+            "rebootConfirmHint": "L’application se reconnecte d’elle-même quand la box est revenue.",
+            "rebootConfirm": "Redémarrer",
+            "mcp": "Jeton MCP",
+            "mcpHint": "Le jeton utilisé par les assistants IA pour parler à la box. Le régénérer déconnecte ceux déjà configurés.",
+            "regenerate": "Régénérer",
+            "mcpConfirmTitle": "Régénérer le jeton MCP ?",
+            "mcpConfirmHint": "Les assistants qui utilisent le jeton actuel perdent l’accès jusqu’à être reconfigurés avec le nouveau.",
+            "mcpConfirm": "Régénérer"
+        },
+        "info": {
+            "password_set": "Mot de passe admin défini.",
+            "password_changed": "Mot de passe admin changé.",
+            "session_invalidated": "Le mot de passe admin vient d’être changé. Saisissez le nouveau.",
+            "already_set": "Quelqu’un vient de définir le mot de passe admin. Saisissez-le pour continuer.",
+            "mcp_regenerated": "Nouveau jeton MCP généré. Lisez-le depuis l’installeur Calaos.",
+            "reboot_sent": "Redémarrage de la box… l’application se reconnecte d’elle-même."
+        },
+        "error": {
+            "admin_not_set": "Aucun mot de passe admin n’est encore défini.",
+            "admin_already_set": "Quelqu’un vient de définir le mot de passe admin.",
+            "bad_password": "Mot de passe admin incorrect.",
+            "rate_limited": "Trop d’essais. Réessayez dans {seconds} s.",
+            "household_password_required": "Changez d’abord votre mot de passe de connexion.",
+            "bad_session": "Votre session admin est terminée. Saisissez à nouveau le mot de passe admin.",
+            "password_too_short": "Le mot de passe doit faire au moins {min} caractères.",
+            "https_required": "Utilisez https:// pour administrer la box.",
+            "daemon_too_old": "Activation de l’administration en cours. Réessayez dans un instant.",
+            "daemon_unreachable": "La box ne répond pas. Réessayez dans un instant.",
+            "admin_unavailable": "Administration indisponible : calaos-container est injoignable (disponible seulement sur Calaos OS).",
+            "upgrade_in_progress": "Une mise à jour est déjà en cours.",
+            "not_allowed": "Cette action n’est pas autorisée. {msg}",
+            "invalid_request": "La box a refusé la demande. {msg}",
+            "package_not_found": "Ce paquet n’a pas de mise à jour en attente. {msg}",
+            "internal": "Un problème est survenu sur la box. Réessayez ; le détail est dans ses journaux.",
+            "timeout": "La box n’a pas répondu. calaos-server est peut-être trop ancien : mettez la box à jour une fois avec l’outil habituel (le bouton de l’écran tactile, ou calaos-os upgrade).",
+            "disconnected": "Connexion perdue avant la réponse de la box. Réessayez quand elle est revenue.",
+            "unknown": "Réponse inattendue de la box. {msg}",
+            "household_refused": "Le mot de passe de connexion n’a pas pu être changé. Déconnectez-vous puis reconnectez-vous, et réessayez."
+        },
+        "dismiss": "OK"
     }
 }

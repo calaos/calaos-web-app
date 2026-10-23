@@ -48,6 +48,7 @@ test('the house renders in French: heading, tabs, and a room type label', async 
         fr.chrome.tabs.home,
         fr.chrome.tabs.audio,
         fr.chrome.tabs.security,
+        fr.chrome.tabs.admin,
     ]);
 
     // mock-server/fixtures/home.json's first room by `hits` (47): kitchen.
@@ -91,4 +92,14 @@ test('server-provided room and IO names are never translated', async ({ page }) 
         'Pompe piscine',
         'Chaudière',
     ]);
+});
+
+test('the admin gate renders in French', async ({ page, mock }) => {
+    await mock.admin({ password: 'correct horse battery' });
+    await page.goto('/');
+    await loginAs(page, CREDENTIALS);
+
+    await page.locator('.footer-nav__tab').last().click();
+    await expect(page.locator('.admin__heading')).toHaveText(fr.admin.unlock.title);
+    await expect(page.locator('.admin-password__submit')).toHaveText(fr.admin.unlock.submit);
 });
