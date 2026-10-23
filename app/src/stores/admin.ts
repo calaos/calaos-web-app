@@ -102,6 +102,8 @@ const REPLAYABLE: readonly AdminAction[] = ['update_check', 'update_available', 
 const OWN_SET_EVENT_WINDOW_MS = 30_000;
 /** A finished job older than this is history, not news. */
 const JOB_NEWS_WINDOW_MS = 24 * 3_600_000;
+/** A run seen this soon after a lost `update_upgrade_all` reply is our own. */
+const LOST_UPGRADE_ADOPT_MS = 10_000;
 
 export const useAdminStore = defineStore('admin', () => {
     const gate = ref<AdminGate>('idle');
@@ -153,6 +155,8 @@ export const useAdminStore = defineStore('admin', () => {
     let ownSetPending = false;
     /** Jobs this visit saw running — their end is news whatever its date. */
     const seenRunning = new Set<string>();
+    /** When the reply to our `update_upgrade_all` was lost to a drop. */
+    let lostUpgradeAt: number | null = null;
 
     const isUnlocked = computed(() => gate.value === 'unlocked' && session.value !== null);
     const isUpgrading = computed(
@@ -374,8 +378,9 @@ export const useAdminStore = defineStore('admin', () => {
                 return true;
             case 'timeout':
                 // Silence from a server that has never spoken admin is an old
-                // calaos_server; silence later is a stall on a known-good one.
-                if (!adminSpoken) {
+                // calaos_server; silence later, or during an upgrade (dpkg
+                // keeps the daemon busy right after a reconnect), is a stall.
+                if (!adminSpoken && !isUpgrading.value) {
                     gate.value = 'old_server';
                     return true;
                 }
@@ -426,6 +431,10 @@ export const useAdminStore = defineStore('admin', () => {
         if (next !== null && next.id !== job.value?.id) updates.value = null;
         job.value = next;
         if (next?.status === 'running') {
+            if (lostUpgradeAt !== null && Date.now() - lostUpgradeAt < LOST_UPGRADE_ADOPT_MS) {
+                ownJobId.value = next.id;
+            }
+            lostUpgradeAt = null;
             seenRunning.add(next.id);
             schedulePoll();
         } else {
@@ -606,6 +615,7 @@ export const useAdminStore = defineStore('admin', () => {
         busy.value = null;
         if (!outcome.ok) {
             const { error } = outcome;
+            if (error.code === 'disconnected' && action === 'update_upgrade_all') lostUpgradeAt = Date.now();
             if (error.code === 'bad_session' && REPLAYABLE.includes(action)) {
                 replay = { action, at: Date.now() };
             }
@@ -765,6 +775,7 @@ export const useAdminStore = defineStore('admin', () => {
         replay = null;
         credentialDraft = null;
         ownSetPending = false;
+        lostUpgradeAt = null;
         seenRunning.clear();
     }
 

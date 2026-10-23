@@ -231,7 +231,7 @@
             "label": "Nouveau mot de passe admin",
             "confirm": "Répétez le mot de passe",
             "submit": "Changer le mot de passe",
-            "hint": "Au moins {min} caractères. Vous resterez déverrouillé avec le nouveau mot de passe."
+            "hint": "Au moins {min} caractères. La session admin reste ouverte avec le nouveau mot de passe."
         },
         "mismatch": "Les deux mots de passe sont différents.",
         "tooShort": "Au moins {min} caractères.",

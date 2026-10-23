@@ -719,6 +719,40 @@ describe('review fixes', () => {
         expect(admin.recentJob?.id).toBe('new');
     });
 
+    it('does not call the server too old when the first probe after a mid-upgrade reconnect stalls', async () => {
+        const admin = await unlocked();
+        void admin.upgradeAll();
+        answer(admin, { success: 'true', result: { id: '3f9c', status: 'running' } });
+        await flush();
+
+        // calaos-server restarts: the socket dies, the re-login probes, and
+        // the daemon (busy with dpkg) lets that probe run past 5 s.
+        admin.handleTransportLost();
+        admin.handleLoggedIn();
+        expect(last().data).toEqual({ action: 'update_status' });
+        vi.advanceTimersByTime(5_000);
+        await flush();
+        expect(admin.gate).toBe('unlocked');
+        expect(admin.isUpgrading).toBe(true);
+        // The job is still followed.
+        const before = sent.length;
+        vi.advanceTimersByTime(5_000);
+        expect(sent).toHaveLength(before + 1);
+        expect(last().data).toEqual({ action: 'update_status' });
+    });
+
+    it('adopts the run seen right after a lost update_upgrade_all reply as its own', async () => {
+        const admin = await unlocked();
+        void admin.upgradeAll();
+        admin.handleTransportLost();
+        await flush();
+        expect(admin.ownJobId).toBeNull();
+        admin.handleLoggedIn();
+        statusOk(admin, { status: 'upgrading', total_percent: 10 }, { id: 'mine', status: 'running' });
+        await flush();
+        expect(admin.ownJobId).toBe('mine');
+    });
+
     it('goes back to idle on an admin_reset received while the tab is closed', async () => {
         const admin = await unlocked();
         admin.deactivate();
