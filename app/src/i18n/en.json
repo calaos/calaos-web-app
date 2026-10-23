@@ -219,7 +219,7 @@
         },
         "household": {
             "title": "Change your sign-in password first",
-            "hint": "Your box still uses the factory account (user / pass). Choose your own before setting an admin password.",
+            "hint": "Your box still uses a default sign-in. Choose your own before setting an admin password.",
             "user": "Username",
             "password": "New password",
             "confirm": "Repeat the password",
@@ -230,21 +230,22 @@
             "title": "Change the admin password",
             "label": "New admin password",
             "confirm": "Repeat the password",
-            "submit": "Change the password"
+            "submit": "Change the password",
+            "hint": "At least {min} characters. You will stay unlocked with the new password."
         },
         "mismatch": "The two passwords differ.",
         "tooShort": "At least {min} characters.",
         "notice": {
             "unavailable": "Administration unavailable",
-            "unavailableHint": "calaos-container is not answering. Administration from the app only works on Calaos OS. Trying again automatically.",
+            "unavailableHint": "Administration from the app is only available on Calaos OS. Trying again automatically.",
             "activating": "Administration is being activated",
             "activatingHint": "The box is finishing its update. This usually takes a minute; trying again automatically.",
             "rebootBox": "Restart the box",
-            "rebootBoxHint": "Activation is taking too long. Unplug the box and plug it back in — or, over SSH, run: ssh root@<box address>, then reboot.",
+            "rebootBoxHint": "Activation is taking too long. Unplug the box and plug it back in — or, over SSH: ssh root{'@'}<box address>, then reboot.",
             "unreachable": "The box is not answering",
             "unreachableHint": "Trying again automatically. Your admin session is kept.",
             "oldServer": "calaos-server is too old",
-            "oldServerHint": "This box cannot be administered from the app yet. Update it once over SSH (calaos-os upgrade); after that, updates run from here.",
+            "oldServerHint": "This box cannot be administered from the app yet. Update it once with its usual update (the button on the touch screen, or calaos-os upgrade); after that, updates run from here.",
             "https": "Use https://",
             "httpsHint": "Administration only works over a secure connection. Open the app again with an address that starts with https://.",
             "httpsOpen": "Open in https://",
@@ -299,8 +300,7 @@
             "session_invalidated": "The admin password was just changed. Enter the new one.",
             "already_set": "Someone just set the admin password. Enter it to continue.",
             "mcp_regenerated": "New MCP token generated. Read it from the Calaos installer.",
-            "reboot_sent": "Restarting the box… the app reconnects on its own.",
-            "restart_sent": "Restarting…"
+            "reboot_sent": "Restarting the box… the app reconnects on its own."
         },
         "error": {
             "admin_not_set": "No admin password is set yet.",
@@ -319,9 +319,10 @@
             "invalid_request": "The box refused the request. {msg}",
             "package_not_found": "This package has no update waiting. {msg}",
             "internal": "Something went wrong on the box. Try again; the detail is in the box's logs.",
-            "timeout": "The box did not answer. calaos-server may be too old: update the box over SSH.",
+            "timeout": "The box did not answer. calaos-server may be too old: update the box once with its usual update (the button on the touch screen, or calaos-os upgrade).",
             "disconnected": "Connection lost before the box answered. Try again once it is back.",
-            "unknown": "Unexpected answer from the box. {msg}"
+            "unknown": "Unexpected answer from the box. {msg}",
+            "household_refused": "Your sign-in password could not be changed. Sign out and back in, then try again."
         },
         "dismiss": "OK"
     }

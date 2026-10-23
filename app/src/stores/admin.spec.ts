@@ -269,11 +269,11 @@ describe('unlock', () => {
         expect(admin.notice).toMatchObject({ code: 'rate_limited', retryAfter: 37 });
     });
 
-    it('calls the server too old when admin_unlock gets no answer in 5 s', async () => {
+    it('calls the server too old when admin_unlock gets no answer in 5 s and nothing admin ever answered', async () => {
         const admin = store();
-        admin.activate();
-        statusOk(admin);
-        await flush();
+        // No probe answer at all (the tab was opened while reconnecting, say):
+        // the unlock is the first admin message the server could answer.
+        admin.gate = 'locked';
         void admin.unlock('x');
         vi.advanceTimersByTime(5_000);
         await flush();
@@ -309,6 +309,10 @@ describe('bad_session', () => {
         answer(admin, { success: 'true', admin_session: 'b'.repeat(64), expires_in: '900' });
         await flush();
         expect(last().data).toEqual({ action: 'update_check', admin_session: 'b'.repeat(64) });
+        // And its answer lands where a check's does.
+        answer(admin, { success: 'true', result: { p: { name: 'p', version: '2', current_version: '1' } } });
+        await flush();
+        expect(admin.updates).toEqual([{ name: 'p', version: '2', currentVersion: '1' }]);
     });
 
     it('does not replay an upgrade: it rereads the status instead', async () => {
@@ -514,5 +518,214 @@ describe('reset', () => {
         expect(sent).toHaveLength(1);
         expect(admin.gate).toBe('idle');
         expect(admin.session).toBeNull();
+    });
+});
+
+describe('review fixes', () => {
+    async function unlocked(): Promise<ReturnType<typeof useAdminStore>> {
+        const admin = store();
+        admin.activate();
+        statusOk(admin);
+        await flush();
+        void admin.unlock('x');
+        answer(admin, { success: 'true', admin_session: SESSION, expires_in: '900' });
+        await flush();
+        statusOk(admin);
+        await flush();
+        return admin;
+    }
+
+    it('never logs a password when no transport is attached', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const admin = useAdminStore();
+        void admin.unlock('hunter2-secret');
+        void admin.setPassword('hunter2-secret');
+        await flush();
+        expect(warn).toHaveBeenCalled();
+        for (const call of warn.mock.calls) {
+            expect(JSON.stringify(call)).not.toContain('hunter2-secret');
+        }
+        warn.mockRestore();
+    });
+
+    it('treats a timeout as a stall, not an old server, once the server has spoken admin', async () => {
+        const admin = await unlocked();
+        void admin.upgradeAll();
+        answer(admin, { success: 'true', result: { id: '3f9c', status: 'running' } });
+        await flush();
+
+        // The poll goes out and nobody answers.
+        vi.advanceTimersByTime(5_000);
+        expect(last().data).toEqual({ action: 'update_status' });
+        vi.advanceTimersByTime(5_000);
+        await flush();
+        expect(admin.gate).toBe('unlocked');
+        expect(admin.isUpgrading).toBe(true);
+        // …and the poll is rescheduled.
+        const before = sent.length;
+        vi.advanceTimersByTime(5_000);
+        expect(sent).toHaveLength(before + 1);
+    });
+
+    it('treats a timeout while locked as unreachable, with a retry', async () => {
+        const admin = store();
+        admin.activate();
+        statusOk(admin);
+        await flush();
+        void admin.unlock('x');
+        vi.advanceTimersByTime(5_000);
+        await flush();
+        expect(admin.gate).toBe('unreachable');
+        vi.advanceTimersByTime(5_000);
+        expect(last().data).toEqual({ action: 'update_status' });
+    });
+
+    it('retries a probe that fails with a non-gate code instead of spinning', async () => {
+        const admin = store();
+        admin.activate();
+        fail(admin, 'internal');
+        await flush();
+        expect(admin.gate).toBe('unreachable');
+        vi.advanceTimersByTime(5_000);
+        expect(sent).toHaveLength(2);
+        statusOk(admin);
+        await flush();
+        expect(admin.gate).toBe('locked');
+    });
+
+    it('re-probes when the tab is reopened while still probing', async () => {
+        const admin = store();
+        admin.activate();
+        admin.deactivate();
+        admin.activate();
+        expect(sent).toHaveLength(2);
+    });
+
+    it('never replays a reboot or an MCP regeneration after bad_session', async () => {
+        const admin = await unlocked();
+        void admin.reboot();
+        fail(admin, 'bad_session');
+        await flush();
+        expect(admin.gate).toBe('locked');
+
+        void admin.unlock('x');
+        answer(admin, { success: 'true', admin_session: 'b'.repeat(64), expires_in: '900' });
+        await flush();
+        expect(last().data).toEqual({ action: 'update_status' });
+        expect(sent.some((f) => f.data.action === 'system_reboot' && f.data.admin_session === 'b'.repeat(64))).toBe(false);
+    });
+
+    it('forgets a replay when the tab is left, or when the unlock comes late', async () => {
+        const admin = await unlocked();
+        void admin.checkUpdates();
+        fail(admin, 'bad_session');
+        await flush();
+        admin.deactivate();
+        admin.activate();
+        statusOk(admin);
+        await flush();
+        void admin.unlock('x');
+        answer(admin, { success: 'true', admin_session: 'b'.repeat(64), expires_in: '900' });
+        await flush();
+        expect(last().data).toEqual({ action: 'update_status' });
+
+        void admin.checkUpdates();
+        fail(admin, 'bad_session');
+        await flush();
+        vi.advanceTimersByTime(121_000);
+        void admin.unlock('x');
+        answer(admin, { success: 'true', admin_session: 'c'.repeat(64), expires_in: '900' });
+        await flush();
+        expect(last().data).toEqual({ action: 'update_status' });
+    });
+
+    it('reports a refused change_cred as household_refused', async () => {
+        const admin = store();
+        admin.attachHousehold({ credentials: () => ({ user: 'user', pass: 'pass' }), rotate: () => true });
+        admin.activate();
+        fail(admin, 'admin_not_set', { api_allowed_hosts: '' });
+        await flush();
+        void admin.changeHouseholdPassword('raoul', 's3cret');
+        admin.handleChangeCredResult({ kind: 'change_cred', success: false });
+        await flush();
+        expect(admin.gate).toBe('household');
+        expect(admin.notice?.code).toBe('household_refused');
+        expect(admin.busy).toBeNull();
+    });
+
+    it('ignores its own admin_set event even when it lands after the auto-unlock', async () => {
+        const admin = store();
+        admin.activate();
+        fail(admin, 'admin_not_set', { api_allowed_hosts: '' });
+        await flush();
+        void admin.setPassword('a long admin password');
+        answer(admin, { success: 'true', mode: 'bootstrap' });
+        await flush();
+        answer(admin, { success: 'true', admin_session: SESSION, expires_in: '900' });
+        await flush();
+        expect(admin.gate).toBe('unlocked');
+
+        event(admin, 'admin_set');
+        expect(admin.gate).toBe('unlocked');
+        expect(admin.session).toBe(SESSION);
+        // A second one is somebody else's.
+        event(admin, 'admin_set');
+        expect(admin.gate).toBe('locked');
+    });
+
+    it('keeps polling through a transient error while a job runs', async () => {
+        const admin = await unlocked();
+        void admin.upgradeAll();
+        answer(admin, { success: 'true', result: { id: '3f9c', status: 'running' } });
+        await flush();
+        vi.advanceTimersByTime(5_000);
+        fail(admin, 'internal');
+        await flush();
+        const before = sent.length;
+        vi.advanceTimersByTime(5_000);
+        expect(sent).toHaveLength(before + 1);
+    });
+
+    it('drops a stale update list when a job it did not start shows up', async () => {
+        const admin = await unlocked();
+        void admin.checkUpdates();
+        answer(admin, { success: 'true', result: { p: { name: 'p', version: '2', current_version: '1' } } });
+        await flush();
+        expect(admin.updates).toHaveLength(1);
+        void admin.probe();
+        statusOk(admin, { status: 'upgrading', total_percent: 10 }, { id: 'kiosk', status: 'running' });
+        await flush();
+        expect(admin.updates).toBeNull();
+        expect(admin.ownJobId).toBeNull();
+    });
+
+    it('follows a run started elsewhere on upgrade_in_progress', async () => {
+        const admin = await unlocked();
+        void admin.upgradeAll();
+        fail(admin, 'upgrade_in_progress', { job_id: 'kiosk' });
+        await flush();
+        expect(last().data).toEqual({ action: 'update_status' });
+    });
+
+    it('shows an old finished job as history, a fresh one as news', async () => {
+        const admin = await unlocked();
+        void admin.probe();
+        statusOk(admin, { status: 'idle' }, { id: 'old', status: 'done', finished_at: '2020-01-01T00:00:00Z' });
+        await flush();
+        expect(admin.recentJob).toBeNull();
+        void admin.probe();
+        statusOk(admin, { status: 'idle' }, { id: 'new', status: 'done', finished_at: new Date().toISOString() });
+        await flush();
+        expect(admin.recentJob?.id).toBe('new');
+    });
+
+    it('goes back to idle on an admin_reset received while the tab is closed', async () => {
+        const admin = await unlocked();
+        admin.deactivate();
+        event(admin, 'admin_reset');
+        expect(admin.gate).toBe('idle');
+        expect(admin.session).toBeNull();
+        admin.activate();
+        expect(last().data).toEqual({ action: 'update_status' });
     });
 });

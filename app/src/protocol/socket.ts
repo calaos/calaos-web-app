@@ -188,7 +188,8 @@ export class CalaosSocket {
      */
     send(frame: string): boolean {
         if (this.ws === null || this.currentStatus !== 'open') {
-            console.warn('calaos socket: dropping frame, socket not open:', frame);
+            // No payload: a login or an admin frame carries a password.
+            console.warn('calaos socket: dropping frame, socket not open');
             return false;
         }
         try {

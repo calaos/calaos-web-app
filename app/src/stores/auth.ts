@@ -56,8 +56,8 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Not state: the socket sender (injected by the service) and the flag
     // telling apart a user-initiated sign-in from a reconnect re-login.
-    let send: FrameSender = (frame) => {
-        console.warn('calaos auth: no transport attached, dropping frame:', frame);
+    let send: FrameSender = () => {
+        console.warn('calaos auth: no transport attached, dropping frame');
         return false;
     };
     let interactive = false;
@@ -109,6 +109,8 @@ export const useAuthStore = defineStore('auth', () => {
         // `interactive` is deliberately left alone: a sign-in submitted while
         // the socket was still connecting is still the user's, and must still
         // navigate once the house data arrives.
+        // A credential rotation cut short by the drop is now this login.
+        rotating = false;
         state.value = 'pending';
         return sendLogin();
     }
@@ -131,10 +133,8 @@ export const useAuthStore = defineStore('auth', () => {
     function handleLoginResult(success: boolean): void {
         if (rotating) {
             rotating = false;
-            if (!success) {
-                state.value = 'failed';
-                interactive = false;
-            }
+            state.value = success ? 'authed' : 'failed';
+            if (!success) interactive = false;
             return;
         }
         if (state.value === 'authed') {

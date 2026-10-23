@@ -5,6 +5,7 @@
 // thing standing between that and CI.
 
 import { describe, expect, it } from 'vitest';
+import { createI18n } from 'vue-i18n';
 import en from './en.json';
 import fr from './fr.json';
 
@@ -82,5 +83,38 @@ describe('i18n catalogues (en, fr)', () => {
 
         expect(Object.keys(en.roomType).sort()).toEqual(expectedKeys);
         expect(Object.keys(fr.roomType).sort()).toEqual(expectedKeys);
+    });
+});
+
+describe('admin catalogue compiles', () => {
+    // `@` and `|` are syntax to vue-i18n's message compiler (linked messages,
+    // plurals): a stray one throws at render time, on the one screen that
+    // shows it. Every admin key is compiled here, with every placeholder.
+    const params = {
+        min: 10,
+        hosts: 'h',
+        count: 2,
+        percent: 42,
+        name: 'p',
+        index: 1,
+        count2: 2,
+        error: 'e',
+        from: '1',
+        to: '2',
+        seconds: 5,
+        msg: 'm',
+    };
+
+    it.each([
+        ['en', en],
+        ['fr', fr],
+    ])('renders every admin.* key in %s', (locale, catalog) => {
+        const i18n = createI18n({ legacy: false, locale, messages: { [locale]: catalog } });
+        const paths = keyPaths((catalog as Catalog).admin as Catalog, 'admin');
+        expect(paths.length).toBeGreaterThan(50);
+        for (const path of paths) {
+            expect(() => i18n.global.t(path, params, 2), path).not.toThrow();
+            expect(i18n.global.t(path, params, 2)).not.toBe(path);
+        }
     });
 });

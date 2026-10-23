@@ -219,7 +219,7 @@
         },
         "household": {
             "title": "Changez d’abord votre mot de passe de connexion",
-            "hint": "Votre box utilise encore le compte d’usine (user / pass). Choisissez le vôtre avant de définir un mot de passe admin.",
+            "hint": "Votre box utilise encore un identifiant par défaut. Choisissez le vôtre avant de définir un mot de passe admin.",
             "user": "Nom d’utilisateur",
             "password": "Nouveau mot de passe",
             "confirm": "Répétez le mot de passe",
@@ -230,21 +230,22 @@
             "title": "Changer le mot de passe admin",
             "label": "Nouveau mot de passe admin",
             "confirm": "Répétez le mot de passe",
-            "submit": "Changer le mot de passe"
+            "submit": "Changer le mot de passe",
+            "hint": "Au moins {min} caractères. Vous resterez déverrouillé avec le nouveau mot de passe."
         },
         "mismatch": "Les deux mots de passe sont différents.",
         "tooShort": "Au moins {min} caractères.",
         "notice": {
             "unavailable": "Administration indisponible",
-            "unavailableHint": "calaos-container ne répond pas. L’administration depuis l’application n’existe que sur Calaos OS. Nouvel essai automatique.",
+            "unavailableHint": "L’administration depuis l’application n’est disponible que sur Calaos OS. Nouvel essai automatique.",
             "activating": "Activation de l’administration en cours",
             "activatingHint": "La box termine sa mise à jour. Cela prend généralement une minute ; nouvel essai automatique.",
             "rebootBox": "Redémarrez la box",
-            "rebootBoxHint": "L’activation prend trop de temps. Débranchez la box puis rebranchez-la — ou, en SSH : ssh root@<adresse de la box>, puis reboot.",
+            "rebootBoxHint": "L’activation prend trop de temps. Débranchez la box puis rebranchez-la — ou, en SSH : ssh root{'@'}<adresse de la box>, puis reboot.",
             "unreachable": "La box ne répond pas",
             "unreachableHint": "Nouvel essai automatique. Votre session admin est conservée.",
             "oldServer": "calaos-server est trop ancien",
-            "oldServerHint": "Cette box ne peut pas encore être administrée depuis l’application. Mettez-la à jour une fois en SSH (calaos-os upgrade) ; ensuite, les mises à jour se feront d’ici.",
+            "oldServerHint": "Cette box ne peut pas encore être administrée depuis l’application. Mettez-la à jour une fois avec l’outil habituel (le bouton de l’écran tactile, ou calaos-os upgrade) ; ensuite, les mises à jour se feront d’ici.",
             "https": "Utilisez https://",
             "httpsHint": "L’administration ne fonctionne que sur une connexion sécurisée. Rouvrez l’application avec une adresse qui commence par https://.",
             "httpsOpen": "Ouvrir en https://",
@@ -299,8 +300,7 @@
             "session_invalidated": "Le mot de passe admin vient d’être changé. Saisissez le nouveau.",
             "already_set": "Quelqu’un vient de définir le mot de passe admin. Saisissez-le pour continuer.",
             "mcp_regenerated": "Nouveau jeton MCP généré. Lisez-le depuis l’installeur Calaos.",
-            "reboot_sent": "Redémarrage de la box… l’application se reconnecte d’elle-même.",
-            "restart_sent": "Redémarrage…"
+            "reboot_sent": "Redémarrage de la box… l’application se reconnecte d’elle-même."
         },
         "error": {
             "admin_not_set": "Aucun mot de passe admin n’est encore défini.",
@@ -319,9 +319,10 @@
             "invalid_request": "La box a refusé la demande. {msg}",
             "package_not_found": "Ce paquet n’a pas de mise à jour en attente. {msg}",
             "internal": "Un problème est survenu sur la box. Réessayez ; le détail est dans ses journaux.",
-            "timeout": "La box n’a pas répondu. calaos-server est peut-être trop ancien : mettez la box à jour en SSH.",
+            "timeout": "La box n’a pas répondu. calaos-server est peut-être trop ancien : mettez la box à jour une fois avec l’outil habituel (le bouton de l’écran tactile, ou calaos-os upgrade).",
             "disconnected": "Connexion perdue avant la réponse de la box. Réessayez quand elle est revenue.",
-            "unknown": "Réponse inattendue de la box. {msg}"
+            "unknown": "Réponse inattendue de la box. {msg}",
+            "household_refused": "Le mot de passe de connexion n’a pas pu être changé. Déconnectez-vous puis reconnectez-vous, et réessayez."
         },
         "dismiss": "OK"
     }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The login button and the dialog's quiet button, as one component with a
-// progress state, so every admin action looks and waits the same way.
+// progress state. With `href` it is a link in the same dress (a button
+// nested in a link is invalid HTML).
 
 import IconLoading from '~icons/mdi/loading';
 
@@ -14,13 +15,32 @@ withDefaults(
         busyLabel?: string;
         /** Full width — the gate forms; rows keep the natural width. */
         block?: boolean;
+        /** Renders an `<a>` instead of a `<button>`. */
+        href?: string;
     }>(),
-    { variant: 'primary', type: 'button', disabled: false, busy: false, busyLabel: undefined, block: false },
+    {
+        variant: 'primary',
+        type: 'button',
+        disabled: false,
+        busy: false,
+        busyLabel: undefined,
+        block: false,
+        href: undefined,
+    },
 );
 </script>
 
 <template>
+    <a
+        v-if="href !== undefined"
+        :href="href"
+        class="admin-button pressable"
+        :class="[`admin-button--${variant}`, { 'admin-button--block': block }]"
+    >
+        <span><slot /></span>
+    </a>
     <button
+        v-else
         :type="type"
         class="admin-button pressable"
         :class="[`admin-button--${variant}`, { 'admin-button--block': block }]"
@@ -47,6 +67,7 @@ withDefaults(
     font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
+    text-decoration: none;
     transition:
         background-color 200ms ease,
         border-color 200ms ease,

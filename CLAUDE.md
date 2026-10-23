@@ -20,7 +20,7 @@ Web frontend for the Calaos home automation server: Vue 3 + TypeScript + Vite, P
 
 ## Protocol layer
 
-`app/src/protocol/` (types, guards, message codecs, per-gui_type state parsers, WS client) has **no Vue imports** — keep it framework-free. All wire values are strings; guards never throw on malformed frames. Exception: the `device` object of climate devices carries real JSON numbers/booleans (spec §5.3), and is always sent whole (replace, never merge). The audio protocol spec is `docs/audio-protocol.md` — items marked "Unverified" there have not been validated against a real calaos_server yet.
+`app/src/protocol/` (types, guards, message codecs, per-gui_type state parsers, WS client) has **no Vue imports** — keep it framework-free. All wire values are strings; guards never throw on malformed frames. Exceptions: the `device` object of climate devices carries real JSON numbers/booleans (spec §5.3), and is always sent whole (replace, never merge); and the `result` of an `admin` reply / the `data` of `admin_event` (daemon JSON, real types). The audio protocol spec is `docs/audio-protocol.md` — items marked "Unverified" there have not been validated against a real calaos_server yet.
 
 ## npm scripts
 

@@ -1,11 +1,6 @@
 <script setup lang="ts">
 // The box's update state as one sentence, and the one action it calls for.
-//
-// The headline is the status — "up to date", "3 updates available",
-// "Updating… 42 %", "restart the box" — never a number in a tile. While an
-// upgrade runs, the app's filament (the 2 px band of cyan light under a
-// focused field and the active tab) becomes the progress bar: light that
-// follows the work.
+// While an upgrade runs, the app's cyan filament is the progress bar.
 
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -24,14 +19,13 @@ type Phase = 'unknown' | 'upToDate' | 'available' | 'upgrading' | 'done' | 'done
 
 const phase = computed<Phase>(() => {
     if (admin.isUpgrading) return 'upgrading';
-    const job = admin.job;
-    const progress = admin.progress;
-    // A finished job stays on screen until the next check: the user who comes
-    // back after a restart of calaos-server must see how the run ended.
-    if (admin.updates === null && job !== null && job.status !== 'unknown') {
-        if (job.status === 'error' || progress?.status === 'error') return 'failed';
+    // A job that ended during this visit, or recently, is news; an older one
+    // is history and the panel starts afresh.
+    const job = admin.recentJob;
+    if (admin.updates === null && job !== null) {
+        if (job.status === 'error') return 'failed';
         if (job.rebootRequired) return 'doneReboot';
-        if (progress?.status === 'done' || job.status === 'done') return 'done';
+        return 'done';
     }
     if (admin.updates === null) return 'unknown';
     return admin.updates.length === 0 ? 'upToDate' : 'available';
@@ -52,17 +46,11 @@ const headline = computed(() => {
 
 const hint = computed(() => {
     switch (phase.value) {
-        case 'upgrading': {
-            const p = admin.progress;
-            if (p !== null && p.currentPkg !== '' && p.pkgCount > 0) {
-                return t('admin.updates.packageOf', {
-                    name: p.currentPkg,
-                    index: Math.max(1, p.pkgIndex),
-                    count: p.pkgCount,
-                });
-            }
-            return p?.message !== '' && p?.message !== undefined ? p.message : t('admin.updates.upgradingHint');
-        }
+        case 'upgrading':
+            // A run this client did not start (kiosk, CLI) is said as such.
+            return admin.job !== null && admin.job.id !== admin.ownJobId
+                ? `${t('admin.updates.externalRun')} ${t('admin.updates.upgradingHint')}`
+                : t('admin.updates.upgradingHint');
         case 'failed': {
             const reason = admin.job?.error || admin.progress?.error || '';
             return reason !== ''
@@ -74,7 +62,19 @@ const hint = computed(() => {
     }
 });
 
-const failure = computed(() => (admin.notice === null ? '' : errorText(admin.notice)));
+/** The package being installed, under the hint, while upgrading. */
+const packageLine = computed(() => {
+    const p = admin.progress;
+    if (phase.value !== 'upgrading' || p === null) return '';
+    if (p.currentPkg !== '' && p.pkgCount > 0) {
+        return t('admin.updates.packageOf', { name: p.currentPkg, index: Math.max(1, p.pkgIndex), count: p.pkgCount });
+    }
+    return p.message;
+});
+
+const failure = computed(() =>
+    admin.notice !== null && admin.noticeSource === 'updates' ? errorText(admin.notice) : '',
+);
 const checking = computed(() => admin.busy === 'update_check');
 const starting = computed(() => admin.busy === 'update_upgrade_all');
 const otherBusy = computed(() => admin.busy !== null && !checking.value && !starting.value);
@@ -85,6 +85,7 @@ const otherBusy = computed(() => admin.busy !== null && !checking.value && !star
         <p id="updates-title" class="updates__eyebrow">{{ t('admin.updates.title') }}</p>
         <h2 class="updates__headline" aria-live="polite">{{ headline }}</h2>
         <p class="updates__hint">{{ hint }}</p>
+        <p v-if="packageLine !== ''" class="updates__package">{{ packageLine }}</p>
 
         <div
             v-if="phase === 'upgrading'"
@@ -169,7 +170,6 @@ const otherBusy = computed(() => admin.busy !== null && !checking.value && !star
     line-height: 1.15;
 }
 
-.updates--doneReboot .updates__headline,
 .updates--upgrading .updates__headline {
     color: var(--c-accent);
 }
@@ -195,7 +195,12 @@ const otherBusy = computed(() => admin.busy !== null && !checking.value && !star
     max-inline-size: 48ch;
 }
 
-/* ---- the filament as a progress bar ----------------------------------- */
+.updates__package {
+    margin-block-start: var(--space-2);
+    font-size: 0.875rem;
+    color: var(--c-text);
+    font-variant-numeric: tabular-nums;
+}
 
 .updates__bar {
     position: relative;
@@ -214,8 +219,6 @@ const otherBusy = computed(() => admin.busy !== null && !checking.value && !star
     box-shadow: 0 0 14px var(--c-accent-glow);
     transition: inline-size 600ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-
-/* ---- the list ------------------------------------------------------- */
 
 .updates__list {
     margin-block-start: var(--space-4);

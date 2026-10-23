@@ -52,10 +52,7 @@ export interface HouseholdAccess {
     rotate(user: string, pass: string): boolean;
 }
 
-/**
- * What the Admin tab shows. One screen per value; the view never has to
- * combine two of them.
- */
+/** What the Admin tab shows: one screen per value. */
 export type AdminGate =
     | 'idle'
     | 'probing'
@@ -76,10 +73,12 @@ export type AdminInfo =
     | 'session_invalidated'
     | 'already_set'
     | 'mcp_regenerated'
-    | 'reboot_sent'
-    | 'restart_sent';
+    | 'reboot_sent';
 
 export type AdminBusy = AdminAction | 'unlock' | 'set' | 'change_cred' | null;
+
+/** Which section of the unlocked page an inline error belongs to. */
+export type AdminNoticeSource = 'updates' | 'box' | 'gate';
 
 type Outcome = { ok: true; data: Record<string, unknown> } | { ok: false; error: AdminError };
 
@@ -95,6 +94,14 @@ function backoffMs(attempt: number): number {
 
 /** Only `update_status` may be polled while an upgrade runs. */
 const JOB_POLL_MS = 5_000;
+/** An action refused with `bad_session` is replayed only by a prompt unlock. */
+const REPLAY_WINDOW_MS = 120_000;
+/** Reads are the only actions safe to replay without asking again. */
+const REPLAYABLE: readonly AdminAction[] = ['update_check', 'update_available', 'system_info'];
+/** The client's own `admin_set` event may arrive well after the reply. */
+const OWN_SET_EVENT_WINDOW_MS = 30_000;
+/** A finished job older than this is history, not news. */
+const JOB_NEWS_WINDOW_MS = 24 * 3_600_000;
 
 export const useAdminStore = defineStore('admin', () => {
     const gate = ref<AdminGate>('idle');
@@ -103,6 +110,7 @@ export const useAdminStore = defineStore('admin', () => {
     const apiAllowedHosts = ref('');
     /** The error the current screen shows under its form, if any. */
     const notice = ref<AdminError | null>(null);
+    const noticeSource = ref<AdminNoticeSource>('gate');
     const info = ref<AdminInfo | null>(null);
     const busy = ref<AdminBusy>(null);
     const progress = ref<UpgradeStatus | null>(null);
@@ -111,10 +119,12 @@ export const useAdminStore = defineStore('admin', () => {
     const updates = ref<UpdateEntry[] | null>(null);
     /** `daemon_too_old` has lasted long enough that only a reboot will do. */
     const rebootHint = ref(false);
+    /** The job this client started; another id is a run started elsewhere. */
+    const ownJobId = ref<string | null>(null);
 
     // Not state: transport, timers, correlation.
-    let send: FrameSender = (frame) => {
-        console.warn('calaos admin: no transport attached, dropping frame:', frame);
+    let send: FrameSender = () => {
+        console.warn('calaos admin: no transport attached, dropping frame');
         return false;
     };
     let household: HouseholdAccess = {
@@ -128,19 +138,34 @@ export const useAdminStore = defineStore('admin', () => {
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
     let sessionTimer: ReturnType<typeof setTimeout> | null = null;
     let rebootHintTimer: ReturnType<typeof setTimeout> | null = null;
+    let ownSetTimer: ReturnType<typeof setTimeout> | null = null;
     let unavailableSince: number | null = null;
     let retryAttempt = 0;
     /** The Admin tab is on screen: retries are worth scheduling. */
     let active = false;
-    /** An action refused with `bad_session`, replayed after the next unlock. */
-    let replay: { action: AdminAction; params?: Record<string, string> } | null = null;
+    /** Any admin reply on this socket: silence afterwards is a stall, not an old server. */
+    let adminSpoken = false;
+    /** A read refused with `bad_session`, replayed after the next unlock. */
+    let replay: { action: AdminAction; at: number } | null = null;
     /** The household credentials being installed by `change_cred`. */
     let credentialDraft: { user: string; pass: string } | null = null;
+    /** Our own `admin_set` just succeeded: its event must not kill the new session. */
+    let ownSetPending = false;
+    /** Jobs this visit saw running — their end is news whatever its date. */
+    const seenRunning = new Set<string>();
 
     const isUnlocked = computed(() => gate.value === 'unlocked' && session.value !== null);
     const isUpgrading = computed(
         () => job.value?.status === 'running' || progress.value?.status === 'upgrading',
     );
+    /** A finished job worth telling about: ended during this visit, or recently. */
+    const recentJob = computed<UpgradeJob | null>(() => {
+        const current = job.value;
+        if (current === null || current.status === 'running' || current.status === 'unknown') return null;
+        if (seenRunning.has(current.id)) return current;
+        const finished = Date.parse(current.finishedAt);
+        return Number.isFinite(finished) && Date.now() - finished < JOB_NEWS_WINDOW_MS ? current : null;
+    });
 
     function attachTransport(sender: FrameSender): void {
         send = sender;
@@ -177,19 +202,25 @@ export const useAdminStore = defineStore('admin', () => {
     function armSession(expiresInSeconds: number): void {
         sessionTimer = clearTimer(sessionTimer);
         if (!Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) return;
-        // The daemon's lifetime is absolute; locking a second early is better
-        // than a panel whose next tap gets `bad_session`.
-        sessionTimer = setTimeout(() => {
-            sessionTimer = null;
-            forgetSession(null);
-        }, expiresInSeconds * 1000);
+        // The daemon's lifetime is absolute; locking a second early beats a
+        // panel whose next tap gets `bad_session`.
+        sessionTimer = setTimeout(
+            () => {
+                sessionTimer = null;
+                forgetSession(null);
+            },
+            Math.max(0, expiresInSeconds - 1) * 1000,
+        );
     }
 
     // ----------------------------------------------------------- requests ---
 
-    function request(frame: string, timeoutMs: number, msgId: string): Promise<Outcome> {
+    /** Sends one frame built around a fresh msg_id and awaits its reply. */
+    function request(build: (msgId: string) => string, timeoutMs: number): Promise<Outcome> {
+        nextMsgId += 1;
+        const msgId = `admin-${nextMsgId}`;
         return new Promise((resolve) => {
-            if (!send(frame)) {
+            if (!send(build(msgId))) {
                 resolve({ ok: false, error: clientAdminError('disconnected') });
                 return;
             }
@@ -201,11 +232,6 @@ export const useAdminStore = defineStore('admin', () => {
         });
     }
 
-    function newMsgId(): string {
-        nextMsgId += 1;
-        return `admin-${nextMsgId}`;
-    }
-
     function settle(entry: PendingReply, outcome: Outcome): void {
         clearTimeout(entry.timer);
         entry.resolve(outcome);
@@ -213,6 +239,7 @@ export const useAdminStore = defineStore('admin', () => {
 
     /** Called by services/calaos.ts for every admin reply. */
     function handleReply(msg: AdminReplyMessage): void {
+        adminSpoken = true;
         const entry = pending.get(msg.msgId);
         if (entry === undefined) {
             console.debug('calaos admin: reply with no pending request, ignored:', msg.msgId);
@@ -236,7 +263,7 @@ export const useAdminStore = defineStore('admin', () => {
             entry,
             msg.success
                 ? { ok: true, data: {} }
-                : { ok: false, error: { ...clientAdminError('disconnected'), code: 'bad_password' } },
+                : { ok: false, error: clientAdminError('household_refused') },
         );
     }
 
@@ -250,6 +277,10 @@ export const useAdminStore = defineStore('admin', () => {
             settle(pendingChangeCred, { ok: false, error: clientAdminError('disconnected') });
             pendingChangeCred = null;
         }
+        // A re-login in flight when the socket died: handleLoggedIn finishes
+        // the move on the next login, but the form must not stay frozen.
+        if (busy.value === 'change_cred') busy.value = null;
+        adminSpoken = false;
         retryTimer = clearTimer(retryTimer);
         pollTimer = clearTimer(pollTimer);
     }
@@ -317,6 +348,11 @@ export const useAdminStore = defineStore('admin', () => {
         return user === 'user' && pass === 'pass';
     }
 
+    function setNotice(error: AdminError, source: AdminNoticeSource): void {
+        notice.value = error;
+        noticeSource.value = source;
+    }
+
     /**
      * Routes an error to the screen it belongs to. Returns true when the gate
      * changed (the caller's screen is gone); false when the error is for the
@@ -337,7 +373,17 @@ export const useAdminStore = defineStore('admin', () => {
                 enterBlocked('unreachable');
                 return true;
             case 'timeout':
-                gate.value = 'old_server';
+                // Silence from a server that has never spoken admin is an old
+                // calaos_server; silence later is a stall on a known-good one.
+                if (!adminSpoken) {
+                    gate.value = 'old_server';
+                    return true;
+                }
+                if (gate.value === 'unlocked') {
+                    if (isUpgrading.value) schedulePoll();
+                    return false;
+                }
+                enterBlocked('unreachable');
                 return true;
             case 'disconnected':
                 // The reconnect probes again; nothing to show meanwhile.
@@ -374,9 +420,17 @@ export const useAdminStore = defineStore('admin', () => {
         const result = typeof data.result === 'object' && data.result !== null ? data.result : {};
         const r = result as Record<string, unknown>;
         progress.value = toUpgradeStatus(r.progress);
-        job.value = toUpgradeJob(r.job);
-        if (job.value?.status === 'running') schedulePoll();
-        else pollTimer = clearTimer(pollTimer);
+        const next = toUpgradeJob(r.job);
+        // A run this client did not see start (lost reply, kiosk) makes the
+        // last check stale: "Install updates" must not offer a second run.
+        if (next !== null && next.id !== job.value?.id) updates.value = null;
+        job.value = next;
+        if (next?.status === 'running') {
+            seenRunning.add(next.id);
+            schedulePoll();
+        } else {
+            pollTimer = clearTimer(pollTimer);
+        }
     }
 
     /** `update_status` as the probe: fixes the gate and refreshes the upgrade state. */
@@ -384,31 +438,40 @@ export const useAdminStore = defineStore('admin', () => {
         retryTimer = clearTimer(retryTimer);
         if (gate.value === 'idle') gate.value = 'probing';
         const outcome = await request(
-            encodeAdminAction('update_status', null, newMsgId()),
+            (id) => encodeAdminAction('update_status', null, id),
             ADMIN_REPLY_TIMEOUT_MS,
-            `admin-${nextMsgId}`,
         );
         if (!outcome.ok) {
-            if (!applyGateError(outcome.error)) notice.value = outcome.error;
-            else if (outcome.error.code === 'disconnected' && gate.value === 'probing') {
-                gate.value = 'idle';
+            if (applyGateError(outcome.error)) {
+                if (outcome.error.code === 'disconnected' && gate.value === 'probing') gate.value = 'idle';
+            } else if (gate.value === 'unlocked') {
+                setNotice(outcome.error, 'updates');
+            } else {
+                // `internal` and friends on the probe: nothing to type, so
+                // wait and retry rather than spin on "checking".
+                enterBlocked('unreachable');
             }
+            if (gate.value !== 'locked') replay = null;
             return;
         }
         leaveBlocked();
         applyStatus(outcome.data);
         gate.value = session.value !== null ? 'unlocked' : 'locked';
+        if (gate.value !== 'locked') replay = null;
     }
 
     /** `update_status` without touching the gate — the poll during an upgrade. */
     async function refreshStatus(): Promise<void> {
         const outcome = await request(
-            encodeAdminAction('update_status', null, newMsgId()),
+            (id) => encodeAdminAction('update_status', null, id),
             ADMIN_REPLY_TIMEOUT_MS,
-            `admin-${nextMsgId}`,
         );
-        if (outcome.ok) applyStatus(outcome.data);
-        else applyGateError(outcome.error);
+        if (outcome.ok) {
+            applyStatus(outcome.data);
+            return;
+        }
+        // A transient failure must not end the follow-up of a running job.
+        if (!applyGateError(outcome.error) && isUpgrading.value) schedulePoll();
     }
 
     async function unlock(adminPass: string): Promise<boolean> {
@@ -417,13 +480,12 @@ export const useAdminStore = defineStore('admin', () => {
         notice.value = null;
         info.value = null;
         const outcome = await request(
-            encodeAdminUnlock(adminPass, newMsgId()),
+            (id) => encodeAdminUnlock(adminPass, id),
             ADMIN_REPLY_TIMEOUT_MS,
-            `admin-${nextMsgId}`,
         );
         busy.value = null;
         if (!outcome.ok) {
-            if (!applyGateError(outcome.error)) notice.value = outcome.error;
+            if (!applyGateError(outcome.error)) setNotice(outcome.error, 'gate');
             return false;
         }
         const token = outcome.data.admin_session;
@@ -431,16 +493,30 @@ export const useAdminStore = defineStore('admin', () => {
         armSession(Number(outcome.data.expires_in));
         leaveBlocked();
         gate.value = 'unlocked';
-        // Only `update_status` is safe to replay blindly; the upgrade may have
-        // started before the session died, so the status says what to show.
+        // A read refused a moment ago is finished for the user; anything else
+        // (an upgrade, a reboot) is asked for again.
         const toReplay = replay;
         replay = null;
-        if (toReplay !== null && !toReplay.action.startsWith('update_upgrade')) {
-            void run(toReplay.action, toReplay.params);
+        if (toReplay !== null && Date.now() - toReplay.at < REPLAY_WINDOW_MS) {
+            void replayAction(toReplay.action);
         } else {
             void refreshStatus();
         }
         return true;
+    }
+
+    /** The replay must land where the original would have (its store field). */
+    async function replayAction(action: AdminAction): Promise<void> {
+        switch (action) {
+            case 'update_check':
+                await checkUpdates();
+                return;
+            case 'update_available':
+                await listAvailable();
+                return;
+            default:
+                await run(action);
+        }
     }
 
     /**
@@ -455,15 +531,22 @@ export const useAdminStore = defineStore('admin', () => {
         info.value = null;
         const wasBootstrap = session.value === null;
         const outcome = await request(
-            encodeAdminSet(newPass, session.value, newMsgId()),
+            (id) => encodeAdminSet(newPass, session.value, id),
             ADMIN_REPLY_TIMEOUT_MS,
-            `admin-${nextMsgId}`,
         );
         busy.value = null;
         if (!outcome.ok) {
-            if (!applyGateError(outcome.error)) notice.value = outcome.error;
+            if (!applyGateError(outcome.error)) setNotice(outcome.error, wasBootstrap ? 'gate' : 'box');
             return false;
         }
+        // The matching `admin_set` event may land before or after the unlock
+        // reply below: either way it is ours, not someone else's.
+        ownSetPending = true;
+        ownSetTimer = clearTimer(ownSetTimer);
+        ownSetTimer = setTimeout(() => {
+            ownSetTimer = null;
+            ownSetPending = false;
+        }, OWN_SET_EVENT_WINDOW_MS);
         session.value = null;
         sessionTimer = clearTimer(sessionTimer);
         gate.value = 'locked';
@@ -496,11 +579,12 @@ export const useAdminStore = defineStore('admin', () => {
         });
         if (!outcome.ok) {
             busy.value = null;
-            if (!applyGateError(outcome.error)) notice.value = outcome.error;
+            if (!applyGateError(outcome.error)) setNotice(outcome.error, 'gate');
             return false;
         }
         credentialDraft = { user: newUser, pass: newPass };
-        // Stays busy until the re-login answers (handleLoggedIn).
+        // Stays busy until the re-login answers (handleLoggedIn). If the
+        // socket is not open, the reconnect's own login carries the new pair.
         household.rotate(newUser, newPass);
         return true;
     }
@@ -516,14 +600,20 @@ export const useAdminStore = defineStore('admin', () => {
         info.value = null;
         const timeout = action === 'update_check' ? UPDATE_CHECK_TIMEOUT_MS : ADMIN_REPLY_TIMEOUT_MS;
         const outcome = await request(
-            encodeAdminAction(action, session.value, newMsgId(), params),
+            (id) => encodeAdminAction(action, session.value, id, params),
             timeout,
-            `admin-${nextMsgId}`,
         );
         busy.value = null;
         if (!outcome.ok) {
-            if (outcome.error.code === 'bad_session') replay = { action, params };
-            if (!applyGateError(outcome.error)) notice.value = outcome.error;
+            const { error } = outcome;
+            if (error.code === 'bad_session' && REPLAYABLE.includes(action)) {
+                replay = { action, at: Date.now() };
+            }
+            if (!applyGateError(error)) {
+                setNotice(error, action.startsWith('update_') ? 'updates' : 'box');
+                // A run started elsewhere (kiosk, CLI): follow it instead.
+                if (error.code === 'upgrade_in_progress') void refreshStatus();
+            }
             return null;
         }
         return outcome.data;
@@ -534,10 +624,19 @@ export const useAdminStore = defineStore('admin', () => {
         if (data !== null) updates.value = toUpdateList(data.result);
     }
 
+    /** The pending list without contacting the mirrors. */
+    async function listAvailable(): Promise<void> {
+        const data = await run('update_available');
+        if (data !== null) updates.value = toUpdateList(data.result);
+    }
+
     async function upgradeAll(): Promise<void> {
         const data = await run('update_upgrade_all');
         if (data === null) return;
-        job.value = toUpgradeJob(data.result);
+        const started = toUpgradeJob(data.result);
+        ownJobId.value = started?.id ?? null;
+        if (started !== null) seenRunning.add(started.id);
+        job.value = started;
         progress.value = {
             status: 'upgrading',
             totalPercent: 0,
@@ -579,9 +678,11 @@ export const useAdminStore = defineStore('admin', () => {
                 return;
             }
             case 'admin_set':
-                // Someone (maybe this client, see setPassword) just changed
-                // the password: every session is dead, including this one.
-                if (busy.value === 'set' || busy.value === 'unlock') return;
+                if (ownSetPending) {
+                    ownSetPending = false;
+                    ownSetTimer = clearTimer(ownSetTimer);
+                    return;
+                }
                 if (session.value !== null) forgetSession('session_invalidated');
                 else if (gate.value === 'bootstrap' || gate.value === 'household') {
                     gate.value = 'locked';
@@ -592,6 +693,7 @@ export const useAdminStore = defineStore('admin', () => {
                 session.value = null;
                 sessionTimer = clearTimer(sessionTimer);
                 if (active) void probe();
+                else gate.value = 'idle';
                 return;
             default:
                 return;
@@ -603,21 +705,30 @@ export const useAdminStore = defineStore('admin', () => {
     /** The Admin tab is mounted: probe, and keep retrying while it is shown. */
     function activate(): void {
         active = true;
-        if (gate.value === 'idle' || gate.value === 'old_server') {
-            gate.value = 'idle';
-            void probe();
-            return;
+        switch (gate.value) {
+            case 'idle':
+            case 'probing':
+            case 'old_server':
+                gate.value = 'idle';
+                void probe();
+                return;
+            case 'unavailable':
+            case 'activating':
+            case 'unreachable':
+                void probe();
+                return;
+            case 'household':
+                return;
+            default:
+                void refreshStatus();
         }
-        if (gate.value === 'unavailable' || gate.value === 'activating' || gate.value === 'unreachable') {
-            void probe();
-            return;
-        }
-        if (gate.value !== 'household') void refreshStatus();
     }
 
     function deactivate(): void {
         active = false;
         retryTimer = clearTimer(retryTimer);
+        unavailableSince = null;
+        replay = null;
         notice.value = null;
         info.value = null;
     }
@@ -635,21 +746,26 @@ export const useAdminStore = defineStore('admin', () => {
         handleTransportLost();
         sessionTimer = clearTimer(sessionTimer);
         rebootHintTimer = clearTimer(rebootHintTimer);
+        ownSetTimer = clearTimer(ownSetTimer);
         active = false;
         gate.value = 'idle';
         session.value = null;
         apiAllowedHosts.value = '';
         notice.value = null;
+        noticeSource.value = 'gate';
         info.value = null;
         busy.value = null;
         progress.value = null;
         job.value = null;
         updates.value = null;
         rebootHint.value = false;
+        ownJobId.value = null;
         unavailableSince = null;
         retryAttempt = 0;
         replay = null;
         credentialDraft = null;
+        ownSetPending = false;
+        seenRunning.clear();
     }
 
     return {
@@ -657,14 +773,17 @@ export const useAdminStore = defineStore('admin', () => {
         session,
         apiAllowedHosts,
         notice,
+        noticeSource,
         info,
         busy,
         progress,
         job,
         updates,
         rebootHint,
+        ownJobId,
         isUnlocked,
         isUpgrading,
+        recentJob,
         attachTransport,
         attachHousehold,
         handleReply,

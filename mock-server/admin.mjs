@@ -235,6 +235,9 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             finished_at: new Date().toISOString(),
         };
         event('upgrade_progress', p);
+        // The legacy <Status> is idle whenever no run is in progress: after
+        // the terminal event, only the job remembers how the run ended.
+        state.progress = idleProgress();
     }
 
     function running() {
@@ -314,7 +317,9 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         state.password = data.new_pass;
         state.sessions.clear();
         reply(ws, 'admin_set', msgId, { success: 'true', mode });
-        event('admin_set');
+        // Through the daemon's /events and CB3, the alert lands a little
+        // after the reply — typically after the client's follow-up unlock.
+        setTimeout(() => event('admin_set'), 150);
     }
 
     function handleAdmin(ws, frame) {

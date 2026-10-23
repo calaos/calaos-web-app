@@ -1448,7 +1448,8 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
         await sleep(400);
         const { ask: askAgain } = await adminClient();
         const final = await askAgain('admin', { action: 'update_status' });
-        expect(final.result.progress).toMatchObject({ status: 'done', total_percent: 100 });
+        // Idle once the run is over: the job alone says how it ended.
+        expect(final.result.progress).toMatchObject({ status: 'idle', total_percent: 0 });
         expect(final.result.job).toMatchObject({
             id: started.result.id,
             status: 'done',
@@ -1484,7 +1485,7 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
         await ask('admin', { action: 'update_upgrade_all', admin_session: session });
         await sleep(400);
         const status = await ask('admin', { action: 'update_status' });
-        expect(status.result.progress.status).toBe('error');
+        expect(status.result.progress.status).toBe('idle');
         expect(status.result.job).toMatchObject({ status: 'error', error: expect.any(String) });
         // The packages are still pending.
         expect(Object.keys((await ask('admin', { action: 'update_available', admin_session: session })).result)).toHaveLength(2);

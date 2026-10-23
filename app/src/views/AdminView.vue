@@ -1,11 +1,8 @@
 <script setup lang="ts">
 // The Admin tab. One screen at a time, chosen by the store's gate: a notice
 // to wait on, a password to type, or — unlocked — the updates panel and the
-// box's three actions.
-//
-// Composition: the gate screens borrow the login panel (a narrow column in a
-// pool of darkness, left-aligned) so that "enter the admin password" reads as
-// the same gesture as signing in. The unlocked page is a single column.
+// box's three actions. The gate screens borrow the login panel so that
+// "enter the admin password" reads as the same gesture as signing in.
 
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -30,7 +27,9 @@ onUnmounted(() => admin.deactivate());
 
 const actions = ref<InstanceType<typeof AdminActions> | null>(null);
 
-const formError = computed(() => (admin.notice === null ? '' : errorText(admin.notice)));
+const formError = computed(() =>
+    admin.notice !== null && admin.noticeSource === 'gate' ? errorText(admin.notice) : '',
+);
 const refused = computed(() => admin.notice?.code === 'bad_password');
 const minLength = computed(() => admin.notice?.minLength ?? ADMIN_PASSWORD_MIN_LENGTH);
 
@@ -174,9 +173,9 @@ function changeHousehold(user: string, password: string): void {
                 :title="t('admin.notice.https')"
                 :hint="t('admin.notice.httpsHint')"
             >
-                <a class="admin__https" :href="httpsUrl">
-                    <AdminButton variant="primary" tabindex="-1">{{ t('admin.notice.httpsOpen') }}</AdminButton>
-                </a>
+                <AdminButton class="admin__https" variant="primary" :href="httpsUrl">
+                    {{ t('admin.notice.httpsOpen') }}
+                </AdminButton>
             </AdminNotice>
         </div>
     </div>
@@ -301,9 +300,5 @@ function changeHousehold(user: string, password: string): void {
 .admin__hosts-label {
     color: var(--c-warn);
     font-weight: 500;
-}
-
-.admin__https {
-    text-decoration: none;
 }
 </style>

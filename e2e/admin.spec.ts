@@ -67,11 +67,12 @@ test('a fresh box: household password first, then the admin password, then unloc
     expect(logins).toHaveLength(2);
     expect(logins[1].frame?.data).toEqual({ cn_user: 'user', cn_pass: 'maison-secrete' });
 
-    // Too short is caught before the wire; a matching pair goes through.
+    // Too short is caught on submit, before the wire; a matching pair goes through.
     await admin.adminPassword.fill('short');
     await admin.confirmPassword.fill('short');
-    await expect(admin.submit).toBeDisabled();
+    await admin.submit.click();
     await expect(admin.error).toContainText(MESSAGES.admin.tooShort.replace('{min}', '10'));
+    await expect(admin.heading).toHaveText(MESSAGES.admin.bootstrap.title);
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.confirmPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
@@ -158,6 +159,43 @@ test('an upgrade survives calaos-server restarting in the middle of it', async (
     // A new check after the run: nothing left.
     await page.getByRole('button', { name: MESSAGES.admin.updates.check }).click();
     await expect(admin.updatesHeadline).toHaveText(MESSAGES.admin.updates.upToDate);
+});
+
+test('a job that ends while calaos-server is away is read back from the job, not the events', async ({
+    page,
+    mock,
+}) => {
+    await mock.admin({ password: ADMIN_PASSWORD, upgradeMs: 1_000, dropAtPercent: 90, rebootRequired: true });
+    const admin = await openUnlocked(page);
+    await page.getByRole('button', { name: MESSAGES.admin.updates.check }).click();
+    await page.getByRole('button', { name: MESSAGES.admin.updates.upgrade }).click();
+
+    // The socket dies at 90 % and the run finishes before the reconnect: no
+    // terminal event ever reaches the app, and the status it reads back says
+    // `idle` — the job alone says how it ended.
+    await expect(admin.updatesHeadline).toHaveText(MESSAGES.admin.updates.doneReboot, { timeout: 15_000 });
+    expect((await mock.adminStatus()).progress.status).toBe('idle');
+    expect((await mock.loginFrames()).length).toBe(2);
+});
+
+test('bad_session asks for the password again, silently, and replays only the read', async ({ page, mock }) => {
+    await mock.admin({ password: ADMIN_PASSWORD });
+    const admin = await openUnlocked(page);
+
+    // The daemon forgets every session (expiry, admin_reset…).
+    await mock.admin({ clearSessions: true });
+    await page.getByRole('button', { name: MESSAGES.admin.updates.check }).click();
+
+    await expect(admin.heading).toHaveText(MESSAGES.admin.unlock.title);
+    await expect(admin.error).toHaveText('');
+    await admin.adminPassword.fill(ADMIN_PASSWORD);
+    await admin.submit.click();
+
+    // The refused check is finished for the user, with no extra tap.
+    await expect(admin.updatesHeadline).toHaveText('2 updates available');
+    const actions = await mock.adminActions();
+    expect(actions.filter((action) => action === 'update_check')).toHaveLength(2);
+    expect(actions).not.toContain('update_upgrade_all');
 });
 
 test('an old calaos-server that never answers gets a clear message after 5 s', async ({ page, mock }) => {

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // The three things an unlocked admin can do to the box besides updating it,
-// as a hairline list — the room screen's rows, not cards. Each is a name, one
-// sentence, and a button that says what it does. The two that cannot be
-// undone (restart, new MCP token) ask once.
+// as a hairline list. The two that cannot be undone (restart, new MCP token)
+// ask once.
 
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import BaseDialog from '../ui/BaseDialog.vue';
+import { ADMIN_PASSWORD_MIN_LENGTH } from '../../protocol/admin';
 import { useAdminStore } from '../../stores/admin';
 import { useAdminText } from '../../composables/useAdminText';
 import AdminButton from './AdminButton.vue';
@@ -21,7 +21,9 @@ const changing = ref(false);
 const refused = ref(false);
 
 const busy = computed(() => admin.busy !== null);
-const failure = computed(() => (admin.notice === null ? '' : errorText(admin.notice)));
+const failure = computed(() =>
+    admin.notice !== null && admin.noticeSource === 'box' ? errorText(admin.notice) : '',
+);
 const changeError = computed(() => (changing.value ? failure.value : ''));
 
 /** Also reached from the updates panel's "Restart the box". */
@@ -124,20 +126,20 @@ async function changePassword(password: string): Promise<void> {
             <p class="actions__dialog-hint">{{ t('admin.actions.mcpConfirmHint') }}</p>
         </BaseDialog>
 
-        <!-- The form has its own submit; the dialog only lends its frame and
-             its Cancel, so no confirm-label here. -->
-        <BaseDialog
-            :open="changing"
-            :title="t('admin.change.title')"
-            :cancel-label="t('dialog.cancel')"
-            @cancel="changing = false"
-        >
+        <!-- The form has its own submit and cancel; the dialog only lends
+             its frame (and Escape). -->
+        <BaseDialog :open="changing" :title="t('admin.change.title')" @cancel="changing = false">
+            <p class="actions__dialog-hint actions__dialog-hint--form">
+                {{ t('admin.change.hint', { min: ADMIN_PASSWORD_MIN_LENGTH }) }}
+            </p>
             <AdminPasswordForm
                 mode="change"
                 :busy="admin.busy === 'set' || admin.busy === 'unlock'"
                 :error="changeError"
                 :refused="refused"
+                :cancel-label="t('dialog.cancel')"
                 @submit="changePassword"
+                @cancel="changing = false"
             />
         </BaseDialog>
     </section>
@@ -194,6 +196,10 @@ async function changePassword(password: string): Promise<void> {
     color: var(--c-text-muted);
     font-size: 0.9375rem;
     line-height: 1.45;
+}
+
+.actions__dialog-hint--form {
+    margin-block-end: var(--space-4);
 }
 
 @media (max-width: 479px) {
