@@ -211,7 +211,7 @@
             "title": "Choose an admin password",
             "hint": "It protects updates and restarts, and is separate from your sign-in password. At least {min} characters.",
             "allowedHosts": "Allowed addresses",
-            "allowedHostsHint": "Once the admin password is set, the app is only accepted from the box's own address, over https, and from: {hosts}",
+            "allowedHostsHint": "Once the admin password is set, the app is accepted under any name over https; without https, only from the box's IP address and from: {hosts}",
             "allowedHostsNone": "Once the admin password is set, the app is accepted under any name over https, but without https only from the box's IP address, unless you add names to api_allowed_hosts.",
             "label": "New admin password",
             "confirm": "Repeat the password",

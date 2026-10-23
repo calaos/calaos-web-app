@@ -111,7 +111,8 @@ describe('AdminView bootstrap screen', () => {
         const wrapper = mountView('fr');
         await flushPromises();
         const text = wrapper.find('.admin__hosts').text();
-        expect(text).toContain('calaos.example.net');
+        expect(text).toContain(fr.admin.bootstrap.allowedHostsHint.replace('{hosts}', 'calaos.example.net'));
+        expect(text).toContain('n’importe quel nom en https');
         expect(text).not.toContain(fr.admin.bootstrap.allowedHostsNone);
     });
 });
