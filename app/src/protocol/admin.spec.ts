@@ -83,6 +83,16 @@ describe('daemon result shapes', () => {
         expect(toUpgradeStatus(null)).toMatchObject({ status: 'unknown', totalPercent: 0 });
     });
 
+    it('reads the package names of the full view, none from the household one', () => {
+        expect(
+            toUpgradeStatus({
+                packages: [{ name: 'calaos-server', state: 'done', percent: 100 }, { state: 'pending' }, 'junk'],
+            }).packageNames,
+        ).toEqual(['calaos-server', '', '']);
+        expect(toUpgradeStatus({ packages: [{ state: 'pending', percent: 0 }] }).packageNames).toEqual(['']);
+        expect(toUpgradeStatus({}).packageNames).toEqual([]);
+    });
+
     it('reads <Job> and null', () => {
         expect(toUpgradeJob(null)).toBeNull();
         expect(

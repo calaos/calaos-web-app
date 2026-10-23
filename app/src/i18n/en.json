@@ -267,6 +267,7 @@
             "upgradingHint": "Keep the box powered. The app may lose the connection for a moment while calaos-server restarts; it comes back on its own.",
             "externalRun": "An update started from elsewhere is running.",
             "packageOf": "{name} ({index} of {count})",
+            "packageIndex": "Package {index} of {count}",
             "done": "Update finished",
             "doneHint": "Everything installed. The box is ready.",
             "doneReboot": "Update finished — restart the box",
@@ -274,6 +275,7 @@
             "failed": "The update failed",
             "failedHint": "Try again. If it fails again, the detail is in the box's logs.",
             "failedReason": "Reason: {error}",
+            "failedInterrupted": "The update was interrupted before the end. Try again.",
             "versions": "{from} → {to}",
             "progress": "Update progress"
         },

@@ -94,3 +94,87 @@ describe('AdminView gate screens', () => {
         expect(wrapper.find('.admin-password input[type="password"]').exists()).toBe(true);
     });
 });
+
+describe('UpdatesPanel while an upgrade runs', () => {
+    function upgrading(currentPkg: string): void {
+        const admin = useAdminStore();
+        admin.gate = 'unlocked';
+        admin.session = 'a'.repeat(64);
+        admin.job = {
+            id: '3f9c',
+            kind: 'upgrade_all',
+            package: '',
+            status: 'running',
+            error: '',
+            rebootRequired: false,
+            daemonRestart: false,
+            startedAt: '',
+            finishedAt: '',
+        };
+        admin.progress = {
+            status: 'upgrading',
+            totalPercent: 40,
+            currentPkg,
+            currentStep: 'install',
+            pkgIndex: 2,
+            pkgCount: 3,
+            message: '',
+            error: '',
+            packageNames: [],
+        };
+    }
+
+    it('names the package from the full view', async () => {
+        upgrading('calaos-server');
+        const wrapper = mountView();
+        await flushPromises();
+        expect(wrapper.find('.updates__package').text()).toBe('calaos-server (2 of 3)');
+    });
+
+    it('counts packages without naming them in the household view', async () => {
+        upgrading('');
+        const wrapper = mountView();
+        await flushPromises();
+        expect(wrapper.find('.updates__package').text()).toBe('Package 2 of 3');
+    });
+});
+
+describe('UpdatesPanel after a failed run', () => {
+    function failed(error: string): void {
+        const admin = useAdminStore();
+        admin.gate = 'unlocked';
+        admin.session = 'a'.repeat(64);
+        admin.job = {
+            id: '3f9c',
+            kind: 'upgrade_all',
+            package: '',
+            status: 'error',
+            error,
+            rebootRequired: false,
+            daemonRestart: false,
+            startedAt: '',
+            finishedAt: new Date().toISOString(),
+        };
+    }
+
+    it('gives the daemon reason from the full view', async () => {
+        failed('apt-get returned 100');
+        const wrapper = mountView();
+        await flushPromises();
+        expect(wrapper.find('.updates__hint').text()).toBe('Reason: apt-get returned 100');
+    });
+
+    it('does not echo the generic household error as a reason', async () => {
+        failed('upgrade failed');
+        const wrapper = mountView();
+        await flushPromises();
+        expect(wrapper.find('.updates__hint').text()).toBe(en.admin.updates.failedHint);
+    });
+
+    it('says an interrupted run was interrupted', async () => {
+        failed('interrupted');
+        const wrapper = mountView('fr');
+        await flushPromises();
+        expect(wrapper.find('.updates__hint').text()).toBe(fr.admin.updates.failedInterrupted);
+    });
+});
