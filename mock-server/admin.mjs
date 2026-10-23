@@ -37,6 +37,8 @@ const MIN_PASSWORD_LENGTH = 10;
 /** Daemon limiter: about 5 failures per minute. */
 const RATE_LIMIT_FAILURES = 5;
 const RATE_LIMIT_WINDOW_MS = 60_000;
+/** Between the terminal `upgrade_progress` frame and the end of the job. */
+const SETTLE_MS = 50;
 
 const DEFAULT_UPDATES = {
     'calaos-server': { name: 'calaos-server', version: '4.6.0', current_version: '4.5.0' },
@@ -111,7 +113,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
     let timer = null;
 
     function reset() {
-        if (timer !== null) clearInterval(timer);
+        if (timer !== null) clearTimeout(timer);
         timer = null;
         state = {
             set: false,
@@ -279,17 +281,23 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             p.total_percent = 100;
             for (const entry of p.packages) delete state.updates[entry.name];
         }
-        state.job = {
-            ...state.job,
-            status,
-            ...(status === 'error' ? { error } : {}),
-            reboot_required: status === 'done' && state.rebootRequired,
-            finished_at: new Date().toISOString(),
-        };
+        // The daemon's order: the terminal frame while the job still runs
+        // (snapshot, version refresh), then `idle`, then the job ends. The
+        // legacy <Status> is idle whenever no run is in progress: from then
+        // on, only the job remembers how the run ended.
         event('upgrade_progress', p);
-        // The legacy <Status> is idle whenever no run is in progress: after
-        // the terminal event, only the job remembers how the run ended.
-        state.progress = idleProgress();
+        timer = setTimeout(() => {
+            timer = null;
+            state.progress = idleProgress();
+            event('upgrade_progress', state.progress);
+            state.job = {
+                ...state.job,
+                status,
+                ...(status === 'error' ? { error } : {}),
+                reboot_required: status === 'done' && state.rebootRequired,
+                finished_at: new Date().toISOString(),
+            };
+        }, SETTLE_MS);
     }
 
     function running() {

@@ -1520,6 +1520,24 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
         expect(percents).toEqual([...percents].sort((a, b) => a - b));
     });
 
+    it('publishes done while the job still runs, then idle, then ends the job', async () => {
+        await control({ op: 'admin', upgradeMs: 200, updates: ['calaos-server'] });
+        const { client, ask } = await adminClient();
+        const session = await unlock(ask);
+        await ask('admin', { action: 'update_upgrade_all', admin_session: session });
+
+        await client.waitFor(
+            (f) => f.msg === 'admin_event' && f.data?.type === 'upgrade_progress' && f.data?.data?.status === 'done',
+        );
+        expect((await ask('admin', { action: 'update_status' })).result.job.status).toBe('running');
+        await client.waitFor(
+            (f) => f.msg === 'admin_event' && f.data?.type === 'upgrade_progress' && f.data?.data?.status === 'idle',
+        );
+        const statuses = client.frames.filter(isAdminEvent('upgrade_progress')).map((f) => f.data.data.status);
+        expect(statuses.slice(-2)).toEqual(['done', 'idle']);
+        expect((await ask('admin', { action: 'update_status' })).result.job.status).toBe('done');
+    });
+
     it('fails the run at failAtPercent with the error in the job', async () => {
         await control({ op: 'admin', upgradeMs: 200, failAtPercent: 50 });
         const { ask } = await adminClient();
