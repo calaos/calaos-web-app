@@ -43,17 +43,23 @@ beforeEach(async () => {
 });
 
 describe('FooterNav', () => {
-    it('renders the three sections with their translated labels', async () => {
+    it('renders the four sections with their translated labels', async () => {
         const wrapper = await mountFooter('/home');
 
         const labels = wrapper.findAll('.footer-nav__tab').map((tab) => tab.text());
-        expect(labels).toEqual([en.chrome.tabs.home, en.chrome.tabs.audio, en.chrome.tabs.security]);
+        expect(labels).toEqual([
+            en.chrome.tabs.home,
+            en.chrome.tabs.audio,
+            en.chrome.tabs.security,
+            en.chrome.tabs.admin,
+        ]);
     });
 
     it.each([
         ['/home', en.chrome.tabs.home],
         ['/audio', en.chrome.tabs.audio],
         ['/security', en.chrome.tabs.security],
+        ['/admin', en.chrome.tabs.admin],
     ])('marks %s as the active tab', async (path, expected) => {
         const wrapper = await mountFooter(path);
 

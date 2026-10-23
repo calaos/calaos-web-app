@@ -189,11 +189,140 @@
         "tabs": {
             "home": "Home",
             "audio": "Audio",
-            "security": "Security"
+            "security": "Security",
+            "admin": "Admin"
         },
         "connection": {
             "lost": "Connection lost",
             "retrying": "Reconnecting…"
         }
+    },
+    "admin": {
+        "title": "Administration",
+        "probing": "Checking the box…",
+        "unlock": {
+            "title": "Admin password",
+            "hint": "Updates and restarts are protected by the admin password. It is not the one you sign in with.",
+            "label": "Admin password",
+            "submit": "Unlock",
+            "submitting": "Checking…"
+        },
+        "bootstrap": {
+            "title": "Choose an admin password",
+            "hint": "It protects updates and restarts, and is separate from your sign-in password. At least {min} characters.",
+            "allowedHosts": "Allowed addresses",
+            "allowedHostsHint": "Once the admin password is set, the app is only accepted from the box's own address, over https, and from: {hosts}",
+            "label": "New admin password",
+            "confirm": "Repeat the password",
+            "submit": "Set the admin password",
+            "submitting": "Saving…"
+        },
+        "household": {
+            "title": "Change your sign-in password first",
+            "hint": "Your box still uses the factory account (user / pass). Choose your own before setting an admin password.",
+            "user": "Username",
+            "password": "New password",
+            "confirm": "Repeat the password",
+            "submit": "Save and continue",
+            "submitting": "Saving…"
+        },
+        "change": {
+            "title": "Change the admin password",
+            "label": "New admin password",
+            "confirm": "Repeat the password",
+            "submit": "Change the password"
+        },
+        "mismatch": "The two passwords differ.",
+        "tooShort": "At least {min} characters.",
+        "notice": {
+            "unavailable": "Administration unavailable",
+            "unavailableHint": "calaos-container is not answering. Administration from the app only works on Calaos OS. Trying again automatically.",
+            "activating": "Administration is being activated",
+            "activatingHint": "The box is finishing its update. This usually takes a minute; trying again automatically.",
+            "rebootBox": "Restart the box",
+            "rebootBoxHint": "Activation is taking too long. Unplug the box and plug it back in — or, over SSH, run: ssh root@<box address>, then reboot.",
+            "unreachable": "The box is not answering",
+            "unreachableHint": "Trying again automatically. Your admin session is kept.",
+            "oldServer": "calaos-server is too old",
+            "oldServerHint": "This box cannot be administered from the app yet. Update it once over SSH (calaos-os upgrade); after that, updates run from here.",
+            "https": "Use https://",
+            "httpsHint": "Administration only works over a secure connection. Open the app again with an address that starts with https://.",
+            "httpsOpen": "Open in https://",
+            "retrying": "Trying again…"
+        },
+        "updates": {
+            "title": "Updates",
+            "unknown": "Updates not checked yet",
+            "unknownHint": "Checking contacts the Calaos servers and can take up to a minute.",
+            "upToDate": "Your box is up to date",
+            "upToDateHint": "Nothing to install.",
+            "available": "{count} update available | {count} updates available",
+            "availableHint": "Installing takes a few minutes. The box stays usable; the app may lose the connection for a moment and comes back on its own.",
+            "check": "Check for updates",
+            "checking": "Checking…",
+            "upgrade": "Install updates",
+            "starting": "Starting…",
+            "upgrading": "Updating… {percent} %",
+            "upgradingHint": "Keep the box powered. The app may lose the connection for a moment while calaos-server restarts; it comes back on its own.",
+            "externalRun": "An update started from elsewhere is running.",
+            "packageOf": "{name} ({index} of {count})",
+            "done": "Update finished",
+            "doneHint": "Everything installed. The box is ready.",
+            "doneReboot": "Update finished — restart the box",
+            "doneRebootHint": "Some of what was installed only takes effect after a restart.",
+            "failed": "The update failed",
+            "failedHint": "Try again. If it fails again, the detail is in the box's logs.",
+            "failedReason": "Reason: {error}",
+            "versions": "{from} → {to}",
+            "progress": "Update progress"
+        },
+        "actions": {
+            "title": "Box",
+            "password": "Admin password",
+            "passwordHint": "Change the password that protects this page.",
+            "change": "Change",
+            "reboot": "Restart the box",
+            "rebootHint": "Takes about a minute. Your lights and shutters keep their state.",
+            "rebootConfirmTitle": "Restart the box?",
+            "rebootConfirmHint": "The app reconnects on its own once the box is back.",
+            "rebootConfirm": "Restart",
+            "mcp": "MCP token",
+            "mcpHint": "The token AI assistants use to talk to the box. Regenerating it disconnects the ones already set up.",
+            "regenerate": "Regenerate",
+            "mcpConfirmTitle": "Regenerate the MCP token?",
+            "mcpConfirmHint": "Assistants using the current token lose access until they are set up again with the new one.",
+            "mcpConfirm": "Regenerate"
+        },
+        "info": {
+            "password_set": "Admin password set.",
+            "password_changed": "Admin password changed.",
+            "session_invalidated": "The admin password was just changed. Enter the new one.",
+            "already_set": "Someone just set the admin password. Enter it to continue.",
+            "mcp_regenerated": "New MCP token generated. Read it from the Calaos installer.",
+            "reboot_sent": "Restarting the box… the app reconnects on its own.",
+            "restart_sent": "Restarting…"
+        },
+        "error": {
+            "admin_not_set": "No admin password is set yet.",
+            "admin_already_set": "Someone just set the admin password.",
+            "bad_password": "Wrong admin password.",
+            "rate_limited": "Too many attempts. Try again in {seconds} s.",
+            "household_password_required": "Change your sign-in password first.",
+            "bad_session": "Your admin session has ended. Enter the admin password again.",
+            "password_too_short": "The password must have at least {min} characters.",
+            "https_required": "Use https:// to administer the box.",
+            "daemon_too_old": "Administration is being activated. Try again in a moment.",
+            "daemon_unreachable": "The box is not answering. Try again in a moment.",
+            "admin_unavailable": "Administration unavailable: calaos-container cannot be reached (only on Calaos OS).",
+            "upgrade_in_progress": "An update is already in progress.",
+            "not_allowed": "This action is not allowed. {msg}",
+            "invalid_request": "The box refused the request. {msg}",
+            "package_not_found": "This package has no update waiting. {msg}",
+            "internal": "Something went wrong on the box. Try again; the detail is in the box's logs.",
+            "timeout": "The box did not answer. calaos-server may be too old: update the box over SSH.",
+            "disconnected": "Connection lost before the box answered. Try again once it is back.",
+            "unknown": "Unexpected answer from the box. {msg}"
+        },
+        "dismiss": "OK"
     }
 }

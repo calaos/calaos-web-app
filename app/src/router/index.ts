@@ -99,6 +99,15 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 component: CameraView,
                 meta: { requiresAuth: true, detail: true },
             },
+            {
+                // Lazy, unlike the house routes: the Admin tab is visited
+                // for an update every few weeks, so its chunk costs the
+                // busy routes nothing.
+                path: '/admin',
+                name: 'admin',
+                component: () => import('../views/AdminView.vue'),
+                meta: { requiresAuth: true },
+            },
             // Unknown hash → home, where the auth guard takes over.
             { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
         ],

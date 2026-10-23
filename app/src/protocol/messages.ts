@@ -161,6 +161,32 @@ export function decodeServerMessage(raw: unknown): ServerMessage {
             };
         }
 
+        case 'admin_unlock':
+        case 'admin_set':
+        case 'admin':
+            return { kind: 'admin_reply', msg: obj.msg, msgId: toWireString(obj.msg_id), data: obj.data };
+
+        case 'admin_event': {
+            const data = isRecord(obj.data) ? obj.data : {};
+            return {
+                kind: 'admin_event',
+                type: toWireString(data.type),
+                ts: toWireString(data.ts),
+                data: data.data,
+            };
+        }
+
+        case 'settings': {
+            const data = isRecord(obj.data) ? obj.data : {};
+            // `change_cred` is the only settings action; any other value gets
+            // no reply from the server, so there is nothing else to decode.
+            if (data.action !== 'change_cred') {
+                console.warn('calaos protocol: unknown settings answer:', obj);
+                return { kind: 'unknown', raw: obj };
+            }
+            return { kind: 'change_cred', success: data.success === 'true' };
+        }
+
         default:
             console.warn('calaos protocol: unknown message:', obj);
             return { kind: 'unknown', raw: obj };

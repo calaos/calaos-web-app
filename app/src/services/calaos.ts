@@ -19,6 +19,7 @@
 import { CalaosSocket } from '../protocol/socket';
 import { wsUrl } from '../protocol/server-url';
 import { encodeGetHome } from '../protocol/messages';
+import { useAdminStore } from '../stores/admin';
 import { useAudioStore } from '../stores/audio';
 import { useAuthStore } from '../stores/auth';
 import { useConnectionStore } from '../stores/connection';
@@ -52,11 +53,17 @@ export function createCalaosService(
     const auth = useAuthStore();
     const home = useHomeStore();
     const audio = useAudioStore();
+    const admin = useAdminStore();
 
     const sendFrame = (frame: string): boolean => socket.send(frame);
     auth.attachTransport(sendFrame);
     home.attachTransport(sendFrame);
     audio.attachTransport(sendFrame);
+    admin.attachTransport(sendFrame);
+    admin.attachHousehold({
+        credentials: () => ({ user: auth.user, pass: auth.pass }),
+        rotate: (user, pass) => auth.rotateCredentials(user, pass),
+    });
     // The home store owns the event dispatch table; the audio state it would
     // otherwise have to carry lives in its own store, so the three audio
     // event types are routed across here rather than by a store-to-store
@@ -65,6 +72,9 @@ export function createCalaosService(
 
     const onStatusChange = (info: SocketStatusInfo): void => {
         connection.applyStatus(info);
+        // An admin reply still awaited on a dead socket would otherwise be
+        // reported as "server too old" when its 5 s timer fires.
+        if (info.status !== 'open') admin.handleTransportLost();
     };
 
     // Fires for the first connect AND for every reconnect. resumeSession()
@@ -80,7 +90,24 @@ export function createCalaosService(
                 auth.handleLoginResult(msg.success);
                 // Old parseMessage did exactly this: authenticate, then ask
                 // for the whole house.
-                if (msg.success) socket.send(encodeGetHome());
+                if (msg.success) {
+                    socket.send(encodeGetHome());
+                    // After the house: the admin session is kept across a
+                    // reconnect and `update_status` resumes an upgrade.
+                    admin.handleLoggedIn();
+                }
+                break;
+
+            case 'admin_reply':
+                admin.handleReply(msg);
+                break;
+
+            case 'admin_event':
+                admin.handleEvent(msg);
+                break;
+
+            case 'change_cred':
+                admin.handleChangeCredResult(msg);
                 break;
 
             case 'get_home':

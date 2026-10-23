@@ -24,6 +24,7 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { encodeLogin } from '../protocol/messages';
+import { useAdminStore } from './admin';
 import { useAudioStore } from './audio';
 import { useHomeStore } from './home';
 
@@ -60,6 +61,9 @@ export const useAuthStore = defineStore('auth', () => {
         return false;
     };
     let interactive = false;
+    // A re-login with NEW credentials on a live session (after change_cred):
+    // the one case where a login answer must be read while already 'authed'.
+    let rotating = false;
 
     const isAuthed = computed(() => state.value === 'authed');
     const isPending = computed(() => state.value === 'pending');
@@ -109,8 +113,30 @@ export const useAuthStore = defineStore('auth', () => {
         return sendLogin();
     }
 
+    /**
+     * The household password was just changed through `settings` /
+     * `change_cred`: the server dropped its `loggedin` flag but the socket
+     * is still open, so the new credentials go out on it at once. The state
+     * stays 'authed' — the chrome must not blink — and a refusal is handled
+     * like a refused re-login (the router sends the user to /login).
+     */
+    function rotateCredentials(nextUser: string, nextPass: string): boolean {
+        user.value = nextUser;
+        pass.value = nextPass;
+        rotating = true;
+        return sendLogin();
+    }
+
     /** Called by services/calaos.ts for every decoded login answer. */
     function handleLoginResult(success: boolean): void {
+        if (rotating) {
+            rotating = false;
+            if (!success) {
+                state.value = 'failed';
+                interactive = false;
+            }
+            return;
+        }
         if (state.value === 'authed') {
             // Old code ignored login frames while already authenticated
             // (`obj.msg == 'login' && !auth`); a stray failure must not log
@@ -160,10 +186,13 @@ export const useAuthStore = defineStore('auth', () => {
         // listening to is not the next account's business, and a cover reply
         // still in flight must not attach artwork to a new session's player.
         useAudioStore().clear();
+        // The admin session belongs to the account that unlocked it.
+        useAdminStore().reset();
         user.value = '';
         pass.value = '';
         state.value = 'idle';
         interactive = false;
+        rotating = false;
         pendingNavigation.value = 'login';
     }
 
@@ -179,6 +208,7 @@ export const useAuthStore = defineStore('auth', () => {
         attachTransport,
         signIn,
         resumeSession,
+        rotateCredentials,
         handleLoginResult,
         notifyHomeLoaded,
         consumeNavigation,
