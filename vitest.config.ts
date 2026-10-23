@@ -12,6 +12,6 @@ export default defineConfig({
         // mock-server/ is plain Node ESM (.mjs, see eslint.config.mjs); its
         // suite opts into the node environment with a @vitest-environment
         // docblock.
-        include: ['app/**/*.{test,spec}.ts', 'mock-server/*.test.{js,mjs}'],
+        include: ['app/**/*.{test,spec}.ts', 'mock-server/*.test.{js,mjs}', 'dev-proxy-origin.test.ts'],
     },
 });

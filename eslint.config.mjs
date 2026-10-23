@@ -24,7 +24,7 @@ const tsRecommended = tseslint.configs.recommended.map((config) => ({
 // Node-side TypeScript: the Playwright rig (T08) and the root Vite/Vitest
 // config files.
 const E2E_FILES = ['playwright.config.ts', 'e2e/**/*.ts'];
-const ROOT_CONFIG_FILES = ['vite.config.ts', 'vitest.config.ts'];
+const ROOT_CONFIG_FILES = ['vite.config.ts', 'vitest.config.ts', 'dev-proxy-origin*.ts'];
 
 const tsRecommendedNode = tseslint.configs.recommended.map((config) => ({
     ...config,

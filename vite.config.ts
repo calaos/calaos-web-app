@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import Icons from 'unplugin-icons/vite';
+import { stripDevServerOrigin } from './dev-proxy-origin';
 
 // Non-VITE env var, deliberately not exposed to the client bundle: the app
 // always talks to same-origin /api and Vite's dev/preview server proxies it
@@ -28,6 +29,12 @@ export default defineConfig(({ mode }) => {
         target: env.CALAOS_SERVER || DEFAULT_CALAOS_SERVER,
         changeOrigin: true,
         ws: true,
+        // Stripped rather than rewritten to the target: a target named by
+        // hostname (localhost, .local) is not on calaos_server's Origin list.
+        configure: (proxy) => {
+            proxy.on('proxyReq', stripDevServerOrigin);
+            proxy.on('proxyReqWs', stripDevServerOrigin);
+        },
     };
 
     return {
