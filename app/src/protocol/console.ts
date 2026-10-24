@@ -112,9 +112,9 @@ export function parseConsoleText(raw: string): ConsoleFrame {
 }
 
 /**
- * Why a console ended, for the user. The server closes with 1001 for the
- * hour, the idle delay, a password change, five wrong codes and a shutdown
- * alike, so the first two are told apart by the clock.
+ * Why a console ended, for the user. The server names the reason in the close
+ * frame; an older one sends none and closes 1001 for every deadline alike,
+ * so the hour and the idle delay are then told apart by the clock.
  */
 export type ConsoleEnd =
     | { kind: 'refused'; error: AdminError }
@@ -124,6 +124,13 @@ export type ConsoleEnd =
     | { kind: 'expired' }
     | { kind: 'idle' }
     | { kind: 'server' }
+    | { kind: 'closed' }
+    | { kind: 'not_connected' }
+    | { kind: 'shutdown' }
+    /** The admin password changed or was reset, or five codes were wrong: the admin session is gone. */
+    | { kind: 'admin_set' }
+    | { kind: 'admin_reset' }
+    | { kind: 'bad_code' }
     | { kind: 'too_big' }
     | { kind: 'lost' }
     /** Closed from this page. */
@@ -131,8 +138,33 @@ export type ConsoleEnd =
     /** The xterm.js chunk did not load. */
     | { kind: 'load_failed' };
 
+/** The close reasons of calaos_server that stand for a whole end. */
+const REASON_KINDS = [
+    'closed',
+    'exited',
+    'expired',
+    'idle',
+    'not_connected',
+    'shutdown',
+    'admin_set',
+    'admin_reset',
+    'bad_code',
+] as const;
+type ReasonKind = (typeof REASON_KINDS)[number];
+
+function isReasonKind(reason: string): reason is ReasonKind {
+    return (REASON_KINDS as readonly string[]).includes(reason);
+}
+
+/** The end kinds after which the admin session no longer exists. */
+export function endsAdminSession(end: ConsoleEnd): boolean {
+    return end.kind === 'admin_set' || end.kind === 'admin_reset' || end.kind === 'bad_code';
+}
+
 export interface CloseContext {
     code: number;
+    /** The close frame's reason text; empty from an older server. */
+    reason?: string;
     /** `ready` was received. */
     ready: boolean;
     /** The server's error message before the close, if any. */
@@ -150,6 +182,8 @@ const DEADLINE_SLACK_S = 5;
 
 export function classifyClose(ctx: CloseContext): ConsoleEnd {
     if (ctx.error !== null) return { kind: 'refused', error: ctx.error };
+    const reason = ctx.reason ?? '';
+    if (isReasonKind(reason)) return { kind: reason };
     if (!ctx.ready) return ctx.code === 1006 ? { kind: 'handshake' } : { kind: 'lost' };
     switch (ctx.code) {
         case 1000:
@@ -203,7 +237,7 @@ export class ConsoleConnection {
         ws.onmessage = (event: MessageEvent) => this.receive(event.data);
         ws.onclose = (event: CloseEvent) => {
             pending = null;
-            this.finish(event.code);
+            this.finish(event.code, event.reason);
         };
         this.ws = ws;
     }
@@ -229,7 +263,7 @@ export class ConsoleConnection {
         if (data instanceof ArrayBuffer) this.handlers.onOutput(new Uint8Array(data));
     }
 
-    private finish(code: number): void {
+    private finish(code: number, reason: string | undefined): void {
         if (this.ended) return;
         this.ended = true;
         this.ws = null;
@@ -237,6 +271,7 @@ export class ConsoleConnection {
         this.handlers.onEnd(
             classifyClose({
                 code,
+                reason,
                 ready: this.ready !== null,
                 error: this.error,
                 openFor: (now - this.readyAt) / 1000,

@@ -3,7 +3,7 @@
 // browser types comes back as output, Enter starts a new prompt line.
 //
 // Driven from `/control {op:'console', ...}`: `close` ends every open console
-// with that close code, `expiresIn` / `idleTimeout` change what `ready`
+// with that close code (and `reason`, a close reason token, default "console closed"), `expiresIn` / `idleTimeout` change what `ready`
 // announces, `maxConsoles` the limit, `refuseUpgrade` answers 403 to the upgrade,
 // `refuseWith` refuses the next open message with that error.
 
@@ -171,7 +171,8 @@ export function createConsole({ hub, log }) {
         if (patch.refuseWith !== undefined) state.refuseWith = patch.refuseWith;
         if (patch.close !== undefined) {
             const code = Number(patch.close);
-            for (const ws of open) ws.close(code, 'console closed');
+            const reason = typeof patch.reason === 'string' ? patch.reason : 'console closed';
+            for (const ws of open) ws.close(code, reason);
         }
         return { ok: true, ...status() };
     }

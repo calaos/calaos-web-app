@@ -99,6 +99,8 @@ export interface AdminPatch {
 export interface ConsolePatch {
     /** Ends every open console with this close code. */
     close?: number;
+    /** The close frame's reason text (default: an unknown one). */
+    reason?: string;
     expiresIn?: number;
     idleTimeout?: number;
     maxConsoles?: number;
