@@ -86,6 +86,7 @@ test('a fresh box: household password first, then the admin password, then unloc
         'admin_set',
         'admin_unlock',
         'admin', // update_status after unlock
+        'admin', // approver_list
     ]);
 });
 
@@ -346,7 +347,7 @@ test.describe('other blocked states', () => {
     });
 });
 
-test('the box actions: restart asks first, the MCP token too, and the password can change', async ({
+test('the box actions: restart asks first, the MCP token too, and the password needs an approver', async ({
     page,
     mock,
 }) => {
@@ -364,15 +365,17 @@ test('the box actions: restart asks first, the MCP token too, and the password c
     await expect(admin.info).toContainText(MESSAGES.admin.info.mcp_regenerated);
     expect((await mock.adminStatus()).mcpRegenerations).toBe(1);
 
+    // No approver phone: said up front, before any typing, with the way to add
+    // one (the change with a code is e2e/approvers.spec.ts).
+    await expect(page.locator('.actions')).toContainText(MESSAGES.admin.actions.passwordNeedsApprover);
     await page.getByRole('button', { name: MESSAGES.admin.actions.change }).click();
     const change = page.getByRole('dialog');
-    await change.locator('input[type="password"]').first().fill('another long password');
-    await change.locator('input[type="password"]').nth(1).fill('another long password');
-    await change.locator('.admin-password__submit').click();
-    await expect(admin.info).toContainText(MESSAGES.admin.info.password_changed);
+    await expect(change).toContainText(MESSAGES.admin.actions.passwordNeedsApprover);
+    await expect(change.locator('input[type="password"]')).toHaveCount(0);
+    await change.getByRole('button', { name: MESSAGES.admin.approvers.add }).click();
+    await expect(page.getByRole('dialog')).toContainText(MESSAGES.admin.approvers.pick.hint);
+    await page.getByRole('dialog').getByRole('button', { name: MESSAGES.dialog.cancel }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    // Still unlocked, on a fresh session made with the new password.
-    await expect(admin.updates).toBeVisible();
     expect(await mock.adminStatus()).toMatchObject({ sessions: 1 });
 
     await page.getByRole('button', { name: MESSAGES.admin.actions.rebootConfirm }).first().click();

@@ -29,6 +29,8 @@
     --c-accent-glow: rgba(56, 176, 211, 0.45);
 
     --c-danger: #e05656;
+    /* Small error text on a dialog surface: #e05656 is under 4.5:1 there. */
+    --c-danger-text: #f07070;
     --c-success: #4caf7d;
     /* Degraded-but-recovering (connection banner) — deliberately NOT the
        accent: cyan means "working" everywhere else in this app. */

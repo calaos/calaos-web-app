@@ -57,6 +57,8 @@ const FakeCtor = FakeWebSocket as unknown as typeof WebSocket;
 const LOGIN_OK = '{"msg":"login","data":{"success":"true"}}';
 const LOGIN_KO = '{"msg":"login","data":{"success":"false"}}';
 const GET_HOME_FRAME = '{"msg":"get_home"}';
+// Sent after every login: the approver alerts of the sign-in banner.
+const ALERTS_FRAME = '{"msg":"eventlog","msg_id":"admin_alerts:1:0","data":{"page":"0","per_page":"100"}}';
 const LOGIN_FRAME = '{"msg":"login","data":{"cn_user":"demo","cn_pass":"demo"}}';
 
 const HOME_FRAME = JSON.stringify({
@@ -160,7 +162,7 @@ describe('sign-in flow', () => {
 
         FakeWebSocket.last.fireMessage(LOGIN_OK);
         expect(auth.state).toBe('authed');
-        expect(sent()).toEqual([LOGIN_FRAME, GET_HOME_FRAME]);
+        expect(sent()).toEqual([LOGIN_FRAME, GET_HOME_FRAME, ALERTS_FRAME]);
         expect(auth.pendingNavigation).toBeNull();
 
         FakeWebSocket.last.fireMessage(HOME_FRAME);
@@ -433,6 +435,7 @@ describe('audio detail follow-up', () => {
         expect(sent()).toEqual([
             LOGIN_FRAME,
             GET_HOME_FRAME,
+            ALERTS_FRAME,
             '{"msg":"get_state","data":{"items":["audio_1","audio_2"]}}',
         ]);
     });

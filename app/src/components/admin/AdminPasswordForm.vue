@@ -158,7 +158,7 @@ watch([password, confirm], () => {
 .admin-password__error {
     min-block-size: 2.25rem;
     padding-block-start: var(--space-3);
-    color: var(--c-danger);
+    color: var(--c-danger-text);
     font-size: 0.8125rem;
     line-height: 1.35;
 }
