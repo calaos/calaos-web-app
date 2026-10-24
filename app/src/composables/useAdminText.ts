@@ -17,6 +17,8 @@ export function useAdminText(): { errorText: (error: AdminError) => string } {
                 return t('admin.error.password_too_short', {
                     min: error.minLength ?? ADMIN_PASSWORD_MIN_LENGTH,
                 });
+            case 'console_limit':
+                return t('admin.error.console_limit', { max: error.max ?? 2 });
             case 'not_allowed':
             case 'invalid_request':
             case 'package_not_found':

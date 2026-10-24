@@ -9,8 +9,13 @@
 // `upgradeMs`, publishing `upgrade_progress` events; `dropAtPercent` kills
 // every socket once on the way (calaos-server restarting itself) and
 // `failAtPercent` ends the run in error. Driven from `/control {op:'admin'}`.
+//
+// Approvers and push codes follow calaos-container docs/API.md ("Approvers",
+// "Push codes"): a code "pushed" to a phone is recorded in `pushed`, which
+// is how a test reads what the phone received. The approver alerts land in
+// the event log (`eventlog`) the way calaos_server stores them.
 
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 export const ADMIN_SCENARIOS = [
     'unavailable',
@@ -30,9 +35,31 @@ const ACTIONS = [
     'system_restart',
     'system_info',
     'mcp_regenerate',
+    'approver_list',
+    'approver_candidates',
+    'approver_enroll',
+    'approver_confirm',
+    'approver_remove',
+    'code_request',
+    'code_verify',
+    'console_open',
 ];
 
+const CODE_ACTIONS = ['console_open', 'admin_password', 'approver_enroll', 'approver_remove'];
+const APPROVER_MAX = 2;
+const CODE_FAILURES_MAX = 5;
+const HEX16 = /^[0-9a-f]{16}$/;
+const SIX_DIGITS = /^[0-9]{6}$/;
+/** calaos_server's `CalaosEvent::EventPushNotification`. */
+const PUSH_NOTIFICATION_EVENT = '22';
+const ALERT_PREFIXES = {
+    approver_set: 'New approver phone on your Calaos box: ',
+    approver_removed: 'Approver phone removed from your Calaos box: ',
+};
+
 const SESSION_SECONDS = 900;
+/** A verified `console_open` code opens one console within this delay. */
+const CONSOLE_GRANT_MS = 30_000;
 const MIN_PASSWORD_LENGTH = 10;
 /** Daemon limiter: about 5 failures per minute. */
 const RATE_LIMIT_FAILURES = 5;
@@ -108,6 +135,29 @@ function failure(error, msg, extra = {}) {
     return { success: 'false', error, msg, ...extra };
 }
 
+function hex16() {
+    return randomBytes(8).toString('hex');
+}
+
+/** SQLite's CURRENT_TIMESTAMP: UTC, second precision, a space for the T. */
+function sqliteTime(ms) {
+    return new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function iso(ms) {
+    return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
+/** Two iPhones of the same name (iOS 16+) and an Android phone. */
+function defaultPushTokens(now) {
+    const day = 86_400_000;
+    return [
+        { token_id: '0c1d2e3f4a5b6c7d', device_name: 'Pixel 8', platform: 'android', registered_at: iso(now - 90 * day), last_seen: iso(now - 10 * 60_000) },
+        { token_id: 'a1b2c3d4e5f60718', device_name: 'iPhone', platform: 'ios', registered_at: iso(now - 200 * day), last_seen: iso(now - 2 * 3_600_000) },
+        { token_id: '9f8e7d6c5b4a3921', device_name: 'iPhone', platform: 'ios', registered_at: iso(now - 30 * day), last_seen: iso(now - 3 * day) },
+    ];
+}
+
 export function createAdmin({ hub, send, broadcast, withMsgId }) {
     let state;
     let timer = null;
@@ -136,6 +186,22 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             reboots: 0,
             restarts: 0,
             mcpRegenerations: 0,
+            pushTokens: defaultPushTokens(Date.now()),
+            /** <Approver>, oldest first. */
+            approvers: [],
+            /** code_id → {session, action, params, code, approverId, expiresAt, enrol}. */
+            codes: new Map(),
+            /** session → {failures, lastCodeAt, pending}. */
+            codeSessions: new Map(),
+            codeTtlMs: 60_000,
+            codeIntervalMs: 10_000,
+            /** Every code a phone received, in order. */
+            pushed: [],
+            /** code_id → {session, expiresAt}: verified console codes not yet used. */
+            consoleGrants: new Map(),
+            /** The event log's persistent events, oldest first. */
+            events: [],
+            eventlogReads: 0,
         };
     }
     reset();
@@ -304,6 +370,273 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         return state.job !== null && state.job.status === 'running';
     }
 
+    // ---------------------------------------------------------- approvers ---
+
+    function tokenEntry(tokenId) {
+        return state.pushTokens.find((entry) => entry.token_id === tokenId);
+    }
+
+    function approverList() {
+        return state.approvers.map((approver) => {
+            const entry = tokenEntry(approver.token_id);
+            return {
+                ...approver,
+                platform: entry?.platform ?? '',
+                registered_at: entry?.registered_at ?? '',
+                last_seen: entry?.last_seen ?? '',
+            };
+        });
+    }
+
+    function candidates() {
+        return [...state.pushTokens]
+            .sort((a, b) => b.last_seen.localeCompare(a.last_seen))
+            .map((entry) => ({
+                ...entry,
+                approver: state.approvers.some((approver) => approver.token_id === entry.token_id),
+            }));
+    }
+
+    function codeSession(session) {
+        let meta = state.codeSessions.get(session);
+        if (meta === undefined) {
+            meta = { failures: 0, lastCodeAt: -Infinity, pending: null };
+            state.codeSessions.set(session, meta);
+        }
+        return meta;
+    }
+
+    /** calaos_server's own checks: both fields or neither, well formed. */
+    function proofFormatError(fields, required) {
+        const hasId = fields.code_id !== undefined;
+        const hasCode = fields.code !== undefined;
+        if (!required && !hasId && !hasCode) return null;
+        if (hasId !== hasCode || !HEX16.test(String(fields.code_id)) || !SIX_DIGITS.test(String(fields.code))) {
+            return failure('invalid_request', 'code_id and code must go together, well formed');
+        }
+        return null;
+    }
+
+    function rateLimit(session) {
+        const elapsed = Date.now() - codeSession(session).lastCodeAt;
+        if (elapsed >= state.codeIntervalMs) return null;
+        const retryAfter = Math.ceil((state.codeIntervalMs - elapsed) / 1000);
+        return failure('rate_limited', 'Too many codes', { retry_after: String(retryAfter) });
+    }
+
+    /** One pending code per session: a new one replaces it. Then the push. */
+    function issueCode(session, action, params, approverId, tokenId, enrol) {
+        const meta = codeSession(session);
+        const now = Date.now();
+        if (meta.pending !== null) state.codes.delete(meta.pending);
+        const codeId = hex16();
+        const code = String(randomBytes(4).readUInt32BE(0) % 1_000_000).padStart(6, '0');
+        state.codes.set(codeId, {
+            session,
+            action,
+            params: JSON.stringify(params),
+            code,
+            approverId,
+            expiresAt: now + state.codeTtlMs,
+            enrol,
+        });
+        meta.pending = codeId;
+        meta.lastCodeAt = now;
+        // calaos_server pushes only to a token it still knows (purged after 30 days).
+        if (tokenEntry(tokenId) !== undefined) {
+            state.pushed.push({ code_id: codeId, code, action, approver_id: approverId, token_id: tokenId });
+        }
+        return { codeId, expiresIn: Math.round(state.codeTtlMs / 1000) };
+    }
+
+    /** Checks and spends a code; null when it is good. 5 wrong codes end the session. */
+    function useCode(session, fields, action, params) {
+        const entry = state.codes.get(fields.code_id);
+        if (entry === undefined || entry.session !== session || entry.expiresAt < Date.now()) {
+            return failure('code_expired', 'Code expired or unknown');
+        }
+        if (entry.action !== action || entry.params !== JSON.stringify(params) || entry.code !== fields.code) {
+            const meta = codeSession(session);
+            meta.failures += 1;
+            const left = Math.max(0, CODE_FAILURES_MAX - meta.failures);
+            if (left === 0) {
+                state.sessions.delete(session);
+                for (const [id, code] of state.codes) if (code.session === session) state.codes.delete(id);
+            }
+            return failure('bad_code', 'Wrong code', { attempts_left: String(left) });
+        }
+        state.codes.delete(fields.code_id);
+        codeSession(session).pending = null;
+        return null;
+    }
+
+    function codeRequest(session, params) {
+        const action = params.code_action;
+        if (!CODE_ACTIONS.includes(action)) return failure('invalid_request', 'unknown code action');
+        const raw = typeof params.code_params === 'object' && params.code_params !== null ? params.code_params : {};
+        let bound = {};
+        if (action === 'admin_password') {
+            if (typeof raw.password !== 'string' || raw.password === '') return failure('invalid_request', 'password missing');
+            bound = { password: raw.password };
+        } else if (action === 'approver_remove') {
+            if (!HEX16.test(String(raw.approver_id))) return failure('invalid_request', 'approver_id missing');
+            bound = { approver_id: raw.approver_id };
+        }
+        if (params.approver_id !== undefined && !HEX16.test(String(params.approver_id))) {
+            return failure('invalid_request', 'invalid approver_id');
+        }
+        if (state.approvers.length === 0) return failure('approver_required', 'No approver phone enrolled');
+        const target = params.approver_id === undefined
+            ? state.approvers[0]
+            : state.approvers.find((approver) => approver.id === params.approver_id);
+        if (target === undefined) return failure('approver_not_found', 'Unknown approver');
+        if (action === 'admin_password' && [...bound.password].length < MIN_PASSWORD_LENGTH) {
+            return failure('password_too_short', 'Password too short', { min_length: String(MIN_PASSWORD_LENGTH) });
+        }
+        if (action === 'approver_enroll' && state.approvers.length >= APPROVER_MAX) {
+            return failure('approver_limit', 'Two approvers at most', { max: String(APPROVER_MAX) });
+        }
+        if (action === 'approver_remove') {
+            if (!state.approvers.some((approver) => approver.id === bound.approver_id)) {
+                return failure('approver_not_found', 'Unknown approver');
+            }
+            if (state.approvers.length === 1) return failure('approver_last', 'The last approver cannot be removed');
+        }
+        const limited = rateLimit(session);
+        if (limited !== null) return limited;
+        const issued = issueCode(session, action, bound, target.id, target.token_id, null);
+        return {
+            success: 'true',
+            result: { code_id: issued.codeId, approver_id: target.id, expires_in: issued.expiresIn },
+        };
+    }
+
+    function approverEnroll(session, params) {
+        if (!HEX16.test(String(params.token_id))) return failure('invalid_request', 'invalid token_id');
+        const formatError = proofFormatError(params, false);
+        if (formatError !== null) return formatError;
+        const entry = tokenEntry(params.token_id);
+        if (entry === undefined) return failure('invalid_request', 'Unknown token_id');
+        if (state.approvers.length >= APPROVER_MAX) {
+            return failure('approver_limit', 'Two approvers at most', { max: String(APPROVER_MAX) });
+        }
+        if (state.approvers.some((approver) => approver.token_id === entry.token_id)) {
+            return failure('approver_exists', 'Already an approver');
+        }
+        const approved = params.code_id !== undefined;
+        // An approval code already paid the interval.
+        if (!approved) {
+            const limited = rateLimit(session);
+            if (limited !== null) return limited;
+        }
+        if (state.approvers.length > 0) {
+            if (!approved) return failure('code_required', 'An approval code is required');
+            const codeError = useCode(session, params, 'approver_enroll', {});
+            if (codeError !== null) return codeError;
+        }
+        const approverId = hex16();
+        const enrol = {
+            approverId,
+            tokenId: entry.token_id,
+            deviceName: entry.device_name,
+            withApprover: state.approvers.length > 0,
+        };
+        const issued = issueCode(session, 'enroll', {}, approverId, entry.token_id, enrol);
+        return {
+            success: 'true',
+            result: { approver_id: approverId, code_id: issued.codeId, expires_in: issued.expiresIn },
+        };
+    }
+
+    function approverConfirm(session, params) {
+        const formatError = proofFormatError(params, true);
+        if (formatError !== null) return formatError;
+        const enrol = state.codes.get(params.code_id)?.enrol ?? null;
+        const codeError = useCode(session, params, 'enroll', {});
+        if (codeError !== null) return codeError;
+        if (state.approvers.length >= APPROVER_MAX) {
+            return failure('approver_limit', 'Two approvers at most', { max: String(APPROVER_MAX) });
+        }
+        if (state.approvers.some((approver) => approver.token_id === enrol.tokenId)) {
+            return failure('approver_exists', 'Already an approver');
+        }
+        if (!enrol.withApprover && state.approvers.length > 0) {
+            return failure('code_required', 'An approver was enrolled meanwhile');
+        }
+        const approver = {
+            id: enrol.approverId,
+            device_name: enrol.deviceName,
+            token_id: enrol.tokenId,
+            created_at: iso(Date.now()),
+        };
+        state.approvers.push(approver);
+        raiseAlert('approver_set', approver.device_name);
+        return { success: 'true', result: approver };
+    }
+
+    function approverRemove(session, params) {
+        if (!HEX16.test(String(params.approver_id))) return failure('invalid_request', 'invalid approver_id');
+        const formatError = proofFormatError(params, true);
+        if (formatError !== null) return formatError;
+        const index = state.approvers.findIndex((approver) => approver.id === params.approver_id);
+        if (index < 0) return failure('approver_not_found', 'Unknown approver');
+        if (state.approvers.length === 1) return failure('approver_last', 'The last approver cannot be removed');
+        const codeError = useCode(session, params, 'approver_remove', { approver_id: params.approver_id });
+        if (codeError !== null) return codeError;
+        const [removed] = state.approvers.splice(index, 1);
+        for (const [id, code] of state.codes) if (code.approverId === removed.id) state.codes.delete(id);
+        raiseAlert('approver_removed', removed.device_name);
+        return { success: 'true', result: { approver_id: removed.id } };
+    }
+
+    /** What calaos_server does with a daemon alert: a persistent event, then `admin_event`. */
+    function raiseAlert(type, deviceName, at = Date.now()) {
+        const name = String(deviceName).replace(/["«»“”„‟″‶＂]/g, "'") || '?';
+        state.events.push({
+            id: randomUUID(),
+            event_type: PUSH_NOTIFICATION_EVENT,
+            io_id: '',
+            io_state: '',
+            pic_uid: '',
+            created_at: sqliteTime(at),
+            event_raw: { message: `${ALERT_PREFIXES[type]}"${name}"`, pic_uid: '' },
+        });
+        event(type);
+    }
+
+    /** IO history rows, as the log holds for every IO with `log_history`. */
+    function addNoise(count) {
+        for (let i = 0; i < count; i += 1) {
+            state.events.push({
+                id: randomUUID(),
+                event_type: '3',
+                io_id: 'light_1',
+                io_state: i % 2 === 0 ? 'true' : 'false',
+                pic_uid: '',
+                created_at: sqliteTime(Date.now()),
+                event_raw: { type: '3', type_str: 'io_changed', data: { id: 'light_1', state: i % 2 === 0 ? 'true' : 'false' } },
+            });
+        }
+    }
+
+    function handleEventLog(ws, frame) {
+        state.eventlogReads += 1;
+        const data = frame.data ?? {};
+        const perPage = data.per_page === undefined || data.per_page === '' ? 100 : Number(data.per_page);
+        const page = data.page === undefined || data.page === '' ? 0 : Number(data.page);
+        if (!Number.isInteger(perPage) || perPage <= 0) {
+            return reply(ws, 'eventlog', frame.msg_id, { error: 'per_page is out of range' });
+        }
+        const newest = [...state.events].reverse();
+        reply(ws, 'eventlog', frame.msg_id, {
+            total_page: Math.ceil(newest.length / perPage),
+            total_count: newest.length,
+            page,
+            per_page: perPage,
+            events: newest.slice(page * perPage, (page + 1) * perPage),
+        });
+    }
+
     // ----------------------------------------------------------- messages ---
 
     function handleUnlock(ws, frame) {
@@ -354,6 +687,21 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             if (!sessionValid(data.admin_session)) {
                 return reply(ws, 'admin_set', msgId, failure('bad_session', 'Admin session required'));
             }
+            const formatError = proofFormatError(data, false);
+            if (formatError !== null) return reply(ws, 'admin_set', msgId, formatError);
+            if (state.approvers.length === 0) {
+                return reply(ws, 'admin_set', msgId, failure('approver_required', 'No approver phone enrolled'));
+            }
+            if (data.code_id === undefined) {
+                return reply(ws, 'admin_set', msgId, failure('code_required', 'A push code is required'));
+            }
+            if ([...data.new_pass].length < MIN_PASSWORD_LENGTH) {
+                return reply(ws, 'admin_set', msgId, failure('password_too_short', 'Password too short', {
+                    min_length: String(MIN_PASSWORD_LENGTH),
+                }));
+            }
+            const codeError = useCode(data.admin_session, data, 'admin_password', { password: data.new_pass });
+            if (codeError !== null) return reply(ws, 'admin_set', msgId, codeError);
             mode = 'change';
         } else {
             if (state.set) {
@@ -411,8 +759,37 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         if (!sessionValid(data.admin_session)) {
             return respond(failure('bad_session', 'Admin session required'));
         }
+        const params = typeof data.params === 'object' && data.params !== null ? data.params : {};
 
         switch (action) {
+            case 'approver_list':
+                return ok(approverList());
+            case 'approver_candidates':
+                return ok(candidates());
+            case 'code_request':
+                return respond(codeRequest(data.admin_session, params));
+            case 'code_verify':
+            case 'console_open': {
+                const formatError = proofFormatError(params, true);
+                if (formatError !== null) return respond(formatError);
+                const entry = state.codes.get(params.code_id);
+                if (entry !== undefined && entry.action !== 'console_open') {
+                    return respond(failure('invalid_request', 'not a console code'));
+                }
+                const codeError = useCode(data.admin_session, params, 'console_open', {});
+                if (codeError !== null) return respond(codeError);
+                state.consoleGrants.set(params.code_id, {
+                    session: data.admin_session,
+                    expiresAt: Date.now() + CONSOLE_GRANT_MS,
+                });
+                return ok({ action: 'console_open', expires_in: CONSOLE_GRANT_MS / 1000 });
+            }
+            case 'approver_enroll':
+                return respond(approverEnroll(data.admin_session, params));
+            case 'approver_confirm':
+                return respond(approverConfirm(data.admin_session, params));
+            case 'approver_remove':
+                return respond(approverRemove(data.admin_session, params));
             case 'update_check':
             case 'update_available':
                 if (running()) {
@@ -503,6 +880,10 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 if (!ws.authed) return true;
                 handleSettings(ws, frame);
                 return true;
+            case 'eventlog':
+                if (!ws.authed) return true;
+                handleEventLog(ws, frame);
+                return true;
             default:
                 return false;
         }
@@ -542,6 +923,30 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         if (patch.failAtPercent !== undefined) state.failAtPercent = patch.failAtPercent;
         if (patch.rebootRequired !== undefined) state.rebootRequired = Boolean(patch.rebootRequired);
         if (patch.clearSessions) state.sessions.clear();
+        if (Array.isArray(patch.pushTokens)) state.pushTokens = structuredClone(patch.pushTokens);
+        if (Array.isArray(patch.approvers)) {
+            // A push token's token_id, or {token_id, device_name} for a phone
+            // whose token is gone; oldest first; seeded state, so no alert.
+            state.approvers = patch.approvers.map((entry, i) => {
+                const tokenId = typeof entry === 'string' ? entry : entry.token_id;
+                return {
+                    id: hex16(),
+                    device_name: entry.device_name ?? tokenEntry(tokenId)?.device_name ?? 'Phone',
+                    token_id: tokenId,
+                    created_at: iso(Date.now() - (patch.approvers.length - i) * 86_400_000),
+                };
+            });
+        }
+        if (Number.isInteger(patch.noiseEvents)) addNoise(patch.noiseEvents);
+        if (patch.codeTtlMs !== undefined) state.codeTtlMs = Number(patch.codeTtlMs);
+        if (patch.codeIntervalMs !== undefined) state.codeIntervalMs = Number(patch.codeIntervalMs);
+        if (patch.expireCodes) for (const code of state.codes.values()) code.expiresAt = 0;
+        if (Array.isArray(patch.alerts)) {
+            for (const alert of patch.alerts) {
+                if (!(alert.type in ALERT_PREFIXES)) return { ok: false, error: `unknown alert type '${alert.type}'` };
+                raiseAlert(alert.type, alert.device_name, alert.at === undefined ? Date.now() : Date.parse(alert.at));
+            }
+        }
         return { ok: true, ...status() };
     }
 
@@ -561,8 +966,29 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             dropAtPercent: state.dropAtPercent,
             failAtPercent: state.failAtPercent,
             rebootRequired: state.rebootRequired,
+            approvers: approverList(),
+            pushed: state.pushed,
+            events: state.events.length,
+            eventlogReads: state.eventlogReads,
         };
     }
 
-    return { reset, handleFrame, configure, status, event };
+    /**
+     * What `POST admin/console` decides for /api/console: null when a console
+     * may open, else the error the tunnel sends back. A grant serves once.
+     */
+    function takeConsoleGrant(session, codeId) {
+        const scenario = scenarioError();
+        if (scenario !== null && scenario.error !== 'https_required') return scenario;
+        if (!state.set) return failure('admin_not_set', 'No admin password', { api_allowed_hosts: state.apiAllowedHosts });
+        if (!sessionValid(session)) return failure('bad_session', 'Admin session required');
+        const grant = state.consoleGrants.get(codeId);
+        state.consoleGrants.delete(codeId);
+        if (grant === undefined || grant.session !== session || grant.expiresAt < Date.now()) {
+            return failure('code_expired', 'The push code expired, request a new one');
+        }
+        return null;
+    }
+
+    return { reset, handleFrame, configure, status, event, takeConsoleGrant };
 }

@@ -232,7 +232,8 @@
             "label": "New admin password",
             "confirm": "Repeat the password",
             "submit": "Change the password",
-            "hint": "At least {min} characters. You will stay unlocked with the new password."
+            "hint": "At least {min} characters. You will stay unlocked with the new password.",
+            "codeHint": "A code will then be sent to your approver phone."
         },
         "mismatch": "The two passwords differ.",
         "tooShort": "At least {min} characters.",
@@ -295,7 +296,12 @@
             "regenerate": "Regenerate",
             "mcpConfirmTitle": "Regenerate the MCP token?",
             "mcpConfirmHint": "Assistants using the current token lose access until they are set up again with the new one.",
-            "mcpConfirm": "Regenerate"
+            "mcpConfirm": "Regenerate",
+            "passwordNeedsApprover": "Add an approver phone first (section above). Without one, the admin password can only be changed over SSH with calaos-os admin set.",
+            "console": "Console",
+            "consoleHint": "A root shell on the box, in this browser. Opens with a code sent to your approver phone.",
+            "consoleNeedsApprover": "Add an approver phone first: the console opens with a code sent to it.",
+            "consoleOpen": "Open"
         },
         "info": {
             "password_set": "Admin password set.",
@@ -303,7 +309,8 @@
             "session_invalidated": "The admin password was just changed. Enter the new one.",
             "already_set": "Someone just set the admin password. Enter it to continue.",
             "mcp_regenerated": "New MCP token generated. Read it from the Calaos installer.",
-            "reboot_sent": "Restarting the box… the app reconnects on its own."
+            "reboot_sent": "Restarting the box… the app reconnects on its own.",
+            "code_locked": "Too many wrong codes. Enter the admin password again."
         },
         "error": {
             "admin_not_set": "No admin password is set yet.",
@@ -322,12 +329,149 @@
             "invalid_request": "The box refused the request. {msg}",
             "package_not_found": "This package has no update waiting. {msg}",
             "package_held": "This package is held on the box and won't be updated.",
+            "approver_required": "Add an approver phone first (the “Approver phones” section). Without one, the admin password can only be changed over SSH, with calaos-os admin set.",
+            "approver_limit": "Two approver phones at most.",
+            "approver_exists": "This phone is already an approver.",
+            "approver_not_found": "This phone is no longer an approver. The list was just updated.",
+            "approver_last": "Add another phone first: the last one cannot be removed.",
+            "code_required": "A code is needed. Ask for a new one.",
+            "bad_code": "Wrong code.",
+            "code_expired": "This code has expired. Ask for a new one.",
+            "busy": "Another operation is in progress. Try again in a moment.",
             "internal": "Something went wrong on the box. Try again; the detail is in the box's logs.",
             "timeout": "The box did not answer. calaos-server may be too old: update the box once with its usual update (the button on the touch screen, or calaos-os upgrade).",
             "disconnected": "Connection lost before the box answered. Try again once it is back.",
             "unknown": "Unexpected answer from the box. {msg}",
-            "household_refused": "Your sign-in password could not be changed. Sign out and back in, then try again."
+            "household_refused": "Your sign-in password could not be changed. Sign out and back in, then try again.",
+            "console_limit": "{max} consoles are already open on the box, the most it allows. Close one first.",
+            "login_failed": "The box refused your sign-in. Sign in again."
         },
-        "dismiss": "OK"
+        "approvers": {
+            "title": "Approver phones",
+            "intro": "A code sent to your phone confirms sensitive changes: the admin password and the approver phones.",
+            "none": "No approver phone yet",
+            "noneHint": "Add your phone to be able to change the admin password from the app. The Calaos app must be installed on it and connected to this box.",
+            "added": "Added on {date}",
+            "registered": "Connected to the box since {date}",
+            "lastSeen": "Last active {when}",
+            "gone": "No longer receives codes: open the Calaos app on this phone to reconnect it.",
+            "stale": "Open the Calaos app on this phone soon: after 30 days without a connection, it stops receiving codes.",
+            "reference": "Ref. {suffix}",
+            "add": "Add a phone",
+            "max": "Two phones at most. Remove one to add another.",
+            "remove": "Remove",
+            "removeTitle": "Remove “{name}”?",
+            "removeHint": "This phone will no longer receive admin codes. A confirmation code will be sent.",
+            "removeConfirm": "Send the code",
+            "loadFailed": "The list of phones could not be read.",
+            "retry": "Try again",
+            "enrolled": "Approver phone added.",
+            "removed": "Approver phone removed.",
+            "platform": {
+                "ios": "iPhone or iPad",
+                "android": "Android",
+                "desktop": "Computer",
+                "other": "Device"
+            },
+            "pick": {
+                "title": "Add a phone",
+                "hint": "These are the devices where the Calaos app is connected to this box. Several share the same name? Go by the date and the last activity.",
+                "loading": "Looking for phones…",
+                "empty": "No phone available. Install the Calaos app on your phone, connect it to this box and allow notifications, then try again.",
+                "already": "Already an approver",
+                "next": "Send a code to this phone",
+                "secondHint": "Your current approver phone first gets a code to allow the new one."
+            },
+            "last": {
+                "title": "The last phone cannot be removed",
+                "body": "There must always be at least one approver phone. To switch phones, add the new one first, then remove the old one.",
+                "lost": "Lost your phone? From a computer, connect to the box over SSH and run calaos-os admin reset, then choose a new admin password."
+            }
+        },
+        "code": {
+            "approve_enroll": {
+                "title": "Allow the new phone",
+                "hint": "Enter the code received on {phone}: it is the one that allows a new phone in."
+            },
+            "confirm_enroll": {
+                "title": "Confirm the new phone",
+                "hint": "A code was just sent to {phone}. Enter it to confirm you have the phone with you."
+            },
+            "remove": {
+                "title": "Confirm the removal",
+                "hint": "Enter the code received on {phone}."
+            },
+            "password": {
+                "title": "Confirm with your phone",
+                "hint": "Enter the code received on {phone} to change the admin password."
+            },
+            "phoneUnknown": "your approver phone",
+            "label": "6-digit code",
+            "expiresIn": "Expires in {seconds} s",
+            "expired": "This code has expired. Ask for a new one.",
+            "wrong": "Wrong code. No attempts left. | Wrong code. {count} attempt left. | Wrong code. {count} attempts left.",
+            "attempts": "{count} attempt left | {count} attempts left",
+            "resend": "Send a new code",
+            "resendIn": "Send a new code in {seconds} s",
+            "submit": "Confirm",
+            "checking": "Checking…",
+            "sending": "Sending the code…",
+            "notReceived": "Nothing received? Check that notifications are allowed for the Calaos app on that phone.",
+            "restartHint": "A new code means asking {phone} again.",
+            "sendToOther": "Send it to {phone} instead",
+            "console": {
+                "title": "Open the console",
+                "hint": "Enter the code received on {phone} to open a root shell on the box."
+            }
+        },
+        "alerts": {
+            "approver_set": "New approver phone: {name}",
+            "approver_removed": "Approver phone removed: {name}",
+            "when": "On {date}",
+            "hint": "If this was not you, someone knows the admin password. From a computer, over SSH: calaos-os admin reset, then choose a new admin password.",
+            "more": "And {count} other change. | And {count} other changes.",
+            "dismiss": "Got it",
+            "label": "Security alert",
+            "quoteOpen": "“",
+            "quoteClose": "”"
+        },
+        "dismiss": "OK",
+        "console": {
+            "title": "Console",
+            "sending": "Sending a code to your approver phone…",
+            "connecting": "Opening the console…",
+            "endsIn": "Closes in {minutes} min",
+            "endsInSeconds": "Closes in {seconds} s",
+            "idleSoon": "Nothing typed for a while: closes in {seconds} s",
+            "close": "Close the console",
+            "again": "Open a new console",
+            "back": "Back to admin",
+            "signIn": "Sign in again",
+            "refusedTitle": "The console did not open",
+            "closedTitle": "Console closed",
+            "noApprover": {
+                "title": "Add an approver phone first",
+                "hint": "The console opens only with a code sent to an approver phone. Add one in the “Approver phones” section."
+            },
+            "end": {
+                "codeExpired": "The code was used or is more than 30 s old. Ask for a new one.",
+                "https": "The console only opens over https://. Open this page over https:// and try again.",
+                "handshake": "The box refused the connection to the console.",
+                "exited": "The shell exited.",
+                "closed": "The console was closed.",
+                "not_connected": "The console lost its link to the box's console service.",
+                "shutdown": "The box is stopping, so the console was closed.",
+                "admin_set": "The admin password was changed, so the console was closed. Enter the new password to open another.",
+                "admin_reset": "The admin password was reset over SSH, so the console was closed. Enter the admin password to open another.",
+                "bad_code": "Five wrong codes were typed, so the console was closed. Enter the admin password to open another.",
+                "server": "The box ended the console: the admin password was changed or reset, too many wrong codes were typed, the box is stopping, or its side of the console was lost.",
+                "expired": "The console reached its {minutes} min limit.",
+                "idle": "The console closed after {minutes} min without typing.",
+                "too_big": "The console closed: what was pasted was too large.",
+                "lost": "Connection to the console lost.",
+                "user": "You closed the console.",
+                "load_failed": "The console could not be loaded. Check the connection, reload the page and try again."
+            }
+        }
     }
 }

@@ -34,6 +34,7 @@ import {
 import type {
     AdminAction,
     AdminError,
+    CodeProof,
     UpdateEntry,
     UpgradeJob,
     UpgradeStatus,
@@ -75,14 +76,15 @@ export type AdminInfo =
     | 'session_invalidated'
     | 'already_set'
     | 'mcp_regenerated'
-    | 'reboot_sent';
+    | 'reboot_sent'
+    | 'code_locked';
 
 export type AdminBusy = AdminAction | 'unlock' | 'set' | 'change_cred' | null;
 
 /** Which section of the unlocked page an inline error belongs to. */
 export type AdminNoticeSource = 'updates' | 'box' | 'gate';
 
-type Outcome = { ok: true; data: Record<string, unknown> } | { ok: false; error: AdminError };
+export type Outcome = { ok: true; data: Record<string, unknown> } | { ok: false; error: AdminError };
 
 interface PendingReply {
     resolve: (outcome: Outcome) => void;
@@ -597,20 +599,38 @@ export const useAdminStore = defineStore('admin', () => {
      * used to unlock straight away: one screen fewer for the user.
      */
     async function setPassword(newPass: string): Promise<boolean> {
-        if (busy.value !== null) return false;
+        const error = await submitSet(newPass, undefined);
+        if (error === null) return true;
+        if (error !== BUSY && !applyGateError(error)) setNotice(error, session.value === null ? 'gate' : 'box');
+        return false;
+    }
+
+    /**
+     * The change with the push code of an `admin_password` request. The
+     * error is the caller's to show (the code entry), except those that move
+     * the gate.
+     */
+    async function changePassword(newPass: string, proof: CodeProof): Promise<AdminError | null> {
+        const error = await submitSet(newPass, proof);
+        if (error !== null && error !== BUSY) applyGateError(error);
+        return error;
+    }
+
+    /** Another request holds the page: the press is dropped, nothing to show. */
+    const BUSY: AdminError = clientAdminError('busy');
+
+    async function submitSet(newPass: string, proof: CodeProof | undefined): Promise<AdminError | null> {
+        if (busy.value !== null) return BUSY;
         busy.value = 'set';
         notice.value = null;
         info.value = null;
         const wasBootstrap = session.value === null;
         const outcome = await request(
-            (id) => encodeAdminSet(newPass, session.value, id),
+            (id) => encodeAdminSet(newPass, session.value, id, proof),
             ADMIN_REPLY_TIMEOUT_MS,
         );
         busy.value = null;
-        if (!outcome.ok) {
-            if (!applyGateError(outcome.error)) setNotice(outcome.error, wasBootstrap ? 'gate' : 'box');
-            return false;
-        }
+        if (!outcome.ok) return outcome.error;
         // The matching `admin_set` event may land before or after the unlock
         // reply below: either way it is ours, not someone else's.
         ownSetPending = true;
@@ -624,7 +644,7 @@ export const useAdminStore = defineStore('admin', () => {
         gate.value = 'locked';
         const unlocked = await unlock(newPass);
         info.value = wasBootstrap ? 'password_set' : 'password_changed';
-        return unlocked;
+        return unlocked ? null : clientAdminError('disconnected');
     }
 
     /**
@@ -664,7 +684,7 @@ export const useAdminStore = defineStore('admin', () => {
     /** One relayed action with the session; errors land in `notice`. */
     async function run(
         action: AdminAction,
-        params?: Record<string, string>,
+        params?: Record<string, unknown>,
     ): Promise<Record<string, unknown> | null> {
         if (busy.value !== null) return null;
         busy.value = action;
@@ -690,6 +710,40 @@ export const useAdminStore = defineStore('admin', () => {
             return null;
         }
         return outcome.data;
+    }
+
+    /**
+     * One relayed action for another store (approvers): gate errors are
+     * applied here, every other error is returned for the caller to show.
+     * `hold` marks the page busy for the duration, as a button press does.
+     */
+    async function relay(
+        action: AdminAction,
+        params: Record<string, unknown> | undefined,
+        hold: boolean,
+    ): Promise<Outcome> {
+        if (hold) {
+            if (busy.value !== null) return { ok: false, error: BUSY };
+            busy.value = action;
+            info.value = null;
+        }
+        const outcome = await request(
+            (id) => encodeAdminAction(action, session.value, id, params),
+            ADMIN_REPLY_TIMEOUT_MS,
+        );
+        if (hold) busy.value = null;
+        if (!outcome.ok) applyGateError(outcome.error);
+        return outcome;
+    }
+
+    /** The fifth wrong code, or a refused console: ask for the password again. */
+    function dropSession(reason: AdminInfo | null): void {
+        forgetSession(reason);
+    }
+
+    /** For the console's open message, which signs in on its own socket. */
+    function householdCredentials(): { user: string; pass: string } {
+        return household.credentials();
     }
 
     async function checkUpdates(): Promise<void> {
@@ -890,7 +944,11 @@ export const useAdminStore = defineStore('admin', () => {
         probe,
         unlock,
         setPassword,
+        changePassword,
         changeHouseholdPassword,
+        relay,
+        dropSession,
+        householdCredentials,
         checkUpdates,
         upgradeAll,
         reboot,

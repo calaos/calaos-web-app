@@ -1306,6 +1306,19 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
         };
     }
 
+    /** `code_request`, then what the phone received: `{code_id, code}`. */
+    async function requestCode(ask, session, codeAction, codeParams = {}) {
+        const reply = await ask('admin', {
+            action: 'code_request',
+            admin_session: session,
+            params: { code_action: codeAction, code_params: codeParams },
+        });
+        expect(reply.success).toBe('true');
+        const pushed = (await control({ op: 'admin_status' })).body.pushed.at(-1);
+        expect(pushed.code_id).toBe(reply.result.code_id);
+        return { code_id: pushed.code_id, code: pushed.code };
+    }
+
     async function unlock(ask, password = 'correct horse battery') {
         await control({ op: 'admin', password });
         const reply = await ask('admin_unlock', { admin_pass: password });
@@ -1365,6 +1378,174 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
         expect((await login()).reply.data.success).toBe('true');
     });
 
+    describe('approvers and push codes', () => {
+        const PIXEL = '0c1d2e3f4a5b6c7d';
+        const IPHONE = 'a1b2c3d4e5f60718';
+
+        async function lastPushed() {
+            return (await control({ op: 'admin_status' })).body.pushed.at(-1);
+        }
+
+        async function relay(ask, session, action, params) {
+            return await ask('admin', { action, admin_session: session, params });
+        }
+
+        it('lists the phones without their tokens, two iPhones apart by dates', async () => {
+            const { ask } = await adminClient();
+            const session = await unlock(ask);
+            const reply = await relay(ask, session, 'approver_candidates');
+            expect(reply.result.map((c) => c.device_name)).toEqual(['Pixel 8', 'iPhone', 'iPhone']);
+            for (const candidate of reply.result) {
+                expect(Object.keys(candidate).sort()).toEqual(
+                    ['approver', 'device_name', 'last_seen', 'platform', 'registered_at', 'token_id'],
+                );
+                expect(candidate.approver).toBe(false);
+            }
+            expect((await relay(ask, session, 'approver_list')).result).toEqual([]);
+        });
+
+        it('first enrolment: a code to the new phone, confirmed, then an alert in the event log', async () => {
+            await control({ op: 'admin', codeIntervalMs: 0 });
+            const { client, ask } = await adminClient();
+            const session = await unlock(ask);
+
+            expect((await relay(ask, session, 'approver_enroll', { token_id: 'ffffffffffffffff' })).error).toBe(
+                'invalid_request',
+            );
+            const enrol = await relay(ask, session, 'approver_enroll', { token_id: PIXEL });
+            expect(enrol.success).toBe('true');
+            expect(enrol.result).toEqual({ approver_id: expect.stringMatching(/^[0-9a-f]{16}$/), code_id: expect.any(String), expires_in: 60 });
+            const pushed = await lastPushed();
+            expect(pushed).toMatchObject({ token_id: PIXEL, code_id: enrol.result.code_id });
+
+            const confirmed = await relay(ask, session, 'approver_confirm', { code_id: pushed.code_id, code: pushed.code });
+            expect(confirmed.result).toMatchObject({ id: enrol.result.approver_id, device_name: 'Pixel 8', token_id: PIXEL });
+            // Raised while the reply is built: already received by now.
+            expect(client.frames.find(isAdminEvent('approver_set'))?.data).toEqual({
+                type: 'approver_set',
+                ts: expect.any(String),
+            });
+
+            const list = await relay(ask, session, 'approver_list');
+            expect(list.result).toEqual([expect.objectContaining({ token_id: PIXEL, platform: 'android' })]);
+
+            client.send({ msg: 'eventlog', msg_id: 'e1', data: { page: '0', per_page: '50' } });
+            const log = (await client.waitFor(isReply('eventlog', 'e1'))).data;
+            expect(log.events).toEqual([
+                expect.objectContaining({
+                    event_type: '22',
+                    created_at: expect.stringMatching(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/),
+                    event_raw: { message: 'New approver phone on your Calaos box: "Pixel 8"', pic_uid: '' },
+                }),
+            ]);
+        });
+
+        it('second enrolment needs a code from the first phone', async () => {
+            await control({ op: 'admin', approvers: [PIXEL], codeIntervalMs: 0 });
+            const { ask } = await adminClient();
+            const session = await unlock(ask);
+
+            expect((await relay(ask, session, 'approver_enroll', { token_id: IPHONE })).error).toBe('code_required');
+            const request = await relay(ask, session, 'code_request', { code_action: 'approver_enroll', code_params: {} });
+            const approval = await lastPushed();
+            expect(approval).toMatchObject({ token_id: PIXEL, action: 'approver_enroll', code_id: request.result.code_id });
+
+            const enrol = await relay(ask, session, 'approver_enroll', { token_id: IPHONE, code_id: approval.code_id, code: approval.code });
+            expect(enrol.success).toBe('true');
+            const own = await lastPushed();
+            expect(own.token_id).toBe(IPHONE);
+            await relay(ask, session, 'approver_confirm', { code_id: own.code_id, code: own.code });
+            expect((await control({ op: 'admin_status' })).body.approvers.map((a) => a.token_id)).toEqual([PIXEL, IPHONE]);
+
+            // Two at most.
+            expect((await relay(ask, session, 'code_request', { code_action: 'approver_enroll' })).error).toBe('approver_limit');
+        });
+
+        it('the last approver cannot be removed; with two, a code removes one', async () => {
+            await control({ op: 'admin', approvers: [PIXEL], codeIntervalMs: 0 });
+            const { ask } = await adminClient();
+            const session = await unlock(ask);
+            const [only] = (await relay(ask, session, 'approver_list')).result;
+            expect(
+                (await relay(ask, session, 'code_request', { code_action: 'approver_remove', code_params: { approver_id: only.id } })).error,
+            ).toBe('approver_last');
+
+            await control({ op: 'admin', approvers: [PIXEL, IPHONE] });
+            const [first, second] = (await relay(ask, session, 'approver_list')).result;
+            const code = await requestCode(ask, session, 'approver_remove', { approver_id: second.id });
+            // A code bound to another phone's removal is a wrong code.
+            expect((await relay(ask, session, 'approver_remove', { approver_id: first.id, ...code })).error).toBe('bad_code');
+            const fresh = await requestCode(ask, session, 'approver_remove', { approver_id: second.id });
+            expect((await relay(ask, session, 'approver_remove', { approver_id: second.id, ...fresh })).result).toEqual({
+                approver_id: second.id,
+            });
+        });
+
+        it('wrong codes count down, an expired one says so, the fifth ends the session', async () => {
+            await control({ op: 'admin', approvers: [PIXEL], codeIntervalMs: 0 });
+            const { ask } = await adminClient();
+            const session = await unlock(ask);
+            const change = { new_pass: 'another long password', admin_session: session };
+            const code = await requestCode(ask, session, 'admin_password', { password: change.new_pass });
+            const wrong = code.code === '000000' ? '111111' : '000000';
+
+            const first = await ask('admin_set', { ...change, code_id: code.code_id, code: wrong });
+            expect(first).toMatchObject({ error: 'bad_code', attempts_left: '4' });
+
+            await control({ op: 'admin', expireCodes: true });
+            expect((await ask('admin_set', { ...change, ...code })).error).toBe('code_expired');
+
+            const again = await requestCode(ask, session, 'admin_password', { password: change.new_pass });
+            for (const left of ['3', '2', '1', '0']) {
+                expect((await ask('admin_set', { ...change, code_id: again.code_id, code: wrong })).attempts_left).toBe(left);
+            }
+            expect((await ask('admin_set', { ...change, ...again })).error).toBe('bad_session');
+        });
+
+        it('pushes nothing to a phone whose token is gone, and follows approver_id', async () => {
+            await control({
+                op: 'admin',
+                codeIntervalMs: 0,
+                approvers: [{ token_id: 'dddddddddddddddd', device_name: 'Old phone' }, PIXEL],
+            });
+            const { ask } = await adminClient();
+            const session = await unlock(ask);
+            const [dead, alive] = (await relay(ask, session, 'approver_list')).result;
+            expect(dead).toMatchObject({ device_name: 'Old phone', last_seen: '' });
+
+            // The default is the oldest approver: the code is made, but nobody receives it.
+            const password = { code_action: 'admin_password', code_params: { password: 'another long password' } };
+            expect((await relay(ask, session, 'code_request', password)).success).toBe('true');
+            expect((await control({ op: 'admin_status' })).body.pushed).toEqual([]);
+            await relay(ask, session, 'code_request', { ...password, approver_id: alive.id });
+            expect(await lastPushed()).toMatchObject({ token_id: PIXEL, approver_id: alive.id });
+        });
+
+        it('buries alerts under IO history on demand, newest first, by pages', async () => {
+            await control({ op: 'admin', alerts: [{ type: 'approver_set', device_name: 'Squatter' }] });
+            await control({ op: 'admin', noiseEvents: 120 });
+            const { client } = await adminClient();
+            client.send({ msg: 'eventlog', msg_id: 'p0', data: { page: '0', per_page: '100' } });
+            const first = (await client.waitFor(isReply('eventlog', 'p0'))).data;
+            expect(first).toMatchObject({ total_page: 2, total_count: 121 });
+            expect(first.events.every((e) => e.event_type === '3')).toBe(true);
+            expect(first.events[0].id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-/);
+            client.send({ msg: 'eventlog', msg_id: 'p1', data: { page: '1', per_page: '100' } });
+            const second = (await client.waitFor(isReply('eventlog', 'p1'))).data;
+            expect(second.events.at(-1).event_raw.message).toBe('New approver phone on your Calaos box: "Squatter"');
+            expect((await control({ op: 'admin_status' })).body.eventlogReads).toBe(2);
+        });
+
+        it('keeps 10 s between two codes of a session', async () => {
+            await control({ op: 'admin', approvers: [PIXEL] });
+            const { ask } = await adminClient();
+            const session = await unlock(ask);
+            await requestCode(ask, session, 'approver_enroll');
+            const second = await relay(ask, session, 'code_request', { code_action: 'approver_enroll' });
+            expect(second).toMatchObject({ error: 'rate_limited', retry_after: expect.stringMatching(/^(9|10)$/) });
+        });
+    });
+
     it('bootstrap: password rules, admin_set event, then unlock and change', async () => {
         const { client, ask } = await adminClient();
 
@@ -1385,10 +1566,17 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
         expect(unlocked.admin_session).toMatch(/^[0-9a-f]{64}$/);
         expect(unlocked.expires_in).toBe('900');
 
+        // A change needs a code from an approver phone; without one, SSH only.
+        const change = { new_pass: 'another long password', admin_session: unlocked.admin_session };
+        expect((await ask('admin_set', change)).error).toBe('approver_required');
+        await control({ op: 'admin', approvers: ['0c1d2e3f4a5b6c7d'] });
+        expect((await ask('admin_set', change)).error).toBe('code_required');
+        const code = await requestCode(ask, unlocked.admin_session, 'admin_password', {
+            password: 'another long password',
+        });
+
         // A change invalidates every session, the caller's included.
-        expect(
-            await ask('admin_set', { new_pass: 'another long password', admin_session: unlocked.admin_session }),
-        ).toEqual({ success: 'true', mode: 'change' });
+        expect(await ask('admin_set', { ...change, ...code })).toEqual({ success: 'true', mode: 'change' });
         expect((await ask('admin', { action: 'system_info', admin_session: unlocked.admin_session })).error).toBe(
             'bad_session',
         );
@@ -1597,5 +1785,85 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
         const bad = await control({ op: 'admin', scenario: 'teleport' });
         expect(bad.status).toBe(400);
         expect(bad.body.known).toContain('old_server');
+    });
+
+    describe('/api/console (console.mjs)', () => {
+        const PIXEL = '0c1d2e3f4a5b6c7d';
+
+        /** A verified console code: `{session, code_id}`. */
+        async function grant() {
+            const { ask } = await adminClient();
+            const session = await unlock(ask);
+            await control({ op: 'admin', approvers: [PIXEL] });
+            const { code_id, code } = await requestCode(ask, session, 'console_open');
+            const reply = await ask('admin', { action: 'console_open', admin_session: session, params: { code_id, code } });
+            expect(reply).toEqual({ success: 'true', result: { action: 'console_open', expires_in: 30 } });
+            return { session, code_id };
+        }
+
+        function consoleSocket(protocol = 'calaos-console.v1') {
+            const ws = new WebSocket(server.wsUrl.replace(/\/api$/, '/api/console'), protocol);
+            const text = [];
+            const output = [];
+            ws.on('message', (data, isBinary) => (isBinary ? output : text).push(data.toString()));
+            openClients.push({ terminate: () => ws.terminate() });
+            return {
+                ws,
+                text,
+                output,
+                opened: new Promise((resolve, reject) => {
+                    ws.once('open', resolve);
+                    ws.once('error', reject);
+                }),
+                closed: new Promise((resolve) => ws.once('close', (code, reason) => resolve({ code, reason: reason.toString() }))),
+            };
+        }
+
+        const openFrame = (g, extra = {}) =>
+            JSON.stringify({ type: 'open', cn_user: 'demo', cn_pass: 'demo', admin_session: g.session, code_id: g.code_id, columns: 80, rows: 24, ...extra });
+
+        it('opens with a grant, echoes input, and the grant serves once', async () => {
+            const g = await grant();
+            const c = consoleSocket();
+            await c.opened;
+            c.ws.send(openFrame(g));
+            await expect.poll(() => c.text.length).toBe(1);
+            expect(JSON.parse(c.text[0])).toMatchObject({ type: 'ready', expires_in: 3600, idle_timeout: 900 });
+            c.ws.send(JSON.stringify({ type: 'input', data: 'ls\r' }));
+            c.ws.send(JSON.stringify({ type: 'resize', columns: 100, rows: 30 }));
+            await expect.poll(() => c.output.join('')).toContain('ls\r\n');
+            const status = (await control({ op: 'console' })).body;
+            expect(status.open).toBe(1);
+            expect(status.connections[0].url).toBe('/api/console');
+            expect(status.received).toEqual([
+                { type: 'input', data: 'ls\r' },
+                { type: 'resize', columns: 100, rows: 30 },
+            ]);
+
+            const again = consoleSocket();
+            await again.opened;
+            again.ws.send(openFrame(g));
+            expect(await again.closed).toEqual({ code: 1008, reason: 'console refused' });
+            expect(JSON.parse(again.text[0])).toMatchObject({ type: 'error', error: 'code_expired' });
+
+            await control({ op: 'console', close: 1001 });
+            expect((await c.closed).code).toBe(1001);
+        });
+
+        it('refuses wrong household credentials and a missing subprotocol', async () => {
+            const g = await grant();
+            const c = consoleSocket();
+            await c.opened;
+            c.ws.send(openFrame(g, { cn_pass: 'nope' }));
+            expect((await c.closed).code).toBe(1008);
+            expect(JSON.parse(c.text[0]).error).toBe('login_failed');
+
+            const bare = new WebSocket(server.wsUrl.replace(/\/api$/, '/api/console'));
+            openClients.push({ terminate: () => bare.terminate() });
+            await expect(new Promise((resolve, reject) => {
+                bare.once('open', resolve);
+                bare.once('error', reject);
+            })).rejects.toThrow();
+        });
     });
 });

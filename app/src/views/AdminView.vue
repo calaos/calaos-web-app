@@ -1,11 +1,13 @@
 <script setup lang="ts">
 // The Admin tab. One screen at a time, chosen by the store's gate: a notice
 // to wait on, a password to type, or — unlocked — the updates panel and the
-// box's three actions. The gate screens borrow the login panel so that
-// "enter the admin password" reads as the same gesture as signing in.
+// box's three actions, with the approver phones between them. The gate
+// screens borrow the login panel so that "enter the admin password" reads as
+// the same gesture as signing in.
 
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 import { ADMIN_PASSWORD_MIN_LENGTH } from '../protocol/admin';
 import { useAdminStore } from '../stores/admin';
 import { useAuthStore } from '../stores/auth';
@@ -14,6 +16,7 @@ import AdminActions from '../components/admin/AdminActions.vue';
 import AdminButton from '../components/admin/AdminButton.vue';
 import AdminNotice from '../components/admin/AdminNotice.vue';
 import AdminPasswordForm from '../components/admin/AdminPasswordForm.vue';
+import ApproversPanel from '../components/admin/ApproversPanel.vue';
 import HouseholdPasswordForm from '../components/admin/HouseholdPasswordForm.vue';
 import UpdatesPanel from '../components/admin/UpdatesPanel.vue';
 
@@ -26,6 +29,21 @@ onMounted(() => admin.activate());
 onUnmounted(() => admin.deactivate());
 
 const actions = ref<InstanceType<typeof AdminActions> | null>(null);
+const phones = ref<InstanceType<typeof ApproversPanel> | null>(null);
+const route = useRoute();
+const router = useRouter();
+
+// The console sends here to enrol a first phone (`?add=phone`), possibly
+// through the unlock screen first.
+watch(
+    phones,
+    (panel) => {
+        if (panel === null || route.query.add !== 'phone') return;
+        void router.replace({ name: 'admin' });
+        panel.openAdd();
+    },
+    { flush: 'post' },
+);
 
 const formError = computed(() =>
     admin.notice !== null && admin.noticeSource === 'gate' ? errorText(admin.notice) : '',
@@ -66,7 +84,8 @@ function changeHousehold(user: string, password: string): void {
                 </button>
             </p>
             <UpdatesPanel @reboot="actions?.askReboot()" />
-            <AdminActions ref="actions" />
+            <ApproversPanel ref="phones" />
+            <AdminActions ref="actions" @add-phone="phones?.openAdd()" />
         </div>
 
         <!-- ---- the gate ----------------------------------------------- -->

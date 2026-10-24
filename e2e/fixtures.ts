@@ -50,6 +50,7 @@ export type ControlOp =
     | { op: 'log' }
     | ({ op: 'admin' } & AdminPatch)
     | { op: 'admin_status' }
+    | ({ op: 'console' } & ConsolePatch)
     | { op: 'credentials'; user: string; pass: string }
     | { op: 'reset' };
 
@@ -78,6 +79,60 @@ export interface AdminPatch {
     failAtPercent?: number | null;
     rebootRequired?: boolean;
     clearSessions?: boolean;
+    /**
+     * The approver phones, oldest first: a `token_id` of the mock's push tokens
+     * (MOCK_PHONES), or `{token_id, device_name}` for a phone whose token is gone.
+     */
+    approvers?: (string | { token_id: string; device_name: string })[];
+    /** Adds this many IO history rows to the event log, newer than what is there. */
+    noiseEvents?: number;
+    /** A code's lifetime (60 s) and the wait between two codes (10 s). */
+    codeTtlMs?: number;
+    codeIntervalMs?: number;
+    /** Every code sent so far expires now. */
+    expireCodes?: boolean;
+    /** Persistent alerts in the event log, as calaos_server stores them. */
+    alerts?: { type: 'approver_set' | 'approver_removed'; device_name: string; at?: string }[];
+}
+
+/** The echo console's knobs (mock-server/console.mjs `configure`). */
+export interface ConsolePatch {
+    /** Ends every open console with this close code. */
+    close?: number;
+    /** The close frame's reason text (default: an unknown one). */
+    reason?: string;
+    expiresIn?: number;
+    idleTimeout?: number;
+    maxConsoles?: number;
+    /** Answer 403 to the upgrade, as calaos_server does over plain http. */
+    refuseUpgrade?: boolean;
+    /** Refuse the next open message with this error payload, e.g. `{error: 'code_expired'}`. */
+    refuseWith?: { error: string } & Record<string, string>;
+}
+
+/** `{op:'console'}` — what the echo console saw. */
+export interface ConsoleStatus {
+    open: number;
+    /** The URL of each connection and the keys of its open message (values are not kept). */
+    connections: { url: string; protocol: string; openKeys: string[] | null; ready: boolean }[];
+    received: ({ type: 'input' | 'binary'; data: string } | { type: 'resize'; columns: number; rows: number })[];
+}
+
+/** The mock's push tokens (mock-server/admin.mjs `defaultPushTokens`), most recently seen first. */
+export const MOCK_PHONES = {
+    pixel: { tokenId: '0c1d2e3f4a5b6c7d', name: 'Pixel 8' },
+    /** Two iPhones of the same name, as iOS 16+ reports them: the older one first. */
+    oldIphone: { tokenId: 'a1b2c3d4e5f60718', name: 'iPhone' },
+    newIphone: { tokenId: '9f8e7d6c5b4a3921', name: 'iPhone' },
+} as const;
+
+/** A code the mock "pushed" to a phone. */
+export interface PushedCode {
+    code_id: string;
+    code: string;
+    action: string;
+    approver_id: string;
+    token_id: string;
 }
 
 /** `{op:'admin_status'}` — what the fake daemon holds and has counted. */
@@ -91,10 +146,15 @@ export interface AdminStatus {
     reboots: number;
     restarts: number;
     mcpRegenerations: number;
+    approvers: { id: string; device_name: string; token_id: string }[];
+    pushed: PushedCode[];
+    /** `eventlog` requests answered so far. */
+    eventlogReads: number;
 }
 
 /**
  * Every frame a cold sign-in produces against the fixture house, in order.
+ * `eventlog` reads the approver alerts of the sign-in banner.
  *
  * `login` and `get_home` are the whole conversation the app had until T17.
  * The three that follow are the audio section's: a player's status, volume,
@@ -107,7 +167,7 @@ export interface AdminStatus {
  * get_state ANSWER, one round trip after the house lands, so a spec that
  * reads the log the instant it arrives on /#/home would race them.
  */
-export const SIGN_IN_FRAMES = ['login', 'get_home', 'get_state', 'audio', 'audio'];
+export const SIGN_IN_FRAMES = ['login', 'get_home', 'eventlog', 'get_state', 'audio', 'audio'];
 
 /** One frame the mock received, as recorded by `{op:'log'}`. */
 export interface LoggedFrame {
@@ -171,6 +231,10 @@ export interface MockControl {
     adminActions(): Promise<string[]>;
     /** Whether each `update_status` the app sent carried an admin session, in order. */
     statusSessions(): Promise<boolean[]>;
+    /** The last code a phone received. */
+    lastCode(): Promise<PushedCode>;
+    /** Configures the echo console and answers what it saw. */
+    console(patch?: ConsolePatch): Promise<ConsoleStatus>;
     /** Escape hatch: any op, raw response body. */
     send<T = Record<string, unknown>>(op: ControlOp): Promise<T>;
 }
@@ -260,6 +324,17 @@ export function createMockControl(
             return (await log())
                 .filter((entry) => entry.frame?.msg === 'admin')
                 .map((entry) => String(entry.frame?.data?.action ?? ''));
+        },
+
+        async lastCode() {
+            const pushed = (await send<AdminStatus>({ op: 'admin_status' })).pushed;
+            const code = pushed[pushed.length - 1];
+            if (code === undefined) throw new Error('no code was pushed');
+            return code;
+        },
+
+        async console(patch = {}) {
+            return await send<ConsoleStatus>({ op: 'console', ...patch });
         },
 
         async statusSessions() {

@@ -166,6 +166,9 @@ export function decodeServerMessage(raw: unknown): ServerMessage {
         case 'admin':
             return { kind: 'admin_reply', msg: obj.msg, msgId: toWireString(obj.msg_id), data: obj.data };
 
+        case 'eventlog':
+            return { kind: 'eventlog', msgId: toWireString(obj.msg_id), data: obj.data };
+
         case 'admin_event': {
             const data = isRecord(obj.data) ? obj.data : {};
             return {

@@ -21,8 +21,16 @@
 //   {op:'admin', ...patch}      configure the fake daemon (admin.mjs
 //                               `configure`): set, password, apiAllowedHosts,
 //                               scenario, updates, upgradeMs, dropAtPercent,
-//                               failAtPercent, rebootRequired, clearSessions
+//                               failAtPercent, rebootRequired, clearSessions,
+//                               pushTokens, approvers (token_ids), codeTtlMs,
+//                               codeIntervalMs, expireCodes, alerts,
+//                               noiseEvents
 //   {op:'admin_status'}         the fake daemon's state and counters
+//   {op:'console', ...patch}    the echo console (console.mjs `configure`):
+//                               close (a close code for every open console) with reason (its reason text),
+//                               expiresIn, idleTimeout, maxConsoles,
+//                               refuseUpgrade, refuseWith; answers
+//                               its status (open, connections, received)
 //   {op:'credentials', user, pass}
 //                               the household account the mock accepts
 //   {op:'reset'}                reload fixtures, clear log, scenario, latency,
@@ -39,6 +47,7 @@ const KNOWN_OPS = [
     'log',
     'admin',
     'admin_status',
+    'console',
     'credentials',
     'reset',
 ];
@@ -127,6 +136,9 @@ export function applyControlOp(hub, body) {
         case 'admin_status':
             return { status: 200, body: { ok: true, op, ...hub.admin.status() } };
 
+        case 'console':
+            return { status: 200, body: { op, ...hub.console.configure(body) } };
+
         case 'credentials': {
             const { user, pass } = body;
             if (typeof user !== 'string' || user === '' || typeof pass !== 'string' || pass === '') {
@@ -140,6 +152,7 @@ export function applyControlOp(hub, body) {
         case 'reset': {
             hub.state.reset();
             hub.admin.reset();
+            hub.console.reset();
             hub.user = hub.defaultUser;
             hub.pass = hub.defaultPass;
             hub.log.length = 0;

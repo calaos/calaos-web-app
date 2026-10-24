@@ -232,7 +232,8 @@
             "label": "Nouveau mot de passe admin",
             "confirm": "Répétez le mot de passe",
             "submit": "Changer le mot de passe",
-            "hint": "Au moins {min} caractères. La session admin reste ouverte avec le nouveau mot de passe."
+            "hint": "Au moins {min} caractères. La session admin reste ouverte avec le nouveau mot de passe.",
+            "codeHint": "Un code sera ensuite envoyé sur votre téléphone approbateur."
         },
         "mismatch": "Les deux mots de passe sont différents.",
         "tooShort": "Au moins {min} caractères.",
@@ -295,7 +296,12 @@
             "regenerate": "Régénérer",
             "mcpConfirmTitle": "Régénérer le jeton MCP ?",
             "mcpConfirmHint": "Les assistants qui utilisent le jeton actuel perdent l’accès jusqu’à être reconfigurés avec le nouveau.",
-            "mcpConfirm": "Régénérer"
+            "mcpConfirm": "Régénérer",
+            "passwordNeedsApprover": "Ajoutez d’abord un téléphone approbateur (section ci-dessus). Sans lui, le mot de passe admin ne se change qu’en SSH avec calaos-os admin set.",
+            "console": "Console",
+            "consoleHint": "Un shell root de la box, dans ce navigateur. S’ouvre avec un code envoyé à votre téléphone approbateur.",
+            "consoleNeedsApprover": "Ajoutez d’abord un téléphone approbateur : la console s’ouvre avec un code qui lui est envoyé.",
+            "consoleOpen": "Ouvrir"
         },
         "info": {
             "password_set": "Mot de passe admin défini.",
@@ -303,7 +309,8 @@
             "session_invalidated": "Le mot de passe admin vient d’être changé. Saisissez le nouveau.",
             "already_set": "Quelqu’un vient de définir le mot de passe admin. Saisissez-le pour continuer.",
             "mcp_regenerated": "Nouveau jeton MCP généré. Lisez-le depuis l’installeur Calaos.",
-            "reboot_sent": "Redémarrage de la box… l’application se reconnecte d’elle-même."
+            "reboot_sent": "Redémarrage de la box… l’application se reconnecte d’elle-même.",
+            "code_locked": "Trop de codes incorrects. Saisissez à nouveau le mot de passe admin."
         },
         "error": {
             "admin_not_set": "Aucun mot de passe admin n’est encore défini.",
@@ -322,12 +329,149 @@
             "invalid_request": "La box a refusé la demande. {msg}",
             "package_not_found": "Ce paquet n’a pas de mise à jour en attente. {msg}",
             "package_held": "Ce paquet est bloqué sur la box et ne sera pas mis à jour.",
+            "approver_required": "Ajoutez d’abord un téléphone approbateur (section « Téléphones approbateurs »). Sans lui, le mot de passe admin ne se change qu’en SSH, avec calaos-os admin set.",
+            "approver_limit": "Deux téléphones approbateurs au plus.",
+            "approver_exists": "Ce téléphone est déjà approbateur.",
+            "approver_not_found": "Ce téléphone n’est plus approbateur. La liste vient d’être mise à jour.",
+            "approver_last": "Ajoutez d’abord un autre téléphone : le dernier ne peut pas être retiré.",
+            "code_required": "Un code est nécessaire. Demandez-en un nouveau.",
+            "bad_code": "Code incorrect.",
+            "code_expired": "Ce code a expiré. Demandez-en un nouveau.",
+            "busy": "Une autre opération est en cours. Réessayez dans un instant.",
             "internal": "Un problème est survenu sur la box. Réessayez ; le détail est dans ses journaux.",
             "timeout": "La box n’a pas répondu. calaos-server est peut-être trop ancien : mettez la box à jour une fois avec l’outil habituel (le bouton de l’écran tactile, ou calaos-os upgrade).",
             "disconnected": "Connexion perdue avant la réponse de la box. Réessayez quand elle est revenue.",
             "unknown": "Réponse inattendue de la box. {msg}",
-            "household_refused": "Le mot de passe de connexion n’a pas pu être changé. Déconnectez-vous puis reconnectez-vous, et réessayez."
+            "household_refused": "Le mot de passe de connexion n’a pas pu être changé. Déconnectez-vous puis reconnectez-vous, et réessayez.",
+            "console_limit": "{max} consoles sont déjà ouvertes sur la box, le maximum. Fermez-en une d’abord.",
+            "login_failed": "La box a refusé votre connexion. Reconnectez-vous."
         },
-        "dismiss": "OK"
+        "approvers": {
+            "title": "Téléphones approbateurs",
+            "intro": "Un code envoyé sur votre téléphone confirme les changements sensibles : le mot de passe admin et les téléphones approbateurs.",
+            "none": "Aucun téléphone approbateur",
+            "noneHint": "Ajoutez votre téléphone pour pouvoir changer le mot de passe admin depuis l’application. L’application Calaos doit y être installée et connectée à cette box.",
+            "added": "Ajouté le {date}",
+            "registered": "Connecté à la box depuis le {date}",
+            "lastSeen": "Dernière activité {when}",
+            "gone": "Ne reçoit plus de codes : ouvrez l’application Calaos sur ce téléphone pour le reconnecter.",
+            "stale": "Ouvrez bientôt l’application Calaos sur ce téléphone : sans connexion pendant 30 jours, il ne recevra plus de codes.",
+            "reference": "Réf. {suffix}",
+            "add": "Ajouter un téléphone",
+            "max": "Deux téléphones au plus. Retirez-en un pour en ajouter un autre.",
+            "remove": "Retirer",
+            "removeTitle": "Retirer « {name} » ?",
+            "removeHint": "Ce téléphone ne recevra plus les codes admin. Un code de confirmation va être envoyé.",
+            "removeConfirm": "Envoyer le code",
+            "loadFailed": "La liste des téléphones n’a pas pu être lue.",
+            "retry": "Réessayer",
+            "enrolled": "Téléphone approbateur ajouté.",
+            "removed": "Téléphone approbateur retiré.",
+            "platform": {
+                "ios": "iPhone ou iPad",
+                "android": "Android",
+                "desktop": "Ordinateur",
+                "other": "Appareil"
+            },
+            "pick": {
+                "title": "Ajouter un téléphone",
+                "hint": "Voici les appareils où l’application Calaos est connectée à cette box. Plusieurs portent le même nom ? Fiez-vous à la date et à la dernière activité.",
+                "loading": "Recherche des téléphones…",
+                "empty": "Aucun téléphone disponible. Installez l’application Calaos sur votre téléphone, connectez-la à cette box et autorisez les notifications, puis réessayez.",
+                "already": "Déjà approbateur",
+                "next": "Envoyer un code à ce téléphone",
+                "secondHint": "Votre téléphone approbateur actuel recevra d’abord un code pour autoriser l’ajout."
+            },
+            "last": {
+                "title": "Le dernier téléphone ne peut pas être retiré",
+                "body": "Il faut toujours au moins un téléphone approbateur. Pour changer de téléphone, ajoutez d’abord le nouveau, puis retirez l’ancien.",
+                "lost": "Téléphone perdu ? Depuis un ordinateur, connectez-vous à la box en SSH et lancez calaos-os admin reset, puis choisissez un nouveau mot de passe admin."
+            }
+        },
+        "code": {
+            "approve_enroll": {
+                "title": "Autorisez l’ajout",
+                "hint": "Saisissez le code reçu sur {phone} : c’est lui qui autorise l’ajout d’un nouveau téléphone."
+            },
+            "confirm_enroll": {
+                "title": "Confirmez le nouveau téléphone",
+                "hint": "Un code vient d’être envoyé sur {phone}. Saisissez-le pour confirmer que vous l’avez en main."
+            },
+            "remove": {
+                "title": "Confirmez le retrait",
+                "hint": "Saisissez le code reçu sur {phone}."
+            },
+            "password": {
+                "title": "Confirmez avec votre téléphone",
+                "hint": "Saisissez le code reçu sur {phone} pour changer le mot de passe admin."
+            },
+            "phoneUnknown": "votre téléphone approbateur",
+            "label": "Code à 6 chiffres",
+            "expiresIn": "Expire dans {seconds} s",
+            "expired": "Ce code a expiré. Demandez-en un nouveau.",
+            "wrong": "Code incorrect. Plus aucun essai. | Code incorrect. Encore {count} essai. | Code incorrect. Encore {count} essais.",
+            "attempts": "{count} essai restant | {count} essais restants",
+            "resend": "Renvoyer un code",
+            "resendIn": "Renvoyer un code dans {seconds} s",
+            "submit": "Valider",
+            "checking": "Vérification…",
+            "sending": "Envoi du code…",
+            "notReceived": "Rien reçu ? Vérifiez que les notifications de l’application Calaos sont autorisées sur ce téléphone.",
+            "restartHint": "Un nouveau code demandera de nouveau l’accord de {phone}.",
+            "sendToOther": "L’envoyer plutôt sur {phone}",
+            "console": {
+                "title": "Ouvrir la console",
+                "hint": "Saisissez le code reçu sur {phone} pour ouvrir un shell root sur la box."
+            }
+        },
+        "alerts": {
+            "approver_set": "Nouveau téléphone approbateur : {name}",
+            "approver_removed": "Téléphone approbateur retiré : {name}",
+            "when": "Le {date}",
+            "hint": "Si ce n’est pas vous, quelqu’un connaît le mot de passe admin. Depuis un ordinateur, en SSH : calaos-os admin reset, puis choisissez un nouveau mot de passe admin.",
+            "more": "Et {count} autre changement. | Et {count} autres changements.",
+            "dismiss": "J’ai compris",
+            "label": "Alerte de sécurité",
+            "quoteOpen": "« ",
+            "quoteClose": " »"
+        },
+        "dismiss": "OK",
+        "console": {
+            "title": "Console",
+            "sending": "Envoi d’un code à votre téléphone approbateur…",
+            "connecting": "Ouverture de la console…",
+            "endsIn": "Se ferme dans {minutes} min",
+            "endsInSeconds": "Se ferme dans {seconds} s",
+            "idleSoon": "Rien n’a été saisi depuis un moment : fermeture dans {seconds} s",
+            "close": "Fermer la console",
+            "again": "Ouvrir une nouvelle console",
+            "back": "Retour à l’administration",
+            "signIn": "Se reconnecter",
+            "refusedTitle": "La console ne s’est pas ouverte",
+            "closedTitle": "Console fermée",
+            "noApprover": {
+                "title": "Ajoutez d’abord un téléphone approbateur",
+                "hint": "La console ne s’ouvre qu’avec un code envoyé à un téléphone approbateur. Ajoutez-en un dans la section « Téléphones approbateurs »."
+            },
+            "end": {
+                "codeExpired": "Le code a déjà servi ou date de plus de 30 s. Demandez-en un nouveau.",
+                "https": "La console ne s’ouvre qu’en https://. Ouvrez cette page en https:// et réessayez.",
+                "handshake": "La box a refusé la connexion à la console.",
+                "exited": "Le shell s’est terminé.",
+                "closed": "La console a été fermée.",
+                "not_connected": "La console a perdu sa liaison avec le service console de la box.",
+                "shutdown": "La box s’arrête, la console a donc été fermée.",
+                "admin_set": "Le mot de passe admin a été changé, la console a donc été fermée. Saisissez le nouveau mot de passe pour en ouvrir une autre.",
+                "admin_reset": "Le mot de passe admin a été réinitialisé en SSH, la console a donc été fermée. Saisissez le mot de passe admin pour en ouvrir une autre.",
+                "bad_code": "Cinq codes faux ont été saisis, la console a donc été fermée. Saisissez le mot de passe admin pour en ouvrir une autre.",
+                "server": "La box a mis fin à la console : le mot de passe admin a été changé ou réinitialisé, trop de codes faux ont été saisis, la box s’arrête, ou son côté de la console a été perdu.",
+                "expired": "La console a atteint sa limite de {minutes} min.",
+                "idle": "La console s’est fermée après {minutes} min sans saisie.",
+                "too_big": "La console s’est fermée : le texte collé était trop long.",
+                "lost": "Connexion à la console perdue.",
+                "user": "Vous avez fermé la console.",
+                "load_failed": "La console n’a pas pu être chargée. Vérifiez la connexion, rechargez la page et réessayez."
+            }
+        }
     }
 }
