@@ -104,6 +104,8 @@ export interface ConsolePatch {
     maxConsoles?: number;
     /** Answer 403 to the upgrade, as calaos_server does over plain http. */
     refuseUpgrade?: boolean;
+    /** Refuse the next open message with this error payload, e.g. `{error: 'code_expired'}`. */
+    refuseWith?: { error: string } & Record<string, string>;
 }
 
 /** `{op:'console'}` — what the echo console saw. */

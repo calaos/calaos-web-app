@@ -303,6 +303,7 @@ export const useApproversStore = defineStore('approvers', () => {
             minLength: null,
             apiAllowedHosts: '',
             attemptsLeft: null,
+            max: null,
         };
     }
 

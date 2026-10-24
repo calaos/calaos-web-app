@@ -343,7 +343,7 @@
             "disconnected": "Connexion perdue avant la réponse de la box. Réessayez quand elle est revenue.",
             "unknown": "Réponse inattendue de la box. {msg}",
             "household_refused": "Le mot de passe de connexion n’a pas pu être changé. Déconnectez-vous puis reconnectez-vous, et réessayez.",
-            "console_limit": "Deux consoles sont déjà ouvertes sur la box. Fermez-en une d’abord.",
+            "console_limit": "{max} consoles sont déjà ouvertes sur la box, le maximum. Fermez-en une d’abord.",
             "login_failed": "La box a refusé votre connexion. Reconnectez-vous."
         },
         "approvers": {
@@ -460,10 +460,11 @@
                 "exited": "Le shell s’est terminé.",
                 "expired": "La console a atteint sa limite de {minutes} min.",
                 "idle": "La console s’est fermée après {minutes} min sans saisie.",
-                "server": "La box a fermé la console : le mot de passe admin a changé, trop de codes faux ont été saisis, ou la box s’arrête.",
+                "server": "La box a mis fin à la console : le mot de passe admin a été changé ou réinitialisé, trop de codes faux ont été saisis, la box s’arrête, ou son côté de la console a été perdu.",
                 "too_big": "La console s’est fermée : le texte collé était trop long.",
                 "lost": "Connexion à la console perdue.",
-                "user": "Vous avez fermé la console."
+                "user": "Vous avez fermé la console.",
+                "load_failed": "La console n’a pas pu être chargée. Vérifiez la connexion, rechargez la page et réessayez."
             }
         }
     }

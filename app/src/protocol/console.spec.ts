@@ -66,6 +66,7 @@ describe('frames', () => {
         });
         const error = parseConsoleText('{"type":"error","success":"false","error":"console_limit","msg":"x","max":"2"}');
         expect(error?.type === 'error' && error.error.code).toBe('console_limit');
+        expect(error?.type === 'error' && error.error.max).toBe(2);
         expect(parseConsoleText('{"type":"output"}')).toBeNull();
         expect(parseConsoleText('not json')).toBeNull();
     });

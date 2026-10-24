@@ -127,7 +127,9 @@ export type ConsoleEnd =
     | { kind: 'too_big' }
     | { kind: 'lost' }
     /** Closed from this page. */
-    | { kind: 'user' };
+    | { kind: 'user' }
+    /** The xterm.js chunk did not load. */
+    | { kind: 'load_failed' };
 
 export interface CloseContext {
     code: number;

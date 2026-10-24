@@ -43,6 +43,8 @@ let leaving = false;
 
 // Fetched while the code is on its way, so the terminal is there when it lands.
 const loadTerminal = import('../components/admin/xterm');
+// Handled where it is awaited; this only keeps an early failure from being "unhandled".
+loadTerminal.catch(() => undefined);
 
 const challenge = computed(() => (approvers.challenge?.step === 'console' ? approvers.challenge : null));
 
@@ -76,7 +78,8 @@ const endTitle = computed(() => {
 const endText = computed(() => {
     const value = end.value;
     if (value === null) return '';
-    const minutes = (seconds: number | undefined, fallback: number): number => Math.round((seconds ?? fallback) / 60);
+    const minutes = (seconds: number | undefined, fallback: number): number =>
+        Math.max(1, Math.round((seconds ?? fallback) / 60));
     switch (value.kind) {
         case 'refused':
             if (value.error.code === 'code_expired') return t('admin.console.end.codeExpired');
@@ -110,6 +113,12 @@ function teardown(): void {
 }
 
 async function start(): Promise<void> {
+    // The admin session may have expired while a console was open: every
+    // request would come back bad_session.
+    if (!admin.isUnlocked) {
+        void router.replace({ name: 'admin' });
+        return;
+    }
     teardown();
     end.value = null;
     ready.value = null;
@@ -139,17 +148,27 @@ function finish(result: ConsoleEnd): void {
 
 async function connect(codeId: string): Promise<void> {
     phase.value = 'connecting';
-    const { createTerminal } = await loadTerminal;
+    let createTerminal: typeof import('../components/admin/xterm').createTerminal;
+    try {
+        ({ createTerminal } = await loadTerminal);
+    } catch {
+        finish({ kind: 'load_failed' });
+        return;
+    }
     await nextTick();
     const session = admin.session;
     if (leaving || host.value === null || session === null) return;
     const pane = createTerminal(host.value);
     term.value = pane;
     const { user, pass } = admin.householdCredentials();
-    const link = new ConsoleConnection(
-        { user, pass, session, codeId, columns: pane.terminal.cols, rows: pane.terminal.rows },
+    const opened = { columns: pane.terminal.cols, rows: pane.terminal.rows };
+    const link: ConsoleConnection = new ConsoleConnection(
+        { user, pass, session, codeId, ...opened },
         {
             onReady(info) {
+                // Resizes before `ready` are not sent: catch up once.
+                const { cols, rows } = pane.terminal;
+                if (cols !== opened.columns || rows !== opened.rows) link.resize(cols, rows);
                 ready.value = info;
                 openedAt.value = Date.now();
                 lastInputAt.value = openedAt.value;

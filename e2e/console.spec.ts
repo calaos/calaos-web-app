@@ -1,8 +1,10 @@
 // The web console against the mock's echo console: a code to the approver
 // phone, typed back, then xterm on /api/console. Also: a wrong code, no
-// approver, a refused upgrade, and xterm.js staying out of every other page.
+// approver, the refusals of the open message, the closes the clock tells
+// apart, a refused upgrade, and xterm.js staying out of every other page.
 
-import { MESSAGES, MOCK_PHONES, adminScreen, expect, loginAs, test } from './fixtures';
+import { LOGIN_URL, MESSAGES, MOCK_PHONES, adminScreen, expect, loginAs, test } from './fixtures';
+import type { MockControl } from './fixtures';
 import type { Page } from '@playwright/test';
 
 const ADMIN_PASSWORD = 'correct horse battery';
@@ -140,4 +142,73 @@ test('a refused upgrade over http asks for https', async ({ page, mock }) => {
     await codeField(page).fill((await mock.lastCode()).code);
     await expect(page.getByRole('alert')).toContainText(t.console.end.https);
     await expect(page.getByRole('link', { name: t.notice.httpsOpen })).toHaveAttribute('href', /^https:\/\//);
+});
+
+async function typeCode(page: Page, mock: MockControl): Promise<void> {
+    await codeField(page).fill((await mock.lastCode()).code);
+}
+
+test('a used or late grant: the console asks for a new code', async ({ page, mock }) => {
+    await mock.console({ refuseWith: { error: 'code_expired' } });
+    // A new code right away: no wait between two codes here.
+    await mock.admin({ codeIntervalMs: 0 });
+    await openAdmin(page);
+    await openConsole(page);
+    await typeCode(page, mock);
+    await expect(page.getByRole('alert')).toContainText(t.console.end.codeExpired);
+
+    await page.getByRole('button', { name: t.console.again }).click();
+    await expect(codeField(page)).toBeVisible();
+    await expect.poll(async () => (await mock.adminStatus()).pushed.length).toBe(2);
+});
+
+test('an admin session refused by the box goes back to the admin password', async ({ page, mock }) => {
+    await mock.console({ refuseWith: { error: 'bad_session' } });
+    await openAdmin(page);
+    await openConsole(page);
+    await typeCode(page, mock);
+    await expect(page).toHaveURL(/#\/admin$/);
+    await expect(adminScreen(page).adminPassword).toBeVisible();
+});
+
+test('household credentials refused by the console: sign in again', async ({ page, mock }) => {
+    await openAdmin(page);
+    await openConsole(page);
+    // The household password changed elsewhere while this tab kept its socket.
+    await mock.credentials('demo', 'changed elsewhere');
+    await typeCode(page, mock);
+    await expect(page.getByRole('alert')).toContainText(t.error.login_failed);
+    await page.getByRole('button', { name: t.console.signIn }).click();
+    await expect(page).toHaveURL(LOGIN_URL);
+});
+
+test('too many consoles: the limit comes from the box', async ({ page, mock }) => {
+    await mock.console({ refuseWith: { error: 'console_limit', max: '2' } });
+    await openAdmin(page);
+    await openConsole(page);
+    await typeCode(page, mock);
+    await expect(page.getByRole('alert')).toContainText(fill(t.error.console_limit, { max: 2 }));
+});
+
+test('the console lifetime runs out', async ({ page, mock }) => {
+    await mock.console({ expiresIn: 2 });
+    await openAdmin(page);
+    await openConsole(page);
+    await typeCode(page, mock);
+    await expect(terminal(page)).toContainText('root@calaos:~#');
+    await page.waitForTimeout(2_000);
+    await mock.console({ close: 1001 });
+    await expect(page.getByRole('alert')).toContainText(fill(t.console.end.expired, { minutes: 1 }));
+});
+
+test('the console closes after the idle delay', async ({ page, mock }) => {
+    await mock.console({ idleTimeout: 2 });
+    await openAdmin(page);
+    await openConsole(page);
+    await typeCode(page, mock);
+    await expect(terminal(page)).toContainText('root@calaos:~#');
+    await expect(page.locator('.console__status')).toContainText(fill(t.console.idleSoon, { seconds: 2 }).split(':')[0]);
+    await page.waitForTimeout(2_000);
+    await mock.console({ close: 1001 });
+    await expect(page.getByRole('alert')).toContainText(fill(t.console.end.idle, { minutes: 1 }));
 });

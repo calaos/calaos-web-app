@@ -4,7 +4,8 @@
 //
 // Driven from `/control {op:'console', ...}`: `close` ends every open console
 // with that close code, `expiresIn` / `idleTimeout` change what `ready`
-// announces, `maxConsoles` the limit, `refuseUpgrade` answers 403 to the upgrade.
+// announces, `maxConsoles` the limit, `refuseUpgrade` answers 403 to the upgrade,
+// `refuseWith` refuses the next open message with that error.
 
 import { randomBytes } from 'node:crypto';
 import { WebSocketServer } from 'ws';
@@ -46,6 +47,8 @@ export function createConsole({ hub, log }) {
             maxConsoles: 2,
             /** Refuse the upgrade itself, as calaos_server does over plain http (403). */
             refuseUpgrade: false,
+            /** One-shot: the next open message is refused with this payload ({error, ...extra}). */
+            refuseWith: null,
             /** Every connection: its URL, and the keys of its open message (values never kept). */
             connections: [],
             /** Every input / resize / binary message after `ready`, in order. */
@@ -60,6 +63,11 @@ export function createConsole({ hub, log }) {
     }
 
     function checkOpen(frame) {
+        if (state.refuseWith !== null) {
+            const { error, ...extra } = state.refuseWith;
+            state.refuseWith = null;
+            return [error, `Refused (${error})`, extra];
+        }
         if (frame === null || typeof frame !== 'object' || frame.type !== 'open') {
             return ['invalid_request', 'Expected an open message'];
         }
@@ -160,6 +168,7 @@ export function createConsole({ hub, log }) {
         if (patch.idleTimeout !== undefined) state.idleTimeout = Number(patch.idleTimeout);
         if (patch.maxConsoles !== undefined) state.maxConsoles = Number(patch.maxConsoles);
         if (patch.refuseUpgrade !== undefined) state.refuseUpgrade = Boolean(patch.refuseUpgrade);
+        if (patch.refuseWith !== undefined) state.refuseWith = patch.refuseWith;
         if (patch.close !== undefined) {
             const code = Number(patch.close);
             for (const ws of open) ws.close(code, 'console closed');

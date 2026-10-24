@@ -89,6 +89,8 @@ export interface AdminError {
     apiAllowedHosts: string;
     /** With `bad_code`; 0 means the session is now invalidated. */
     attemptsLeft: number | null;
+    /** With `approver_limit` and `console_limit`. */
+    max: number | null;
 }
 
 export const ADMIN_ACTIONS = [
@@ -280,6 +282,7 @@ export function toAdminError(data: unknown): AdminError {
         minLength: toNumberOrNull(record.min_length),
         apiAllowedHosts: toWireString(record.api_allowed_hosts),
         attemptsLeft: toNumberOrNull(record.attempts_left),
+        max: toNumberOrNull(record.max),
     };
 }
 
@@ -294,6 +297,7 @@ export function clientAdminError(
         minLength: null,
         apiAllowedHosts: '',
         attemptsLeft: null,
+        max: null,
     };
 }
 

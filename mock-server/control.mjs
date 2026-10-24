@@ -29,7 +29,7 @@
 //   {op:'console', ...patch}    the echo console (console.mjs `configure`):
 //                               close (a close code for every open console),
 //                               expiresIn, idleTimeout, maxConsoles,
-//                               refuseUpgrade; answers
+//                               refuseUpgrade, refuseWith; answers
 //                               its status (open, connections, received)
 //   {op:'credentials', user, pass}
 //                               the household account the mock accepts
