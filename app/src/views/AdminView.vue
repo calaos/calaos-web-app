@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // The Admin tab. One screen at a time, chosen by the store's gate: a notice
 // to wait on, a password to type, or — unlocked — the updates panel and the
-// box's three actions. The gate screens borrow the login panel so that
-// "enter the admin password" reads as the same gesture as signing in.
+// box's three actions, with the approver phones between them. The gate
+// screens borrow the login panel so that "enter the admin password" reads as
+// the same gesture as signing in.
 
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -14,6 +15,7 @@ import AdminActions from '../components/admin/AdminActions.vue';
 import AdminButton from '../components/admin/AdminButton.vue';
 import AdminNotice from '../components/admin/AdminNotice.vue';
 import AdminPasswordForm from '../components/admin/AdminPasswordForm.vue';
+import ApproversPanel from '../components/admin/ApproversPanel.vue';
 import HouseholdPasswordForm from '../components/admin/HouseholdPasswordForm.vue';
 import UpdatesPanel from '../components/admin/UpdatesPanel.vue';
 
@@ -66,6 +68,7 @@ function changeHousehold(user: string, password: string): void {
                 </button>
             </p>
             <UpdatesPanel @reboot="actions?.askReboot()" />
+            <ApproversPanel />
             <AdminActions ref="actions" />
         </div>
 

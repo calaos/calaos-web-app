@@ -21,7 +21,9 @@
 //   {op:'admin', ...patch}      configure the fake daemon (admin.mjs
 //                               `configure`): set, password, apiAllowedHosts,
 //                               scenario, updates, upgradeMs, dropAtPercent,
-//                               failAtPercent, rebootRequired, clearSessions
+//                               failAtPercent, rebootRequired, clearSessions,
+//                               pushTokens, approvers (token_ids), codeTtlMs,
+//                               codeIntervalMs, expireCodes, alerts
 //   {op:'admin_status'}         the fake daemon's state and counters
 //   {op:'credentials', user, pass}
 //                               the household account the mock accepts

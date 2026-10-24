@@ -20,6 +20,12 @@ export const UNAVAILABLE_SLOW_RETRY_MS = 60_000;
 export const ACTIVATION_REBOOT_HINT_MS = 120_000;
 /** Minimum admin password length enforced by the daemon (Unicode code points). */
 export const ADMIN_PASSWORD_MIN_LENGTH = 10;
+/** Push codes: 6 digits, valid 60 s, at least 10 s between two codes of a session. */
+export const CODE_LENGTH = 6;
+export const CODE_LIFETIME_S = 60;
+export const CODE_RESEND_S = 10;
+/** The daemon keeps at most this many approvers. */
+export const APPROVER_MAX = 2;
 
 export const ADMIN_ERROR_CODES = [
     'admin_not_set',
@@ -38,6 +44,14 @@ export const ADMIN_ERROR_CODES = [
     'invalid_request',
     'package_not_found',
     'package_held',
+    'approver_required',
+    'approver_limit',
+    'approver_exists',
+    'approver_not_found',
+    'approver_last',
+    'code_required',
+    'bad_code',
+    'code_expired',
     'internal',
 ] as const;
 
@@ -69,6 +83,8 @@ export interface AdminError {
     minLength: number | null;
     /** With `admin_not_set`: the raw `api_allowed_hosts` option, '' if unset. */
     apiAllowedHosts: string;
+    /** With `bad_code`; 0 means the session is now invalidated. */
+    attemptsLeft: number | null;
 }
 
 export const ADMIN_ACTIONS = [
@@ -81,6 +97,13 @@ export const ADMIN_ACTIONS = [
     'system_restart',
     'system_info',
     'mcp_regenerate',
+    'approver_list',
+    'approver_candidates',
+    'approver_enroll',
+    'approver_confirm',
+    'approver_remove',
+    'code_request',
+    'code_verify',
 ] as const;
 
 export type AdminAction = (typeof ADMIN_ACTIONS)[number];
@@ -113,6 +136,45 @@ export interface UpgradeJob {
     finishedAt: string;
 }
 
+/** What a push code protects (`code_request`'s `code_action`). */
+export type CodeAction = 'admin_password' | 'approver_enroll' | 'approver_remove' | 'console_open';
+
+/** An enrolled phone, from `approver_list`. Dates are RFC 3339, '' when unknown. */
+export interface Approver {
+    id: string;
+    deviceName: string;
+    tokenId: string;
+    createdAt: string;
+    platform: string;
+    registeredAt: string;
+    /** '' once the token left `push_tokens` (30 days without the app): no codes reach it. */
+    lastSeen: string;
+}
+
+/** A phone that registered for push, from `approver_candidates`. */
+export interface ApproverCandidate {
+    tokenId: string;
+    deviceName: string;
+    platform: string;
+    registeredAt: string;
+    lastSeen: string;
+    approver: boolean;
+}
+
+/** A code on its way to a phone. */
+export interface CodeTicket {
+    codeId: string;
+    /** The phone it was sent to. */
+    approverId: string;
+    expiresIn: number;
+}
+
+/** The `code_id` / `code` pair a protected action carries. */
+export interface CodeProof {
+    codeId: string;
+    code: string;
+}
+
 export interface UpdateEntry {
     name: string;
     version: string;
@@ -130,9 +192,18 @@ export function encodeAdminUnlock(adminPass: string, msgId: string): string {
  * change. The key is omitted rather than sent empty: an empty `admin_session`
  * counts as PRESENT and gets `bad_session`.
  */
-export function encodeAdminSet(newPass: string, session: string | null, msgId: string): string {
-    const data =
+export function encodeAdminSet(
+    newPass: string,
+    session: string | null,
+    msgId: string,
+    proof?: CodeProof,
+): string {
+    const data: Record<string, string> =
         session === null ? { new_pass: newPass } : { new_pass: newPass, admin_session: session };
+    if (session !== null && proof !== undefined) {
+        data.code_id = proof.codeId;
+        data.code = proof.code;
+    }
     return JSON.stringify({ msg: 'admin_set', msg_id: msgId, data });
 }
 
@@ -141,7 +212,7 @@ export function encodeAdminAction(
     action: AdminAction,
     session: string | null,
     msgId: string,
-    params?: Record<string, string>,
+    params?: Record<string, unknown>,
 ): string {
     const data: Record<string, unknown> = { action };
     if (session !== null) data.admin_session = session;
@@ -203,13 +274,22 @@ export function toAdminError(data: unknown): AdminError {
         jobId: toWireString(record.job_id),
         minLength: toNumberOrNull(record.min_length),
         apiAllowedHosts: toWireString(record.api_allowed_hosts),
+        attemptsLeft: toNumberOrNull(record.attempts_left),
     };
 }
 
 export function clientAdminError(
     code: 'timeout' | 'disconnected' | 'household_refused',
 ): AdminError {
-    return { code, msg: '', retryAfter: null, jobId: '', minLength: null, apiAllowedHosts: '' };
+    return {
+        code,
+        msg: '',
+        retryAfter: null,
+        jobId: '',
+        minLength: null,
+        apiAllowedHosts: '',
+        attemptsLeft: null,
+    };
 }
 
 const UPGRADE_STATUSES = ['idle', 'upgrading', 'done', 'error'] as const;
@@ -266,4 +346,41 @@ export function toUpdateList(raw: unknown): UpdateEntry[] {
             };
         })
         .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function toApprovers(raw: unknown): Approver[] {
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(isRecord).map((r) => ({
+        id: toWireString(r.id),
+        deviceName: toWireString(r.device_name),
+        tokenId: toWireString(r.token_id),
+        createdAt: toWireString(r.created_at),
+        platform: toWireString(r.platform),
+        registeredAt: toWireString(r.registered_at),
+        lastSeen: toWireString(r.last_seen),
+    }));
+}
+
+export function toApproverCandidates(raw: unknown): ApproverCandidate[] {
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(isRecord).map((r) => ({
+        tokenId: toWireString(r.token_id),
+        deviceName: toWireString(r.device_name),
+        platform: toWireString(r.platform),
+        registeredAt: toWireString(r.registered_at),
+        lastSeen: toWireString(r.last_seen),
+        approver: toBool(r.approver),
+    }));
+}
+
+/** `code_request` and `approver_enroll` both answer a code on its way. */
+export function toCodeTicket(raw: unknown): CodeTicket | null {
+    if (!isRecord(raw)) return null;
+    const codeId = toWireString(raw.code_id);
+    if (codeId === '') return null;
+    return {
+        codeId,
+        approverId: toWireString(raw.approver_id),
+        expiresIn: toNumber(raw.expires_in, CODE_LIFETIME_S),
+    };
 }

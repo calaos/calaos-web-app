@@ -8,6 +8,7 @@
 // sign-in, and it means the login screen genuinely owns the whole viewport
 // instead of relying on a `.content-max` override.
 
+import AdminAlertBanner from './components/chrome/AdminAlertBanner.vue';
 import AppBackground from './components/chrome/AppBackground.vue';
 import ConnectionBanner from './components/chrome/ConnectionBanner.vue';
 import FooterNav from './components/chrome/FooterNav.vue';
@@ -23,6 +24,7 @@ const auth = useAuthStore();
     <div class="app-shell">
         <NavBar v-if="auth.isAuthed" />
         <ConnectionBanner />
+        <AdminAlertBanner />
 
         <main class="app-shell__content">
             <RouterView />

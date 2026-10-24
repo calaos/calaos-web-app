@@ -20,6 +20,8 @@ import { CalaosSocket } from '../protocol/socket';
 import { wsUrl } from '../protocol/server-url';
 import { encodeGetHome } from '../protocol/messages';
 import { useAdminStore } from '../stores/admin';
+import { useAdminAlertsStore } from '../stores/adminAlerts';
+import { useApproversStore } from '../stores/approvers';
 import { useAudioStore } from '../stores/audio';
 import { useAuthStore } from '../stores/auth';
 import { useConnectionStore } from '../stores/connection';
@@ -54,12 +56,15 @@ export function createCalaosService(
     const home = useHomeStore();
     const audio = useAudioStore();
     const admin = useAdminStore();
+    const approvers = useApproversStore();
+    const adminAlerts = useAdminAlertsStore();
 
     const sendFrame = (frame: string): boolean => socket.send(frame);
     auth.attachTransport(sendFrame);
     home.attachTransport(sendFrame);
     audio.attachTransport(sendFrame);
     admin.attachTransport(sendFrame);
+    adminAlerts.attachTransport(sendFrame);
     admin.attachHousehold({
         credentials: () => ({ user: auth.user, pass: auth.pass }),
         rotate: (user, pass) => auth.rotateCredentials(user, pass),
@@ -95,6 +100,8 @@ export function createCalaosService(
                     // After the house: the admin session is kept across a
                     // reconnect and `update_status` resumes an upgrade.
                     admin.handleLoggedIn();
+                    // Approver alerts are shown to everyone, at sign-in.
+                    adminAlerts.refresh();
                 }
                 break;
 
@@ -104,6 +111,12 @@ export function createCalaosService(
 
             case 'admin_event':
                 admin.handleEvent(msg);
+                approvers.handleEvent(msg.type);
+                adminAlerts.handleEvent(msg.type);
+                break;
+
+            case 'eventlog':
+                adminAlerts.handleEventLog(msg);
                 break;
 
             case 'change_cred':

@@ -1,19 +1,23 @@
 <script setup lang="ts">
 // The three things an unlocked admin can do to the box besides updating it,
 // as a hairline list. The two that cannot be undone (restart, new MCP token)
-// ask once.
+// ask once. Once a phone is an approver, the new password also takes a code
+// from it.
 
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import BaseDialog from '../ui/BaseDialog.vue';
 import { ADMIN_PASSWORD_MIN_LENGTH } from '../../protocol/admin';
 import { useAdminStore } from '../../stores/admin';
+import { useApproversStore } from '../../stores/approvers';
 import { useAdminText } from '../../composables/useAdminText';
 import AdminButton from './AdminButton.vue';
 import AdminPasswordForm from './AdminPasswordForm.vue';
+import CodeEntry from './CodeEntry.vue';
 
 const { t } = useI18n();
 const admin = useAdminStore();
+const approvers = useApproversStore();
 const { errorText } = useAdminText();
 
 const confirming = ref<'reboot' | 'mcp' | null>(null);
@@ -24,7 +28,15 @@ const busy = computed(() => admin.busy !== null);
 const failure = computed(() =>
     admin.notice !== null && admin.noticeSource === 'box' ? errorText(admin.notice) : '',
 );
-const changeError = computed(() => (changing.value ? failure.value : ''));
+const changeError = computed(() => {
+    if (!changing.value) return '';
+    if (approvers.flowError !== null) return errorText(approvers.flowError);
+    return failure.value;
+});
+const hasApprover = computed(() => (approvers.approvers?.length ?? 0) > 0);
+const passwordChallenge = computed(() =>
+    approvers.challenge?.step === 'password' ? approvers.challenge : null,
+);
 
 /** Also reached from the updates panel's "Restart the box". */
 function askReboot(): void {
@@ -40,8 +52,22 @@ function confirm(): void {
     if (what === 'mcp') void admin.regenerateMcp();
 }
 
+function openChange(): void {
+    approvers.cancel();
+    changing.value = true;
+}
+
+function closeChange(): void {
+    approvers.cancel();
+    changing.value = false;
+}
+
 async function changePassword(password: string): Promise<void> {
     refused.value = false;
+    if (hasApprover.value) {
+        await approvers.startPasswordChange(password);
+        return;
+    }
     const ok = await admin.setPassword(password);
     if (ok) {
         changing.value = false;
@@ -52,7 +78,21 @@ async function changePassword(password: string): Promise<void> {
         changing.value = false;
         return;
     }
+    // An approver enrolled elsewhere since the list was read.
+    if (admin.notice?.code === 'code_required') {
+        admin.dismissNotice();
+        await approvers.startPasswordChange(password);
+        return;
+    }
     refused.value = true;
+}
+
+async function submitCode(code: string): Promise<void> {
+    await approvers.submit(code);
+    if (approvers.done === 'password') {
+        approvers.dismissDone();
+        changing.value = false;
+    }
 }
 </script>
 
@@ -66,7 +106,7 @@ async function changePassword(password: string): Promise<void> {
                     <span class="actions__name">{{ t('admin.actions.password') }}</span>
                     <span class="actions__hint">{{ t('admin.actions.passwordHint') }}</span>
                 </div>
-                <AdminButton variant="quiet" :disabled="busy" @click="changing = true">
+                <AdminButton variant="quiet" :disabled="busy" @click="openChange">
                     {{ t('admin.actions.change') }}
                 </AdminButton>
             </li>
@@ -128,18 +168,28 @@ async function changePassword(password: string): Promise<void> {
 
         <!-- The form has its own submit and cancel; the dialog only lends
              its frame (and Escape). -->
-        <BaseDialog :open="changing" :title="t('admin.change.title')" @cancel="changing = false">
-            <p class="actions__dialog-hint actions__dialog-hint--form">
+        <BaseDialog :open="changing" :title="t('admin.change.title')" @cancel="closeChange">
+            <CodeEntry
+                v-if="passwordChallenge !== null"
+                :challenge="passwordChallenge"
+                :working="approvers.working"
+                @submit="submitCode"
+                @resend="approvers.resend()"
+                @cancel="closeChange"
+            />
+            <p v-if="passwordChallenge === null" class="actions__dialog-hint actions__dialog-hint--form">
                 {{ t('admin.change.hint', { min: ADMIN_PASSWORD_MIN_LENGTH }) }}
+                <template v-if="hasApprover">{{ t('admin.change.codeHint') }}</template>
             </p>
             <AdminPasswordForm
+                v-if="passwordChallenge === null"
                 mode="change"
-                :busy="admin.busy === 'set' || admin.busy === 'unlock'"
+                :busy="admin.busy === 'set' || admin.busy === 'unlock' || approvers.working === 'sending'"
                 :error="changeError"
                 :refused="refused"
                 :cancel-label="t('dialog.cancel')"
                 @submit="changePassword"
-                @cancel="changing = false"
+                @cancel="closeChange"
             />
         </BaseDialog>
     </section>

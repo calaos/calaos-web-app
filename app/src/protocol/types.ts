@@ -422,6 +422,13 @@ export interface AdminEventMessage {
     data: unknown;
 }
 
+/** An `eventlog` page; protocol/alerts.ts reads the admin alerts out of it. */
+export interface EventLogMessage {
+    kind: 'eventlog';
+    msgId: string;
+    data: unknown;
+}
+
 /** The answer to `settings` / `change_cred` (household password change). */
 export interface ChangeCredMessage {
     kind: 'change_cred';
@@ -444,5 +451,6 @@ export type ServerMessage =
     | UnknownEventMessage
     | AdminReplyMessage
     | AdminEventMessage
+    | EventLogMessage
     | ChangeCredMessage
     | UnknownMessage;
