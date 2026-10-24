@@ -26,11 +26,11 @@ export interface AdminAlert {
     at: number;
 }
 
-export function encodeEventLog(msgId: string, perPage: number): string {
+export function encodeEventLog(msgId: string, page: number, perPage: number): string {
     return JSON.stringify({
         msg: 'eventlog',
         msg_id: msgId,
-        data: { page: '0', per_page: String(perPage) },
+        data: { page: String(page), per_page: String(perPage) },
     });
 }
 
@@ -57,4 +57,37 @@ function toAlert(raw: unknown): AdminAlert | null {
 export function toAdminAlerts(data: unknown): AdminAlert[] {
     if (!isRecord(data) || !Array.isArray(data.events)) return [];
     return data.events.map(toAlert).filter((alert): alert is AdminAlert => alert !== null);
+}
+
+export interface EventLogPage {
+    alerts: AdminAlert[];
+    totalPages: number;
+    /** The date of the page's last (oldest) event of any kind; NaN for none. */
+    oldestAt: number;
+}
+
+/** The log has no type filter: a reader walks back page by page, by date. */
+export function toEventLogPage(data: unknown): EventLogPage {
+    const record = isRecord(data) ? data : {};
+    const events = Array.isArray(record.events) ? record.events : [];
+    const last: unknown = events[events.length - 1];
+    const totalPages = Number(record.total_page);
+    return {
+        alerts: toAdminAlerts(data),
+        totalPages: Number.isFinite(totalPages) ? totalPages : 0,
+        oldestAt: isRecord(last) ? toTime(toWireString(last.created_at)) : NaN,
+    };
+}
+
+const QUOTES = /["«»“”„‟″‶＂]/g;
+const MAX_NAME = 64;
+
+/**
+ * The name as the box writes it into an alert (calaos_base
+ * AdminState::alertMessage): spaces folded, the quote set turned into `'`,
+ * cut at 64 code points, `?` when empty. Close enough to recognise our own.
+ */
+export function alertDeviceName(name: string): string {
+    const folded = [...name.replace(/\s+/g, ' ').trim().replace(QUOTES, "'")].slice(0, MAX_NAME).join('');
+    return folded === '' ? '?' : folded;
 }

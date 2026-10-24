@@ -78,8 +78,13 @@ export interface AdminPatch {
     failAtPercent?: number | null;
     rebootRequired?: boolean;
     clearSessions?: boolean;
-    /** The approver phones, by `token_id` of the mock's push tokens (MOCK_PHONES). */
-    approvers?: string[];
+    /**
+     * The approver phones, oldest first: a `token_id` of the mock's push tokens
+     * (MOCK_PHONES), or `{token_id, device_name}` for a phone whose token is gone.
+     */
+    approvers?: (string | { token_id: string; device_name: string })[];
+    /** Adds this many IO history rows to the event log, newer than what is there. */
+    noiseEvents?: number;
     /** A code's lifetime (60 s) and the wait between two codes (10 s). */
     codeTtlMs?: number;
     codeIntervalMs?: number;
@@ -119,6 +124,8 @@ export interface AdminStatus {
     mcpRegenerations: number;
     approvers: { id: string; device_name: string; token_id: string }[];
     pushed: PushedCode[];
+    /** `eventlog` requests answered so far. */
+    eventlogReads: number;
 }
 
 /**

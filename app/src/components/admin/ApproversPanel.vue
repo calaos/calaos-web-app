@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n';
 import IconAndroid from '~icons/mdi/android';
 import IconApple from '~icons/mdi/apple';
 import IconCellphone from '~icons/mdi/cellphone';
+import IconCheckCircle from '~icons/mdi/check-circle';
 import { APPROVER_MAX } from '../../protocol/admin';
 import type { Approver, ApproverCandidate } from '../../protocol/admin';
 import { useAdminStore } from '../../stores/admin';
@@ -97,9 +98,14 @@ function openRemove(approver: Approver): void {
     approvers.dismissDone();
     removing.value = approver;
     mode.value = 'remove';
+    if (list.value.length === 1) approvers.refuseLast();
 }
 
+defineExpose({ openAdd });
+
+/** Escape during a check would hide a write that still lands. */
 function close(): void {
+    if (approvers.working !== null) return;
     mode.value = null;
     removing.value = null;
     approvers.cancel();
@@ -154,7 +160,7 @@ async function submitCode(code: string): Promise<void> {
                 <div class="approvers__text">
                     <span class="approvers__name">
                         <DeviceName :name="approver.deviceName" />
-                        <span v-if="suffixNeeded(approver.deviceName, list)" class="approvers__ref">
+                        <span class="approvers__ref">
                             {{ t('admin.approvers.reference', { suffix: approver.tokenId.slice(-4) }) }}
                         </span>
                     </span>
@@ -188,7 +194,9 @@ async function submitCode(code: string): Promise<void> {
                 :challenge="approvers.challenge"
                 :working="approvers.working"
                 @submit="submitCode"
+                :alternative="approvers.alternative?.deviceName ?? null"
                 @resend="approvers.resend()"
+                @other="approvers.sendToOther()"
                 @cancel="close"
             />
 
@@ -250,7 +258,7 @@ async function submitCode(code: string): Promise<void> {
                             :disabled="candidate.approver || busy"
                         />
                         <component :is="iconFor(candidate.platform)" class="approvers__icon" aria-hidden="true" />
-                        <span class="approvers__text">
+                        <span class="approvers__text approvers__text--grow">
                             <span class="approvers__name">
                                 <DeviceName :name="candidate.deviceName" />
                                 <span
@@ -269,6 +277,11 @@ async function submitCode(code: string): Promise<void> {
                                 <template v-else>{{ t('admin.approvers.lastSeen', { when: ago(candidate.lastSeen) }) }}</template>
                             </span>
                         </span>
+                        <IconCheckCircle
+                            v-if="picked === candidate.tokenId"
+                            class="approvers__check"
+                            aria-hidden="true"
+                        />
                     </label>
                 </fieldset>
                 <p v-if="list.length > 0 && selectable.length > 0" class="approvers__dialog-hint approvers__second">
@@ -429,6 +442,7 @@ async function submitCode(code: string): Promise<void> {
 }
 
 .approvers__choice {
+    position: relative;
     display: flex;
     align-items: flex-start;
     gap: var(--space-3);
@@ -455,6 +469,17 @@ async function submitCode(code: string): Promise<void> {
     outline-offset: 2px;
 }
 
+.approvers__text--grow {
+    flex: 1;
+}
+
+.approvers__check {
+    flex: none;
+    inline-size: 1.375rem;
+    block-size: 1.375rem;
+    color: var(--c-accent);
+}
+
 .approvers__radio {
     position: absolute;
     opacity: 0;
@@ -469,7 +494,7 @@ async function submitCode(code: string): Promise<void> {
 
 .approvers__error {
     margin-block-start: var(--space-3);
-    color: var(--c-danger);
+    color: var(--c-danger-text);
     font-size: 0.875rem;
     line-height: 1.4;
 }
@@ -497,6 +522,10 @@ async function submitCode(code: string): Promise<void> {
     .approvers__row > :last-child:not(.approvers__text),
     .approvers__footer > * {
         flex-basis: 100%;
+    }
+
+    .approvers__dismiss {
+        min-block-size: 44px;
     }
 }
 

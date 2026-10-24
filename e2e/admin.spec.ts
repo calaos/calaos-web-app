@@ -365,14 +365,16 @@ test('the box actions: restart asks first, the MCP token too, and the password n
     await expect(admin.info).toContainText(MESSAGES.admin.info.mcp_regenerated);
     expect((await mock.adminStatus()).mcpRegenerations).toBe(1);
 
+    // No approver phone: said up front, before any typing, with the way to add
+    // one (the change with a code is e2e/approvers.spec.ts).
+    await expect(page.locator('.actions')).toContainText(MESSAGES.admin.actions.passwordNeedsApprover);
     await page.getByRole('button', { name: MESSAGES.admin.actions.change }).click();
     const change = page.getByRole('dialog');
-    await change.locator('input[type="password"]').first().fill('another long password');
-    await change.locator('input[type="password"]').nth(1).fill('another long password');
-    await change.locator('.admin-password__submit').click();
-    // No approver phone: the change says how to get one (the code flow is e2e/approvers.spec.ts).
-    await expect(change.locator('.admin-password__error')).toHaveText(MESSAGES.admin.error.approver_required);
-    await change.getByRole('button', { name: MESSAGES.dialog.cancel }).click();
+    await expect(change).toContainText(MESSAGES.admin.actions.passwordNeedsApprover);
+    await expect(change.locator('input[type="password"]')).toHaveCount(0);
+    await change.getByRole('button', { name: MESSAGES.admin.approvers.add }).click();
+    await expect(page.getByRole('dialog')).toContainText(MESSAGES.admin.approvers.pick.hint);
+    await page.getByRole('dialog').getByRole('button', { name: MESSAGES.dialog.cancel }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     expect(await mock.adminStatus()).toMatchObject({ sessions: 1 });
 

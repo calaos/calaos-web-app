@@ -15,7 +15,7 @@
 // is how a test reads what the phone received. The approver alerts land in
 // the event log (`eventlog`) the way calaos_server stores them.
 
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 export const ADMIN_SCENARIOS = [
     'unavailable',
@@ -196,6 +196,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             pushed: [],
             /** The event log's persistent events, oldest first. */
             events: [],
+            eventlogReads: 0,
         };
     }
     reset();
@@ -436,7 +437,10 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         });
         meta.pending = codeId;
         meta.lastCodeAt = now;
-        state.pushed.push({ code_id: codeId, code, action, approver_id: approverId, token_id: tokenId });
+        // calaos_server pushes only to a token it still knows (purged after 30 days).
+        if (tokenEntry(tokenId) !== undefined) {
+            state.pushed.push({ code_id: codeId, code, action, approver_id: approverId, token_id: tokenId });
+        }
         return { codeId, expiresIn: Math.round(state.codeTtlMs / 1000) };
     }
 
@@ -584,7 +588,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
     function raiseAlert(type, deviceName, at = Date.now()) {
         const name = String(deviceName).replace(/["«»“”„‟″‶＂]/g, "'") || '?';
         state.events.push({
-            id: randomBytes(16).toString('hex'),
+            id: randomUUID(),
             event_type: PUSH_NOTIFICATION_EVENT,
             io_id: '',
             io_state: '',
@@ -595,7 +599,23 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         event(type);
     }
 
+    /** IO history rows, as the log holds for every IO with `log_history`. */
+    function addNoise(count) {
+        for (let i = 0; i < count; i += 1) {
+            state.events.push({
+                id: randomUUID(),
+                event_type: '3',
+                io_id: 'light_1',
+                io_state: i % 2 === 0 ? 'true' : 'false',
+                pic_uid: '',
+                created_at: sqliteTime(Date.now()),
+                event_raw: { type: '3', type_str: 'io_changed', data: { id: 'light_1', state: i % 2 === 0 ? 'true' : 'false' } },
+            });
+        }
+    }
+
     function handleEventLog(ws, frame) {
+        state.eventlogReads += 1;
         const data = frame.data ?? {};
         const perPage = data.per_page === undefined || data.per_page === '' ? 100 : Number(data.per_page);
         const page = data.page === undefined || data.page === '' ? 0 : Number(data.page);
@@ -894,14 +914,19 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         if (patch.clearSessions) state.sessions.clear();
         if (Array.isArray(patch.pushTokens)) state.pushTokens = structuredClone(patch.pushTokens);
         if (Array.isArray(patch.approvers)) {
-            // By token_id of a push token; seeded state, so no alert.
-            state.approvers = patch.approvers.map((tokenId, i) => ({
-                id: hex16(),
-                device_name: tokenEntry(tokenId)?.device_name ?? 'Phone',
-                token_id: tokenId,
-                created_at: iso(Date.now() - (patch.approvers.length - i) * 86_400_000),
-            }));
+            // A push token's token_id, or {token_id, device_name} for a phone
+            // whose token is gone; oldest first; seeded state, so no alert.
+            state.approvers = patch.approvers.map((entry, i) => {
+                const tokenId = typeof entry === 'string' ? entry : entry.token_id;
+                return {
+                    id: hex16(),
+                    device_name: entry.device_name ?? tokenEntry(tokenId)?.device_name ?? 'Phone',
+                    token_id: tokenId,
+                    created_at: iso(Date.now() - (patch.approvers.length - i) * 86_400_000),
+                };
+            });
         }
+        if (Number.isInteger(patch.noiseEvents)) addNoise(patch.noiseEvents);
         if (patch.codeTtlMs !== undefined) state.codeTtlMs = Number(patch.codeTtlMs);
         if (patch.codeIntervalMs !== undefined) state.codeIntervalMs = Number(patch.codeIntervalMs);
         if (patch.expireCodes) for (const code of state.codes.values()) code.expiresAt = 0;
@@ -933,6 +958,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             approvers: approverList(),
             pushed: state.pushed,
             events: state.events.length,
+            eventlogReads: state.eventlogReads,
         };
     }
 

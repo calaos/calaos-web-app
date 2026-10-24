@@ -296,7 +296,8 @@
             "regenerate": "Regenerate",
             "mcpConfirmTitle": "Regenerate the MCP token?",
             "mcpConfirmHint": "Assistants using the current token lose access until they are set up again with the new one.",
-            "mcpConfirm": "Regenerate"
+            "mcpConfirm": "Regenerate",
+            "passwordNeedsApprover": "Add an approver phone first (section above). Without one, the admin password can only be changed over SSH with calaos-os admin set."
         },
         "info": {
             "password_set": "Admin password set.",
@@ -324,7 +325,7 @@
             "invalid_request": "The box refused the request. {msg}",
             "package_not_found": "This package has no update waiting. {msg}",
             "package_held": "This package is held on the box and won't be updated.",
-            "approver_required": "Add an approver phone first (the “Approver phone” section). Without one, the admin password can only be changed over SSH, with calaos-os admin set.",
+            "approver_required": "Add an approver phone first (the “Approver phones” section). Without one, the admin password can only be changed over SSH, with calaos-os admin set.",
             "approver_limit": "Two approver phones at most.",
             "approver_exists": "This phone is already an approver.",
             "approver_not_found": "This phone is no longer an approver. The list was just updated.",
@@ -332,6 +333,7 @@
             "code_required": "A code is needed. Ask for a new one.",
             "bad_code": "Wrong code.",
             "code_expired": "This code has expired. Ask for a new one.",
+            "busy": "Another operation is in progress. Try again in a moment.",
             "internal": "Something went wrong on the box. Try again; the detail is in the box's logs.",
             "timeout": "The box did not answer. calaos-server may be too old: update the box once with its usual update (the button on the touch screen, or calaos-os upgrade).",
             "disconnected": "Connection lost before the box answered. Try again once it is back.",
@@ -339,8 +341,8 @@
             "household_refused": "Your sign-in password could not be changed. Sign out and back in, then try again."
         },
         "approvers": {
-            "title": "Approver phone",
-            "intro": "A code sent to this phone confirms sensitive changes: the admin password and the approver phones.",
+            "title": "Approver phones",
+            "intro": "A code sent to your phone confirms sensitive changes: the admin password and the approver phones.",
             "none": "No approver phone yet",
             "noneHint": "Add your phone to be able to change the admin password from the app. The Calaos app must be installed on it and connected to this box.",
             "added": "Added on {date}",
@@ -399,7 +401,7 @@
             },
             "phoneUnknown": "your approver phone",
             "label": "6-digit code",
-            "expiresIn": "Valid for {seconds} more s",
+            "expiresIn": "Expires in {seconds} s",
             "expired": "This code has expired. Ask for a new one.",
             "wrong": "Wrong code. No attempts left. | Wrong code. {count} attempt left. | Wrong code. {count} attempts left.",
             "attempts": "{count} attempt left | {count} attempts left",
@@ -408,16 +410,20 @@
             "submit": "Confirm",
             "checking": "Checking…",
             "sending": "Sending the code…",
-            "notReceived": "Nothing received? Check that notifications are allowed for the Calaos app on that phone."
+            "notReceived": "Nothing received? Check that notifications are allowed for the Calaos app on that phone.",
+            "restartHint": "A new code means asking {phone} again.",
+            "sendToOther": "Send it to {phone} instead"
         },
         "alerts": {
-            "approver_set": "New approver phone: “{name}”",
-            "approver_removed": "Approver phone removed: “{name}”",
+            "approver_set": "New approver phone: {name}",
+            "approver_removed": "Approver phone removed: {name}",
             "when": "On {date}",
             "hint": "If this was not you, someone knows the admin password. From a computer, over SSH: calaos-os admin reset, then choose a new admin password.",
             "more": "And {count} other change. | And {count} other changes.",
             "dismiss": "Got it",
-            "label": "Security alert"
+            "label": "Security alert",
+            "quoteOpen": "“",
+            "quoteClose": "”"
         },
         "dismiss": "OK"
     }

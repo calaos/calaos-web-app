@@ -1502,6 +1502,40 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
             expect((await ask('admin_set', { ...change, ...again })).error).toBe('bad_session');
         });
 
+        it('pushes nothing to a phone whose token is gone, and follows approver_id', async () => {
+            await control({
+                op: 'admin',
+                codeIntervalMs: 0,
+                approvers: [{ token_id: 'dddddddddddddddd', device_name: 'Old phone' }, PIXEL],
+            });
+            const { ask } = await adminClient();
+            const session = await unlock(ask);
+            const [dead, alive] = (await relay(ask, session, 'approver_list')).result;
+            expect(dead).toMatchObject({ device_name: 'Old phone', last_seen: '' });
+
+            // The default is the oldest approver: the code is made, but nobody receives it.
+            const password = { code_action: 'admin_password', code_params: { password: 'another long password' } };
+            expect((await relay(ask, session, 'code_request', password)).success).toBe('true');
+            expect((await control({ op: 'admin_status' })).body.pushed).toEqual([]);
+            await relay(ask, session, 'code_request', { ...password, approver_id: alive.id });
+            expect(await lastPushed()).toMatchObject({ token_id: PIXEL, approver_id: alive.id });
+        });
+
+        it('buries alerts under IO history on demand, newest first, by pages', async () => {
+            await control({ op: 'admin', alerts: [{ type: 'approver_set', device_name: 'Squatter' }] });
+            await control({ op: 'admin', noiseEvents: 120 });
+            const { client } = await adminClient();
+            client.send({ msg: 'eventlog', msg_id: 'p0', data: { page: '0', per_page: '100' } });
+            const first = (await client.waitFor(isReply('eventlog', 'p0'))).data;
+            expect(first).toMatchObject({ total_page: 2, total_count: 121 });
+            expect(first.events.every((e) => e.event_type === '3')).toBe(true);
+            expect(first.events[0].id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-/);
+            client.send({ msg: 'eventlog', msg_id: 'p1', data: { page: '1', per_page: '100' } });
+            const second = (await client.waitFor(isReply('eventlog', 'p1'))).data;
+            expect(second.events.at(-1).event_raw.message).toBe('New approver phone on your Calaos box: "Squatter"');
+            expect((await control({ op: 'admin_status' })).body.eventlogReads).toBe(2);
+        });
+
         it('keeps 10 s between two codes of a session', async () => {
             await control({ op: 'admin', approvers: [PIXEL] });
             const { ask } = await adminClient();

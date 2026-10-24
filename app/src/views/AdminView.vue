@@ -28,6 +28,7 @@ onMounted(() => admin.activate());
 onUnmounted(() => admin.deactivate());
 
 const actions = ref<InstanceType<typeof AdminActions> | null>(null);
+const phones = ref<InstanceType<typeof ApproversPanel> | null>(null);
 
 const formError = computed(() =>
     admin.notice !== null && admin.noticeSource === 'gate' ? errorText(admin.notice) : '',
@@ -68,8 +69,8 @@ function changeHousehold(user: string, password: string): void {
                 </button>
             </p>
             <UpdatesPanel @reboot="actions?.askReboot()" />
-            <ApproversPanel />
-            <AdminActions ref="actions" />
+            <ApproversPanel ref="phones" />
+            <AdminActions ref="actions" @add-phone="phones?.openAdd()" />
         </div>
 
         <!-- ---- the gate ----------------------------------------------- -->

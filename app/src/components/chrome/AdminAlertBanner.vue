@@ -30,7 +30,9 @@ const others = computed(() => alerts.alerts.length - 1);
         <IconShieldAlert class="admin-alert__icon" aria-hidden="true" />
         <div class="admin-alert__body">
             <i18n-t :keypath="`admin.alerts.${latest.kind}`" tag="p" class="admin-alert__title" scope="global">
-                <template #name><DeviceName :name="latest.deviceName" /></template>
+                <template #name>
+                    <span class="admin-alert__name">{{ t('admin.alerts.quoteOpen') }}<DeviceName :name="latest.deviceName" />{{ t('admin.alerts.quoteClose') }}</span>
+                </template>
             </i18n-t>
             <p class="admin-alert__meta">
                 <span v-if="Number.isFinite(latest.at)">{{ t('admin.alerts.when', { date: dayTime(latest.at) }) }}</span>
@@ -69,7 +71,14 @@ const others = computed(() => alerts.alerts.length - 1);
 .admin-alert__body {
     flex: 1;
     min-inline-size: 0;
+}
+
+.admin-alert__body > * {
     max-inline-size: 44rem;
+}
+
+.admin-alert__name {
+    white-space: nowrap;
 }
 
 .admin-alert__title {
@@ -98,6 +107,7 @@ const others = computed(() => alerts.alerts.length - 1);
 
 .admin-alert__dismiss {
     flex: none;
+    margin-inline-start: auto;
     padding: var(--space-1) var(--space-3);
     border: 1px solid rgba(224, 163, 86, 0.6);
     border-radius: var(--radius-sm);
@@ -118,6 +128,7 @@ const others = computed(() => alerts.alerts.length - 1);
     }
 
     .admin-alert__dismiss {
+        min-block-size: 44px;
         margin-inline-start: calc(1.375rem + var(--space-3));
     }
 }

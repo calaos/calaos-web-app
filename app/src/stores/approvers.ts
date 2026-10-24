@@ -6,7 +6,7 @@
 // already enrolled, then one to the new phone), so the flow keeps its own
 // context and the challenge only says which code is awaited.
 
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { defineStore } from 'pinia';
 import {
     CODE_LIFETIME_S,
@@ -36,8 +36,12 @@ export type ChallengeStep = 'approve_enroll' | 'confirm_enroll' | 'remove' | 'pa
 export interface Challenge {
     step: ChallengeStep;
     codeId: string;
+    /** The enrolled phone the code went to; '' for the new phone's own code. */
+    approverId: string;
     /** The phone the code went to; '' when the list does not name it. */
     phone: string;
+    /** A new code for a second phone means asking this one again. */
+    restartPhone: string;
     /** ms epoch. */
     expiresAt: number;
     /** No new code before this (the daemon's 10 s between two codes). */
@@ -58,6 +62,13 @@ interface FlowContext {
     firstEnrolment: boolean;
 }
 
+type CallResult = { data: Record<string, unknown> } | { error: AdminError };
+
+/** No `last_seen`: the token left the box's list and no code reaches it. */
+export function isGone(approver: Approver): boolean {
+    return !Number.isFinite(Date.parse(approver.lastSeen));
+}
+
 export const useApproversStore = defineStore('approvers', () => {
     const admin = useAdminStore();
 
@@ -72,6 +83,8 @@ export const useApproversStore = defineStore('approvers', () => {
     const done = ref<ApproverDone>(null);
 
     let context: FlowContext = { firstEnrolment: false };
+    /** Only the reply to the latest list request is applied. */
+    let listSeq = 0;
 
     // A password change swaps the session for a new one: that is not the end
     // of the admin visit, and it ends the change flow itself.
@@ -82,16 +95,39 @@ export const useApproversStore = defineStore('approvers', () => {
         },
     );
 
+    /** The other enrolled phone a code can go to instead, if any. */
+    const alternative = computed<Approver | null>(() => {
+        const current = challenge.value;
+        if (current === null || current.approverId === '') return null;
+        return approvers.value?.find((a) => a.id !== current.approverId) ?? null;
+    });
+
     function nameOf(approverId: string): string {
         return approvers.value?.find((a) => a.id === approverId)?.deviceName ?? '';
     }
 
-    function openChallenge(step: ChallengeStep, ticket: CodeTicket, phone: string): void {
+    /**
+     * Where a code goes: the phone seen most recently, so a dead token (purged,
+     * reinstalled app) does not swallow it. A removal asks the other phone
+     * when it is alive, since the one being removed may be the dead one.
+     */
+    function target(excluding?: string): string | undefined {
+        const list = [...(approvers.value ?? [])].sort((a, b) => {
+            if (isGone(a) !== isGone(b)) return isGone(a) ? 1 : -1;
+            return b.lastSeen.localeCompare(a.lastSeen);
+        });
+        const preferred = list.find((a) => a.id !== excluding && !isGone(a));
+        return (preferred ?? list[0])?.id;
+    }
+
+    function openChallenge(step: ChallengeStep, ticket: CodeTicket, approverId: string, phone: string): void {
         const now = Date.now();
         challenge.value = {
             step,
             codeId: ticket.codeId,
+            approverId,
             phone,
+            restartPhone: step === 'confirm_enroll' && !context.firstEnrolment ? nameOf(target() ?? '') : '',
             expiresAt: now + (ticket.expiresIn > 0 ? ticket.expiresIn : CODE_LIFETIME_S) * 1000,
             resendAt: now + CODE_RESEND_S * 1000,
             attemptsLeft: challenge.value?.attemptsLeft ?? null,
@@ -105,6 +141,7 @@ export const useApproversStore = defineStore('approvers', () => {
             reset();
             return;
         }
+        if (error.code === 'approver_not_found') void load();
         const current = challenge.value;
         if (current === null) {
             flowError.value = error;
@@ -128,21 +165,23 @@ export const useApproversStore = defineStore('approvers', () => {
         action: AdminAction,
         params: Record<string, unknown> | undefined,
         work: ApproverWork,
-    ): Promise<Record<string, unknown> | null> {
+    ): Promise<CallResult | null> {
         working.value = work;
         const outcome = await admin.relay(action, params, true);
         working.value = null;
-        if (!outcome.ok) {
-            report(outcome.error);
-            return null;
-        }
-        return outcome.data;
+        if (outcome.ok) return { data: outcome.data };
+        // Another request holds the page: nothing was sent, nothing to say.
+        if (outcome.error.code === 'busy') return null;
+        return { error: outcome.error };
     }
 
     // -------------------------------------------------------------- reads ---
 
     async function load(): Promise<void> {
+        listSeq += 1;
+        const seq = listSeq;
         const outcome = await admin.relay('approver_list', undefined, false);
+        if (seq !== listSeq) return;
         if (outcome.ok) {
             approvers.value = toApprovers(outcome.data.result);
             listError.value = null;
@@ -171,10 +210,29 @@ export const useApproversStore = defineStore('approvers', () => {
         codeAction: CodeAction,
         codeParams: Record<string, string>,
         step: ChallengeStep,
+        approverId: string | undefined,
     ): Promise<void> {
-        const data = await call('code_request', { code_action: codeAction, code_params: codeParams }, 'sending');
-        const ticket = data === null ? null : toCodeTicket(data.result);
-        if (ticket !== null) openChallenge(step, ticket, nameOf(ticket.approverId));
+        const params: Record<string, unknown> = { code_action: codeAction, code_params: codeParams };
+        if (approverId !== undefined) params.approver_id = approverId;
+        const result = await call('code_request', params, 'sending');
+        if (result === null) return;
+        if ('error' in result) {
+            report(result.error);
+            return;
+        }
+        const ticket = toCodeTicket(result.data.result);
+        if (ticket !== null) openChallenge(step, ticket, ticket.approverId, nameOf(ticket.approverId));
+    }
+
+    /**
+     * Another client enrolled a phone since this flow started: the new one now
+     * needs an approval code, so the flow starts over from there.
+     */
+    async function restartWithApproval(): Promise<void> {
+        context.firstEnrolment = false;
+        challenge.value = null;
+        await load();
+        await requestCode('approver_enroll', {}, 'approve_enroll', target());
     }
 
     /** `approver_enroll`: the new phone gets its own code to type back. */
@@ -186,29 +244,86 @@ export const useApproversStore = defineStore('approvers', () => {
             params.code_id = proof.codeId;
             params.code = proof.code;
         }
-        const data = await call('approver_enroll', params, proof === undefined ? 'sending' : 'checking');
-        const ticket = data === null ? null : toCodeTicket(data.result);
-        if (ticket !== null) {
-            // A fresh code to a fresh phone: the attempts count is the session's, kept.
-            openChallenge('confirm_enroll', ticket, candidate.deviceName);
+        const result = await call('approver_enroll', params, proof === undefined ? 'sending' : 'checking');
+        if (result === null) return;
+        if ('error' in result) {
+            if (result.error.code === 'code_required' && proof === undefined) await restartWithApproval();
+            else report(result.error);
+            return;
         }
+        const ticket = toCodeTicket(result.data.result);
+        // A fresh code to a fresh phone: the attempts count is the session's, kept.
+        if (ticket !== null) openChallenge('confirm_enroll', ticket, '', candidate.deviceName);
     }
 
     async function startEnrolment(candidate: ApproverCandidate): Promise<void> {
+        // A fresh read of the alerts, so the one this enrolment raises is told
+        // apart from those already there.
+        useAdminAlertsStore().refresh();
         const first = (approvers.value?.length ?? 0) === 0;
         begin({ candidate, firstEnrolment: first });
         if (first) await sendEnrolment(undefined);
-        else await requestCode('approver_enroll', {}, 'approve_enroll');
+        else await requestCode('approver_enroll', {}, 'approve_enroll', target());
     }
 
     async function startRemoval(approver: Approver): Promise<void> {
+        useAdminAlertsStore().refresh();
         begin({ approver, firstEnrolment: false });
-        await requestCode('approver_remove', { approver_id: approver.id }, 'remove');
+        await requestCode('approver_remove', { approver_id: approver.id }, 'remove', target(approver.id));
     }
 
     async function startPasswordChange(newPassword: string): Promise<void> {
         begin({ newPassword, firstEnrolment: false });
-        await requestCode('admin_password', { password: newPassword }, 'password');
+        await requestCode('admin_password', { password: newPassword }, 'password', target());
+    }
+
+    /** The last phone: refused before a round trip; the server says the same. */
+    function refuseLast(): void {
+        begin({ firstEnrolment: false });
+        flowError.value = {
+            code: 'approver_last',
+            msg: '',
+            retryAfter: null,
+            jobId: '',
+            minLength: null,
+            apiAllowedHosts: '',
+            attemptsLeft: null,
+        };
+    }
+
+    async function confirmEnrolment(proof: CodeProof): Promise<void> {
+        const alerts = useAdminAlertsStore();
+        const name = context.candidate?.deviceName ?? '';
+        alerts.expectOwn('approver_set', name);
+        const result = await call('approver_confirm', { code_id: proof.codeId, code: proof.code }, 'checking');
+        if (result === null || 'error' in result) {
+            alerts.dropOwn('approver_set', name);
+            if (result === null) return;
+            if (result.error.code === 'code_required') await restartWithApproval();
+            else report(result.error);
+            return;
+        }
+        finish('enrolled');
+        void load();
+    }
+
+    async function confirmRemoval(proof: CodeProof): Promise<void> {
+        const approver = context.approver;
+        if (approver === undefined) return;
+        const alerts = useAdminAlertsStore();
+        alerts.expectOwn('approver_removed', approver.deviceName);
+        const result = await call(
+            'approver_remove',
+            { approver_id: approver.id, code_id: proof.codeId, code: proof.code },
+            'checking',
+        );
+        if (result === null || 'error' in result) {
+            alerts.dropOwn('approver_removed', approver.deviceName);
+            if (result !== null) report(result.error);
+            return;
+        }
+        finish('removed');
+        void load();
     }
 
     async function submit(code: string): Promise<void> {
@@ -220,28 +335,12 @@ export const useApproversStore = defineStore('approvers', () => {
             case 'approve_enroll':
                 await sendEnrolment(proof);
                 return;
-            case 'confirm_enroll': {
-                const data = await call('approver_confirm', { code_id: proof.codeId, code }, 'checking');
-                if (data === null) return;
-                useAdminAlertsStore().expectOwn('approver_set', context.candidate?.deviceName ?? '');
-                finish('enrolled');
-                void load();
+            case 'confirm_enroll':
+                await confirmEnrolment(proof);
                 return;
-            }
-            case 'remove': {
-                const approver = context.approver;
-                if (approver === undefined) return;
-                const data = await call(
-                    'approver_remove',
-                    { approver_id: approver.id, code_id: proof.codeId, code },
-                    'checking',
-                );
-                if (data === null) return;
-                useAdminAlertsStore().expectOwn('approver_removed', approver.deviceName);
-                finish('removed');
-                void load();
+            case 'remove':
+                await confirmRemoval(proof);
                 return;
-            }
             case 'password': {
                 const newPassword = context.newPassword;
                 if (newPassword === undefined) return;
@@ -249,38 +348,45 @@ export const useApproversStore = defineStore('approvers', () => {
                 const error = await admin.changePassword(newPassword, proof);
                 working.value = null;
                 if (error === null) finish('password');
-                else report(error);
+                else if (error.code !== 'busy') report(error);
                 return;
             }
         }
     }
 
-    /** A new code for the step on screen; the typed attempts so far still count. */
-    async function resend(): Promise<void> {
+    /** A new code for the step on screen, to `approverId` or the same phone. */
+    async function resend(approverId?: string): Promise<void> {
         const current = challenge.value;
         if (current === null || working.value !== null) return;
         challenge.value = { ...current, error: null };
+        const to = approverId ?? (current.approverId || target());
         switch (current.step) {
             case 'approve_enroll':
-                await requestCode('approver_enroll', {}, 'approve_enroll');
+                await requestCode('approver_enroll', {}, 'approve_enroll', to);
                 return;
             case 'confirm_enroll':
                 // A second phone's enrolment code is only sent against an
                 // approval: a new one means asking the first phone again.
                 if (context.firstEnrolment) await sendEnrolment(undefined);
-                else await requestCode('approver_enroll', {}, 'approve_enroll');
+                else await requestCode('approver_enroll', {}, 'approve_enroll', target());
                 return;
             case 'remove':
                 if (context.approver !== undefined) {
-                    await requestCode('approver_remove', { approver_id: context.approver.id }, 'remove');
+                    await requestCode('approver_remove', { approver_id: context.approver.id }, 'remove', to);
                 }
                 return;
             case 'password':
                 if (context.newPassword !== undefined) {
-                    await requestCode('admin_password', { password: context.newPassword }, 'password');
+                    await requestCode('admin_password', { password: context.newPassword }, 'password', to);
                 }
                 return;
         }
+    }
+
+    /** The code went to a phone that is not at hand: send one to the other. */
+    async function sendToOther(): Promise<void> {
+        const other = alternative.value;
+        if (other !== null) await resend(other.id);
     }
 
     function finish(what: ApproverDone): void {
@@ -309,6 +415,7 @@ export const useApproversStore = defineStore('approvers', () => {
 
     function reset(): void {
         cancel();
+        listSeq += 1;
         approvers.value = null;
         listError.value = null;
         working.value = null;
@@ -323,13 +430,16 @@ export const useApproversStore = defineStore('approvers', () => {
         challenge,
         working,
         done,
+        alternative,
         load,
         loadCandidates,
         startEnrolment,
         startRemoval,
         startPasswordChange,
+        refuseLast,
         submit,
         resend,
+        sendToOther,
         cancel,
         dismissDone,
         handleEvent,

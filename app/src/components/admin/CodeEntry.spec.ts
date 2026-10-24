@@ -13,7 +13,9 @@ function challenge(patch: Partial<Challenge> = {}): Challenge {
     return {
         step: 'password',
         codeId: 'eeeeeeeeeeeeeeee',
+        approverId: '1111111111111111',
         phone: 'Pixel 8',
+        restartPhone: '',
         expiresAt: NOW + 60_000,
         resendAt: NOW + 10_000,
         attemptsLeft: null,
@@ -22,7 +24,10 @@ function challenge(patch: Partial<Challenge> = {}): Challenge {
     };
 }
 
-function mountEntry(props: { challenge: Challenge; working?: 'sending' | 'checking' | null }, locale: 'en' | 'fr' = 'en') {
+function mountEntry(
+    props: { challenge: Challenge; working?: 'sending' | 'checking' | null; alternative?: string | null },
+    locale: 'en' | 'fr' = 'en',
+) {
     return mount(CodeEntry, {
         props: { working: null, ...props },
         global: { plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })] },
@@ -42,7 +47,7 @@ describe('CodeEntry', () => {
     it('names the phone, counts down, and submits on the sixth digit', async () => {
         const wrapper = mountEntry({ challenge: challenge() });
         expect(wrapper.text()).toContain('Enter the code received on Pixel 8 to change the admin password.');
-        expect(wrapper.text()).toContain('Valid for 60 more s');
+        expect(wrapper.text()).toContain('Expires in 60 s');
 
         const input = wrapper.find('input');
         await input.setValue('12a34');
@@ -53,7 +58,7 @@ describe('CodeEntry', () => {
 
         vi.advanceTimersByTime(15_000);
         await wrapper.vm.$nextTick();
-        expect(wrapper.text()).toContain('Valid for 45 more s');
+        expect(wrapper.text()).toContain('Expires in 45 s');
     });
 
     it('waits the 10 s before offering a new code', async () => {
@@ -93,9 +98,27 @@ describe('CodeEntry', () => {
         expect(hint.text().endsWith(' to change the admin password.')).toBe(true);
     });
 
+    it('offers the other phone once the wait is over', async () => {
+        const wrapper = mountEntry({ challenge: challenge(), alternative: 'iPhone' });
+        const other = wrapper.findAll('.code-entry__resend-button')[1];
+        expect(other.text()).toBe('Send it to iPhone instead');
+        expect(other.attributes('disabled')).toBeDefined();
+        vi.advanceTimersByTime(10_000);
+        await wrapper.vm.$nextTick();
+        await other.trigger('click');
+        expect(wrapper.emitted('other')).toHaveLength(1);
+    });
+
+    it('warns that a new code for a second phone asks the first one again', () => {
+        const wrapper = mountEntry({
+            challenge: challenge({ step: 'confirm_enroll', approverId: '', phone: 'iPhone', restartPhone: 'Pixel 8' }),
+        });
+        expect(wrapper.text()).toContain('A new code means asking Pixel 8 again.');
+    });
+
     it('speaks French', () => {
         const wrapper = mountEntry({ challenge: challenge({ step: 'confirm_enroll', phone: 'iPhone' }) }, 'fr');
         expect(wrapper.text()).toContain('Un code vient d’être envoyé sur iPhone.');
-        expect(wrapper.text()).toContain('Valable encore 60 s');
+        expect(wrapper.text()).toContain('Expire dans 60 s');
     });
 });

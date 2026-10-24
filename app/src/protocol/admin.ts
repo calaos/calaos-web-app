@@ -61,14 +61,16 @@ export type AdminErrorCode = (typeof ADMIN_ERROR_CODES)[number];
  * Codes the client itself produces. `timeout`: no reply within the delay — an
  * old calaos_server ignores unknown WS messages in silence. `disconnected`:
  * the socket dropped while the reply was pending. `household_refused`: the
- * server said no to `change_cred`. `unknown`: a code outside the contract (a
- * newer server), rendered as a generic failure.
+ * server said no to `change_cred`. `busy`: another admin request holds the
+ * page, nothing was sent. `unknown`: a code outside the contract (a newer
+ * server), rendered as a generic failure.
  */
 export type AdminFailureCode =
     | AdminErrorCode
     | 'timeout'
     | 'disconnected'
     | 'household_refused'
+    | 'busy'
     | 'unknown';
 
 export interface AdminError {
@@ -279,7 +281,7 @@ export function toAdminError(data: unknown): AdminError {
 }
 
 export function clientAdminError(
-    code: 'timeout' | 'disconnected' | 'household_refused',
+    code: 'timeout' | 'disconnected' | 'household_refused' | 'busy',
 ): AdminError {
     return {
         code,

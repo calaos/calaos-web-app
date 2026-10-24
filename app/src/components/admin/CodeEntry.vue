@@ -12,8 +12,16 @@ import { useAdminText } from '../../composables/useAdminText';
 import AdminButton from './AdminButton.vue';
 import DeviceName from './DeviceName.vue';
 
-const props = defineProps<{ challenge: Challenge; working: ApproverWork }>();
-const emit = defineEmits<{ submit: [code: string]; resend: []; cancel: [] }>();
+const props = withDefaults(
+    defineProps<{
+        challenge: Challenge;
+        working: ApproverWork;
+        /** The other enrolled phone, offered when this one is not at hand. */
+        alternative?: string | null;
+    }>(),
+    { alternative: null },
+);
+const emit = defineEmits<{ submit: [code: string]; resend: []; other: []; cancel: [] }>();
 
 const { t } = useI18n();
 const { errorText } = useAdminText();
@@ -97,6 +105,15 @@ watch(
                 <template v-else>{{ t('admin.code.phoneUnknown') }}</template>
             </template>
         </i18n-t>
+        <i18n-t
+            v-if="challenge.restartPhone !== ''"
+            keypath="admin.code.restartHint"
+            tag="p"
+            class="code-entry__hint"
+            scope="global"
+        >
+            <template #phone><DeviceName :name="challenge.restartPhone" /></template>
+        </i18n-t>
 
         <label class="code-entry__label" :for="inputId">{{ t('admin.code.label') }}</label>
         <div class="code-entry__field" :class="{ 'code-entry__field--expired': expired }">
@@ -168,6 +185,17 @@ watch(
                 <template v-if="working === 'sending'">{{ t('admin.code.sending') }}</template>
                 <template v-else-if="resendWait > 0">{{ t('admin.code.resendIn', { seconds: resendWait }) }}</template>
                 <template v-else>{{ t('admin.code.resend') }}</template>
+            </button>
+            <button
+                v-if="alternative !== null"
+                type="button"
+                class="code-entry__resend-button"
+                :disabled="busy || resendWait > 0"
+                @click="emit('other')"
+            >
+                <i18n-t keypath="admin.code.sendToOther" scope="global">
+                    <template #phone><DeviceName :name="alternative" /></template>
+                </i18n-t>
             </button>
             <span class="code-entry__help">{{ t('admin.code.notReceived') }}</span>
         </p>
@@ -279,7 +307,7 @@ watch(
 }
 
 .code-entry__error {
-    color: var(--c-danger);
+    color: var(--c-danger-text);
 }
 
 .code-entry__actions {
@@ -322,6 +350,12 @@ watch(
 
 .code-entry__help {
     color: var(--c-text-muted);
+}
+
+@media (max-width: 479px) {
+    .code-entry__resend-button {
+        min-block-size: 44px;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

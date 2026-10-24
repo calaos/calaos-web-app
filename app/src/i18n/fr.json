@@ -296,7 +296,8 @@
             "regenerate": "Régénérer",
             "mcpConfirmTitle": "Régénérer le jeton MCP ?",
             "mcpConfirmHint": "Les assistants qui utilisent le jeton actuel perdent l’accès jusqu’à être reconfigurés avec le nouveau.",
-            "mcpConfirm": "Régénérer"
+            "mcpConfirm": "Régénérer",
+            "passwordNeedsApprover": "Ajoutez d’abord un téléphone approbateur (section ci-dessus). Sans lui, le mot de passe admin ne se change qu’en SSH avec calaos-os admin set."
         },
         "info": {
             "password_set": "Mot de passe admin défini.",
@@ -324,7 +325,7 @@
             "invalid_request": "La box a refusé la demande. {msg}",
             "package_not_found": "Ce paquet n’a pas de mise à jour en attente. {msg}",
             "package_held": "Ce paquet est bloqué sur la box et ne sera pas mis à jour.",
-            "approver_required": "Ajoutez d’abord un téléphone approbateur (section « Téléphone approbateur »). Sans lui, le mot de passe admin ne se change qu’en SSH, avec calaos-os admin set.",
+            "approver_required": "Ajoutez d’abord un téléphone approbateur (section « Téléphones approbateurs »). Sans lui, le mot de passe admin ne se change qu’en SSH, avec calaos-os admin set.",
             "approver_limit": "Deux téléphones approbateurs au plus.",
             "approver_exists": "Ce téléphone est déjà approbateur.",
             "approver_not_found": "Ce téléphone n’est plus approbateur. La liste vient d’être mise à jour.",
@@ -332,6 +333,7 @@
             "code_required": "Un code est nécessaire. Demandez-en un nouveau.",
             "bad_code": "Code incorrect.",
             "code_expired": "Ce code a expiré. Demandez-en un nouveau.",
+            "busy": "Une autre opération est en cours. Réessayez dans un instant.",
             "internal": "Un problème est survenu sur la box. Réessayez ; le détail est dans ses journaux.",
             "timeout": "La box n’a pas répondu. calaos-server est peut-être trop ancien : mettez la box à jour une fois avec l’outil habituel (le bouton de l’écran tactile, ou calaos-os upgrade).",
             "disconnected": "Connexion perdue avant la réponse de la box. Réessayez quand elle est revenue.",
@@ -339,8 +341,8 @@
             "household_refused": "Le mot de passe de connexion n’a pas pu être changé. Déconnectez-vous puis reconnectez-vous, et réessayez."
         },
         "approvers": {
-            "title": "Téléphone approbateur",
-            "intro": "Un code envoyé sur ce téléphone confirme les changements sensibles : le mot de passe admin et les téléphones approbateurs.",
+            "title": "Téléphones approbateurs",
+            "intro": "Un code envoyé sur votre téléphone confirme les changements sensibles : le mot de passe admin et les téléphones approbateurs.",
             "none": "Aucun téléphone approbateur",
             "noneHint": "Ajoutez votre téléphone pour pouvoir changer le mot de passe admin depuis l’application. L’application Calaos doit y être installée et connectée à cette box.",
             "added": "Ajouté le {date}",
@@ -399,7 +401,7 @@
             },
             "phoneUnknown": "votre téléphone approbateur",
             "label": "Code à 6 chiffres",
-            "expiresIn": "Valable encore {seconds} s",
+            "expiresIn": "Expire dans {seconds} s",
             "expired": "Ce code a expiré. Demandez-en un nouveau.",
             "wrong": "Code incorrect. Plus aucun essai. | Code incorrect. Encore {count} essai. | Code incorrect. Encore {count} essais.",
             "attempts": "{count} essai restant | {count} essais restants",
@@ -408,16 +410,20 @@
             "submit": "Valider",
             "checking": "Vérification…",
             "sending": "Envoi du code…",
-            "notReceived": "Rien reçu ? Vérifiez que les notifications de l’application Calaos sont autorisées sur ce téléphone."
+            "notReceived": "Rien reçu ? Vérifiez que les notifications de l’application Calaos sont autorisées sur ce téléphone.",
+            "restartHint": "Un nouveau code demandera de nouveau l’accord de {phone}.",
+            "sendToOther": "L’envoyer plutôt sur {phone}"
         },
         "alerts": {
-            "approver_set": "Nouveau téléphone approbateur : « {name} »",
-            "approver_removed": "Téléphone approbateur retiré : « {name} »",
+            "approver_set": "Nouveau téléphone approbateur : {name}",
+            "approver_removed": "Téléphone approbateur retiré : {name}",
             "when": "Le {date}",
             "hint": "Si ce n’est pas vous, quelqu’un connaît le mot de passe admin. Depuis un ordinateur, en SSH : calaos-os admin reset, puis choisissez un nouveau mot de passe admin.",
             "more": "Et {count} autre changement. | Et {count} autres changements.",
             "dismiss": "J’ai compris",
-            "label": "Alerte de sécurité"
+            "label": "Alerte de sécurité",
+            "quoteOpen": "« ",
+            "quoteClose": " »"
         },
         "dismiss": "OK"
     }

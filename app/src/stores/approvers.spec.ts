@@ -105,7 +105,7 @@ describe('enrolment', () => {
         expect(last().data).toEqual({
             action: 'code_request',
             admin_session: SESSION,
-            params: { code_action: 'approver_enroll', code_params: {} },
+            params: { code_action: 'approver_enroll', code_params: {}, approver_id: ENROLLED.id },
         });
         ok({ code_id: 'aaaaaaaaaaaaaaaa', approver_id: ENROLLED.id, expires_in: 60 });
         await flush();
@@ -120,14 +120,97 @@ describe('enrolment', () => {
         // A new enrolment code needs a new approval: back to the first phone.
         vi.advanceTimersByTime(10_000);
         void approvers.resend();
-        expect(last().data.params).toEqual({ code_action: 'approver_enroll', code_params: {} });
+        expect(last().data.params).toEqual({ code_action: 'approver_enroll', code_params: {}, approver_id: ENROLLED.id });
         ok({ code_id: 'dddddddddddddddd', approver_id: ENROLLED.id, expires_in: 60 });
         await flush();
         expect(approvers.challenge).toMatchObject({ step: 'approve_enroll', codeId: 'dddddddddddddddd' });
     });
 });
 
+describe('enrolment races', () => {
+    it('a phone enrolled elsewhere meanwhile: the first enrolment turns into an approval', async () => {
+        const approvers = await unlocked([]);
+        void approvers.startEnrolment(IPHONE);
+        fail('code_required');
+        await flush();
+        expect(last().data.action).toBe('approver_list');
+        ok([ENROLLED]);
+        await flush();
+        expect(last().data.params).toEqual({ code_action: 'approver_enroll', code_params: {}, approver_id: ENROLLED.id });
+        ok({ code_id: 'aaaaaaaaaaaaaaaa', approver_id: ENROLLED.id, expires_in: 60 });
+        await flush();
+        expect(approvers.challenge).toMatchObject({ step: 'approve_enroll', phone: 'Pixel 8' });
+        expect(approvers.flowError).toBeNull();
+    });
+
+    it('code_required at confirmation restarts from the approval, and a resend does not loop', async () => {
+        const approvers = await unlocked([]);
+        void approvers.startEnrolment(IPHONE);
+        ok({ approver_id: '2222222222222222', code_id: 'c0c0c0c0c0c0c0c0', expires_in: 60 });
+        await flush();
+        void approvers.submit('123456');
+        fail('code_required');
+        await flush();
+        ok([ENROLLED]);
+        await flush();
+        expect(last().data.params).toMatchObject({ code_action: 'approver_enroll', approver_id: ENROLLED.id });
+        fail('rate_limited', { retry_after: '4' });
+        await flush();
+        // Nothing to type yet: the flow says why, and the next try asks the approver.
+        expect(approvers.flowError?.code).toBe('rate_limited');
+    });
+});
+
+describe('which phone gets the code', () => {
+    const OLD_DEAD = { ...ENROLLED, id: '4444444444444444', device_name: 'Old phone', token_id: 'dddddddddddddddd' };
+    const ALIVE = {
+        ...ENROLLED,
+        id: '5555555555555555',
+        device_name: 'iPhone',
+        token_id: IPHONE.tokenId,
+        last_seen: new Date().toISOString(),
+    };
+
+    it('the phone seen most recently, never one whose token is gone', async () => {
+        const approvers = await unlocked([OLD_DEAD, ALIVE]);
+        void approvers.startPasswordChange('another long password');
+        expect(last().data.params).toMatchObject({ approver_id: ALIVE.id });
+        ok({ code_id: 'eeeeeeeeeeeeeeee', approver_id: ALIVE.id, expires_in: 60 });
+        await flush();
+        expect(approvers.challenge).toMatchObject({ approverId: ALIVE.id, phone: 'iPhone' });
+        expect(approvers.alternative?.id).toBe(OLD_DEAD.id);
+
+        // "Send it to the other phone" asks for a new code there.
+        vi.advanceTimersByTime(10_000);
+        void approvers.sendToOther();
+        expect(last().data.params).toMatchObject({ code_action: 'admin_password', approver_id: OLD_DEAD.id });
+    });
+
+    it('a removal asks the phone that stays', async () => {
+        const approvers = await unlocked([OLD_DEAD, ALIVE]);
+        const [, alive] = approvers.approvers!;
+        void approvers.startRemoval(alive);
+        // The other one is dead: the code still goes where it can be read.
+        expect(last().data.params).toMatchObject({ approver_id: ALIVE.id });
+    });
+
+    it('an unknown approver reloads the list it talks about', async () => {
+        const approvers = await unlocked([OLD_DEAD, ALIVE]);
+        void approvers.startPasswordChange('another long password');
+        fail('approver_not_found');
+        await flush();
+        expect(sent.some((frame) => frame.data.action === 'approver_list')).toBe(true);
+    });
+});
+
 describe('removal', () => {
+    it('the last phone is explained without a round trip', async () => {
+        const approvers = await unlocked([ENROLLED]);
+        approvers.refuseLast();
+        expect(sent).toEqual([]);
+        expect(approvers.flowError?.code).toBe('approver_last');
+    });
+
     it('the last phone is refused before any code is sent', async () => {
         const approvers = await unlocked([ENROLLED]);
         void approvers.startRemoval({
@@ -139,7 +222,11 @@ describe('removal', () => {
             registeredAt: '',
             lastSeen: '',
         });
-        expect(last().data.params).toEqual({ code_action: 'approver_remove', code_params: { approver_id: ENROLLED.id } });
+        expect(last().data.params).toEqual({
+            code_action: 'approver_remove',
+            code_params: { approver_id: ENROLLED.id },
+            approver_id: ENROLLED.id,
+        });
         fail('approver_last');
         await flush();
         expect(approvers.challenge).toBeNull();
@@ -154,6 +241,7 @@ describe('codes', () => {
         expect(last().data.params).toEqual({
             code_action: 'admin_password',
             code_params: { password: 'another long password' },
+            approver_id: ENROLLED.id,
         });
         ok({ code_id: 'eeeeeeeeeeeeeeee', approver_id: ENROLLED.id, expires_in: 60 });
         await flush();

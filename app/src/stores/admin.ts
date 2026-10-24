@@ -617,7 +617,7 @@ export const useAdminStore = defineStore('admin', () => {
     }
 
     /** Another request holds the page: the press is dropped, nothing to show. */
-    const BUSY: AdminError = clientAdminError('disconnected');
+    const BUSY: AdminError = clientAdminError('busy');
 
     async function submitSet(newPass: string, proof: CodeProof | undefined): Promise<AdminError | null> {
         if (busy.value !== null) return BUSY;

@@ -23,7 +23,8 @@
 //                               scenario, updates, upgradeMs, dropAtPercent,
 //                               failAtPercent, rebootRequired, clearSessions,
 //                               pushTokens, approvers (token_ids), codeTtlMs,
-//                               codeIntervalMs, expireCodes, alerts
+//                               codeIntervalMs, expireCodes, alerts,
+//                               noiseEvents
 //   {op:'admin_status'}         the fake daemon's state and counters
 //   {op:'credentials', user, pass}
 //                               the household account the mock accepts

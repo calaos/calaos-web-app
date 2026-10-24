@@ -34,6 +34,8 @@ const changeError = computed(() => {
     return failure.value;
 });
 const hasApprover = computed(() => (approvers.approvers?.length ?? 0) > 0);
+/** Known to have none: the change can only fail, so say so before any typing. */
+const noApprover = computed(() => approvers.approvers !== null && approvers.approvers.length === 0);
 const passwordChallenge = computed(() =>
     approvers.challenge?.step === 'password' ? approvers.challenge : null,
 );
@@ -44,6 +46,8 @@ function askReboot(): void {
 }
 
 defineExpose({ askReboot });
+
+const emit = defineEmits<{ addPhone: [] }>();
 
 function confirm(): void {
     const what = confirming.value;
@@ -58,6 +62,8 @@ function openChange(): void {
 }
 
 function closeChange(): void {
+    // Escape during a check would hide a write that still lands.
+    if (approvers.working !== null) return;
     approvers.cancel();
     changing.value = false;
 }
@@ -87,6 +93,11 @@ async function changePassword(password: string): Promise<void> {
     refused.value = true;
 }
 
+function addPhone(): void {
+    closeChange();
+    emit('addPhone');
+}
+
 async function submitCode(code: string): Promise<void> {
     await approvers.submit(code);
     if (approvers.done === 'password') {
@@ -104,7 +115,9 @@ async function submitCode(code: string): Promise<void> {
             <li class="actions__row">
                 <div class="actions__text">
                     <span class="actions__name">{{ t('admin.actions.password') }}</span>
-                    <span class="actions__hint">{{ t('admin.actions.passwordHint') }}</span>
+                    <span class="actions__hint">
+                        {{ noApprover ? t('admin.actions.passwordNeedsApprover') : t('admin.actions.passwordHint') }}
+                    </span>
                 </div>
                 <AdminButton variant="quiet" :disabled="busy" @click="openChange">
                     {{ t('admin.actions.change') }}
@@ -173,16 +186,25 @@ async function submitCode(code: string): Promise<void> {
                 v-if="passwordChallenge !== null"
                 :challenge="passwordChallenge"
                 :working="approvers.working"
+                :alternative="approvers.alternative?.deviceName ?? null"
                 @submit="submitCode"
                 @resend="approvers.resend()"
+                @other="approvers.sendToOther()"
                 @cancel="closeChange"
             />
-            <p v-if="passwordChallenge === null" class="actions__dialog-hint actions__dialog-hint--form">
+            <template v-if="noApprover && passwordChallenge === null">
+                <p class="actions__dialog-hint">{{ t('admin.actions.passwordNeedsApprover') }}</p>
+                <div class="actions__dialog-buttons">
+                    <AdminButton variant="quiet" @click="closeChange">{{ t('dialog.cancel') }}</AdminButton>
+                    <AdminButton @click="addPhone">{{ t('admin.approvers.add') }}</AdminButton>
+                </div>
+            </template>
+            <p v-else-if="passwordChallenge === null" class="actions__dialog-hint actions__dialog-hint--form">
                 {{ t('admin.change.hint', { min: ADMIN_PASSWORD_MIN_LENGTH }) }}
                 <template v-if="hasApprover">{{ t('admin.change.codeHint') }}</template>
             </p>
             <AdminPasswordForm
-                v-if="passwordChallenge === null"
+                v-if="passwordChallenge === null && !noApprover"
                 mode="change"
                 :busy="admin.busy === 'set' || admin.busy === 'unlock' || approvers.working === 'sending'"
                 :error="changeError"
@@ -238,7 +260,7 @@ async function submitCode(code: string): Promise<void> {
 .actions__error {
     margin-block-start: var(--space-3);
     padding-inline: var(--space-2);
-    color: var(--c-danger);
+    color: var(--c-danger-text);
     font-size: 0.875rem;
 }
 
@@ -246,6 +268,16 @@ async function submitCode(code: string): Promise<void> {
     color: var(--c-text-muted);
     font-size: 0.9375rem;
     line-height: 1.45;
+}
+
+.actions__dialog-buttons {
+    display: flex;
+    gap: var(--space-3);
+    margin-block-start: var(--space-6);
+}
+
+.actions__dialog-buttons > * {
+    flex: 1;
 }
 
 .actions__dialog-hint--form {

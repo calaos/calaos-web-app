@@ -10,7 +10,7 @@ import { isolateName } from '../../composables/isolateName';
 import AdminAlertBanner from './AdminAlertBanner.vue';
 
 /** U+202E RIGHT-TO-LEFT OVERRIDE: unisolated, it would reverse the rest of the sentence. */
-const RTL_NAME = '‮enohp s’luoaR';
+const RTL_NAME = '\u202Eenohp s’luoaR';
 
 function mountBanner() {
     return mount(AdminAlertBanner, {
@@ -30,7 +30,7 @@ function deliver(name: string): void {
     alerts.refresh();
     alerts.handleEventLog({
         kind: 'eventlog',
-        msgId: 'admin_alerts:1',
+        msgId: 'admin_alerts:1:0',
         data: {
             events: [
                 {
@@ -55,8 +55,8 @@ describe('AdminAlertBanner', () => {
         expect(bdi.text()).toBe(RTL_NAME);
         expect(bdi.attributes('title')).toBe(RTL_NAME);
         // The override sits inside the isolate; the sentence around it is plain text.
-        expect(title.text().startsWith('New approver phone: “')).toBe(true);
-        expect(title.element.childNodes[0].textContent).not.toContain('‮');
+        expect(title.text()).toBe(`New approver phone: “${RTL_NAME}”`);
+        expect(title.element.childNodes[0].textContent).not.toContain('\u202E');
     });
 
     it('hides once dismissed', async () => {
@@ -70,8 +70,10 @@ describe('AdminAlertBanner', () => {
 
 describe('isolateName', () => {
     it('wraps a name in first-strong isolate marks and caps its length', () => {
-        expect(isolateName(RTL_NAME)).toBe(`⁨${RTL_NAME}⁩`);
+        // The override is dropped, and a stray PDI cannot close the isolate early.
+        expect(isolateName(RTL_NAME)).toBe('\u2068enohp s’luoaR\u2069');
+        expect(isolateName('x\u2069\u202Eevil')).toBe('\u2068xevil\u2069');
         const long = 'x'.repeat(40);
-        expect(isolateName(long)).toBe(`⁨${'x'.repeat(31)}…⁩`);
+        expect(isolateName(long)).toBe(`\u2068${'x'.repeat(31)}…\u2069`);
     });
 });
