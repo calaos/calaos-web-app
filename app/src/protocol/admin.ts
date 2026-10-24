@@ -52,6 +52,8 @@ export const ADMIN_ERROR_CODES = [
     'code_required',
     'bad_code',
     'code_expired',
+    'console_limit',
+    'login_failed',
     'internal',
 ] as const;
 
@@ -106,6 +108,7 @@ export const ADMIN_ACTIONS = [
     'approver_remove',
     'code_request',
     'code_verify',
+    'console_open',
 ] as const;
 
 export type AdminAction = (typeof ADMIN_ACTIONS)[number];

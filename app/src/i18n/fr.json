@@ -297,7 +297,11 @@
             "mcpConfirmTitle": "Régénérer le jeton MCP ?",
             "mcpConfirmHint": "Les assistants qui utilisent le jeton actuel perdent l’accès jusqu’à être reconfigurés avec le nouveau.",
             "mcpConfirm": "Régénérer",
-            "passwordNeedsApprover": "Ajoutez d’abord un téléphone approbateur (section ci-dessus). Sans lui, le mot de passe admin ne se change qu’en SSH avec calaos-os admin set."
+            "passwordNeedsApprover": "Ajoutez d’abord un téléphone approbateur (section ci-dessus). Sans lui, le mot de passe admin ne se change qu’en SSH avec calaos-os admin set.",
+            "console": "Console",
+            "consoleHint": "Un shell root de la box, dans ce navigateur. S’ouvre avec un code envoyé à votre téléphone approbateur.",
+            "consoleNeedsApprover": "Ajoutez d’abord un téléphone approbateur : la console s’ouvre avec un code qui lui est envoyé.",
+            "consoleOpen": "Ouvrir"
         },
         "info": {
             "password_set": "Mot de passe admin défini.",
@@ -338,7 +342,9 @@
             "timeout": "La box n’a pas répondu. calaos-server est peut-être trop ancien : mettez la box à jour une fois avec l’outil habituel (le bouton de l’écran tactile, ou calaos-os upgrade).",
             "disconnected": "Connexion perdue avant la réponse de la box. Réessayez quand elle est revenue.",
             "unknown": "Réponse inattendue de la box. {msg}",
-            "household_refused": "Le mot de passe de connexion n’a pas pu être changé. Déconnectez-vous puis reconnectez-vous, et réessayez."
+            "household_refused": "Le mot de passe de connexion n’a pas pu être changé. Déconnectez-vous puis reconnectez-vous, et réessayez.",
+            "console_limit": "Deux consoles sont déjà ouvertes sur la box. Fermez-en une d’abord.",
+            "login_failed": "La box a refusé votre connexion. Reconnectez-vous."
         },
         "approvers": {
             "title": "Téléphones approbateurs",
@@ -412,7 +418,11 @@
             "sending": "Envoi du code…",
             "notReceived": "Rien reçu ? Vérifiez que les notifications de l’application Calaos sont autorisées sur ce téléphone.",
             "restartHint": "Un nouveau code demandera de nouveau l’accord de {phone}.",
-            "sendToOther": "L’envoyer plutôt sur {phone}"
+            "sendToOther": "L’envoyer plutôt sur {phone}",
+            "console": {
+                "title": "Ouvrir la console",
+                "hint": "Saisissez le code reçu sur {phone} pour ouvrir un shell root sur la box."
+            }
         },
         "alerts": {
             "approver_set": "Nouveau téléphone approbateur : {name}",
@@ -425,6 +435,36 @@
             "quoteOpen": "« ",
             "quoteClose": " »"
         },
-        "dismiss": "OK"
+        "dismiss": "OK",
+        "console": {
+            "title": "Console",
+            "sending": "Envoi d’un code à votre téléphone approbateur…",
+            "connecting": "Ouverture de la console…",
+            "endsIn": "Se ferme dans {minutes} min",
+            "endsInSeconds": "Se ferme dans {seconds} s",
+            "idleSoon": "Rien n’a été saisi depuis un moment : fermeture dans {seconds} s",
+            "close": "Fermer la console",
+            "again": "Ouvrir une nouvelle console",
+            "back": "Retour à l’administration",
+            "signIn": "Se reconnecter",
+            "refusedTitle": "La console ne s’est pas ouverte",
+            "closedTitle": "Console fermée",
+            "noApprover": {
+                "title": "Ajoutez d’abord un téléphone approbateur",
+                "hint": "La console ne s’ouvre qu’avec un code envoyé à un téléphone approbateur. Ajoutez-en un dans la section « Téléphones approbateurs »."
+            },
+            "end": {
+                "codeExpired": "Le code a déjà servi ou date de plus de 30 s. Demandez-en un nouveau.",
+                "https": "La console ne s’ouvre qu’en https://. Ouvrez cette page en https:// et réessayez.",
+                "handshake": "La box a refusé la connexion à la console.",
+                "exited": "Le shell s’est terminé.",
+                "expired": "La console a atteint sa limite de {minutes} min.",
+                "idle": "La console s’est fermée après {minutes} min sans saisie.",
+                "server": "La box a fermé la console : le mot de passe admin a changé, trop de codes faux ont été saisis, ou la box s’arrête.",
+                "too_big": "La console s’est fermée : le texte collé était trop long.",
+                "lost": "Connexion à la console perdue.",
+                "user": "Vous avez fermé la console."
+            }
+        }
     }
 }

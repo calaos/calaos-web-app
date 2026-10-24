@@ -1786,4 +1786,84 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
         expect(bad.status).toBe(400);
         expect(bad.body.known).toContain('old_server');
     });
+
+    describe('/api/console (console.mjs)', () => {
+        const PIXEL = '0c1d2e3f4a5b6c7d';
+
+        /** A verified console code: `{session, code_id}`. */
+        async function grant() {
+            const { ask } = await adminClient();
+            const session = await unlock(ask);
+            await control({ op: 'admin', approvers: [PIXEL] });
+            const { code_id, code } = await requestCode(ask, session, 'console_open');
+            const reply = await ask('admin', { action: 'console_open', admin_session: session, params: { code_id, code } });
+            expect(reply).toEqual({ success: 'true', result: { action: 'console_open', expires_in: 30 } });
+            return { session, code_id };
+        }
+
+        function consoleSocket(protocol = 'calaos-console.v1') {
+            const ws = new WebSocket(server.wsUrl.replace(/\/api$/, '/api/console'), protocol);
+            const text = [];
+            const output = [];
+            ws.on('message', (data, isBinary) => (isBinary ? output : text).push(data.toString()));
+            openClients.push({ terminate: () => ws.terminate() });
+            return {
+                ws,
+                text,
+                output,
+                opened: new Promise((resolve, reject) => {
+                    ws.once('open', resolve);
+                    ws.once('error', reject);
+                }),
+                closed: new Promise((resolve) => ws.once('close', (code, reason) => resolve({ code, reason: reason.toString() }))),
+            };
+        }
+
+        const openFrame = (g, extra = {}) =>
+            JSON.stringify({ type: 'open', cn_user: 'demo', cn_pass: 'demo', admin_session: g.session, code_id: g.code_id, columns: 80, rows: 24, ...extra });
+
+        it('opens with a grant, echoes input, and the grant serves once', async () => {
+            const g = await grant();
+            const c = consoleSocket();
+            await c.opened;
+            c.ws.send(openFrame(g));
+            await expect.poll(() => c.text.length).toBe(1);
+            expect(JSON.parse(c.text[0])).toMatchObject({ type: 'ready', expires_in: 3600, idle_timeout: 900 });
+            c.ws.send(JSON.stringify({ type: 'input', data: 'ls\r' }));
+            c.ws.send(JSON.stringify({ type: 'resize', columns: 100, rows: 30 }));
+            await expect.poll(() => c.output.join('')).toContain('ls\r\n');
+            const status = (await control({ op: 'console' })).body;
+            expect(status.open).toBe(1);
+            expect(status.connections[0].url).toBe('/api/console');
+            expect(status.received).toEqual([
+                { type: 'input', data: 'ls\r' },
+                { type: 'resize', columns: 100, rows: 30 },
+            ]);
+
+            const again = consoleSocket();
+            await again.opened;
+            again.ws.send(openFrame(g));
+            expect(await again.closed).toEqual({ code: 1008, reason: 'console refused' });
+            expect(JSON.parse(again.text[0])).toMatchObject({ type: 'error', error: 'code_expired' });
+
+            await control({ op: 'console', close: 1001 });
+            expect((await c.closed).code).toBe(1001);
+        });
+
+        it('refuses wrong household credentials and a missing subprotocol', async () => {
+            const g = await grant();
+            const c = consoleSocket();
+            await c.opened;
+            c.ws.send(openFrame(g, { cn_pass: 'nope' }));
+            expect((await c.closed).code).toBe(1008);
+            expect(JSON.parse(c.text[0]).error).toBe('login_failed');
+
+            const bare = new WebSocket(server.wsUrl.replace(/\/api$/, '/api/console'));
+            openClients.push({ terminate: () => bare.terminate() });
+            await expect(new Promise((resolve, reject) => {
+                bare.once('open', resolve);
+                bare.once('error', reject);
+            })).rejects.toThrow();
+        });
+    });
 });

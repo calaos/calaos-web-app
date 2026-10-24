@@ -9,6 +9,7 @@ import CameraView from '../views/CameraView.vue';
 import HomeView from '../views/HomeView.vue';
 import RoomView from '../views/RoomView.vue';
 import { toHomeData } from '../protocol/guards';
+import { useAdminStore } from '../stores/admin';
 import { useAuthStore } from '../stores/auth';
 import { useHomeStore } from '../stores/home';
 import type { Router } from 'vue-router';
@@ -295,5 +296,25 @@ describe('navigation intents', () => {
         await Promise.resolve();
 
         expect(router.currentRoute.value.fullPath).toBe(before);
+    });
+});
+
+describe('admin console route', () => {
+    it('without an unlocked admin session, goes to the Admin tab instead', async () => {
+        signedIn();
+        await router.push('/admin/console');
+        expect(router.currentRoute.value.name).toBe('admin');
+    });
+
+    it('with one, opens as a detail route', async () => {
+        signedIn();
+        const admin = useAdminStore();
+        admin.gate = 'unlocked';
+        admin.session = 'a'.repeat(64);
+        // The view itself is not under test: only where the guard lets the user go.
+        router.getRoutes().find((r) => r.name === 'adminConsole')!.components!.default = { render: () => null };
+        await router.push('/admin/console');
+        expect(router.currentRoute.value.name).toBe('adminConsole');
+        expect(router.currentRoute.value.meta.detail).toBe(true);
     });
 });

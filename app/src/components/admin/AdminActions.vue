@@ -1,11 +1,12 @@
 <script setup lang="ts">
-// The three things an unlocked admin can do to the box besides updating it,
-// as a hairline list. The two that cannot be undone (restart, new MCP token)
+// What an unlocked admin can do to the box besides updating it, as a
+// hairline list. The two that cannot be undone (restart, new MCP token)
 // ask once. Once a phone is an approver, the new password also takes a code
 // from it.
 
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import BaseDialog from '../ui/BaseDialog.vue';
 import { ADMIN_PASSWORD_MIN_LENGTH } from '../../protocol/admin';
 import { useAdminStore } from '../../stores/admin';
@@ -16,6 +17,7 @@ import AdminPasswordForm from './AdminPasswordForm.vue';
 import CodeEntry from './CodeEntry.vue';
 
 const { t } = useI18n();
+const router = useRouter();
 const admin = useAdminStore();
 const approvers = useApproversStore();
 const { errorText } = useAdminText();
@@ -121,6 +123,18 @@ async function submitCode(code: string): Promise<void> {
                 </div>
                 <AdminButton variant="quiet" :disabled="busy" @click="openChange">
                     {{ t('admin.actions.change') }}
+                </AdminButton>
+            </li>
+
+            <li class="actions__row">
+                <div class="actions__text">
+                    <span class="actions__name">{{ t('admin.actions.console') }}</span>
+                    <span class="actions__hint">
+                        {{ noApprover ? t('admin.actions.consoleNeedsApprover') : t('admin.actions.consoleHint') }}
+                    </span>
+                </div>
+                <AdminButton variant="quiet" :disabled="busy" @click="router.push({ name: 'adminConsole' })">
+                    {{ t('admin.actions.consoleOpen') }}
                 </AdminButton>
             </li>
 
