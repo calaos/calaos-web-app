@@ -5,8 +5,9 @@
 // screens borrow the login panel so that "enter the admin password" reads as
 // the same gesture as signing in.
 
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 import { ADMIN_PASSWORD_MIN_LENGTH } from '../protocol/admin';
 import { useAdminStore } from '../stores/admin';
 import { useAuthStore } from '../stores/auth';
@@ -29,6 +30,20 @@ onUnmounted(() => admin.deactivate());
 
 const actions = ref<InstanceType<typeof AdminActions> | null>(null);
 const phones = ref<InstanceType<typeof ApproversPanel> | null>(null);
+const route = useRoute();
+const router = useRouter();
+
+// The console sends here to enrol a first phone (`?add=phone`), possibly
+// through the unlock screen first.
+watch(
+    phones,
+    (panel) => {
+        if (panel === null || route.query.add !== 'phone') return;
+        void router.replace({ name: 'admin' });
+        panel.openAdd();
+    },
+    { flush: 'post' },
+);
 
 const formError = computed(() =>
     admin.notice !== null && admin.noticeSource === 'gate' ? errorText(admin.notice) : '',

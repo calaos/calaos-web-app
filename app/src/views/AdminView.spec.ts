@@ -2,18 +2,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
+import { createMemoryHistory } from 'vue-router';
 import AdminView from './AdminView.vue';
 import en from '../i18n/en.json';
 import fr from '../i18n/fr.json';
 import { toAdminError } from '../protocol/admin';
 import { useAdminStore } from '../stores/admin';
 import { useAuthStore } from '../stores/auth';
+import { createAppRouter } from '../router';
 import type { VueWrapper } from '@vue/test-utils';
 
 function mountView(locale: 'en' | 'fr' = 'en'): VueWrapper {
     return mount(AdminView, {
         global: {
-            plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })],
+            plugins: [
+                createI18n({ legacy: false, locale, messages: { en, fr } }),
+                createAppRouter(createMemoryHistory()),
+            ],
             stubs: { Teleport: true },
         },
     });

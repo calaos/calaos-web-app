@@ -736,9 +736,14 @@ export const useAdminStore = defineStore('admin', () => {
         return outcome;
     }
 
-    /** The fifth wrong code invalidated the session: ask for the password again. */
-    function dropSession(reason: AdminInfo): void {
+    /** The fifth wrong code, or a refused console: ask for the password again. */
+    function dropSession(reason: AdminInfo | null): void {
         forgetSession(reason);
+    }
+
+    /** For the console's open message, which signs in on its own socket. */
+    function householdCredentials(): { user: string; pass: string } {
+        return household.credentials();
     }
 
     async function checkUpdates(): Promise<void> {
@@ -943,6 +948,7 @@ export const useAdminStore = defineStore('admin', () => {
         changeHouseholdPassword,
         relay,
         dropSession,
+        householdCredentials,
         checkUpdates,
         upgradeAll,
         reboot,

@@ -297,7 +297,11 @@
             "mcpConfirmTitle": "Regenerate the MCP token?",
             "mcpConfirmHint": "Assistants using the current token lose access until they are set up again with the new one.",
             "mcpConfirm": "Regenerate",
-            "passwordNeedsApprover": "Add an approver phone first (section above). Without one, the admin password can only be changed over SSH with calaos-os admin set."
+            "passwordNeedsApprover": "Add an approver phone first (section above). Without one, the admin password can only be changed over SSH with calaos-os admin set.",
+            "console": "Console",
+            "consoleHint": "A root shell on the box, in this browser. Opens with a code sent to your approver phone.",
+            "consoleNeedsApprover": "Add an approver phone first: the console opens with a code sent to it.",
+            "consoleOpen": "Open"
         },
         "info": {
             "password_set": "Admin password set.",
@@ -338,7 +342,9 @@
             "timeout": "The box did not answer. calaos-server may be too old: update the box once with its usual update (the button on the touch screen, or calaos-os upgrade).",
             "disconnected": "Connection lost before the box answered. Try again once it is back.",
             "unknown": "Unexpected answer from the box. {msg}",
-            "household_refused": "Your sign-in password could not be changed. Sign out and back in, then try again."
+            "household_refused": "Your sign-in password could not be changed. Sign out and back in, then try again.",
+            "console_limit": "{max} consoles are already open on the box, the most it allows. Close one first.",
+            "login_failed": "The box refused your sign-in. Sign in again."
         },
         "approvers": {
             "title": "Approver phones",
@@ -412,7 +418,11 @@
             "sending": "Sending the code…",
             "notReceived": "Nothing received? Check that notifications are allowed for the Calaos app on that phone.",
             "restartHint": "A new code means asking {phone} again.",
-            "sendToOther": "Send it to {phone} instead"
+            "sendToOther": "Send it to {phone} instead",
+            "console": {
+                "title": "Open the console",
+                "hint": "Enter the code received on {phone} to open a root shell on the box."
+            }
         },
         "alerts": {
             "approver_set": "New approver phone: {name}",
@@ -425,6 +435,37 @@
             "quoteOpen": "“",
             "quoteClose": "”"
         },
-        "dismiss": "OK"
+        "dismiss": "OK",
+        "console": {
+            "title": "Console",
+            "sending": "Sending a code to your approver phone…",
+            "connecting": "Opening the console…",
+            "endsIn": "Closes in {minutes} min",
+            "endsInSeconds": "Closes in {seconds} s",
+            "idleSoon": "Nothing typed for a while: closes in {seconds} s",
+            "close": "Close the console",
+            "again": "Open a new console",
+            "back": "Back to admin",
+            "signIn": "Sign in again",
+            "refusedTitle": "The console did not open",
+            "closedTitle": "Console closed",
+            "noApprover": {
+                "title": "Add an approver phone first",
+                "hint": "The console opens only with a code sent to an approver phone. Add one in the “Approver phones” section."
+            },
+            "end": {
+                "codeExpired": "The code was used or is more than 30 s old. Ask for a new one.",
+                "https": "The console only opens over https://. Open this page over https:// and try again.",
+                "handshake": "The box refused the connection to the console.",
+                "exited": "The shell exited.",
+                "expired": "The console reached its {minutes} min limit.",
+                "idle": "The console closed after {minutes} min without typing.",
+                "server": "The box ended the console: the admin password was changed or reset, too many wrong codes were typed, the box is stopping, or its side of the console was lost.",
+                "too_big": "The console closed: what was pasted was too large.",
+                "lost": "Connection to the console lost.",
+                "user": "You closed the console.",
+                "load_failed": "The console could not be loaded. Check the connection, reload the page and try again."
+            }
+        }
     }
 }

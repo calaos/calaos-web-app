@@ -4,7 +4,7 @@
 //
 // One HTTP server on PORT (default 5454) serving three things:
 //   1. WebSocket upgrade on /api    — login / get_home / set_state, and the
-//      admin messages (admin.mjs)
+//      admin messages (admin.mjs); on /api/console, an echo console (console.mjs)
 //   2. GET /api?action=camera&...   — a PNG snapshot, 403 on bad credentials
 //   3. GET|POST /control            — the test API (see control.mjs)
 //
@@ -17,6 +17,7 @@ import { pathToFileURL } from 'node:url';
 import { WebSocketServer } from 'ws';
 
 import { createAdmin } from './admin.mjs';
+import { createConsole } from './console.mjs';
 import { createState } from './state.mjs';
 import { handleControlRequest, readJsonBody } from './control.mjs';
 
@@ -77,6 +78,7 @@ export function startServer(options = {}) {
         latencyMs: 0,
         state: null,
         admin: null,
+        console: null,
         dropClients: null,
     };
 
@@ -97,6 +99,7 @@ export function startServer(options = {}) {
 
     hub.state = createState({ broadcast });
     hub.admin = createAdmin({ hub, send, broadcast, withMsgId });
+    hub.console = createConsole({ hub, log });
 
     hub.dropClients = () => {
         const n = hub.clients.size;
@@ -467,6 +470,10 @@ export function startServer(options = {}) {
 
     server.on('upgrade', (req, socket, head) => {
         const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+        if (url.pathname === '/api/console') {
+            hub.console.handleUpgrade(req, socket, head);
+            return;
+        }
         if (url.pathname !== '/api') {
             socket.destroy();
             return;
@@ -495,6 +502,7 @@ export function startServer(options = {}) {
                 close() {
                     return new Promise((done) => {
                         hub.dropClients();
+                        hub.console.close();
                         wss.close();
                         server.close(() => done());
                         server.closeAllConnections?.();

@@ -31,7 +31,7 @@ import { useAdminAlertsStore } from './adminAlerts';
  * Which code is awaited. `approve_enroll`: from an enrolled phone, to let a
  * new one in. `confirm_enroll`: sent to the new phone itself.
  */
-export type ChallengeStep = 'approve_enroll' | 'confirm_enroll' | 'remove' | 'password';
+export type ChallengeStep = 'approve_enroll' | 'confirm_enroll' | 'remove' | 'password' | 'console';
 
 export interface Challenge {
     step: ChallengeStep;
@@ -52,7 +52,7 @@ export interface Challenge {
 }
 
 export type ApproverWork = 'sending' | 'checking' | null;
-export type ApproverDone = 'enrolled' | 'removed' | 'password' | null;
+export type ApproverDone = 'enrolled' | 'removed' | 'password' | 'console' | null;
 
 interface FlowContext {
     candidate?: ApproverCandidate;
@@ -83,6 +83,8 @@ export const useApproversStore = defineStore('approvers', () => {
     const done = ref<ApproverDone>(null);
 
     let context: FlowContext = { firstEnrolment: false };
+    /** The verified console code, until the console page takes it. */
+    let consoleGrant: string | null = null;
     /** Only the reply to the latest list request is applied. */
     let listSeq = 0;
 
@@ -277,6 +279,19 @@ export const useApproversStore = defineStore('approvers', () => {
         await requestCode('admin_password', { password: newPassword }, 'password', target());
     }
 
+    async function startConsole(): Promise<void> {
+        consoleGrant = null;
+        begin({ firstEnrolment: false });
+        await requestCode('console_open', {}, 'console', target());
+    }
+
+    /** The `code_id` that opens one console within 30 s; handed out once. */
+    function takeConsoleGrant(): string | null {
+        const grant = consoleGrant;
+        consoleGrant = null;
+        return grant;
+    }
+
     /** The last phone: refused before a round trip; the server says the same. */
     function refuseLast(): void {
         begin({ firstEnrolment: false });
@@ -288,6 +303,7 @@ export const useApproversStore = defineStore('approvers', () => {
             minLength: null,
             apiAllowedHosts: '',
             attemptsLeft: null,
+            max: null,
         };
     }
 
@@ -341,6 +357,21 @@ export const useApproversStore = defineStore('approvers', () => {
             case 'remove':
                 await confirmRemoval(proof);
                 return;
+            case 'console': {
+                const result = await call(
+                    'console_open',
+                    { code_id: proof.codeId, code: proof.code },
+                    'checking',
+                );
+                if (result === null) return;
+                if ('error' in result) {
+                    report(result.error);
+                    return;
+                }
+                consoleGrant = proof.codeId;
+                finish('console');
+                return;
+            }
             case 'password': {
                 const newPassword = context.newPassword;
                 if (newPassword === undefined) return;
@@ -375,6 +406,9 @@ export const useApproversStore = defineStore('approvers', () => {
                     await requestCode('approver_remove', { approver_id: context.approver.id }, 'remove', to);
                 }
                 return;
+            case 'console':
+                await requestCode('console_open', {}, 'console', to);
+                return;
             case 'password':
                 if (context.newPassword !== undefined) {
                     await requestCode('admin_password', { password: context.newPassword }, 'password', to);
@@ -398,6 +432,7 @@ export const useApproversStore = defineStore('approvers', () => {
 
     function cancel(): void {
         context = { firstEnrolment: false };
+        consoleGrant = null;
         challenge.value = null;
         flowError.value = null;
         candidates.value = null;
@@ -436,6 +471,8 @@ export const useApproversStore = defineStore('approvers', () => {
         startEnrolment,
         startRemoval,
         startPasswordChange,
+        startConsole,
+        takeConsoleGrant,
         refuseLast,
         submit,
         resend,

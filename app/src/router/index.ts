@@ -12,6 +12,7 @@ import { watch } from 'vue';
 import { createRouter, createWebHashHistory } from 'vue-router';
 import type { WatchStopHandle } from 'vue';
 import type { Router, RouterHistory } from 'vue-router';
+import { useAdminStore } from '../stores/admin';
 import { useAuthStore } from '../stores/auth';
 import { useHomeStore } from '../stores/home';
 import AudioListView from '../views/AudioListView.vue';
@@ -107,6 +108,16 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 name: 'admin',
                 component: () => import('../views/AdminView.vue'),
                 meta: { requiresAuth: true },
+            },
+            {
+                // Lazy again, and xterm.js lazier still (the view imports it).
+                // The admin session lives in memory only: a reload lands here
+                // without one, and the Admin tab asks for the password.
+                path: '/admin/console',
+                name: 'adminConsole',
+                component: () => import('../views/ConsoleView.vue'),
+                meta: { requiresAuth: true, detail: true },
+                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
             },
             // Unknown hash → home, where the auth guard takes over.
             { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },

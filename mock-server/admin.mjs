@@ -42,6 +42,7 @@ const ACTIONS = [
     'approver_remove',
     'code_request',
     'code_verify',
+    'console_open',
 ];
 
 const CODE_ACTIONS = ['console_open', 'admin_password', 'approver_enroll', 'approver_remove'];
@@ -57,6 +58,8 @@ const ALERT_PREFIXES = {
 };
 
 const SESSION_SECONDS = 900;
+/** A verified `console_open` code opens one console within this delay. */
+const CONSOLE_GRANT_MS = 30_000;
 const MIN_PASSWORD_LENGTH = 10;
 /** Daemon limiter: about 5 failures per minute. */
 const RATE_LIMIT_FAILURES = 5;
@@ -194,6 +197,8 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             codeIntervalMs: 10_000,
             /** Every code a phone received, in order. */
             pushed: [],
+            /** code_id → {session, expiresAt}: verified console codes not yet used. */
+            consoleGrants: new Map(),
             /** The event log's persistent events, oldest first. */
             events: [],
             eventlogReads: 0,
@@ -763,7 +768,8 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 return ok(candidates());
             case 'code_request':
                 return respond(codeRequest(data.admin_session, params));
-            case 'code_verify': {
+            case 'code_verify':
+            case 'console_open': {
                 const formatError = proofFormatError(params, true);
                 if (formatError !== null) return respond(formatError);
                 const entry = state.codes.get(params.code_id);
@@ -771,7 +777,12 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                     return respond(failure('invalid_request', 'not a console code'));
                 }
                 const codeError = useCode(data.admin_session, params, 'console_open', {});
-                return codeError !== null ? respond(codeError) : ok({ action: 'console_open', expires_in: 30 });
+                if (codeError !== null) return respond(codeError);
+                state.consoleGrants.set(params.code_id, {
+                    session: data.admin_session,
+                    expiresAt: Date.now() + CONSOLE_GRANT_MS,
+                });
+                return ok({ action: 'console_open', expires_in: CONSOLE_GRANT_MS / 1000 });
             }
             case 'approver_enroll':
                 return respond(approverEnroll(data.admin_session, params));
@@ -962,5 +973,22 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         };
     }
 
-    return { reset, handleFrame, configure, status, event };
+    /**
+     * What `POST admin/console` decides for /api/console: null when a console
+     * may open, else the error the tunnel sends back. A grant serves once.
+     */
+    function takeConsoleGrant(session, codeId) {
+        const scenario = scenarioError();
+        if (scenario !== null && scenario.error !== 'https_required') return scenario;
+        if (!state.set) return failure('admin_not_set', 'No admin password', { api_allowed_hosts: state.apiAllowedHosts });
+        if (!sessionValid(session)) return failure('bad_session', 'Admin session required');
+        const grant = state.consoleGrants.get(codeId);
+        state.consoleGrants.delete(codeId);
+        if (grant === undefined || grant.session !== session || grant.expiresAt < Date.now()) {
+            return failure('code_expired', 'The push code expired, request a new one');
+        }
+        return null;
+    }
+
+    return { reset, handleFrame, configure, status, event, takeConsoleGrant };
 }

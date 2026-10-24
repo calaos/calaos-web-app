@@ -50,6 +50,7 @@ export type ControlOp =
     | { op: 'log' }
     | ({ op: 'admin' } & AdminPatch)
     | { op: 'admin_status' }
+    | ({ op: 'console' } & ConsolePatch)
     | { op: 'credentials'; user: string; pass: string }
     | { op: 'reset' };
 
@@ -92,6 +93,27 @@ export interface AdminPatch {
     expireCodes?: boolean;
     /** Persistent alerts in the event log, as calaos_server stores them. */
     alerts?: { type: 'approver_set' | 'approver_removed'; device_name: string; at?: string }[];
+}
+
+/** The echo console's knobs (mock-server/console.mjs `configure`). */
+export interface ConsolePatch {
+    /** Ends every open console with this close code. */
+    close?: number;
+    expiresIn?: number;
+    idleTimeout?: number;
+    maxConsoles?: number;
+    /** Answer 403 to the upgrade, as calaos_server does over plain http. */
+    refuseUpgrade?: boolean;
+    /** Refuse the next open message with this error payload, e.g. `{error: 'code_expired'}`. */
+    refuseWith?: { error: string } & Record<string, string>;
+}
+
+/** `{op:'console'}` — what the echo console saw. */
+export interface ConsoleStatus {
+    open: number;
+    /** The URL of each connection and the keys of its open message (values are not kept). */
+    connections: { url: string; protocol: string; openKeys: string[] | null; ready: boolean }[];
+    received: ({ type: 'input' | 'binary'; data: string } | { type: 'resize'; columns: number; rows: number })[];
 }
 
 /** The mock's push tokens (mock-server/admin.mjs `defaultPushTokens`), most recently seen first. */
@@ -209,6 +231,8 @@ export interface MockControl {
     statusSessions(): Promise<boolean[]>;
     /** The last code a phone received. */
     lastCode(): Promise<PushedCode>;
+    /** Configures the echo console and answers what it saw. */
+    console(patch?: ConsolePatch): Promise<ConsoleStatus>;
     /** Escape hatch: any op, raw response body. */
     send<T = Record<string, unknown>>(op: ControlOp): Promise<T>;
 }
@@ -305,6 +329,10 @@ export function createMockControl(
             const code = pushed[pushed.length - 1];
             if (code === undefined) throw new Error('no code was pushed');
             return code;
+        },
+
+        async console(patch = {}) {
+            return await send<ConsoleStatus>({ op: 'console', ...patch });
         },
 
         async statusSessions() {

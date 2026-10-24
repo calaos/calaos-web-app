@@ -52,6 +52,8 @@ export const ADMIN_ERROR_CODES = [
     'code_required',
     'bad_code',
     'code_expired',
+    'console_limit',
+    'login_failed',
     'internal',
 ] as const;
 
@@ -87,6 +89,8 @@ export interface AdminError {
     apiAllowedHosts: string;
     /** With `bad_code`; 0 means the session is now invalidated. */
     attemptsLeft: number | null;
+    /** With `approver_limit` and `console_limit`. */
+    max: number | null;
 }
 
 export const ADMIN_ACTIONS = [
@@ -106,6 +110,7 @@ export const ADMIN_ACTIONS = [
     'approver_remove',
     'code_request',
     'code_verify',
+    'console_open',
 ] as const;
 
 export type AdminAction = (typeof ADMIN_ACTIONS)[number];
@@ -277,6 +282,7 @@ export function toAdminError(data: unknown): AdminError {
         minLength: toNumberOrNull(record.min_length),
         apiAllowedHosts: toWireString(record.api_allowed_hosts),
         attemptsLeft: toNumberOrNull(record.attempts_left),
+        max: toNumberOrNull(record.max),
     };
 }
 
@@ -291,6 +297,7 @@ export function clientAdminError(
         minLength: null,
         apiAllowedHosts: '',
         attemptsLeft: null,
+        max: null,
     };
 }
 

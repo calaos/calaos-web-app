@@ -309,3 +309,85 @@ describe('codes', () => {
         expect(approvers.approvers).toBeNull();
     });
 });
+
+describe('console code', () => {
+    const CODE_ID = 'c0c0c0c0c0c0c0c0';
+
+    it('asks for a console_open code, verifies it, and hands the grant out once', async () => {
+        const approvers = await unlocked([ENROLLED]);
+
+        void approvers.startConsole();
+        expect(last().data).toEqual({
+            action: 'code_request',
+            admin_session: SESSION,
+            params: { code_action: 'console_open', code_params: {}, approver_id: ENROLLED.id },
+        });
+        ok({ code_id: CODE_ID, approver_id: ENROLLED.id, expires_in: 60 });
+        await flush();
+        expect(approvers.challenge).toMatchObject({ step: 'console', phone: 'Pixel 8', codeId: CODE_ID });
+
+        void approvers.submit('123456');
+        expect(last().data).toEqual({
+            action: 'console_open',
+            admin_session: SESSION,
+            params: { code_id: CODE_ID, code: '123456' },
+        });
+        ok({ action: 'console_open', expires_in: 30 });
+        await flush();
+        expect(approvers.done).toBe('console');
+        expect(approvers.challenge).toBeNull();
+        expect(approvers.takeConsoleGrant()).toBe(CODE_ID);
+        expect(approvers.takeConsoleGrant()).toBeNull();
+    });
+
+    it('a wrong code keeps the entry with the attempts left, and gives no grant', async () => {
+        const approvers = await unlocked([ENROLLED]);
+        void approvers.startConsole();
+        ok({ code_id: CODE_ID, approver_id: ENROLLED.id, expires_in: 60 });
+        await flush();
+
+        void approvers.submit('000000');
+        fail('bad_code', { attempts_left: '4' });
+        await flush();
+        expect(approvers.challenge).toMatchObject({ step: 'console', attemptsLeft: 4 });
+        expect(approvers.challenge?.error?.code).toBe('bad_code');
+        expect(approvers.takeConsoleGrant()).toBeNull();
+    });
+
+    it('the fifth wrong code ends the admin session', async () => {
+        const approvers = await unlocked([ENROLLED]);
+        void approvers.startConsole();
+        ok({ code_id: CODE_ID, approver_id: ENROLLED.id, expires_in: 60 });
+        await flush();
+
+        void approvers.submit('000000');
+        fail('bad_code', { attempts_left: '0' });
+        await flush();
+        expect(useAdminStore().session).toBeNull();
+        expect(useAdminStore().info).toBe('code_locked');
+        expect(approvers.challenge).toBeNull();
+    });
+
+    it('no approver: the refusal is the flow error, no challenge', async () => {
+        const approvers = await unlocked([ENROLLED]);
+        void approvers.startConsole();
+        fail('approver_required');
+        await flush();
+        expect(approvers.challenge).toBeNull();
+        expect(approvers.flowError?.code).toBe('approver_required');
+    });
+
+    it('a new code goes out again as console_open', async () => {
+        const approvers = await unlocked([ENROLLED]);
+        void approvers.startConsole();
+        ok({ code_id: CODE_ID, approver_id: ENROLLED.id, expires_in: 60 });
+        await flush();
+        vi.advanceTimersByTime(10_000);
+
+        void approvers.resend();
+        expect(last().data).toMatchObject({
+            action: 'code_request',
+            params: { code_action: 'console_open', code_params: {}, approver_id: ENROLLED.id },
+        });
+    });
+});
