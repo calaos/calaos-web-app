@@ -7,7 +7,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { ConsoleConnection } from '../protocol/console';
+import { ConsoleConnection, endsAdminSession } from '../protocol/console';
 import type { ConsoleEnd, ConsoleReady } from '../protocol/console';
 import type { ConsoleTerminal } from '../components/admin/xterm';
 import { useAdminStore } from '../stores/admin';
@@ -143,6 +143,11 @@ function finish(result: ConsoleEnd): void {
     if (result.kind === 'refused' && result.error.code === 'bad_session') {
         admin.dropSession(null);
         void router.replace({ name: 'admin' });
+    } else if (endsAdminSession(result)) {
+        // The message stays; "Open a new console" then lands on the password screen.
+        admin.dropSession(
+            result.kind === 'admin_set' ? 'session_invalidated' : result.kind === 'bad_code' ? 'code_locked' : null,
+        );
     }
 }
 

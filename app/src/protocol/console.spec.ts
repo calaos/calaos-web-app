@@ -8,6 +8,7 @@ import {
     encodeInput,
     encodeOpen,
     encodeResize,
+    endsAdminSession,
     parseConsoleText,
 } from './console';
 import type { CloseContext, ConsoleEnd, ConsoleOpen, ConsoleReady } from './console';
@@ -92,6 +93,33 @@ describe('close codes', () => {
         expect(classifyClose({ ...base, code: 1006 })).toEqual({ kind: 'lost' });
     });
 
+    it('a reason from the server decides, whatever the clock says', () => {
+        for (const kind of ['closed', 'exited', 'expired', 'idle', 'not_connected', 'shutdown', 'admin_set', 'admin_reset', 'bad_code'] as const) {
+            expect(classifyClose({ ...base, reason: kind })).toEqual({ kind });
+        }
+        expect(classifyClose({ ...base, reason: 'idle', openFor: 3600 })).toEqual({ kind: 'idle' });
+        expect(classifyClose({ ...base, code: 1000, reason: 'expired' })).toEqual({ kind: 'expired' });
+    });
+
+    it('an empty or unknown reason keeps the clock guess', () => {
+        expect(classifyClose({ ...base, reason: '', openFor: 3600 })).toEqual({ kind: 'expired' });
+        expect(classifyClose({ ...base, reason: 'console closed', idleFor: 899 })).toEqual({ kind: 'idle' });
+        expect(classifyClose({ ...base, reason: 'whatever' })).toEqual({ kind: 'server' });
+        expect(classifyClose({ ...base, reason: 'Idle' })).toEqual({ kind: 'server' });
+    });
+
+    it('only the three admin reasons end the admin session', () => {
+        expect(['admin_set', 'admin_reset', 'bad_code', 'expired', 'idle', 'shutdown', 'closed'].map((kind) => endsAdminSession({ kind } as ConsoleEnd))).toEqual([
+            true, true, true, false, false, false, false,
+        ]);
+    });
+
+    it('a refusal beats the reason', () => {
+        const error = parseConsoleText('{"type":"error","success":"false","error":"login_failed","msg":"x"}');
+        if (error?.type !== 'error') throw new Error('expected an error');
+        expect(classifyClose({ ...base, ready: false, code: 1008, reason: 'bad_code', error: error.error })).toMatchObject({ kind: 'refused' });
+    });
+
     it('before ready: a refusal, or a handshake the browser could not see', () => {
         const error = parseConsoleText('{"type":"error","success":"false","error":"code_expired","msg":"x"}');
         if (error?.type !== 'error') throw new Error('expected an error');
@@ -112,7 +140,7 @@ class FakeSocket {
     closedWith: number | null = null;
     onopen: (() => void) | null = null;
     onmessage: ((event: { data: unknown }) => void) | null = null;
-    onclose: ((event: { code: number }) => void) | null = null;
+    onclose: ((event: { code: number; reason: string }) => void) | null = null;
 
     constructor(
         public url: string,
@@ -138,9 +166,9 @@ class FakeSocket {
         this.onmessage?.({ data });
     }
 
-    end(code: number): void {
+    end(code: number, reason = ''): void {
         this.readyState = 3;
-        this.onclose?.({ code });
+        this.onclose?.({ code, reason });
     }
 }
 

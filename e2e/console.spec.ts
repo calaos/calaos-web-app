@@ -212,3 +212,37 @@ test('the console closes after the idle delay', async ({ page, mock }) => {
     await mock.console({ close: 1001 });
     await expect(page.getByRole('alert')).toContainText(fill(t.console.end.idle, { minutes: 1 }));
 });
+
+async function openedConsole(page: Page, mock: MockControl): Promise<void> {
+    await openAdmin(page);
+    await openConsole(page);
+    await typeCode(page, mock);
+    await expect(terminal(page)).toContainText('root@calaos:~#');
+}
+
+test('the close reason tells the hour: no clock guess', async ({ page, mock }) => {
+    await openedConsole(page, mock);
+    await mock.console({ close: 1001, reason: 'expired' });
+    await expect(page.getByRole('alert')).toContainText(fill(t.console.end.expired, { minutes: 60 }));
+});
+
+test('the close reason tells idleness at once', async ({ page, mock }) => {
+    await openedConsole(page, mock);
+    await mock.console({ close: 1001, reason: 'idle' });
+    await expect(page.getByRole('alert')).toContainText(fill(t.console.end.idle, { minutes: 15 }));
+});
+
+test('admin_set: the end is explained and a new console asks for the admin password', async ({ page, mock }) => {
+    await openedConsole(page, mock);
+    await mock.console({ close: 1001, reason: 'admin_set' });
+    await expect(page.getByRole('alert')).toContainText(t.console.end.admin_set);
+    await page.getByRole('button', { name: t.console.again }).click();
+    await expect(page).toHaveURL(/#\/admin$/);
+    await expect(adminScreen(page).adminPassword).toBeVisible();
+});
+
+test('an unknown close reason keeps the generic message', async ({ page, mock }) => {
+    await openedConsole(page, mock);
+    await mock.console({ close: 1001, reason: 'from_the_future' });
+    await expect(page.getByRole('alert')).toContainText(t.console.end.server);
+});

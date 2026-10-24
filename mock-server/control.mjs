@@ -27,7 +27,7 @@
 //                               noiseEvents
 //   {op:'admin_status'}         the fake daemon's state and counters
 //   {op:'console', ...patch}    the echo console (console.mjs `configure`):
-//                               close (a close code for every open console),
+//                               close (a close code for every open console) with reason (its reason text),
 //                               expiresIn, idleTimeout, maxConsoles,
 //                               refuseUpgrade, refuseWith; answers
 //                               its status (open, connections, received)
