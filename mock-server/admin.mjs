@@ -76,6 +76,7 @@ const PUSH_NOTIFICATION_EVENT = '22';
 const ALERT_PREFIXES = {
     approver_set: 'New approver phone on your Calaos box: ',
     approver_removed: 'Approver phone removed from your Calaos box: ',
+    network_rolled_back: 'Network change rolled back on your Calaos box: ',
 };
 
 const SESSION_SECONDS = 900;
@@ -618,9 +619,16 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         return { success: 'true', result: { approver_id: removed.id } };
     }
 
-    /** What calaos_server does with a daemon alert: a persistent event, then `admin_event`. */
+    /**
+     * What calaos_server does with a daemon alert: a persistent event, then
+     * `admin_event`. A network rollback names its interface, unquoted, and
+     * the live event carries it in `data.intf`.
+     */
     function raiseAlert(type, deviceName, at = Date.now()) {
+        const network = type === 'network_rolled_back';
+        const intf = /^[a-zA-Z0-9_.-]{1,15}$/.test(String(deviceName)) && deviceName !== 'lo' ? deviceName : '?';
         const name = String(deviceName).replace(/["«»“”„‟″‶＂]/g, "'") || '?';
+        const subject = network ? intf : `"${name}"`;
         state.events.push({
             id: randomUUID(),
             event_type: PUSH_NOTIFICATION_EVENT,
@@ -628,9 +636,10 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             io_state: '',
             pic_uid: '',
             created_at: sqliteTime(at),
-            event_raw: { message: `${ALERT_PREFIXES[type]}"${name}"`, pic_uid: '' },
+            event_raw: { message: `${ALERT_PREFIXES[type]}${subject}`, pic_uid: '' },
         });
-        event(type);
+        if (network) event(type, { intf: deviceName });
+        else event(type);
     }
 
     /** IO history rows, as the log holds for every IO with `log_history`. */
@@ -673,7 +682,15 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         logs: createLogs({ failure }),
         time: createTime({ failure }),
         config: createConfig({ failure, hub }),
-        network: createNetwork({ hub, failure, event, running, useCode, proofFormatError }),
+        network: createNetwork({
+            hub,
+            failure,
+            event,
+            running,
+            useCode,
+            proofFormatError,
+            rolledBack: (intf) => raiseAlert('network_rolled_back', intf),
+        }),
     };
 
     /** `config_backup` over HTTP: the same guards as the WS action, then a download. */

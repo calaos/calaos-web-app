@@ -86,7 +86,7 @@ export function startServer(options = {}) {
     function send(ws, frame) {
         const raw = JSON.stringify(frame);
         const write = () => {
-            if (ws.readyState === ws.OPEN) ws.send(raw);
+            if (ws.readyState === ws.OPEN && !ws.hung) ws.send(raw);
         };
         if (hub.latencyMs > 0) setTimeout(write, hub.latencyMs);
         else write();
@@ -100,6 +100,12 @@ export function startServer(options = {}) {
     hub.state = createState({ broadcast });
     hub.admin = createAdmin({ hub, send, broadcast, withMsgId });
     hub.console = createConsole({ hub, log });
+
+    /** Every open socket stays open but hears nothing more: a box gone to another address. */
+    hub.hangClients = () => {
+        for (const ws of hub.clients) ws.hung = true;
+        return hub.clients.size;
+    };
 
     hub.dropClients = () => {
         const n = hub.clients.size;
@@ -130,6 +136,7 @@ export function startServer(options = {}) {
             // Recorded before any handling so /control {op:'log'} sees every
             // frame in arrival order, parseable or not.
             hub.log.push({ seq: hub.log.length, at: Date.now(), clientId, raw, frame });
+            if (ws.hung) return;
             handleFrame(ws, clientId, frame);
         });
 

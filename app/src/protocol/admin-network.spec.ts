@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+    appliedSecondsLeft,
+    cidrAddress,
+    eventSecondsLeft,
     isIpv4,
     isIpv4Cidr,
     isSearchDomain,
@@ -7,7 +10,8 @@ import {
     networkApplyParams,
     networkChangeParams,
     networkChangeProblem,
-    networkDeadline,
+    networkReopenUrl,
+    pendingSecondsLeft,
     toNetworkApplied,
     toNetworkEvent,
     toNetworkFinished,
@@ -59,9 +63,26 @@ describe('network codec', () => {
         expect(toNetworkFinished({ change_id: 'c', state: 'gone' })).toBeNull();
     });
 
-    it('counts down from applied_at, not from the receipt', () => {
-        expect(networkDeadline('2026-10-25T09:12:03Z', 87)).toBe(Date.parse('2026-10-25T09:14:03Z'));
-        expect(networkDeadline('garbage', 30, 1000)).toBe(31_000);
+    it('reads the time left from the box values, never from the browser clock', () => {
+        expect(appliedSecondsLeft({ changeId: 'c', intf: 'eth0', appliedAt: '2026-10-25T09:12:03Z', confirmWithin: 120 })).toBe(120);
+        expect(pendingSecondsLeft({ changeId: 'c', intf: 'eth0', appliedAt: '2026-10-25T09:12:03Z', expiresIn: 87 })).toBe(87);
+        expect(pendingSecondsLeft({ changeId: 'c', intf: 'eth0', appliedAt: '', expiresIn: 900 })).toBe(120);
+        // confirm_within is the seconds left, first publish or after a daemon restart.
+        expect(eventSecondsLeft(120)).toBe(120);
+        expect(eventSecondsLeft(30)).toBe(30);
+        expect(eventSecondsLeft(-3)).toBe(0);
+    });
+
+    it('points at the new static address, keeping scheme, port and path', () => {
+        const page = { protocol: 'https:', port: '', pathname: '/app/index.html' };
+        expect(networkReopenUrl({ intf: 'eth0', dhcp: false, ipv4: '192.168.1.20/24' }, page)).toBe(
+            'https://192.168.1.20/app/index.html#/admin/network',
+        );
+        expect(networkReopenUrl({ intf: 'eth0', dhcp: false, ipv4: '10.0.0.2/8' }, { ...page, protocol: 'http:', port: '4173', pathname: '/' })).toBe(
+            'http://10.0.0.2:4173/#/admin/network',
+        );
+        expect(networkReopenUrl({ intf: 'eth0', dhcp: true }, page)).toBe('');
+        expect(cidrAddress('192.168.1.20')).toBe('');
     });
 
     it('reads the network events', () => {
@@ -80,6 +101,8 @@ describe('network codec', () => {
         expect(isValidIntf('eth0')).toBe(true);
         expect(isValidIntf('lo')).toBe(false);
         expect(isValidIntf('apply')).toBe(false);
+        expect(isValidIntf('APPLY')).toBe(false);
+        expect(isValidIntf('-eth0')).toBe(false);
         expect(isValidIntf('a'.repeat(16))).toBe(false);
         expect(isIpv4('192.168.1.1')).toBe(true);
         expect(isIpv4('192.168.01.1')).toBe(false);

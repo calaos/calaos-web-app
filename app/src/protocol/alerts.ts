@@ -4,6 +4,8 @@
 // notification event, whose text starts with a fixed English prefix and ends
 // with the phone's name in double quotes (calaos_base AdminState::alertMessage).
 // The live `admin_event` carries no name, so the log is what names the phone.
+// A network rollback is stored the same way, ending with the interface name
+// unquoted; it mostly happens while this client is cut off from the box.
 
 import { isRecord, toWireString } from './guards';
 
@@ -13,7 +15,11 @@ export const PUSH_NOTIFICATION_EVENT_TYPE = '22';
 const PREFIXES = {
     approver_set: 'New approver phone on your Calaos box: "',
     approver_removed: 'Approver phone removed from your Calaos box: "',
+    network_rolled_back: 'Network change rolled back on your Calaos box: ',
 } as const;
+
+/** The box writes `?` for a name that is not an interface name. */
+const ALERT_INTF = /^(?:[a-zA-Z0-9_.-]{1,15}|\?)$/;
 
 export type AdminAlertKind = keyof typeof PREFIXES;
 
@@ -21,6 +27,7 @@ export interface AdminAlert {
     /** The event's uuid. */
     id: string;
     kind: AdminAlertKind;
+    /** The phone's name; the interface for `network_rolled_back`. */
     deviceName: string;
     /** ms since the epoch; NaN when the date did not parse. */
     at: number;
@@ -45,10 +52,13 @@ function toAlert(raw: unknown): AdminAlert | null {
     const message = toWireString(body.message);
     for (const kind of Object.keys(PREFIXES) as AdminAlertKind[]) {
         const prefix = PREFIXES[kind];
-        if (!message.startsWith(prefix) || !message.endsWith('"')) continue;
+        if (!message.startsWith(prefix)) continue;
+        const quoted = kind !== 'network_rolled_back';
+        const subject = quoted ? message.slice(prefix.length, -1) : message.slice(prefix.length);
+        if (quoted ? !message.endsWith('"') : !ALERT_INTF.test(subject)) continue;
         const id = toWireString(raw.id);
         if (id === '') return null;
-        return { id, kind, deviceName: message.slice(prefix.length, -1), at: toTime(toWireString(raw.created_at)) };
+        return { id, kind, deviceName: subject, at: toTime(toWireString(raw.created_at)) };
     }
     return null;
 }

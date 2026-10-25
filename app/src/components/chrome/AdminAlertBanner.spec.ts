@@ -2,8 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
-import en from '../../i18n/en.json';
-import fr from '../../i18n/fr.json';
+import { messages } from '../../i18n/messages';
 import { useAdminAlertsStore } from '../../stores/adminAlerts';
 import { useAuthStore } from '../../stores/auth';
 import { isolateName } from '../../composables/isolateName';
@@ -14,7 +13,7 @@ const RTL_NAME = '\u202Eenohp s’luoaR';
 
 function mountBanner() {
     return mount(AdminAlertBanner, {
-        global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })] },
+        global: { plugins: [createI18n({ legacy: false, locale: 'en', messages })] },
     });
 }
 
@@ -24,7 +23,7 @@ beforeEach(() => {
     useAuthStore().state = 'authed';
 });
 
-function deliver(name: string): void {
+function deliver(name: string, message = `New approver phone on your Calaos box: "${name}"`): void {
     const alerts = useAdminAlertsStore();
     alerts.attachTransport(() => true);
     alerts.refresh();
@@ -37,7 +36,7 @@ function deliver(name: string): void {
                     id: 'e1',
                     event_type: '22',
                     created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
-                    event_raw: { message: `New approver phone on your Calaos box: "${name}"` },
+                    event_raw: { message },
                 },
             ],
         },
@@ -57,6 +56,14 @@ describe('AdminAlertBanner', () => {
         // The override sits inside the isolate; the sentence around it is plain text.
         expect(title.text()).toBe(`New approver phone: “${RTL_NAME}”`);
         expect(title.element.childNodes[0].textContent).not.toContain('\u202E');
+    });
+
+    it('tells a network rollback apart, with its interface and no security hint', async () => {
+        deliver('', 'Network change rolled back on your Calaos box: eth0');
+        const wrapper = mountBanner();
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('.admin-alert__title').text()).toBe(messages.en.admin.network.alert.title.replace('{intf}', 'eth0'));
+        expect(wrapper.find('.admin-alert__hint').text()).toBe(messages.en.admin.network.alert.hint);
     });
 
     it('hides once dismissed', async () => {

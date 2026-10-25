@@ -16,7 +16,10 @@ describe('phase-3 additions to the admin codec', () => {
         expect(adminReplyTimeoutMs('system_restart')).toBe(35_000);
         expect(adminReplyTimeoutMs('update_check')).toBe(125_000);
         expect(adminReplyTimeoutMs('services_restart')).toBe(ADMIN_REPLY_TIMEOUT_MS);
-        expect(adminReplyTimeoutMs('network_apply')).toBe(ADMIN_REPLY_TIMEOUT_MS);
+        expect(adminReplyTimeoutMs('network_apply')).toBe(40_000);
+        expect(adminReplyTimeoutMs('network_confirm')).toBe(40_000);
+        expect(adminReplyTimeoutMs('network_revert')).toBe(40_000);
+        expect(adminReplyTimeoutMs('network_state')).toBe(ADMIN_REPLY_TIMEOUT_MS);
     });
 
     it('reads network_pending with its change and seconds left', () => {
@@ -45,6 +48,14 @@ describe('phase-3 additions to the admin codec', () => {
             failed: '',
             restartRequired: false,
         });
+    });
+
+    it('reads an unknown outcome, the cue to re-read rather than resend', () => {
+        expect(toAdminError({ error: 'daemon_unreachable', outcome: 'unknown' })).toMatchObject({
+            code: 'daemon_unreachable',
+            outcomeUnknown: true,
+        });
+        expect(toAdminError({ error: 'daemon_unreachable' }).outcomeUnknown).toBe(false);
     });
 
     it('builds a detail-free error for refusals known before asking', () => {

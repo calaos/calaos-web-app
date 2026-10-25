@@ -2,9 +2,11 @@
 // A phone started or stopped receiving admin codes. Everyone who signs in
 // sees it until they acknowledge it: if nobody in the house did this, the
 // admin password is known to someone else, and the way out is spelled here.
+// A network change the box rolled back by itself takes the same strip.
 
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import IconLanDisconnect from '~icons/mdi/lan-disconnect';
 import IconShieldAlert from '~icons/mdi/shield-alert-outline';
 import { useAdminAlertsStore } from '../../stores/adminAlerts';
 import { useAuthStore } from '../../stores/auth';
@@ -18,6 +20,7 @@ const { dayTime } = useAdminDates();
 
 const latest = computed(() => alerts.alerts[0] ?? null);
 const others = computed(() => alerts.alerts.length - 1);
+const rollback = computed(() => latest.value?.kind === 'network_rolled_back');
 </script>
 
 <template>
@@ -27,9 +30,13 @@ const others = computed(() => alerts.alerts.length - 1);
         role="alert"
         :aria-label="t('admin.alerts.label')"
     >
-        <IconShieldAlert class="admin-alert__icon" aria-hidden="true" />
+        <IconLanDisconnect v-if="rollback" class="admin-alert__icon" aria-hidden="true" />
+        <IconShieldAlert v-else class="admin-alert__icon" aria-hidden="true" />
         <div class="admin-alert__body">
-            <i18n-t :keypath="`admin.alerts.${latest.kind}`" tag="p" class="admin-alert__title" scope="global">
+            <p v-if="rollback" class="admin-alert__title">
+                {{ t('admin.network.alert.title', { intf: latest.deviceName }) }}
+            </p>
+            <i18n-t v-else :keypath="`admin.alerts.${latest.kind}`" tag="p" class="admin-alert__title" scope="global">
                 <template #name>
                     <span class="admin-alert__name">{{ t('admin.alerts.quoteOpen') }}<DeviceName :name="latest.deviceName" />{{ t('admin.alerts.quoteClose') }}</span>
                 </template>
@@ -38,7 +45,7 @@ const others = computed(() => alerts.alerts.length - 1);
                 <span v-if="Number.isFinite(latest.at)">{{ t('admin.alerts.when', { date: dayTime(latest.at) }) }}</span>
                 <span v-if="others > 0">{{ t('admin.alerts.more', { count: others }, others) }}</span>
             </p>
-            <p class="admin-alert__hint">{{ t('admin.alerts.hint') }}</p>
+            <p class="admin-alert__hint">{{ rollback ? t('admin.network.alert.hint') : t('admin.alerts.hint') }}</p>
         </div>
         <button type="button" class="admin-alert__dismiss" @click="alerts.dismiss()">
             {{ t('admin.alerts.dismiss') }}

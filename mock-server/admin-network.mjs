@@ -4,6 +4,12 @@
 // `network_rolled_back` alert; `dropOnApply` cuts every socket right after
 // the answer, as a box that moved to its new address does, and
 // `dropOnApply: 'before'` cuts them before it, the answer never arriving.
+// The rollback alert is stored in the event log, as calaos_server does.
+// `hangOnApply` answers, then leaves every socket open and silent: what a
+// page at the old address mostly sees. `tooOld` answers every network action
+// `daemon_too_old`, as a daemon older than these routes does. `unknownOutcome`
+// does apply, keep and go back, then answers `daemon_unreachable` with
+// `"outcome": "unknown"`, as calaos_server does when it stops waiting.
 
 import { randomBytes } from 'node:crypto';
 
@@ -78,7 +84,7 @@ export function networkBinding(params, failure, knownIntf) {
     };
 }
 
-export function createNetwork({ hub, failure, event, running, useCode, proofFormatError }) {
+export function createNetwork({ hub, failure, event, running, useCode, proofFormatError, rolledBack }) {
     let state;
     let timer = null;
 
@@ -99,6 +105,9 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
             pending: null,
             confirmMs: CONFIRM_WITHIN_S * 1000,
             dropOnApply: false,
+            hangOnApply: false,
+            tooOld: false,
+            unknownOutcome: false,
             applies: 0,
             rollbacks: 0,
             history: [],
@@ -134,7 +143,7 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
         restore();
         state.rollbacks += 1;
         state.history.push({ kind: 'rolled_back', intf });
-        event('network_rolled_back', { intf });
+        rolledBack(intf);
     }
 
     function arm(ms) {
@@ -186,6 +195,7 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
             return null;
         }
         if (state.dropOnApply) setTimeout(() => hub.dropClients(), 100);
+        if (state.hangOnApply) setTimeout(() => hub.hangClients(), 50);
         return { success: 'true', result };
     }
 
@@ -208,27 +218,45 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
     }
 
     function handle(action, session, params) {
+        if (state.tooOld && action.startsWith('network_')) return failure('daemon_too_old', 'admin daemon too old');
         switch (action) {
             case 'network_state':
                 return { success: 'true', result: { interfaces: structuredClone(state.interfaces), pending: pendingView() } };
             case 'network_apply':
-                return apply(session, params);
+                return unknownIfTold(apply(session, params));
             case 'network_confirm':
-                return finish(params, 'confirmed');
+                return unknownIfTold(finish(params, 'confirmed'));
             case 'network_revert':
-                return finish(params, 'reverted');
+                return unknownIfTold(finish(params, 'reverted'));
             default:
                 return undefined;
         }
     }
 
+    /** calaos_server's own timeout: the daemon acted, the answer says it cannot tell. */
+    function unknownIfTold(reply) {
+        if (!state.unknownOutcome || reply === null || reply.success !== 'true') return reply;
+        return failure('daemon_unreachable', 'no answer from the daemon in time', { outcome: 'unknown' });
+    }
+
     /**
-     * `/control {op:'admin', network:{confirmMs, dropOnApply (true | 'before'), expire, pending}}`.
-     * `expire` rolls the pending change back now; `pending` seeds one
-     * (`{intf, ageMs}`), as a reload at the new address finds it.
+     * `/control {op:'admin', network:{confirmMs, dropOnApply (true | 'before'), hangOnApply, tooOld, unknownOutcome,
+     * expire, pending, ipv4}}`. `expire` rolls the pending change back now; `pending` seeds one
+     * (`{intf, ageMs}`), as a reload at the new address finds it; `ipv4` sets addresses
+     * (`{eth0: '127.0.0.1/8'}`), so a page can be served from an interface's own address.
      */
     function configure(patch) {
         if (patch.confirmMs !== undefined) state.confirmMs = Number(patch.confirmMs);
+        if (patch.hangOnApply !== undefined) state.hangOnApply = Boolean(patch.hangOnApply);
+        if (patch.tooOld !== undefined) state.tooOld = Boolean(patch.tooOld);
+        if (patch.unknownOutcome !== undefined) state.unknownOutcome = Boolean(patch.unknownOutcome);
+        if (typeof patch.ipv4 === 'object' && patch.ipv4 !== null) {
+            for (const [name, ipv4] of Object.entries(patch.ipv4)) {
+                const entry = intfEntry(name);
+                if (entry === undefined) return `unknown interface '${name}'`;
+                entry.ipv4 = String(ipv4);
+            }
+        }
         if (patch.dropOnApply !== undefined) state.dropOnApply = patch.dropOnApply === 'before' ? 'before' : Boolean(patch.dropOnApply);
         if (patch.expire && state.pending !== null) rollBack();
         if (typeof patch.pending === 'object' && patch.pending !== null) {

@@ -274,8 +274,8 @@ describe('network', () => {
         expect(refused.change_id).toMatch(/^[0-9a-f]{16}$/);
     });
 
-    it('rolls back on expiry with the network_rolled_back event', async () => {
-        const { ask, waitFor } = await session();
+    it('rolls back on expiry with the network_rolled_back event, stored in the event log', async () => {
+        const { ws, ask, waitFor } = await session();
         await control({ op: 'admin', network: { confirmMs: 100 } });
         const proof = await codeFor(ask, change);
         await ask('network_apply', { ...change, ...proof });
@@ -283,6 +283,12 @@ describe('network', () => {
         expect(event.data.data).toEqual({ intf: 'eth0' });
         const eth0 = (await ask('network_state')).result.interfaces.find((i) => i.name === 'eth0');
         expect(eth0.ipv4).toBe('192.168.1.10/24');
+        ws.send(JSON.stringify({ msg: 'eventlog', msg_id: 'log', data: {} }));
+        const log = await waitFor((f) => f.msg === 'eventlog' && f.msg_id === 'log');
+        expect(log.data.events[0]).toMatchObject({
+            event_type: '22',
+            event_raw: { message: 'Network change rolled back on your Calaos box: eth0' },
+        });
     });
 
     it('validates as the server does before any code is spent', async () => {
@@ -305,6 +311,39 @@ describe('network', () => {
         await closed;
         expect(frames.some((f) => f.msg_id === 'lost')).toBe(false);
         expect((await control({ op: 'admin_status' })).network.pending).toMatchObject({ intf: 'eth0' });
+    });
+
+    it('can answer the apply and then go silent, sockets open and frames ignored', async () => {
+        const { ws, ask, token, frames } = await session();
+        await control({ op: 'admin', network: { hangOnApply: true } });
+        const proof = await codeFor(ask, change);
+        const applied = await ask('network_apply', { ...change, ...proof });
+        await sleep(100);
+        ws.send(JSON.stringify({ msg: 'admin', msg_id: 'keep', data: { action: 'network_confirm', admin_session: token, params: { change_id: applied.result.change_id } } }));
+        await sleep(200);
+        expect(ws.readyState).toBe(WebSocket.OPEN);
+        expect(frames.some((f) => f.msg_id === 'keep')).toBe(false);
+        expect((await control({ op: 'admin_status' })).network.pending).toMatchObject({ intf: 'eth0' });
+    });
+
+    it('can act and still answer daemon_unreachable with an unknown outcome', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', network: { unknownOutcome: true } });
+        const proof = await codeFor(ask, change);
+        const reply = await ask('network_apply', { ...change, ...proof });
+        expect(reply).toMatchObject({ error: 'daemon_unreachable', outcome: 'unknown' });
+        const pending = (await ask('network_state')).result.pending;
+        expect(pending).toMatchObject({ intf: 'eth0' });
+        expect(await ask('network_confirm', { change_id: pending.change_id })).toMatchObject({ outcome: 'unknown' });
+        expect((await ask('network_state')).result.pending).toBeNull();
+    });
+
+    it('answers daemon_too_old to every network action when told, and sets addresses', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', network: { ipv4: { eth0: '127.0.0.1/8' } } });
+        expect((await ask('network_state')).result.interfaces.find((i) => i.name === 'eth0').ipv4).toBe('127.0.0.1/8');
+        await control({ op: 'admin', network: { tooOld: true } });
+        expect((await ask('network_state')).error).toBe('daemon_too_old');
     });
 
     it('cuts a page at the 1 MiB budget when told, the cursor on the last entry kept', async () => {

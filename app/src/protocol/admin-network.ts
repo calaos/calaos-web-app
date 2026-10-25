@@ -137,22 +137,50 @@ export function toNetworkFinished(raw: unknown): NetworkFinished | null {
     return { changeId, intf: toWireString(raw.intf), state };
 }
 
-/**
- * When the trial reverts, in ms epoch: from the daemon's `applied_at`, so a
- * reload or a reconnect keeps the same deadline. `fallbackSeconds` covers an
- * `applied_at` that does not parse.
- */
-export function networkDeadline(appliedAt: string, fallbackSeconds: number, nowMs = Date.now()): number {
-    const applied = Date.parse(appliedAt);
-    if (Number.isFinite(applied)) return applied + NETWORK_CONFIRM_WINDOW_S * 1000;
-    return nowMs + Math.max(0, fallbackSeconds) * 1000;
+// The countdown is the daemon's: the seconds left it reports, taken at the
+// moment they arrive and run down on the browser's monotonic clock. Neither
+// the browser's wall clock nor the box's is involved.
+
+/** The clock the countdown runs on: monotonic, unmoved by a clock change. */
+export function monotonicNow(): number {
+    return performance.now();
 }
 
-/** `network_pending` and `network_applied` events; `network_rolled_back` carries only `intf`. */
+function clampWindow(seconds: number): number {
+    return Math.min(NETWORK_CONFIRM_WINDOW_S, Math.max(0, seconds));
+}
+
+/** From the `network_apply` reply: the box answers the moment it applies. */
+export function appliedSecondsLeft(applied: NetworkApplied): number {
+    return clampWindow(applied.confirmWithin);
+}
+
+/** From `network_state`: `expires_in` is the box's own reckoning. */
+export function pendingSecondsLeft(pending: NetworkPending): number {
+    return clampWindow(pending.expiresIn);
+}
+
+/**
+ * From a `network_pending` event: `confirm_within` is the seconds left, also
+ * when the daemon publishes it again after a restart. Not `applied_at`
+ * against the relay time: the daemon arms its timer after networkctl, which
+ * can take seconds past `applied_at`.
+ */
+export function eventSecondsLeft(confirmWithin: number): number {
+    return clampWindow(confirmWithin);
+}
+
+/** `network_pending`, `network_applied` and `network_rolled_back` (which carries only `intf`). */
 export function toNetworkEvent(
     type: string,
     data: unknown,
-): { type: 'network_pending' | 'network_applied' | 'network_rolled_back'; changeId: string; intf: string; appliedAt: string; confirmWithin: number } | null {
+): {
+    type: 'network_pending' | 'network_applied' | 'network_rolled_back';
+    changeId: string;
+    intf: string;
+    appliedAt: string;
+    confirmWithin: number;
+} | null {
     if (type !== 'network_pending' && type !== 'network_applied' && type !== 'network_rolled_back') return null;
     const r = isRecord(data) ? data : {};
     return {
@@ -164,12 +192,33 @@ export function toNetworkEvent(
     };
 }
 
+/** The bare address of a CIDR, '' for anything else. */
+export function cidrAddress(cidr: string): string {
+    return isIpv4Cidr(cidr) ? cidr.slice(0, cidr.indexOf('/')) : '';
+}
+
+/**
+ * The page to open once the box has moved: this same page at the new static
+ * address, keeping scheme, port and path (the app lives under `/app/` in
+ * production). '' for a DHCP change, whose address nobody knows yet.
+ */
+export function networkReopenUrl(
+    change: NetworkChange,
+    page: { protocol: string; port: string; pathname: string },
+): string {
+    const address = change.dhcp ? '' : cidrAddress(change.ipv4 ?? '');
+    if (address === '') return '';
+    const port = page.port === '' ? '' : `:${page.port}`;
+    return `${page.protocol}//${address}${port}${page.pathname}#/admin/network`;
+}
+
 // ---------------------------------------------------------- validation ---
 // The checks calaos_server and the daemon make, so a form can say what is
 // wrong before a code is spent on it.
 
+/** The daemon's rule: route words in any case, and no leading `-`. */
 export function isValidIntf(name: string): boolean {
-    return INTF_PATTERN.test(name) && !RESERVED_INTF.includes(name);
+    return INTF_PATTERN.test(name) && !name.startsWith('-') && !RESERVED_INTF.includes(name.toLowerCase());
 }
 
 export function isIpv4(value: string): boolean {
