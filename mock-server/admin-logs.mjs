@@ -16,7 +16,7 @@ const SOURCES = [
     ['envoy', 'Envoy'],
     ['calaos-container', 'calaos-container'],
     ['olad', 'OLA (olad)'],
-    ['timesyncd', 'Time sync (timesyncd)'],
+    ['ntp', 'Time sync (NTP)'],
     ['calaos-ddns', 'Calaos DDNS'],
     ['networkd', 'Network (networkd)'],
     ['ssh', 'SSH'],
@@ -25,7 +25,7 @@ const SOURCES = [
 ];
 const SOURCE_IDS = SOURCES.map(([id]) => id);
 const UNITS = {
-    timesyncd: 'systemd-timesyncd.service',
+    ntp: 'chrony.service',
     networkd: 'systemd-networkd.service',
     kernel: 'kernel',
 };
@@ -77,7 +77,7 @@ const TEMPLATES = {
         [4, 'authorization: bearer *** refused (stale token)'],
         [6, 'apt: 0 upgraded, 0 newly installed'],
     ],
-    timesyncd: [[6, 'Contacted time server 162.159.200.{n}:123 (2.debian.pool.ntp.org).']],
+    ntp: [[6, 'Selected source 162.159.200.{n} (2.debian.pool.ntp.org)']],
     'calaos-ddns': [[6, 'Updated calaos-{n}.calaos.fr to 82.65.12.{n}']],
     networkd: [
         [6, 'eth0: Gained carrier'],
@@ -102,7 +102,7 @@ const WEIGHTS = [
     ['haproxy', 6],
     ['networkd', 4],
     ['kernel', 6],
-    ['timesyncd', 3],
+    ['ntp', 3],
     ['ssh', 4],
     ['calaos-home', 4],
     ['influxdb', 3],

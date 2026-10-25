@@ -14,7 +14,7 @@
         "envoy": "Envoy",
         "calaos-container": "calaos-container",
         "olad": "OLA (olad)",
-        "timesyncd": "Synchronisation de l’heure",
+        "ntp": "Synchronisation de l’heure",
         "calaos-ddns": "Calaos DDNS",
         "networkd": "Réseau",
         "ssh": "SSH",

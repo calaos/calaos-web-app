@@ -16,7 +16,7 @@ export const SERVICE_IDS = [
     'hue2mqtt',
     'envoy',
     'olad',
-    'timesyncd',
+    'ntp',
     'calaos-ddns',
     'calaos-container',
     'haproxy',

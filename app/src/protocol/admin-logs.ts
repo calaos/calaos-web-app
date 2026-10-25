@@ -19,7 +19,7 @@ export const LOG_SOURCE_IDS = [
     'envoy',
     'calaos-container',
     'olad',
-    'timesyncd',
+    'ntp',
     'calaos-ddns',
     'networkd',
     'ssh',
