@@ -61,6 +61,9 @@ test('first phone: pick it among look-alikes, type the code it received, and it 
     await expect(choices.nth(1)).toContainText(fill(t.approvers.reference, { suffix: '0718' }));
     await expect(choices.nth(2)).toContainText(fill(t.approvers.reference, { suffix: '3921' }));
     await expect(choices.nth(0)).not.toContainText('Ref.');
+    await expect(choices.nth(0)).toContainText(t.approvers.secure.on);
+    await expect(choices.nth(1)).toContainText(t.approvers.secure.off);
+    await expect(choices.nth(1)).toContainText(t.approvers.secure.hint);
     await expect(choices.nth(1)).toContainText(t.approvers.platform.ios);
     await expect(choices.nth(1)).toContainText('Last active 2 hours ago');
     await expect(choices.nth(2)).toContainText('Last active 3 days ago');
