@@ -40,5 +40,13 @@
         "timezone": "fuseau horaire",
         "ntp": "heure automatique",
         "time": "heure"
+    },
+    "unconfirmed": {
+        "title": "La box a tardé à confirmer",
+        "changed": "Relu sur la box : le changement est fait ({changed}).",
+        "unchanged": "Relu sur la box : rien n’a changé. Vous pouvez l’appliquer à nouveau.",
+        "unread": "Le changement a peut-être été fait. La box n’a pas encore pu être relue : vérifiez avant de l’appliquer à nouveau.",
+        "check": "Vérifier à nouveau",
+        "dismiss": "OK"
     }
 }

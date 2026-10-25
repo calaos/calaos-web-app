@@ -6,7 +6,7 @@ import { ref, watch } from 'vue';
 import { defineStore } from 'pinia';
 import { backupFilename, configBackupBody, configSetParams, toConfigOptions, toConfigSetResult } from '../protocol/admin-config';
 import type { ConfigOption, ConfigSetResult } from '../protocol/admin-config';
-import { bareAdminError, isAdminFailure, toAdminError } from '../protocol/admin';
+import { bareAdminError, isAdminFailure, isPanelError, toAdminError } from '../protocol/admin';
 import type { AdminError } from '../protocol/admin';
 import { useAdminStore } from './admin';
 
@@ -32,7 +32,7 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
     );
 
     async function load(): Promise<void> {
-        const outcome = await admin.relay('config_list', undefined, false);
+        const outcome = await admin.relay('config_list', undefined, false, isPanelError);
         if (outcome.ok) {
             options.value = toConfigOptions(outcome.data.result);
             error.value = null;
@@ -43,7 +43,7 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
 
     /** `value` '' restores the default. The registry's refusal comes back as `invalid_request`. */
     async function set(key: string, value: string): Promise<{ result: ConfigSetResult | null; error: AdminError | null }> {
-        const outcome = await admin.relay('config_set', configSetParams(key, value), true);
+        const outcome = await admin.relay('config_set', configSetParams(key, value), true, isPanelError);
         if (!outcome.ok) return { result: null, error: outcome.error };
         const result = toConfigSetResult(outcome.data.result);
         if (result !== null) {

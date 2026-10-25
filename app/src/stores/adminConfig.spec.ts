@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAdminStore } from './admin';
 import { useAdminConfigStore } from './adminConfig';
-import { SESSION, flush, ok, setUp, unlocked } from './adminTestHarness';
+import { SESSION, fail, flush, ok, setUp, unlocked } from './adminTestHarness';
 
 beforeEach(setUp);
 
@@ -50,5 +51,19 @@ describe('config store', () => {
         expect(await config.downloadBackup(refused as typeof fetch)).toMatchObject({ code: 'household_refused' });
         const broken = async () => new Response('x', { status: 500 });
         expect(await config.downloadBackup(broken as typeof fetch)).toMatchObject({ code: 'internal' });
+    });
+
+    it('an older daemon stays in the panel: the Admin page stays unlocked', async () => {
+        await unlocked();
+        const config = useAdminConfigStore();
+        void config.load();
+        fail('daemon_too_old');
+        await flush();
+        expect(useAdminStore().gate).toBe('unlocked');
+        expect(config.error?.code).toBe('daemon_too_old');
+        const saved = config.set('smtp_host', 'mail');
+        fail('daemon_too_old');
+        expect((await saved).error?.code).toBe('daemon_too_old');
+        expect(useAdminStore().gate).toBe('unlocked');
     });
 });

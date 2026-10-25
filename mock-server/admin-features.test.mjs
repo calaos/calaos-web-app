@@ -197,6 +197,24 @@ describe('time', () => {
         const failed = await ask('time_set', { timezone: 'UTC', ntp: false });
         expect(failed).toMatchObject({ error: 'internal', applied: 'timezone', failed: 'ntp', restart_required: 'true' });
     });
+
+    it('answers an unknown outcome, the change made or not as told', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', time: { unknownOutcome: true } });
+        expect(await ask('time_set', { timezone: 'UTC' })).toMatchObject({ error: 'daemon_unreachable', outcome: 'unknown' });
+        expect((await ask('time_get')).result.timezone).toBe('UTC');
+        await control({ op: 'admin', time: { unknownOutcome: 'unapplied' } });
+        expect(await ask('time_set', { timezone: 'Europe/Paris' })).toMatchObject({ outcome: 'unknown' });
+        expect((await ask('time_get')).result.timezone).toBe('UTC');
+    });
+
+    it('answers daemon_too_old to the actions it is told, the others as usual', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', tooOld: ['time_get', 'services_list'] });
+        expect((await ask('time_get')).error).toBe('daemon_too_old');
+        expect((await ask('services_list')).error).toBe('daemon_too_old');
+        expect((await ask('time_zones')).success).toBe('true');
+    });
 });
 
 describe('config', () => {
@@ -336,6 +354,27 @@ describe('network', () => {
         expect(pending).toMatchObject({ intf: 'eth0' });
         expect(await ask('network_confirm', { change_id: pending.change_id })).toMatchObject({ outcome: 'unknown' });
         expect((await ask('network_state')).result.pending).toBeNull();
+    });
+
+    it('can answer an unknown outcome to an apply it never made', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', network: { unknownOutcome: 'unapplied' } });
+        const proof = await codeFor(ask, change);
+        expect(await ask('network_apply', { ...change, ...proof })).toMatchObject({ error: 'daemon_unreachable', outcome: 'unknown' });
+        expect((await ask('network_state')).result.pending).toBeNull();
+    });
+
+    it('can keep, send network_applied, then go silent before the reply', async () => {
+        const { ws, ask, token, frames } = await session();
+        await control({ op: 'admin', network: { hangOnConfirm: true } });
+        const proof = await codeFor(ask, change);
+        const applied = await ask('network_apply', { ...change, ...proof });
+        ws.send(JSON.stringify({ msg: 'admin', msg_id: 'keep', data: { action: 'network_confirm', admin_session: token, params: { change_id: applied.result.change_id } } }));
+        await sleep(200);
+        expect(ws.readyState).toBe(WebSocket.OPEN);
+        expect(frames.some((f) => f.msg_id === 'keep')).toBe(false);
+        expect(frames.some((f) => f.msg === 'admin_event' && f.data.type === 'network_applied')).toBe(true);
+        expect((await control({ op: 'admin_status' })).network.pending).toBeNull();
     });
 
     it('answers daemon_too_old to every network action when told, and sets addresses', async () => {

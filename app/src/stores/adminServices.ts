@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue';
 import { defineStore } from 'pinia';
 import { SELF_SERVICE_ID, servicesRestartParams, toServices } from '../protocol/admin-services';
 import type { ServiceState } from '../protocol/admin-services';
+import { isPanelError } from '../protocol/admin';
 import type { AdminError } from '../protocol/admin';
 import { useAdminStore } from './admin';
 import { useAuthStore } from './auth';
@@ -83,7 +84,7 @@ export const useAdminServicesStore = defineStore('adminServices', () => {
     async function load(): Promise<ServiceState[] | null> {
         listSeq += 1;
         const seq = listSeq;
-        const outcome = await admin.relay('services_list', undefined, false);
+        const outcome = await admin.relay('services_list', undefined, false, isPanelError);
         if (seq !== listSeq) return services.value;
         if (outcome.ok) {
             services.value = toServices(outcome.data.result);
@@ -105,7 +106,7 @@ export const useAdminServicesStore = defineStore('adminServices', () => {
     async function restart(id: string): Promise<{ outcome: RestartOutcome; error: AdminError | null }> {
         const self = id === SELF_SERVICE_ID;
         if (self) selfRestartAt.value = Date.now();
-        const outcome = await admin.relay('services_restart', servicesRestartParams(id), true);
+        const outcome = await admin.relay('services_restart', servicesRestartParams(id), true, isPanelError);
         if (outcome.ok) {
             return { outcome: self ? 'self_restarting' : 'restarting', error: null };
         }

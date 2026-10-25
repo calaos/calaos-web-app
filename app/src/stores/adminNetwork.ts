@@ -21,20 +21,18 @@ import {
     toNetworkState,
 } from '../protocol/admin-network';
 import type { NetInterface, NetworkChange, NetworkFinished } from '../protocol/admin-network';
+
+/** How this client's last change ended; `not_applied` is an apply with no answer that did not take. */
+export interface NetworkOutcome {
+    changeId: string;
+    intf: string;
+    state: NetworkFinished['state'] | 'not_applied';
+}
+import { isPanelError } from '../protocol/admin';
 import type { AdminError, CodeProof } from '../protocol/admin';
 import type { AdminEventMessage } from '../protocol/types';
 import { useAdminStore } from './admin';
 import { useApproversStore } from './approvers';
-
-/**
- * A box whose daemon predates these routes answers `daemon_too_old`: that
- * is this panel's news, not a reason to block the whole Admin page. An
- * unknown outcome (calaos_server stopped waiting) is resolved by reading the
- * state again.
- */
-function isLocal(error: AdminError): boolean {
-    return error.code === 'daemon_too_old' || error.outcomeUnknown;
-}
 
 /** The action may have happened: the box went quiet, or calaos_server gave up on it. */
 function isUnanswered(error: AdminError): boolean {
@@ -64,7 +62,7 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
     /** The interface of the last automatic rollback seen live; '' for none. */
     const rolledBack = ref('');
     /** The last change confirmed or reverted by this client. */
-    const finished = ref<NetworkFinished | null>(null);
+    const finished = ref<NetworkOutcome | null>(null);
     /**
      * Applied, but the reply was lost: the box may have moved. Kept for the
      * new-address hint until `network_state` is read again.
@@ -84,6 +82,13 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
     let draft: NetworkChange | null = null;
     /** The change this client is keeping or reverting: its own event needs no second read. */
     let finishing = '';
+    /**
+     * The lost apply came back as an unknown outcome, read at once: nothing
+     * waiting then means it never took, not that it was rolled back unseen.
+     */
+    let lostAnswered = false;
+    /** A `network_applied` for `finishing` that arrived before its reply. */
+    let keptMeanwhile = '';
 
     watch(
         () => admin.session,
@@ -115,7 +120,7 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
     }
 
     async function load(): Promise<void> {
-        const outcome = await admin.relay('network_state', undefined, false, isLocal);
+        const outcome = await admin.relay('network_state', undefined, false, isPanelError);
         if (!outcome.ok) {
             if (admin.gate === 'unlocked') error.value = outcome.error;
             return;
@@ -128,6 +133,10 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         const lost = lostApply.value;
         lostApply.value = null;
         lostDeadline.value = null;
+        if (lost !== null && lostAnswered && p === null) {
+            finished.value = { changeId: '', intf: lost.intf, state: 'not_applied' };
+        }
+        lostAnswered = false;
         pending.value =
             p === null
                 ? null
@@ -174,14 +183,15 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
             'network_apply',
             networkApplyParams(change, proof.codeId, proof.code),
             false,
-            isLocal,
+            isPanelError,
         );
         if (!outcome.ok && isUnanswered(outcome.error)) {
             draft = null;
             lostApply.value = change;
             lostDeadline.value = sentAt + NETWORK_CONFIRM_WINDOW_S * 1000;
             // calaos_server answered: the box is still reachable here.
-            if (outcome.error.outcomeUnknown) void load();
+            lostAnswered = outcome.error.outcomeUnknown;
+            if (lostAnswered) void load();
             return null;
         }
         if (!outcome.ok) {
@@ -200,8 +210,11 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         const current = pending.value;
         if (current === null) return null;
         finishing = current.changeId;
-        const outcome = await admin.relay(action, { change_id: current.changeId }, true, isLocal);
+        keptMeanwhile = '';
+        const outcome = await admin.relay(action, { change_id: current.changeId }, true, isPanelError);
         finishing = '';
+        const kept = keptMeanwhile === current.changeId;
+        keptMeanwhile = '';
         if (!outcome.ok && outcome.error.outcomeUnknown) {
             await load();
             // Still on trial: nothing happened, the buttons are back. Gone and
@@ -213,6 +226,12 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
                     state: action === 'network_confirm' ? 'confirmed' : 'reverted',
                 };
             }
+            return null;
+        }
+        // The box already said it was kept: the lost reply changes nothing.
+        if (!outcome.ok && kept && isUnanswered(outcome.error)) {
+            if (pending.value?.changeId === current.changeId) pending.value = null;
+            finished.value = { changeId: current.changeId, intf: current.intf, state: 'confirmed' };
             return null;
         }
         if (!outcome.ok) {
@@ -246,7 +265,11 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
                 return;
             case 'network_applied':
                 // Our own keep reads the state once its reply is in.
-                if (ev.changeId !== '' && (ev.changeId === finishing || ev.changeId === finished.value?.changeId)) return;
+                if (ev.changeId !== '' && ev.changeId === finishing) {
+                    keptMeanwhile = ev.changeId;
+                    return;
+                }
+                if (ev.changeId !== '' && ev.changeId === finished.value?.changeId) return;
                 if (pending.value !== null && pending.value.changeId === ev.changeId) {
                     finished.value = { changeId: ev.changeId, intf: ev.intf, state: 'confirmed' };
                     pending.value = null;
@@ -281,6 +304,8 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         unanswered.value = false;
         draft = null;
         finishing = '';
+        keptMeanwhile = '';
+        lostAnswered = false;
     }
 
     return {

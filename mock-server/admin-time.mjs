@@ -1,6 +1,8 @@
 // `time_get` / `time_zones` / `time_set` of the fake daemon (calaos-container
 // docs/API.md "Box time"). The box clock is the mock's clock plus an
 // offset; `failStep` makes one step fail, the earlier ones staying applied.
+// `unknownOutcome` answers `time_set` as calaos_server does when it stops
+// waiting (`"outcome": "unknown"`), the change made (true) or not ('unapplied').
 
 const TIMEZONE = /^[A-Za-z0-9_+\-/]{1,64}$/;
 const RFC3339 = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|[+-]\d\d:\d\d)$/;
@@ -28,6 +30,8 @@ export function createTime({ failure }) {
             rtc: true,
             /** 'timezone' | 'ntp' | 'time' | null */
             failStep: null,
+            /** false | true | 'unapplied' */
+            unknownOutcome: false,
             sets: [],
         };
     }
@@ -94,20 +98,30 @@ export function createTime({ failure }) {
         return { success: 'true', result: { ...boxTime(), restart_required: restartRequired } };
     }
 
+    function unknown() {
+        return failure('daemon_unreachable', 'no answer from the daemon in time', { outcome: 'unknown' });
+    }
+
     function handle(action, session, params) {
         switch (action) {
             case 'time_get':
                 return { success: 'true', result: boxTime() };
             case 'time_zones':
                 return { success: 'true', result: { timezones: [...ZONES] } };
-            case 'time_set':
-                return set(params);
+            case 'time_set': {
+                if (state.unknownOutcome === 'unapplied') {
+                    state.sets.push(params);
+                    return unknown();
+                }
+                const reply = set(params);
+                return state.unknownOutcome && reply.success === 'true' ? unknown() : reply;
+            }
             default:
                 return undefined;
         }
     }
 
-    /** `/control {op:'admin', time:{offsetMs, timezone, ntp, synchronized, rtc, failStep}}`. */
+    /** `/control {op:'admin', time:{offsetMs, timezone, ntp, synchronized, rtc, failStep, unknownOutcome}}`. */
     function configure(patch) {
         if (patch.offsetMs !== undefined) state.offsetMs = Number(patch.offsetMs);
         if (typeof patch.timezone === 'string') state.timezone = patch.timezone;
@@ -115,6 +129,9 @@ export function createTime({ failure }) {
         if (patch.synchronized !== undefined) state.synchronized = Boolean(patch.synchronized);
         if (patch.rtc !== undefined) state.rtc = Boolean(patch.rtc);
         if (patch.failStep !== undefined) state.failStep = patch.failStep;
+        if (patch.unknownOutcome !== undefined) {
+            state.unknownOutcome = patch.unknownOutcome === 'unapplied' ? 'unapplied' : Boolean(patch.unknownOutcome);
+        }
         return null;
     }
 

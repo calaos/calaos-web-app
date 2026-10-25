@@ -355,6 +355,15 @@ export function toAdminError(data: unknown): AdminError {
     };
 }
 
+/**
+ * The errors a phase-3 panel shows on its own: an action newer than the
+ * daemon in memory, and a write calaos_server stopped waiting for. Neither
+ * says anything about the rest of the Admin page.
+ */
+export function isPanelError(error: AdminError): boolean {
+    return error.code === 'daemon_too_old' || error.outcomeUnknown;
+}
+
 /** An error with no detail field, for a refusal the client knows before asking. */
 export function bareAdminError(code: AdminFailureCode): AdminError {
     return {

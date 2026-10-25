@@ -21,8 +21,9 @@ interface NetworkPatch {
     confirmMs?: number;
     dropOnApply?: boolean | 'before';
     hangOnApply?: boolean;
+    hangOnConfirm?: boolean;
     tooOld?: boolean;
-    unknownOutcome?: boolean;
+    unknownOutcome?: boolean | 'unapplied';
     ipv4?: Record<string, string>;
     expire?: boolean;
     pending?: { intf?: string; ageMs?: number };
@@ -352,3 +353,33 @@ test('calaos_server stops waiting (outcome unknown): no error, the state is read
     await expect(adminScreen(page).adminPassword).toHaveCount(0);
 });
 
+
+test('an apply calaos_server stopped waiting for, that did not take: the box kept its settings', async ({ page, mock }) => {
+    await network(mock, { unknownOutcome: 'unapplied' });
+    await openNetwork(page);
+    await proposeStatic(page);
+    await typeCode(page, mock);
+
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('status').filter({ hasText: fill(net.done.not_applied, { intf: 'eth0' }) })).toBeVisible();
+    await expect(panel(page)).toHaveCount(0);
+    await expect(page.getByText(t.error.daemon_unreachable)).toHaveCount(0);
+    expect((await networkStatus(mock)).pending).toBeNull();
+});
+
+test('kept while our keep goes unanswered: the box’s word ends the trial', async ({ page, mock }) => {
+    test.setTimeout(60_000);
+    await network(mock, { hangOnConfirm: true });
+    await page.clock.install();
+    await openNetwork(page);
+    await proposeStatic(page);
+    await typeCode(page, mock);
+    await expect(panel(page)).toContainText(fill(net.pending.title, { intf: 'eth0' }));
+
+    // `network_applied` arrives, then the socket goes silent before the reply.
+    await panel(page).getByRole('button', { name: net.pending.confirm }).click();
+    await page.clock.fastForward(41_000);
+    await expect(page.getByRole('status').filter({ hasText: fill(net.done.confirmed, { intf: 'eth0' }) })).toBeVisible();
+    await expect(panel(page)).toHaveCount(0);
+    await expect(page.getByText(net.pending.unanswered)).toHaveCount(0);
+});

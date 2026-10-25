@@ -170,11 +170,14 @@ async function submitCode(code: string): Promise<void> {
                         {{ platformLabel(approver.platform) }}.
                         {{ t('admin.approvers.added', { date: day(approver.createdAt) }) }}
                     </span>
-                    <span class="approvers__badge" :class="{ 'approvers__badge--plain': !approver.secure }">
-                        <component :is="approver.secure ? IconLock : IconLockOpenVariant" aria-hidden="true" />
-                        {{ t(approver.secure ? 'admin.approvers.secure.on' : 'admin.approvers.secure.off') }}
-                    </span>
-                    <span v-if="!approver.secure" class="approvers__meta">{{ t('admin.approvers.secure.hint') }}</span>
+                    <!-- A purged token reads secure=false, yet no code reaches it at all: updating the app is not the fix. -->
+                    <template v-if="freshness(approver.lastSeen) !== 'gone'">
+                        <span class="approvers__badge" :class="{ 'approvers__badge--plain': !approver.secure }">
+                            <component :is="approver.secure ? IconLock : IconLockOpenVariant" aria-hidden="true" />
+                            {{ t(approver.secure ? 'admin.approvers.secure.on' : 'admin.approvers.secure.off') }}
+                        </span>
+                        <span v-if="!approver.secure" class="approvers__meta">{{ t('admin.approvers.secure.hint') }}</span>
+                    </template>
                     <span v-if="freshness(approver.lastSeen) === 'ok'" class="approvers__meta">
                         {{ t('admin.approvers.lastSeen', { when: ago(approver.lastSeen) }) }}
                     </span>

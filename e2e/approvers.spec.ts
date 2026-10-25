@@ -239,7 +239,11 @@ test('a dead main phone: the code goes to the spare, and the other phone is offe
         approvers: [{ token_id: 'dddddddddddddddd', device_name: 'Old phone' }, MOCK_PHONES.pixel.tokenId],
     });
     await openUnlocked(page);
-    await expect(section(page).locator('.approvers__row').first()).toContainText(t.approvers.gone);
+    const gone = section(page).locator('.approvers__row').first();
+    await expect(gone).toContainText(t.approvers.gone);
+    // Forgotten by the box: no code reaches it at all, an app update would not help.
+    await expect(gone.locator('.approvers__badge')).toHaveCount(0);
+    await expect(gone).not.toContainText(t.approvers.secure.hint);
 
     await page.getByRole('button', { name: t.actions.change }).click();
     const dialog = page.getByRole('dialog');

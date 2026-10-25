@@ -80,6 +80,7 @@
     "done": {
         "confirmed": "The new settings on {intf} are kept.",
         "reverted": "{intf} is back on its previous settings.",
+        "not_applied": "The box kept its settings: the change to {intf} did not take effect.",
         "dismiss": "OK"
     },
     "alert": {

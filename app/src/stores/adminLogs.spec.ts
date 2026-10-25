@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAdminStore } from './admin';
 import { LOG_ROWS_MAX, useAdminLogsStore } from './adminLogs';
 import { fail, flush, harness, last, ok, setUp, unlocked } from './adminTestHarness';
 
@@ -260,5 +261,20 @@ describe('logs store', () => {
         void logs.loadOlder();
         expect(last().data.params).toMatchObject({ cursor: 'c6', direction: 'backward' });
         logs.stopFollow();
+    });
+
+    it('an older daemon stays in the view: the Admin page stays unlocked', async () => {
+        await unlocked();
+        const logs = useAdminLogsStore();
+        void logs.loadSources();
+        fail('daemon_too_old');
+        await flush();
+        expect(useAdminStore().gate).toBe('unlocked');
+        expect(logs.error?.code).toBe('daemon_too_old');
+        void logs.search({ sources: ['system'] });
+        fail('daemon_too_old');
+        await flush();
+        expect(useAdminStore().gate).toBe('unlocked');
+        expect(logs.error?.code).toBe('daemon_too_old');
     });
 });

@@ -325,4 +325,62 @@ describe('network store', () => {
         expect(network.finished).toEqual({ changeId: '5d0c8e1f2a3b4c6d', intf: 'eth0', state: 'confirmed' });
         expect(useAdminStore().gate).toBe('unlocked');
     });
+
+    it('an apply with an unknown outcome that did not take says the box kept its settings', async () => {
+        await unlocked();
+        const approvers = useApproversStore();
+        void approvers.load();
+        ok([APPROVER]);
+        await flush();
+        const network = useAdminNetworkStore();
+        void network.startApply(change);
+        ok({ code_id: 'c0c0c0c0c0c0c0c0', approver_id: APPROVER.id, expires_in: 60 });
+        await flush();
+        void approvers.submit('482913');
+        fail('daemon_unreachable', { outcome: 'unknown' });
+        await flush();
+        ok({ interfaces: [], pending: null });
+        await flush();
+        expect(network.lostApply).toBeNull();
+        expect(network.pending).toBeNull();
+        expect(network.finished).toEqual({ changeId: '', intf: 'eth0', state: 'not_applied' });
+        expect(useAdminStore().gate).toBe('unlocked');
+    });
+
+    it('a lost apply read back after a drop says nothing: a rollback may have gone unseen', async () => {
+        await unlocked();
+        const approvers = useApproversStore();
+        void approvers.load();
+        ok([APPROVER]);
+        await flush();
+        const network = useAdminNetworkStore();
+        void network.startApply(change);
+        ok({ code_id: 'c0c0c0c0c0c0c0c0', approver_id: APPROVER.id, expires_in: 60 });
+        await flush();
+        void approvers.submit('482913');
+        vi.advanceTimersByTime(40_000);
+        await flush();
+        expect(network.lostApply).toEqual(change);
+        void network.load();
+        ok({ interfaces: [], pending: null });
+        await flush();
+        expect(network.finished).toBeNull();
+    });
+
+    it('a kept event during our own keep still ends the trial when that keep goes unanswered', async () => {
+        await unlocked();
+        const network = useAdminNetworkStore();
+        void network.load();
+        ok({ interfaces: [], pending: { change_id: '5d0c8e1f2a3b4c6d', intf: 'eth0', applied_at: '2026-10-25T09:12:03Z', expires_in: 100 } });
+        await flush();
+        harness.sent = [];
+        const kept = network.confirm();
+        network.handleEvent(event('network_applied', { intf: 'eth0', change_id: '5d0c8e1f2a3b4c6d' }));
+        vi.advanceTimersByTime(40_000);
+        expect(await kept).toBeNull();
+        expect(network.pending).toBeNull();
+        expect(network.unanswered).toBe(false);
+        expect(network.finished).toEqual({ changeId: '5d0c8e1f2a3b4c6d', intf: 'eth0', state: 'confirmed' });
+        expect(harness.sent.map((frame) => frame.data.action)).toEqual(['network_confirm']);
+    });
 });

@@ -8,6 +8,7 @@ import { computed, ref, shallowRef, watch } from 'vue';
 import { defineStore } from 'pinia';
 import { LOG_FOLLOW_INTERVAL_MS, LOG_LINES_DEFAULT, logQueryParams, toLogPage, toLogSources } from '../protocol/admin-logs';
 import type { LogEntry, LogPage, LogQuery, LogSource } from '../protocol/admin-logs';
+import { isPanelError } from '../protocol/admin';
 import type { AdminError } from '../protocol/admin';
 import { toTimeParam } from '../protocol/admin-time';
 import { useAdminStore } from './admin';
@@ -79,7 +80,7 @@ export const useAdminLogsStore = defineStore('adminLogs', () => {
     );
 
     async function loadSources(): Promise<void> {
-        const outcome = await admin.relay('logs_sources', undefined, false);
+        const outcome = await admin.relay('logs_sources', undefined, false, isPanelError);
         if (outcome.ok) sources.value = toLogSources(outcome.data.result);
         else if (admin.gate === 'unlocked') error.value = outcome.error;
     }
@@ -94,7 +95,7 @@ export const useAdminLogsStore = defineStore('adminLogs', () => {
         inflight = entry;
         loading.value = true;
         try {
-            const outcome = await admin.relay('logs_query', logQueryParams(params), false);
+            const outcome = await admin.relay('logs_query', logQueryParams(params), false, isPanelError);
             if (gen !== generation) return { page: null, failure: null };
             if (!outcome.ok) {
                 if (admin.gate === 'unlocked') error.value = outcome.error;

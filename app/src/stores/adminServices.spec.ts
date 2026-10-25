@@ -177,4 +177,18 @@ describe('services store', () => {
         expect(services.results['calaos-server']).toBeUndefined();
         expect(services.selfPhase).toBe('waiting');
     });
+
+    it('an older daemon stays in the panel: the Admin page stays unlocked', async () => {
+        await unlocked();
+        const services = useAdminServicesStore();
+        void services.load();
+        fail('daemon_too_old');
+        await flush();
+        expect(useAdminStore().gate).toBe('unlocked');
+        expect(services.error?.code).toBe('daemon_too_old');
+        const restarted = services.restart('calaos-home');
+        fail('daemon_too_old');
+        expect(await restarted).toMatchObject({ outcome: 'failed', error: { code: 'daemon_too_old' } });
+        expect(useAdminStore().gate).toBe('unlocked');
+    });
 });

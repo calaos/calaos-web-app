@@ -40,5 +40,13 @@
         "timezone": "time zone",
         "ntp": "automatic time",
         "time": "time"
+    },
+    "unconfirmed": {
+        "title": "The box was slow to confirm",
+        "changed": "Read back from the box: the change is in place ({changed}).",
+        "unchanged": "Read back from the box: nothing changed. You can apply it again.",
+        "unread": "The change may have been made. The box could not be read yet: check before applying it again.",
+        "check": "Check again",
+        "dismiss": "OK"
     }
 }

@@ -77,3 +77,35 @@ export function toTimeParam(ms: number): string {
 export function clockDrift(time: BoxTime, browserNowMs: number): number {
     return Date.parse(time.now) - browserNowMs;
 }
+
+export type TimeStep = 'timezone' | 'ntp' | 'time';
+
+/** A `time` step put the box clock within this of the time sent, travel included. */
+export const TIME_READBACK_SLACK_MS = 60_000;
+
+/** What a `time_set` with no answer turned out to do, from a later `time_get`. */
+export interface TimeReadBack {
+    changed: TimeStep[];
+    unchanged: TimeStep[];
+    /** The timezone is now the one sent, and was not before. */
+    restartRequired: boolean;
+}
+
+/**
+ * `elapsedMs` is the browser time between the send and the read: a time
+ * that took has run on by that much since.
+ */
+export function timeReadBack(change: TimeChange, before: BoxTime | null, after: BoxTime, elapsedMs: number): TimeReadBack {
+    const changed: TimeStep[] = [];
+    const unchanged: TimeStep[] = [];
+    const sort = (step: TimeStep, took: boolean) => (took ? changed : unchanged).push(step);
+    if (change.timezone !== undefined) sort('timezone', after.timezone === change.timezone);
+    if (change.ntp !== undefined) sort('ntp', after.ntp === change.ntp);
+    if (change.time !== undefined) {
+        const off = Date.parse(after.now) - (Date.parse(change.time) + elapsedMs);
+        sort('time', Math.abs(off) <= TIME_READBACK_SLACK_MS);
+    }
+    const restartRequired =
+        change.timezone !== undefined && after.timezone === change.timezone && before?.timezone !== change.timezone;
+    return { changed, unchanged, restartRequired };
+}
