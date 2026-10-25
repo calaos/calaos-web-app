@@ -51,9 +51,11 @@ describe('selectChoices', () => {
 });
 
 describe('isOn / groupOptions', () => {
-    it('reads only "true" as on', () => {
+    it('reads "true" and "1" as on', () => {
         expect(isOn('true')).toBe(true);
-        expect(isOn('1')).toBe(false);
+        expect(isOn('1')).toBe(true);
+        expect(isOn('false')).toBe(false);
+        expect(isOn('0')).toBe(false);
         expect(isOn(null)).toBe(false);
     });
 

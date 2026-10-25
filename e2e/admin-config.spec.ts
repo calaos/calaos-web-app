@@ -55,7 +55,10 @@ function row(page: Page, key: string) {
 }
 
 test('a switch and a list save as they change; a restart key raises the notice', async ({ page, mock }) => {
+    // The registry also stores a bool as `1`.
+    await patchAdmin(mock, { config: { values: { ota_enabled: '1' } } });
     await openSettings(page);
+    await expect(row(page, 'ota_enabled').getByRole('switch')).toHaveAttribute('aria-checked', 'true');
     await expect(page.locator('.config__group-title').first()).toHaveText(cfg.group.Logging);
 
     const auth = row(page, 'smtp_auth').getByRole('switch');
@@ -68,9 +71,9 @@ test('a switch and a list save as they change; a restart key raises the notice',
     await expect(page.locator('.config__restart')).toHaveCount(0);
 
     const version = row(page, 'influxdb_version').getByRole('combobox');
-    await expect(version).toHaveValue('2');
-    await version.selectOption('1');
-    await expect.poll(async () => (await configStatus(mock)).values.influxdb_version).toBe('1');
+    await expect(version).toHaveValue('1');
+    await version.selectOption('2');
+    await expect.poll(async () => (await configStatus(mock)).values.influxdb_version).toBe('2');
     await expect(row(page, 'influxdb_version')).toContainText(cfg.afterRestart);
     const notice = page.locator('.config__restart');
     await expect(notice).toContainText(cfg.restartRequired);
@@ -93,7 +96,7 @@ test('a typed number saves on demand, the registry refuses one out of range, and
     const port = row(page, 'smtp_port');
     const field = port.getByRole('textbox');
     const save = port.getByRole('button', { name: cfg.save });
-    await expect(field).toHaveValue('25');
+    await expect(field).toHaveValue('');
     await expect(save).toBeDisabled();
 
     await field.fill('70000');
@@ -110,7 +113,7 @@ test('a typed number saves on demand, the registry refuses one out of range, and
     expect((await configStatus(mock)).values.smtp_port).toBe('587');
 
     await port.getByRole('button', { name: cfg.reset }).click();
-    await expect(field).toHaveValue('25');
+    await expect(field).toHaveValue('');
     expect((await configStatus(mock)).values.smtp_port).toBeUndefined();
 
     // A float and an e-mail list are text fields too, validated by the registry.

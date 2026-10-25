@@ -27,9 +27,9 @@ export function selectChoices(option: Pick<ConfigOption, 'value' | 'choices'>): 
     return choices.includes(value) ? choices : [value, ...choices];
 }
 
-/** A bool as the registry stores it; anything but `true` reads as off. */
+/** The registry also accepts `1` for a bool (`ota_enabled`); the switch only ever writes `true`/`false`. */
 export function isOn(value: string | null): boolean {
-    return value === 'true';
+    return value === 'true' || value === '1';
 }
 
 /** Groups in the order the server lists them, keys in theirs. */
