@@ -3,39 +3,42 @@
 // itself, the daemon only validating the session. Secrets are write-only.
 // The backup is also an HTTP action, answered as a file download.
 
-/** [key, group, type, default, restart, secret, choices?, bounds?] — a subset of ConfigOptions.cpp. */
+/**
+ * [key, group, type, default, restart, secret, choices?, bounds?] — a subset of
+ * ConfigOptions.cpp, with its type ids (`typeId()`) and value lists.
+ */
 const REGISTRY = [
-    ['debug_level', 'Logging', 'int', '3', true, false, null, [0, 5]],
-    ['debug_domains', 'Logging', 'string', '', true, false],
-    ['smtp_server', 'Notifications', 'string', '', false, false],
-    ['smtp_port', 'Notifications', 'int', '25', false, false, null, [1, 65535]],
+    ['debug_level', 'Logging', 'int', '3', true, false, ['0', '1', '2', '3', '4', '5'], [0, 5]],
+    ['debug_domains', 'Logging', 'csv', '', true, false],
+    ['smtp_server', 'Notifications', 'host', '', false, false],
+    ['smtp_port', 'Notifications', 'port', '25', false, false, null, [1, 65535]],
     ['smtp_auth', 'Notifications', 'bool', 'false', false, false],
-    ['smtp_tls', 'Notifications', 'string', 'none', false, false, ['none', 'starttls', 'ssl']],
+    ['smtp_tls', 'Notifications', 'bool', 'false', false, false],
     ['smtp_username', 'Notifications', 'string', '', false, false],
-    ['smtp_password', 'Notifications', 'string', '', false, true],
-    ['user_emails', 'Notifications', 'string', '', false, false],
+    ['smtp_password', 'Notifications', 'password', '', false, true],
+    ['user_emails', 'Notifications', 'email_list', '', false, false],
     ['history_keep_days', 'History', 'int', '30', false, false, null, [1, 3650]],
     ['influxdb_enabled', 'InfluxDB', 'bool', 'false', true, false],
-    ['influxdb_version', 'InfluxDB', 'string', '2', true, false, ['1', '2']],
-    ['influxdb_host', 'InfluxDB', 'string', 'localhost', true, false],
-    ['influxdb_port', 'InfluxDB', 'int', '8086', true, false, null, [1, 65535]],
+    ['influxdb_version', 'InfluxDB', 'enum', '2', true, false, ['1', '2']],
+    ['influxdb_host', 'InfluxDB', 'host', 'localhost', true, false],
+    ['influxdb_port', 'InfluxDB', 'port', '8086', true, false, null, [1, 65535]],
     ['influxdb_database', 'InfluxDB', 'string', 'calaos', true, false],
     ['influxdb_org', 'InfluxDB', 'string', 'calaos', true, false],
     ['influxdb_bucket', 'InfluxDB', 'string', 'calaos', true, false],
-    ['influxdb_token', 'InfluxDB', 'string', '', true, true],
-    ['influxdb_log_timeout', 'InfluxDB', 'int', '5', true, false, null, [1, 600]],
-    ['mcp_rate_limit', 'MCP', 'int', '60', true, false, null, [1, 10000]],
-    ['mcp_ban_failures', 'MCP', 'int', '5', true, false, null, [1, 100]],
+    ['influxdb_token', 'InfluxDB', 'token', '', true, true],
+    ['influxdb_log_timeout', 'InfluxDB', 'int', '5', true, false, null, [0, 86400]],
+    ['mcp_rate_limit', 'MCP', 'int', '60', true, false, null, [0, 10000]],
+    ['mcp_ban_failures', 'MCP', 'int', '5', true, false, null, [0, 100]],
     ['mcp_ban_seconds', 'MCP', 'int', '300', true, false, null, [1, 86400]],
     ['ota_enabled', 'OTA', 'bool', 'true', true, false],
-    ['ota_rescan_interval', 'OTA', 'int', '3600', true, false, null, [60, 86400]],
-    ['api_allowed_hosts', 'Origin', 'string', '', false, false],
-    ['latitude', 'Location', 'double', '48.8566', false, false, null, [-90, 90]],
-    ['longitude', 'Location', 'double', '2.3522', false, false, null, [-180, 180]],
+    ['ota_rescan_interval', 'OTA', 'int', '60', true, false, null, [1, 1440]],
+    ['api_allowed_hosts', 'Origin', 'csv', '', false, false],
+    ['latitude', 'Location', 'float', '48.8566', false, false, null, [-90, 90]],
+    ['longitude', 'Location', 'float', '2.3522', false, false, null, [-180, 180]],
     ['show_cursor', 'Kiosk', 'bool', 'false', false, false],
     ['dpms_enable', 'Kiosk', 'bool', 'true', false, false],
     ['dpms_standby', 'Kiosk', 'int', '300', false, false, null, [10, 86400]],
-    ['lang', 'Kiosk', 'string', 'fr', false, false, ['en', 'fr', 'de', 'es']],
+    ['lang', 'Kiosk', 'enum', '', false, false, ['de', 'en', 'es', 'fr', 'hi', 'nb', 'pl', 'ru']],
 ];
 
 function describe(key) {
@@ -92,12 +95,16 @@ export function createConfig({ failure, hub }) {
     function validate([, , type, , , , choices, bounds], value) {
         if (choices && !choices.includes(value)) return `must be one of ${choices.join(', ')}`;
         if (type === 'bool' && value !== 'true' && value !== 'false') return 'must be true or false';
-        if (type === 'int' || type === 'double') {
+        if (type === 'int' || type === 'port' || type === 'float') {
             const n = Number(value);
-            if (value.trim() === '' || !Number.isFinite(n) || (type === 'int' && !Number.isInteger(n))) {
-                return `must be ${type === 'int' ? 'an integer' : 'a number'}`;
+            const integer = type !== 'float';
+            if (value.trim() === '' || !Number.isFinite(n) || (integer && !Number.isInteger(n))) {
+                return `must be ${integer ? 'an integer' : 'a number'}`;
             }
             if (bounds && (n < bounds[0] || n > bounds[1])) return `must be between ${bounds[0]} and ${bounds[1]}`;
+        }
+        if (type === 'email_list' && value.split(',').some((mail) => !/^[^@\s]+@[^@\s]+$/.test(mail.trim()))) {
+            return 'must be a comma separated list of e-mail addresses';
         }
         return null;
     }
