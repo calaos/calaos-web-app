@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // The change on trial: the box's countdown, the two ways out, and — when
-// this client made the change — where to find the box if it moved. That
-// address is shown before anything goes wrong, because a box that changes
-// address mostly leaves the socket hanging rather than closing it.
+// this client's change moves the page's own host — the new address as the
+// way forward. A box that changes address mostly leaves the socket hanging
+// rather than closing it, so a keep from here would wait in vain.
 
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { networkReopenUrl } from '../../protocol/admin-network';
+import { cidrAddress, isIpv4, networkReopenUrl } from '../../protocol/admin-network';
 import type { AdminError } from '../../protocol/admin';
 import { useAdminNetworkStore } from '../../stores/adminNetwork';
 import { useConnectionStore } from '../../stores/connection';
@@ -26,14 +26,30 @@ const failure = ref<AdminError | null>(null);
 
 const countdown = useNetworkCountdown(() => network.pending?.deadline ?? network.lostDeadline);
 
+const host = window.location.hostname;
 const change = computed(() => network.pending?.change ?? network.lostApply);
 const intf = computed(() => network.pending?.intf ?? network.lostApply?.intf ?? '');
 const expired = computed(() => countdown.seconds.value === 0);
 const low = computed(() => (countdown.seconds.value ?? 0) <= LOW_SECONDS);
-/** The reply never came, or the socket is down: the box may well be elsewhere. */
-const lost = computed(() => network.lostApply !== null || !connection.isOpen);
+/** The page was opened at the changed interface's address, and that address goes away. */
+const movesPage = computed(() => {
+    const c = change.value;
+    if (c === null || network.appliedFrom === '' || host !== network.appliedFrom) return false;
+    return c.dhcp || cidrAddress(c.ipv4 ?? '') !== host;
+});
+/** Opened by name: whether the name follows the box cannot be told from here. */
+const maybeMoves = computed(() => change.value !== null && !movesPage.value && !isIpv4(host));
+/** No reply, a keep unanswered, or the socket down: the box may well be elsewhere. */
+const lost = computed(() => network.lostApply !== null || network.unanswered || !connection.isOpen);
 const reopenUrl = computed(() => (change.value === null ? '' : networkReopenUrl(change.value, window.location)));
 const canAct = computed(() => network.pending !== null && connection.isOpen && !expired.value && busy.value === null);
+/** Said by the lost notice instead. */
+const failureText = computed(() => {
+    const error = failure.value;
+    if (error === null || error.code === 'timeout' || error.code === 'disconnected') return '';
+    if (error.code === 'invalid_request') return t('admin.network.pending.ended');
+    return errorText(error);
+});
 
 async function act(what: 'confirm' | 'revert'): Promise<void> {
     busy.value = what;
@@ -61,37 +77,56 @@ async function act(what: 'confirm' | 'revert'): Promise<void> {
             </p>
             <div class="net-pending__text">
                 <h2 class="net-pending__title">{{ t('admin.network.pending.title', { intf }) }}</h2>
-                <p class="net-pending__hint">
-                    {{ expired ? t('admin.network.pending.expired') : t('admin.network.pending.hint') }}
-                </p>
-                <div v-if="!expired" class="net-pending__actions">
-                    <AdminButton
-                        :busy="busy === 'confirm'"
-                        :disabled="!canAct"
-                        @click="act('confirm')"
-                    >
-                        {{ t('admin.network.pending.confirm') }}
-                    </AdminButton>
-                    <AdminButton
-                        variant="quiet"
-                        :busy="busy === 'revert'"
-                        :disabled="!canAct"
-                        @click="act('revert')"
-                    >
-                        {{ t('admin.network.pending.revert') }}
-                    </AdminButton>
-                </div>
-                <p v-if="failure !== null" class="net-pending__error" role="alert">{{ errorText(failure) }}</p>
+                <p v-if="expired" class="net-pending__hint">{{ t('admin.network.pending.expired') }}</p>
+
+                <template v-else-if="movesPage">
+                    <div class="net-pending__move" :role="lost ? 'alert' : undefined">
+                        <p v-if="lost" class="net-pending__lost">
+                            {{ network.unanswered ? t('admin.network.pending.unanswered') : t('admin.network.pending.lost') }}
+                        </p>
+                        <p v-if="reopenUrl !== ''" class="net-pending__hint">{{ t('admin.network.pending.moves') }}</p>
+                        <p v-else class="net-pending__hint">{{ t('admin.network.pending.reopenDhcp') }}</p>
+                    </div>
+                    <div v-if="reopenUrl !== ''" class="net-pending__go">
+                        <AdminButton :href="reopenUrl">{{ t('admin.network.pending.open') }}</AdminButton>
+                        <a class="net-pending__url" :href="reopenUrl">{{ reopenUrl }}</a>
+                    </div>
+                    <p class="net-pending__fallback">{{ t('admin.network.pending.onlyIfAnswers') }}</p>
+                    <div class="net-pending__actions net-pending__actions--quiet">
+                        <AdminButton variant="quiet" :busy="busy === 'confirm'" :disabled="!canAct" @click="act('confirm')">
+                            {{ t('admin.network.pending.confirm') }}
+                        </AdminButton>
+                        <AdminButton variant="quiet" :busy="busy === 'revert'" :disabled="!canAct" @click="act('revert')">
+                            {{ t('admin.network.pending.revert') }}
+                        </AdminButton>
+                    </div>
+                </template>
+
+                <template v-else>
+                    <p class="net-pending__hint">{{ t('admin.network.pending.hint') }}</p>
+                    <div class="net-pending__actions">
+                        <AdminButton :busy="busy === 'confirm'" :disabled="!canAct" @click="act('confirm')">
+                            {{ t('admin.network.pending.confirm') }}
+                        </AdminButton>
+                        <AdminButton variant="quiet" :busy="busy === 'revert'" :disabled="!canAct" @click="act('revert')">
+                            {{ t('admin.network.pending.revert') }}
+                        </AdminButton>
+                    </div>
+                </template>
+
+                <p v-if="failureText !== ''" class="net-pending__error" role="alert">{{ failureText }}</p>
             </div>
         </div>
 
         <div
-            v-if="change !== null && !expired"
+            v-if="!expired && !movesPage && (maybeMoves || lost) && change !== null"
             class="net-pending__reopen"
             :class="{ 'net-pending__reopen--lost': lost }"
             :role="lost ? 'alert' : undefined"
         >
-            <p v-if="lost" class="net-pending__lost">{{ t('admin.network.pending.lost') }}</p>
+            <p v-if="lost" class="net-pending__lost">
+                {{ network.unanswered ? t('admin.network.pending.unanswered') : t('admin.network.pending.lost') }}
+            </p>
             <template v-if="reopenUrl !== ''">
                 <p>{{ lost ? t('admin.network.pending.reopenNow') : t('admin.network.pending.reopen') }}</p>
                 <a class="net-pending__url" :href="reopenUrl">{{ reopenUrl }}</a>
@@ -187,6 +222,34 @@ async function act(what: 'confirm' | 'revert'): Promise<void> {
     flex-wrap: wrap;
     gap: var(--space-3);
     margin-block-start: var(--space-4);
+}
+
+.net-pending__move {
+    display: grid;
+    gap: var(--space-2);
+    margin-block-start: var(--space-2);
+}
+
+.net-pending__move .net-pending__hint {
+    margin-block-start: 0;
+}
+
+.net-pending__go {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    margin-block-start: var(--space-4);
+}
+
+.net-pending__fallback {
+    margin-block-start: var(--space-6);
+    color: var(--c-text-muted);
+    font-size: 0.8125rem;
+}
+
+.net-pending__actions--quiet {
+    margin-block-start: var(--space-2);
 }
 
 .net-pending__error {

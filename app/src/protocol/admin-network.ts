@@ -137,10 +137,9 @@ export function toNetworkFinished(raw: unknown): NetworkFinished | null {
     return { changeId, intf: toWireString(raw.intf), state };
 }
 
-// The countdown is the daemon's: what is left of `confirm_within`, read from
-// the box's own values at the moment they arrive, then run down on the
-// browser's monotonic clock. A browser whose wall clock is off by minutes
-// still shows the time the box will actually wait.
+// The countdown is the daemon's: the seconds left it reports, taken at the
+// moment they arrive and run down on the browser's monotonic clock. Neither
+// the browser's wall clock nor the box's is involved.
 
 /** The clock the countdown runs on: monotonic, unmoved by a clock change. */
 export function monotonicNow(): number {
@@ -162,30 +161,25 @@ export function pendingSecondsLeft(pending: NetworkPending): number {
 }
 
 /**
- * From a `network_pending` event: the window runs from `applied_at`, and `ts`
- * is calaos_server's clock when it relayed the event (the same box). After a
- * daemon restart the event is published again with the original
- * `applied_at`, so `confirm_within` alone would only be right the first time.
+ * From a `network_pending` event: `confirm_within` is the seconds left, also
+ * when the daemon publishes it again after a restart. Not `applied_at`
+ * against the relay time: the daemon arms its timer after networkctl, which
+ * can take seconds past `applied_at`.
  */
-export function eventSecondsLeft(appliedAt: string, ts: string, confirmWithin: number): number {
-    const applied = Date.parse(appliedAt);
-    const relayed = Date.parse(ts);
-    if (!Number.isFinite(applied) || !Number.isFinite(relayed)) return clampWindow(confirmWithin);
-    return clampWindow(Math.min(confirmWithin, NETWORK_CONFIRM_WINDOW_S - (relayed - applied) / 1000));
+export function eventSecondsLeft(confirmWithin: number): number {
+    return clampWindow(confirmWithin);
 }
 
 /** `network_pending`, `network_applied` and `network_rolled_back` (which carries only `intf`). */
 export function toNetworkEvent(
     type: string,
     data: unknown,
-    ts = '',
 ): {
     type: 'network_pending' | 'network_applied' | 'network_rolled_back';
     changeId: string;
     intf: string;
     appliedAt: string;
     confirmWithin: number;
-    ts: string;
 } | null {
     if (type !== 'network_pending' && type !== 'network_applied' && type !== 'network_rolled_back') return null;
     const r = isRecord(data) ? data : {};
@@ -195,7 +189,6 @@ export function toNetworkEvent(
         intf: toWireString(r.intf),
         appliedAt: toWireString(r.applied_at),
         confirmWithin: toNumberOrNull(r.confirm_within) ?? 0,
-        ts,
     };
 }
 
@@ -223,8 +216,9 @@ export function networkReopenUrl(
 // The checks calaos_server and the daemon make, so a form can say what is
 // wrong before a code is spent on it.
 
+/** The daemon's rule: route words in any case, and no leading `-`. */
 export function isValidIntf(name: string): boolean {
-    return INTF_PATTERN.test(name) && !RESERVED_INTF.includes(name);
+    return INTF_PATTERN.test(name) && !name.startsWith('-') && !RESERVED_INTF.includes(name.toLowerCase());
 }
 
 export function isIpv4(value: string): boolean {

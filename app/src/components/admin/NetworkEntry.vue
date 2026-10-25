@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useAdminStore } from '../../stores/admin';
 import { useAdminNetworkStore } from '../../stores/adminNetwork';
+import { useAdminText } from '../../composables/useAdminText';
 import { useNetworkCountdown } from '../../composables/useNetworkCountdown';
 import AdminButton from './AdminButton.vue';
 
@@ -15,9 +16,12 @@ const { t } = useI18n();
 const router = useRouter();
 const admin = useAdminStore();
 const network = useAdminNetworkStore();
+const { errorText } = useAdminText();
 
 const countdown = useNetworkCountdown(() => network.pending?.deadline ?? null);
 const waiting = computed(() => network.pending !== null && (countdown.seconds.value ?? 0) > 0);
+/** An older daemon, say: this row only, the rest of the page works. */
+const problem = computed(() => (network.error === null ? '' : errorText(network.error)));
 
 onMounted(() => {
     if (admin.isUnlocked) void network.load();
@@ -36,6 +40,7 @@ function open(): void {
                 <span v-if="waiting" class="net-entry__pending">
                     {{ t('admin.network.entry.pending', { intf: network.pending?.intf ?? '', time: countdown.clock.value }) }}
                 </span>
+                <span v-else-if="problem !== ''" class="net-entry__problem">{{ problem }}</span>
                 <span v-else class="net-entry__hint">{{ t('admin.network.entry.hint') }}</span>
             </div>
             <AdminButton :variant="waiting ? 'primary' : 'quiet'" @click="open">
@@ -67,6 +72,12 @@ function open(): void {
 
 .net-entry__hint {
     color: var(--c-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.net-entry__problem {
+    color: var(--c-warn);
     font-size: 0.875rem;
     line-height: 1.4;
 }

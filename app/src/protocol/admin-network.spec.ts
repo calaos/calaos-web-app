@@ -67,12 +67,10 @@ describe('network codec', () => {
         expect(appliedSecondsLeft({ changeId: 'c', intf: 'eth0', appliedAt: '2026-10-25T09:12:03Z', confirmWithin: 120 })).toBe(120);
         expect(pendingSecondsLeft({ changeId: 'c', intf: 'eth0', appliedAt: '2026-10-25T09:12:03Z', expiresIn: 87 })).toBe(87);
         expect(pendingSecondsLeft({ changeId: 'c', intf: 'eth0', appliedAt: '', expiresIn: 900 })).toBe(120);
-        // First publish, relayed a second later.
-        expect(eventSecondsLeft('2026-10-25T09:12:03Z', '2026-10-25T09:12:04Z', 120)).toBe(119);
-        // Published again after a daemon restart: same applied_at, confirm_within = seconds left.
-        expect(eventSecondsLeft('2026-10-25T09:12:03Z', '2026-10-25T09:13:33Z', 30)).toBe(30);
-        expect(eventSecondsLeft('2026-10-25T09:12:03Z', '2026-10-25T09:15:00Z', 0)).toBe(0);
-        expect(eventSecondsLeft('garbage', '', 40)).toBe(40);
+        // confirm_within is the seconds left, first publish or after a daemon restart.
+        expect(eventSecondsLeft(120)).toBe(120);
+        expect(eventSecondsLeft(30)).toBe(30);
+        expect(eventSecondsLeft(-3)).toBe(0);
     });
 
     it('points at the new static address, keeping scheme, port and path', () => {
@@ -94,7 +92,6 @@ describe('network codec', () => {
             intf: 'eth0',
             appliedAt: 'a',
             confirmWithin: 40,
-            ts: '',
         });
         expect(toNetworkEvent('network_rolled_back', { intf: 'eth0' })?.intf).toBe('eth0');
         expect(toNetworkEvent('upgrade_progress', {})).toBeNull();
@@ -104,6 +101,8 @@ describe('network codec', () => {
         expect(isValidIntf('eth0')).toBe(true);
         expect(isValidIntf('lo')).toBe(false);
         expect(isValidIntf('apply')).toBe(false);
+        expect(isValidIntf('APPLY')).toBe(false);
+        expect(isValidIntf('-eth0')).toBe(false);
         expect(isValidIntf('a'.repeat(16))).toBe(false);
         expect(isIpv4('192.168.1.1')).toBe(true);
         expect(isIpv4('192.168.01.1')).toBe(false);

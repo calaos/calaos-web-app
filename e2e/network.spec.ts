@@ -7,6 +7,8 @@
 import { MESSAGES, MOCK_PHONES, adminScreen, expect, loginAs, test } from './fixtures';
 import type { ControlOp, MockControl } from './fixtures';
 import type { Page } from '@playwright/test';
+import { createConnection, createServer } from 'node:net';
+import type { AddressInfo, Server, Socket } from 'node:net';
 import net from '../app/src/i18n/admin/network.en.json';
 
 const ADMIN_PASSWORD = 'correct horse battery';
@@ -18,6 +20,9 @@ const REOPEN_URL = 'http://192.168.1.20:4173/#/admin/network';
 interface NetworkPatch {
     confirmMs?: number;
     dropOnApply?: boolean | 'before';
+    hangOnApply?: boolean;
+    tooOld?: boolean;
+    ipv4?: Record<string, string>;
     expire?: boolean;
     pending?: { intf?: string; ageMs?: number };
 }
@@ -47,13 +52,13 @@ async function unlock(page: Page): Promise<void> {
     await expect(admin.updates).toBeVisible();
 }
 
-async function openNetwork(page: Page): Promise<void> {
-    await page.goto('/');
+async function openNetwork(page: Page, url = '/'): Promise<void> {
+    await page.goto(url);
     await loginAs(page);
     await unlock(page);
     await page.locator('.net-entry').getByRole('button').click();
     await expect(page).toHaveURL(/#\/admin\/network$/);
-    await expect(row(page, 'eth0')).toContainText('192.168.1.10/24');
+    await expect(row(page, 'eth0')).toContainText(/\d+\.\d+\.\d+\.\d+\/\d+/);
 }
 
 const row = (page: Page, name: string) => page.locator('.network__intf').filter({ has: page.getByRole('heading', { name, exact: true }) });
@@ -76,6 +81,44 @@ async function typeCode(page: Page, mock: MockControl): Promise<void> {
     const pushed = await mock.lastCode();
     expect(pushed).toMatchObject({ action: 'network_config', token_id: MOCK_PHONES.pixel.tokenId });
     await codeField(page).fill(pushed.code);
+}
+
+/** The preview server, on whichever loopback it listens (Node may pick ::1 for `localhost`). */
+function connectPreview(port: number): Promise<Socket> {
+    const attempt = (host: string) =>
+        new Promise<Socket>((resolve, reject) => {
+            const socket = createConnection({ host, port });
+            socket.once('connect', () => resolve(socket));
+            socket.once('error', reject);
+        });
+    return attempt('::1').catch(() => attempt('127.0.0.1'));
+}
+
+/** 127.0.0.1:<random> → the preview server. */
+async function ipv4Relay(targetPort: string): Promise<{ server: Server; close: () => void }> {
+    const sockets = new Set<Socket>();
+    const server = createServer((socket) => {
+        sockets.add(socket);
+        socket.pause();
+        socket.on('error', () => socket.destroy());
+        connectPreview(Number(targetPort)).then(
+            (upstream) => {
+                sockets.add(upstream);
+                upstream.on('error', () => socket.destroy());
+                socket.pipe(upstream).pipe(socket);
+                socket.resume();
+            },
+            () => socket.destroy(),
+        );
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    return {
+        server,
+        close: () => {
+            for (const socket of sockets) socket.destroy();
+            server.close();
+        },
+    };
 }
 
 /** m:ss → seconds. */
@@ -246,3 +289,51 @@ test('the countdown is the box’s, even with the browser clock an hour off', as
     expect(seconds).toBeGreaterThan(20);
     expect(seconds).toBeLessThanOrEqual(30);
 });
+
+test('an older daemon: the network row says so, and the Admin page stays unlocked', async ({ page, mock }) => {
+    await network(mock, { tooOld: true });
+    await page.goto('/');
+    await loginAs(page);
+    await unlock(page);
+    const entry = page.locator('.net-entry');
+    await expect(entry).toContainText(t.error.daemon_too_old);
+    // Nothing flips the page to "being activated" and back.
+    await page.waitForTimeout(7_000);
+    await expect(adminScreen(page).updates).toBeVisible();
+    await expect(adminScreen(page).adminPassword).toHaveCount(0);
+    expect((await mock.adminActions()).filter((action) => action === 'network_state')).toHaveLength(1);
+});
+
+test('the change moves this page’s own address: the new address comes first, a keep from here goes unanswered', async ({
+    page,
+    mock,
+}) => {
+    test.setTimeout(60_000);
+    // The page is served from eth0's own address, which the change takes away.
+    // `vite preview` may listen on ::1 only: a TCP relay gives it an IPv4 face.
+    const relay = await ipv4Relay(new URL(test.info().project.use.baseURL ?? 'http://localhost:4173').port);
+    const port = (relay.server.address() as AddressInfo).port;
+    try {
+        await network(mock, { ipv4: { eth0: '127.0.0.1/8' }, hangOnApply: true });
+        await page.clock.install();
+        await openNetwork(page, `http://127.0.0.1:${port}/`);
+        await proposeStatic(page);
+        await typeCode(page, mock);
+
+        await expect(panel(page)).toContainText(net.pending.moves);
+        const open = panel(page).getByRole('link', { name: net.pending.open });
+        await expect(open).toHaveAttribute('href', `http://192.168.1.20:${port}/#/admin/network`);
+        await expect(panel(page)).toContainText(net.pending.onlyIfAnswers);
+        await expect(panel(page).getByRole('button', { name: net.pending.confirm })).toHaveClass(/admin-button--quiet/);
+
+        // The socket stays open and silent, as at an address the box left.
+        await panel(page).getByRole('button', { name: net.pending.confirm }).click();
+        await page.clock.fastForward(41_000);
+        await expect(panel(page).getByRole('alert')).toContainText(net.pending.unanswered);
+        await expect(page.getByText(t.error.timeout)).toHaveCount(0);
+        expect((await networkStatus(mock)).pending?.intf).toBe('eth0');
+    } finally {
+        relay.close();
+    }
+});
+

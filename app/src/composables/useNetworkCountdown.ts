@@ -1,7 +1,7 @@
 // The time left on a pending network change, ticking on the same monotonic
 // clock the store set the deadline on.
 
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onScopeDispose, ref, watch } from 'vue';
 import type { ComputedRef } from 'vue';
 import { NETWORK_CONFIRM_WINDOW_S, monotonicNow } from '../protocol/admin-network';
 
@@ -23,15 +23,28 @@ export function useNetworkCountdown(deadline: () => number | null): NetworkCount
     const now = ref(monotonicNow());
     let ticker: ReturnType<typeof setInterval> | null = null;
 
-    onMounted(() => {
-        ticker = setInterval(() => {
-            now.value = monotonicNow();
-        }, 250);
-    });
-
-    onUnmounted(() => {
+    function stop(): void {
         if (ticker !== null) clearInterval(ticker);
-    });
+        ticker = null;
+    }
+
+    // Ticks only while there is something to count down.
+    watch(
+        () => deadline() !== null,
+        (counting) => {
+            if (!counting) {
+                stop();
+                return;
+            }
+            now.value = monotonicNow();
+            ticker ??= setInterval(() => {
+                now.value = monotonicNow();
+            }, 250);
+        },
+        { immediate: true },
+    );
+
+    onScopeDispose(stop);
 
     const left = computed(() => {
         const end = deadline();

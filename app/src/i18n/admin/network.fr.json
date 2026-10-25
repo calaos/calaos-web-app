@@ -70,7 +70,12 @@
         "lost": "La box ne répond plus ici. C’est normal si son adresse a changé.",
         "reopen": "Si cette page ne répond plus, ouvrez-la à la nouvelle adresse et gardez-y les réglages :",
         "reopenNow": "Ouvrez cette page à la nouvelle adresse et gardez-y les réglages :",
-        "reopenDhcp": "La box prend maintenant son adresse en DHCP : retrouvez-la dans la liste des appareils de votre routeur, ouvrez cette page à cette adresse et gardez-y les réglages."
+        "reopenDhcp": "La box prend maintenant son adresse en DHCP : retrouvez-la dans la liste des appareils de votre routeur, ouvrez cette page à cette adresse et gardez-y les réglages.",
+        "moves": "Cette page utilise l’ancienne adresse de la box et va cesser de répondre. Ouvrez la nouvelle adresse et gardez-y les réglages.",
+        "open": "Ouvrir la nouvelle adresse",
+        "onlyIfAnswers": "Gardez d’ici seulement si cette page répond encore.",
+        "unanswered": "La box n’a pas répondu ici. Si son adresse a changé, gardez les réglages depuis la nouvelle adresse.",
+        "ended": "Ce changement est déjà terminé : gardé, annulé ou défait automatiquement."
     },
     "done": {
         "confirmed": "Les nouveaux réglages de {intf} sont gardés.",

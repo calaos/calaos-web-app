@@ -307,6 +307,27 @@ describe('network', () => {
         expect((await control({ op: 'admin_status' })).network.pending).toMatchObject({ intf: 'eth0' });
     });
 
+    it('can answer the apply and then go silent, sockets open and frames ignored', async () => {
+        const { ws, ask, token, frames } = await session();
+        await control({ op: 'admin', network: { hangOnApply: true } });
+        const proof = await codeFor(ask, change);
+        const applied = await ask('network_apply', { ...change, ...proof });
+        await sleep(100);
+        ws.send(JSON.stringify({ msg: 'admin', msg_id: 'keep', data: { action: 'network_confirm', admin_session: token, params: { change_id: applied.result.change_id } } }));
+        await sleep(200);
+        expect(ws.readyState).toBe(WebSocket.OPEN);
+        expect(frames.some((f) => f.msg_id === 'keep')).toBe(false);
+        expect((await control({ op: 'admin_status' })).network.pending).toMatchObject({ intf: 'eth0' });
+    });
+
+    it('answers daemon_too_old to every network action when told, and sets addresses', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', network: { ipv4: { eth0: '127.0.0.1/8' } } });
+        expect((await ask('network_state')).result.interfaces.find((i) => i.name === 'eth0').ipv4).toBe('127.0.0.1/8');
+        await control({ op: 'admin', network: { tooOld: true } });
+        expect((await ask('network_state')).error).toBe('daemon_too_old');
+    });
+
     it('cuts a page at the 1 MiB budget when told, the cursor on the last entry kept', async () => {
         const { ask } = await session();
         await control({ op: 'admin', logs: { truncateNext: true } });

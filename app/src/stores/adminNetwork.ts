@@ -9,6 +9,7 @@ import { defineStore } from 'pinia';
 import {
     NETWORK_CONFIRM_WINDOW_S,
     appliedSecondsLeft,
+    cidrAddress,
     eventSecondsLeft,
     monotonicNow,
     networkApplyParams,
@@ -20,10 +21,18 @@ import {
     toNetworkState,
 } from '../protocol/admin-network';
 import type { NetInterface, NetworkChange, NetworkFinished } from '../protocol/admin-network';
-import type { AdminError, CodeProof } from '../protocol/admin';
+import type { AdminError, AdminFailureCode, CodeProof } from '../protocol/admin';
 import type { AdminEventMessage } from '../protocol/types';
 import { useAdminStore } from './admin';
 import { useApproversStore } from './approvers';
+
+/**
+ * A box whose daemon predates these routes answers `daemon_too_old`: that
+ * is this panel's news, not a reason to block the whole Admin page.
+ */
+const LOCAL_ERRORS: readonly AdminFailureCode[] = ['daemon_too_old'];
+/** The box rounds its seconds up and they are read on arrival: keep one in hand. */
+const SAFETY_S = 1;
 
 export interface PendingChange {
     changeId: string;
@@ -54,9 +63,18 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
     const lostApply = ref<NetworkChange | null>(null);
     /** With `lostApply`: the latest the box can revert, counted from the send. */
     const lostDeadline = ref<number | null>(null);
+    /**
+     * The address (no prefix) the changed interface had when this client
+     * applied: if it is the page's own host, the page is about to lose the box.
+     */
+    const appliedFrom = ref('');
+    /** A keep or a go back got no answer: the box may be at its new address. */
+    const unanswered = ref(false);
 
     /** The change on its way through the code entry. */
     let draft: NetworkChange | null = null;
+    /** The change this client is keeping or reverting: its own event needs no second read. */
+    let finishing = '';
 
     watch(
         () => admin.session,
@@ -70,7 +88,7 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
     }
 
     function deadlineIn(seconds: number): number {
-        return monotonicNow() + seconds * 1000;
+        return monotonicNow() + Math.max(0, seconds - SAFETY_S) * 1000;
     }
 
     /**
@@ -88,12 +106,13 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
     }
 
     async function load(): Promise<void> {
-        const outcome = await admin.relay('network_state', undefined, false);
+        const outcome = await admin.relay('network_state', undefined, false, LOCAL_ERRORS);
         if (!outcome.ok) {
             if (admin.gate === 'unlocked') error.value = outcome.error;
             return;
         }
         error.value = null;
+        unanswered.value = false;
         const state = toNetworkState(outcome.data.result);
         interfaces.value = state.interfaces;
         const p = state.pending;
@@ -126,6 +145,9 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         draft = change;
         finished.value = null;
         rolledBack.value = '';
+        unanswered.value = false;
+        const before = interfaces.value?.find((intf) => intf.name === change.intf)?.ipv4 ?? '';
+        appliedFrom.value = cidrAddress(before);
         await approvers.startNetworkChange(networkChangeParams(change), apply);
     }
 
@@ -139,7 +161,12 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         const change = draft;
         if (change === null) return null;
         const sentAt = monotonicNow();
-        const outcome = await admin.relay('network_apply', networkApplyParams(change, proof.codeId, proof.code), false);
+        const outcome = await admin.relay(
+            'network_apply',
+            networkApplyParams(change, proof.codeId, proof.code),
+            false,
+            LOCAL_ERRORS,
+        );
         if (!outcome.ok && (outcome.error.code === 'disconnected' || outcome.error.code === 'timeout')) {
             draft = null;
             lostApply.value = change;
@@ -161,10 +188,14 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
     async function finish(action: 'network_confirm' | 'network_revert'): Promise<AdminError | null> {
         const current = pending.value;
         if (current === null) return null;
-        const outcome = await admin.relay(action, { change_id: current.changeId }, true);
+        finishing = current.changeId;
+        const outcome = await admin.relay(action, { change_id: current.changeId }, true, LOCAL_ERRORS);
+        finishing = '';
         if (!outcome.ok) {
+            const code = outcome.error.code;
+            if (code === 'timeout' || code === 'disconnected') unanswered.value = true;
             // Unknown or finished meanwhile (rolled back, confirmed elsewhere).
-            if (outcome.error.code === 'invalid_request') void load();
+            if (code === 'invalid_request') void load();
             return outcome.error;
         }
         finished.value = toNetworkFinished(outcome.data.result);
@@ -183,15 +214,20 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
 
     /** Called by services/calaos.ts for every `admin_event`. */
     function handleEvent(msg: AdminEventMessage): void {
-        const ev = toNetworkEvent(msg.type, msg.data, msg.ts);
+        const ev = toNetworkEvent(msg.type, msg.data);
         if (ev === null) return;
         switch (ev.type) {
             case 'network_pending':
                 if (ev.changeId === '') return;
-                track(ev.changeId, ev.intf, ev.appliedAt, eventSecondsLeft(ev.appliedAt, ev.ts, ev.confirmWithin), null);
+                track(ev.changeId, ev.intf, ev.appliedAt, eventSecondsLeft(ev.confirmWithin), null);
                 return;
             case 'network_applied':
-                if (pending.value?.changeId === ev.changeId) pending.value = null;
+                // Our own keep reads the state once its reply is in.
+                if (ev.changeId !== '' && (ev.changeId === finishing || ev.changeId === finished.value?.changeId)) return;
+                if (pending.value !== null && pending.value.changeId === ev.changeId) {
+                    finished.value = { changeId: ev.changeId, intf: ev.intf, state: 'confirmed' };
+                    pending.value = null;
+                }
                 if (admin.isUnlocked) void load();
                 return;
             case 'network_rolled_back':
@@ -218,7 +254,10 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         rolledBack.value = '';
         lostApply.value = null;
         lostDeadline.value = null;
+        appliedFrom.value = '';
+        unanswered.value = false;
         draft = null;
+        finishing = '';
     }
 
     return {
@@ -229,6 +268,8 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         finished,
         lostApply,
         lostDeadline,
+        appliedFrom,
+        unanswered,
         load,
         handleLoggedIn,
         startApply,

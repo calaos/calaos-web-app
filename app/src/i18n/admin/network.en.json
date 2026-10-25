@@ -70,7 +70,12 @@
         "lost": "The box no longer answers here. That is expected if its address changed.",
         "reopen": "If this page stops answering, open it at the new address and keep the settings there:",
         "reopenNow": "Open this page at the new address and keep the settings there:",
-        "reopenDhcp": "The box now takes its address from DHCP: find it in your router’s list of devices, open this page at that address and keep the settings there."
+        "reopenDhcp": "The box now takes its address from DHCP: find it in your router’s list of devices, open this page at that address and keep the settings there.",
+        "moves": "This page uses the box’s old address, and will stop answering. Open the new address and keep the settings there.",
+        "open": "Open the new address",
+        "onlyIfAnswers": "Keep from here only if this page still answers.",
+        "unanswered": "The box did not answer here. If its address changed, keep the settings from the new address.",
+        "ended": "This change has already ended: kept, undone or rolled back."
     },
     "done": {
         "confirmed": "The new settings on {intf} are kept.",
