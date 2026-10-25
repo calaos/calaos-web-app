@@ -289,7 +289,7 @@ function confirm(): void {
 
 .services__light--inactive,
 .services__light--unknown {
-    background-color: #3a3a3a;
+    background-color: var(--c-border-strong);
 }
 
 .services__light--not-found {

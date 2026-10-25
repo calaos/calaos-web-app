@@ -12,9 +12,9 @@ import { useConnectionStore } from './connection';
 
 /**
  * A drop this soon after restarting calaos-server is that restart, even
- * without its reply. The daemon waits ~500 ms, then the unit's ExecStop is
- * `podman rm -f`, which gives calaos_server podman's 10 s stop timeout before
- * the kill closes the socket.
+ * without its reply. The socket normally closes ~1 s after the reply (the
+ * daemon's 500 ms, then calaos_server's SIGTERM handler); a hung shutdown
+ * lasts until `podman rm -f` kills it after its 10 s stop timeout.
  */
 export const SELF_RESTART_DROP_MS = 15_000;
 export const RESTART_POLL_MS = 2_000;
@@ -35,9 +35,8 @@ interface Tracked {
     phase: RestartPhase;
     /** `since` before the request: `active` alone may be the old process, not the restarted one. */
     before: string;
+    /** Never `active` and `since` stays null: its run is too short for a poll to catch. */
     oneshot: boolean;
-    /** A oneshot that ran without entering `active` is seen only in passing. */
-    sawRun: boolean;
     deadline: number;
 }
 
@@ -110,9 +109,12 @@ export const useAdminServicesStore = defineStore('adminServices', () => {
         if (outcome.ok) {
             return { outcome: self ? 'self_restarting' : 'restarting', error: null };
         }
-        // A reply lost to the kill, or still held by a dying server.
-        const lost = outcome.error.code === 'disconnected' || outcome.error.code === 'timeout';
-        if (self && lost && isSelfRestartDrop()) {
+        // A reply still held (the daemon's guard can wait out a version check)
+        // or lost to the kill: the restart may run anyway, so the list decides.
+        if (outcome.error.code === 'timeout') {
+            return { outcome: self ? 'self_restarting' : 'restarting', error: null };
+        }
+        if (self && outcome.error.code === 'disconnected' && isSelfRestartDrop()) {
             return { outcome: 'self_restarting', error: null };
         }
         if (self) selfRestartAt.value = null;
@@ -129,7 +131,6 @@ export const useAdminServicesStore = defineStore('adminServices', () => {
             phase: 'sending',
             before: entry?.since ?? '',
             oneshot: entry?.kind === 'oneshot',
-            sawRun: false,
             deadline: 0,
         };
         const { error: failure } = await restart(id);
@@ -152,13 +153,13 @@ export const useAdminServicesStore = defineStore('adminServices', () => {
             const entry = list.find((s) => s.id === id);
             const changed = entry !== undefined && entry.since !== '' && entry.since !== item.before;
             const state = entry?.activeState;
-            if (state === 'activating' || state === 'deactivating' || state === 'reloading') item.sawRun = true;
             let result: RestartResult['status'] | null = null;
             if (entry === undefined || state === 'not-found') result = 'not_found';
             else if (state === 'failed') result = 'failed';
-            else if (item.oneshot && (changed || (item.sawRun && (state === 'inactive' || state === 'active')))) {
-                result = 'done';
-            } else if (!item.oneshot && state === 'active' && changed) result = 'done';
+            // The first poll comes after the daemon's delayed `start`: a oneshot
+            // that is not running any more has run.
+            else if (item.oneshot && (state === 'inactive' || state === 'active')) result = 'done';
+            else if (!item.oneshot && state === 'active' && changed) result = 'done';
             else if (now >= item.deadline) result = 'timeout';
             if (result === null) continue;
             delete tracked.value[id];

@@ -83,6 +83,16 @@ test('a restart asks once, then waits for the new process', async ({ page, mock 
     expect(await restarts(mock)).toEqual(['mosquitto']);
 });
 
+test('run now on a oneshot ends once it is no longer running', async ({ page, mock }) => {
+    await openUnlocked(page);
+    await configure(mock, { restartMs: 100 });
+    await restart(page, 'calaos-ddns', services.runNow);
+    await expect(row(page, 'calaos-ddns').locator('.services__result')).toHaveText(services.result.ran, {
+        timeout: 15_000,
+    });
+    expect(await restarts(mock)).toEqual(['calaos-ddns']);
+});
+
 test('restarting calaos-server drops the page, which reconnects and confirms', async ({ page, mock }) => {
     await openUnlocked(page);
     const loginsBefore = (await mock.loginFrames()).length;

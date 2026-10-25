@@ -104,12 +104,32 @@ describe('services store', () => {
         expect(services.results.influxdb).toEqual({ status: 'timeout' });
     });
 
-    it('a oneshot is done once seen running and back, without a new `since`', async () => {
-        const services = await listed(unit('calaos-ddns', 'inactive', BEFORE, 'oneshot'));
+    it('a oneshot is done once it is no longer running, `since` staying null', async () => {
+        const services = await listed(
+            unit('calaos-ddns', 'inactive', null, 'oneshot'),
+            unit('olad', 'inactive', null, 'oneshot'),
+        );
+        // Too fast for any poll to see it run.
         await accepted(services, 'calaos-ddns');
-        await poll(unit('calaos-ddns', 'activating', BEFORE, 'oneshot'));
-        await poll(unit('calaos-ddns', 'inactive', BEFORE, 'oneshot'));
+        await poll(unit('calaos-ddns', 'inactive', null, 'oneshot'), unit('olad', 'inactive', null, 'oneshot'));
         expect(services.results['calaos-ddns']).toEqual({ status: 'done' });
+
+        await accepted(services, 'olad');
+        await poll(unit('calaos-ddns', 'inactive', null, 'oneshot'), unit('olad', 'activating', null, 'oneshot'));
+        expect(services.results.olad).toBeUndefined();
+        await poll(unit('calaos-ddns', 'inactive', null, 'oneshot'), unit('olad', 'failed', null, 'oneshot'));
+        expect(services.results.olad).toEqual({ status: 'failed' });
+    });
+
+    it('follows a restart whose reply timed out: the daemon may still run it', async () => {
+        const services = await listed(unit('mosquitto', 'active'));
+        void services.restartAndWatch('mosquitto');
+        vi.advanceTimersByTime(5_100);
+        await flush();
+        expect(services.results.mosquitto).toBeUndefined();
+        expect(services.tracked.mosquitto?.phase).toBe('waiting');
+        await poll(unit('mosquitto', 'active', AFTER));
+        expect(services.results.mosquitto).toEqual({ status: 'done' });
     });
 
     it('shows the 409 of a running upgrade as the row result', async () => {
