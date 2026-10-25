@@ -27,10 +27,11 @@
 //                               noiseEvents; and one object per phase-3
 //                               feature: services {restartMs, fail, state,
 //                               dropOnSelfRestart}, logs {live,
-//                               rateLimitNext, failNext}, time {offsetMs,
+//                               rateLimitNext, failNext, truncateNext}, time {offsetMs,
 //                               timezone, ntp, synchronized, rtc, failStep},
 //                               config {hostname, values}, network
-//                               {confirmMs, dropOnApply, expire, pending}
+//                               {confirmMs, dropOnApply (true | 'before'),
+//                               expire, pending}
 //   {op:'admin_status'}         the fake daemon's state and counters
 //   {op:'console', ...patch}    the echo console (console.mjs `configure`):
 //                               close (a close code for every open console) with reason (its reason text),

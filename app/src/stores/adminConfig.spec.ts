@@ -42,4 +42,13 @@ describe('config store', () => {
         const fetchImpl = async () => new Response('{"success":"false","error":"https_required","msg":"x"}');
         expect(await config.downloadBackup(fetchImpl as typeof fetch)).toMatchObject({ code: 'https_required' });
     });
+
+    it('tells a refused household sign-in apart from a box failure', async () => {
+        await unlocked();
+        const config = useAdminConfigStore();
+        const refused = async () => new Response('Bad Request', { status: 400 });
+        expect(await config.downloadBackup(refused as typeof fetch)).toMatchObject({ code: 'household_refused' });
+        const broken = async () => new Response('x', { status: 500 });
+        expect(await config.downloadBackup(broken as typeof fetch)).toMatchObject({ code: 'internal' });
+    });
 });

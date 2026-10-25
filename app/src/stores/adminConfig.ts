@@ -77,6 +77,8 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
         } catch {
             return bareAdminError('disconnected');
         }
+        // A refused household sign-in is HTTP 400 with an HTML page.
+        if (response.status === 400) return bareAdminError('household_refused');
         if (!response.ok) return bareAdminError('internal');
         const filename = backupFilename(response.headers.get('content-disposition'));
         if (filename === '') {

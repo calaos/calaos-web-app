@@ -2,7 +2,8 @@
 // of the fake daemon (calaos-container docs/API.md "Network configuration").
 // A change is pending for `confirmMs` (120 s), then rolls back with the
 // `network_rolled_back` alert; `dropOnApply` cuts every socket right after
-// the answer, as a box that moved to its new address does.
+// the answer, as a box that moved to its new address does, and
+// `dropOnApply: 'before'` cuts them before it, the answer never arriving.
 
 import { randomBytes } from 'node:crypto';
 
@@ -180,6 +181,10 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
         arm(state.confirmMs);
         const result = { change_id: state.pending.change_id, intf: params.intf, applied_at: state.pending.applied_at, confirm_within: CONFIRM_WITHIN_S };
         event('network_pending', { ...result });
+        if (state.dropOnApply === 'before') {
+            hub.dropClients();
+            return null;
+        }
         if (state.dropOnApply) setTimeout(() => hub.dropClients(), 100);
         return { success: 'true', result };
     }
@@ -218,13 +223,13 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
     }
 
     /**
-     * `/control {op:'admin', network:{confirmMs, dropOnApply, expire, pending}}`.
+     * `/control {op:'admin', network:{confirmMs, dropOnApply (true | 'before'), expire, pending}}`.
      * `expire` rolls the pending change back now; `pending` seeds one
      * (`{intf, ageMs}`), as a reload at the new address finds it.
      */
     function configure(patch) {
         if (patch.confirmMs !== undefined) state.confirmMs = Number(patch.confirmMs);
-        if (patch.dropOnApply !== undefined) state.dropOnApply = Boolean(patch.dropOnApply);
+        if (patch.dropOnApply !== undefined) state.dropOnApply = patch.dropOnApply === 'before' ? 'before' : Boolean(patch.dropOnApply);
         if (patch.expire && state.pending !== null) rollBack();
         if (typeof patch.pending === 'object' && patch.pending !== null) {
             const entry = intfEntry(patch.pending.intf ?? 'eth0');

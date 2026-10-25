@@ -290,6 +290,26 @@ describe('network', () => {
         expect((await bad({ intf: 'eth0', dhcp: false, ipv4: '192.168.01.20/24' })).error).toBe('invalid_request');
     });
 
+    it('can drop every socket before the apply answers, the change still pending', async () => {
+        const { ws, ask, token, frames } = await session();
+        await control({ op: 'admin', network: { dropOnApply: 'before' } });
+        const proof = await codeFor(ask, change);
+        const closed = new Promise((resolve) => ws.once('close', resolve));
+        ws.send(JSON.stringify({ msg: 'admin', msg_id: 'lost', data: { action: 'network_apply', admin_session: token, params: { ...change, ...proof } } }));
+        await closed;
+        expect(frames.some((f) => f.msg_id === 'lost')).toBe(false);
+        expect((await control({ op: 'admin_status' })).network.pending).toMatchObject({ intf: 'eth0' });
+    });
+
+    it('cuts a page at the 1 MiB budget when told, the cursor on the last entry kept', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', logs: { truncateNext: true } });
+        const page = (await ask('logs_query', { lines: 10 })).result;
+        expect(page).toMatchObject({ truncated: true });
+        expect(page.entries).toHaveLength(5);
+        expect(page.next_cursor).toBe(page.entries[0].cursor);
+    });
+
     it('drops every socket after an apply when the address moves', async () => {
         const { ws, ask } = await session();
         await control({ op: 'admin', network: { dropOnApply: true } });

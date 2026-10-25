@@ -810,7 +810,9 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         const params = typeof data.params === 'object' && data.params !== null ? data.params : {};
 
         for (const name of FEATURES) {
+            // undefined: not this feature's action; null: the socket is gone, no answer.
             const payload = features[name].handle(action, data.admin_session, params);
+            if (payload === null) return;
             if (payload !== undefined) return respond(payload);
         }
 

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminEventMessage } from '../protocol/types';
+import { useAdminStore } from './admin';
 import { useAdminNetworkStore } from './adminNetwork';
 import { useApproversStore } from './approvers';
 import { SESSION, fail, flush, last, ok, setUp, unlocked } from './adminTestHarness';
@@ -79,5 +80,49 @@ describe('network store', () => {
         network.handleEvent(event('network_rolled_back', { intf: 'eth0' }));
         expect(network.pending).toBeNull();
         expect(network.rolledBack).toBe('eth0');
+    });
+
+    it('a reply lost to the box moving is not an error: the change is kept and network_state resolves it', async () => {
+        await unlocked();
+        const approvers = useApproversStore();
+        void approvers.load();
+        ok([APPROVER]);
+        await flush();
+        const network = useAdminNetworkStore();
+        void network.startApply(change);
+        ok({ code_id: 'c0c0c0c0c0c0c0c0', approver_id: APPROVER.id, expires_in: 60 });
+        await flush();
+
+        void approvers.submit('482913');
+        expect(last().data.action).toBe('network_apply');
+        useAdminStore().handleTransportLost();
+        await flush();
+        expect(approvers.challenge).toBeNull();
+        expect(approvers.done).toBe('network');
+        expect(network.lostApply).toEqual(change);
+
+        network.handleLoggedIn();
+        expect(last().data.action).toBe('network_state');
+        ok({ interfaces: [], pending: { change_id: '5d0c8e1f2a3b4c6d', intf: 'eth0', applied_at: '2026-10-25T09:12:03Z', expires_in: 100 } });
+        await flush();
+        expect(network.lostApply).toBeNull();
+        expect(network.pending).toMatchObject({ changeId: '5d0c8e1f2a3b4c6d', change });
+    });
+
+    it('a reply that never comes is treated the same way', async () => {
+        await unlocked();
+        const approvers = useApproversStore();
+        void approvers.load();
+        ok([APPROVER]);
+        await flush();
+        const network = useAdminNetworkStore();
+        void network.startApply(change);
+        ok({ code_id: 'c0c0c0c0c0c0c0c0', approver_id: APPROVER.id, expires_in: 60 });
+        await flush();
+        void approvers.submit('482913');
+        vi.advanceTimersByTime(5_000);
+        await flush();
+        expect(approvers.done).toBe('network');
+        expect(network.lostApply).toEqual(change);
     });
 });

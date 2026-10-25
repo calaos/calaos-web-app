@@ -43,6 +43,11 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
     const rolledBack = ref('');
     /** The last change confirmed or reverted by this client. */
     const finished = ref<NetworkFinished | null>(null);
+    /**
+     * Applied, but the reply was lost: the box may have moved. Kept for the
+     * new-address hint until `network_state` is read again.
+     */
+    const lostApply = ref<NetworkChange | null>(null);
 
     /** The change on its way through the code entry. */
     let draft: NetworkChange | null = null;
@@ -68,6 +73,8 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         const state = toNetworkState(outcome.data.result);
         interfaces.value = state.interfaces;
         const p = state.pending;
+        const lost = lostApply.value;
+        lostApply.value = null;
         pending.value =
             p === null
                 ? null
@@ -76,8 +83,13 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
                       intf: p.intf,
                       appliedAt: p.appliedAt,
                       deadline: networkDeadline(p.appliedAt, p.expiresIn),
-                      change: keepChange(p.changeId),
+                      change: keepChange(p.changeId) ?? lost,
                   };
+    }
+
+    /** Called by services/calaos.ts after every login: a lost apply is resolved here. */
+    function handleLoggedIn(): void {
+        if (lostApply.value !== null && admin.session !== null) void load();
     }
 
     /** Asks for the `network_config` code; the code entry then calls `apply`. */
@@ -96,6 +108,11 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         const change = draft;
         if (change === null) return null;
         const outcome = await admin.relay('network_apply', networkApplyParams(change, proof.codeId, proof.code), false);
+        if (!outcome.ok && (outcome.error.code === 'disconnected' || outcome.error.code === 'timeout')) {
+            draft = null;
+            lostApply.value = change;
+            return null;
+        }
         if (!outcome.ok) {
             if (outcome.error.code === 'network_pending') void load();
             return outcome.error;
@@ -174,6 +191,7 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         error.value = null;
         finished.value = null;
         rolledBack.value = '';
+        lostApply.value = null;
         draft = null;
     }
 
@@ -183,7 +201,9 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         error,
         rolledBack,
         finished,
+        lostApply,
         load,
+        handleLoggedIn,
         startApply,
         apply,
         confirm,

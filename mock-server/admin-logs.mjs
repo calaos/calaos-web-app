@@ -155,6 +155,7 @@ export function createLogs({ failure }) {
             calls: new Map(),
             rateLimitNext: 0,
             failNext: false,
+            truncateNext: false,
             queries: [],
         };
     }
@@ -379,14 +380,24 @@ export function createLogs({ failure }) {
         ensure();
         catchUp();
         state.queries.push(params);
-        return { success: 'true', result: run(parsed.query) };
+        const result = run(parsed.query);
+        if (state.truncateNext && result.entries.length > 1) {
+            // The 1 MiB budget drops the entries farthest from the start point.
+            state.truncateNext = false;
+            const keep = Math.ceil(result.entries.length / 2);
+            result.entries = parsed.query.direction === 'forward' ? result.entries.slice(0, keep) : result.entries.slice(-keep);
+            result.truncated = true;
+            result.next_cursor = (parsed.query.direction === 'forward' ? result.entries.at(-1) : result.entries[0]).cursor;
+        }
+        return { success: 'true', result };
     }
 
-    /** `/control {op:'admin', logs:{live, rateLimitNext, failNext}}`. */
+    /** `/control {op:'admin', logs:{live, rateLimitNext, failNext, truncateNext}}`. */
     function configure(patch) {
         if (patch.live !== undefined) state.live = Boolean(patch.live);
         if (Number.isInteger(patch.rateLimitNext)) state.rateLimitNext = patch.rateLimitNext;
         if (patch.failNext !== undefined) state.failNext = Boolean(patch.failNext);
+        if (patch.truncateNext !== undefined) state.truncateNext = Boolean(patch.truncateNext);
         return null;
     }
 

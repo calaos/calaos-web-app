@@ -102,6 +102,7 @@ export function createCalaosService(
                     // After the house: the admin session is kept across a
                     // reconnect and `update_status` resumes an upgrade.
                     admin.handleLoggedIn();
+                    adminNetwork.handleLoggedIn();
                     // Approver alerts are shown to everyone, at sign-in.
                     adminAlerts.refresh();
                 }
