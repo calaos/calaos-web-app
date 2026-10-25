@@ -73,6 +73,8 @@ export function createServices({ hub, failure, running }) {
             fail: new Set(),
             /** Restarting calaos-server drops every socket. */
             dropOnSelfRestart: true,
+            /** Refuses every restart as during a job this client did not see start. */
+            upgradeInProgress: false,
             restarts: [],
         };
     }
@@ -89,7 +91,7 @@ export function createServices({ hub, failure, running }) {
         if (entry === undefined || !entry.restartable) {
             return failure('invalid_request', 'unknown or non-restartable service');
         }
-        if (running()) return failure('upgrade_in_progress', 'upgrade already in progress');
+        if (running() || state.upgradeInProgress) return failure('upgrade_in_progress', 'upgrade already in progress');
         state.restarts.push(id);
         later(RESTART_DELAY_MS, () => {
             if (entry.active_state === 'not-found') return;
@@ -119,8 +121,9 @@ export function createServices({ hub, failure, running }) {
         return undefined;
     }
 
-    /** `/control {op:'admin', services:{restartMs, fail, state, dropOnSelfRestart}}`. */
+    /** `/control {op:'admin', services:{restartMs, fail, state, dropOnSelfRestart, upgradeInProgress}}`. */
     function configure(patch) {
+        if (patch.upgradeInProgress !== undefined) state.upgradeInProgress = Boolean(patch.upgradeInProgress);
         if (patch.restartMs !== undefined) state.restartMs = Number(patch.restartMs);
         if (typeof patch.fail === 'string') state.fail.add(patch.fail);
         if (patch.dropOnSelfRestart !== undefined) state.dropOnSelfRestart = Boolean(patch.dropOnSelfRestart);
