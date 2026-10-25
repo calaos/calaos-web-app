@@ -4,7 +4,7 @@
 
 import { readFile } from 'node:fs/promises';
 import L from '../app/src/i18n/admin/logs.en.json';
-import { adminScreen, expect, loginAs, test } from './fixtures';
+import { MESSAGES, adminScreen, expect, loginAs, test } from './fixtures';
 import type { MockControl } from './fixtures';
 import type { Page } from '@playwright/test';
 
@@ -183,4 +183,13 @@ test('downloads the lines on screen as text', async ({ page }) => {
     const lines = text.trimEnd().split('\n');
     expect(lines).toHaveLength(200);
     for (const line of lines) expect(line).toMatch(/^\d{4}-\d\d-\d\dT\S+Z calaos-server\[\d+\] (err|warning|info): /);
+});
+
+test('an older daemon: the logs page says to update the box, and stays open', async ({ page, mock }) => {
+    await mock.admin({ tooOld: ['logs_sources', 'logs_query'] });
+    await openLogs(page);
+    await expect(page.locator('.logs__error')).toContainText(MESSAGES.admin.error.daemon_too_old);
+    await page.waitForTimeout(6_000);
+    await expect(page).toHaveURL(/#\/admin\/logs$/);
+    await expect(page.locator('.logs__error')).toBeVisible();
 });

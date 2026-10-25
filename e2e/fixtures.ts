@@ -84,6 +84,8 @@ export interface AdminPatch {
      * (MOCK_PHONES), or `{token_id, device_name}` for a phone whose token is gone.
      */
     approvers?: (string | { token_id: string; device_name: string })[];
+    /** Actions answered `daemon_too_old`, as from a daemon in memory older than their route. */
+    tooOld?: string[];
     /** Adds this many IO history rows to the event log, newer than what is there. */
     noiseEvents?: number;
     /** A code's lifetime (60 s) and the wait between two codes (10 s). */

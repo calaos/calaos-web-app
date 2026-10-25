@@ -154,3 +154,55 @@ test('a partial failure says what changed and what did not', async ({ page, mock
     // The step that went through shows: NTP is now off.
     await expect(card(page)).toContainText(T.manual);
 });
+
+async function unlockOnly(page: Page): Promise<void> {
+    await page.goto('/');
+    await loginAs(page);
+    const admin = adminScreen(page);
+    await admin.tab.click();
+    await admin.adminPassword.fill(ADMIN_PASSWORD);
+    await admin.submit.click();
+    await expect(admin.updates).toBeVisible();
+}
+
+test('an older daemon: the card says to update the box, and the Admin page stays unlocked', async ({ page, mock }) => {
+    await mock.admin({ tooOld: ['time_get', 'time_zones'] });
+    await unlockOnly(page);
+    await expect(card(page).locator('.time__error')).toContainText(MESSAGES.admin.error.daemon_too_old);
+    // Nothing flips the page to "being activated" and back.
+    await page.waitForTimeout(6_000);
+    await expect(adminScreen(page).updates).toBeVisible();
+    await expect(adminScreen(page).adminPassword).toHaveCount(0);
+    expect((await mock.adminActions()).filter((action) => action === 'time_get')).toHaveLength(1);
+});
+
+test('calaos_server stops waiting on a new zone: read back, the restart offered, nothing sent twice', async ({ page, mock }) => {
+    await configure(mock, { time: { unknownOutcome: true } });
+    await openAdmin(page);
+    await card(page).getByLabel(T.timezone).selectOption('Europe/London');
+    await card(page).getByRole('button', { name: T.applyZone }).click();
+    await expect(card(page).locator('.time__unconfirmed')).toContainText(fill(T.unconfirmed.changed, { changed: T.step.timezone }));
+    await expect(card(page).locator('.time__restart')).toContainText(T.restartRequired);
+    await expect(card(page).locator('.time__error')).toHaveCount(0);
+    await expect(card(page).getByLabel(T.timezone)).toHaveValue('Europe/London');
+    expect((await mock.adminActions()).filter((action) => action === 'time_set')).toHaveLength(1);
+    await expect(adminScreen(page).adminPassword).toHaveCount(0);
+});
+
+test('calaos_server stops waiting on a change that did not take: the card says nothing changed', async ({ page, mock }) => {
+    await configure(mock, { time: { unknownOutcome: 'unapplied' } });
+    await openAdmin(page);
+    await card(page).getByLabel(T.timezone).selectOption('UTC');
+    await card(page).getByRole('button', { name: T.applyZone }).click();
+    // The first read may beat the daemon: no invitation to apply again until a later read.
+    const note = card(page).locator('.time__unconfirmed');
+    await expect(note).toContainText(T.unconfirmed.unchangedSoFar);
+    await expect(note).toContainText(T.unconfirmed.stillApplying);
+    await expect(note.getByRole('button', { name: T.unconfirmed.check })).toBeVisible();
+    await expect(note).toContainText(T.unconfirmed.unchanged);
+    await expect(note.getByRole('button', { name: T.unconfirmed.dismiss })).toBeVisible();
+    await expect(card(page).locator('.time__restart')).toHaveCount(0);
+    await expect(card(page).locator('.time__error')).toHaveCount(0);
+    expect((await timeStatus(mock)).timezone).toBe('Europe/Paris');
+    expect((await mock.adminActions()).filter((action) => action === 'time_set')).toHaveLength(1);
+});

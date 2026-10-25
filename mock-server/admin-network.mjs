@@ -9,7 +9,10 @@
 // page at the old address mostly sees. `tooOld` answers every network action
 // `daemon_too_old`, as a daemon older than these routes does. `unknownOutcome`
 // does apply, keep and go back, then answers `daemon_unreachable` with
-// `"outcome": "unknown"`, as calaos_server does when it stops waiting.
+// `"outcome": "unknown"`, as calaos_server does when it stops waiting;
+// `unknownOutcome: 'unapplied'` gives that answer to an apply it never made.
+// `hangOnConfirm` keeps, sends `network_applied`, then goes silent before the
+// reply.
 
 import { randomBytes } from 'node:crypto';
 
@@ -106,6 +109,7 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
             confirmMs: CONFIRM_WITHIN_S * 1000,
             dropOnApply: false,
             hangOnApply: false,
+            hangOnConfirm: false,
             tooOld: false,
             unknownOutcome: false,
             applies: 0,
@@ -210,6 +214,11 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
             if (timer !== null) clearTimeout(timer);
             timer = null;
             event('network_applied', { intf, change_id });
+            if (state.hangOnConfirm) {
+                state.history.push({ kind, intf });
+                hub.hangClients();
+                return null;
+            }
         } else {
             restore();
         }
@@ -223,6 +232,7 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
             case 'network_state':
                 return { success: 'true', result: { interfaces: structuredClone(state.interfaces), pending: pendingView() } };
             case 'network_apply':
+                if (state.unknownOutcome === 'unapplied') return unknownIfTold({ success: 'true' });
                 return unknownIfTold(apply(session, params));
             case 'network_confirm':
                 return unknownIfTold(finish(params, 'confirmed'));
@@ -240,7 +250,8 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
     }
 
     /**
-     * `/control {op:'admin', network:{confirmMs, dropOnApply (true | 'before'), hangOnApply, tooOld, unknownOutcome,
+     * `/control {op:'admin', network:{confirmMs, dropOnApply (true | 'before'), hangOnApply, hangOnConfirm, tooOld,
+     * unknownOutcome (true | 'unapplied'),
      * expire, pending, ipv4}}`. `expire` rolls the pending change back now; `pending` seeds one
      * (`{intf, ageMs}`), as a reload at the new address finds it; `ipv4` sets addresses
      * (`{eth0: '127.0.0.1/8'}`), so a page can be served from an interface's own address.
@@ -249,7 +260,10 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
         if (patch.confirmMs !== undefined) state.confirmMs = Number(patch.confirmMs);
         if (patch.hangOnApply !== undefined) state.hangOnApply = Boolean(patch.hangOnApply);
         if (patch.tooOld !== undefined) state.tooOld = Boolean(patch.tooOld);
-        if (patch.unknownOutcome !== undefined) state.unknownOutcome = Boolean(patch.unknownOutcome);
+        if (patch.unknownOutcome !== undefined) {
+            state.unknownOutcome = patch.unknownOutcome === 'unapplied' ? 'unapplied' : Boolean(patch.unknownOutcome);
+        }
+        if (patch.hangOnConfirm !== undefined) state.hangOnConfirm = Boolean(patch.hangOnConfirm);
         if (typeof patch.ipv4 === 'object' && patch.ipv4 !== null) {
             for (const [name, ipv4] of Object.entries(patch.ipv4)) {
                 const entry = intfEntry(name);

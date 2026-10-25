@@ -100,4 +100,16 @@ describe('ApproversPanel', () => {
         expect(choices[1].find('.approvers__badge').text()).toBe('Code in the notification');
         expect(choices[1].text()).toContain('Update the Calaos app');
     });
+
+    it('a phone the box forgot gets the reconnect hint, not the update one', async () => {
+        const wrapper = mountPanel();
+        useApproversStore().approvers = [
+            { id: '1111111111111111', deviceName: 'Old', tokenId: 'aaaaaaaaaaaaaaaa', createdAt: '', platform: '', registeredAt: '', lastSeen: '', secure: false },
+        ];
+        await flushPromises();
+        const row = wrapper.find('.approvers__row');
+        expect(row.find('.approvers__badge').exists()).toBe(false);
+        expect(row.text()).not.toContain('Update the Calaos app');
+        expect(row.text()).toContain(en.admin.approvers.gone);
+    });
 });

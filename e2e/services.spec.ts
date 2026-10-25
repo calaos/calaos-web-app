@@ -139,3 +139,13 @@ test('an upgrade started elsewhere refuses the restart with its own message', as
     await expect(row(page, 'zigbee2mqtt').getByRole('button')).toHaveText(services.restart);
     expect(await restarts(mock)).toEqual([]);
 });
+
+test('an older daemon: the services panel says to update the box, and the Admin page stays unlocked', async ({ page, mock }) => {
+    await mock.admin({ tooOld: ['services_list'] });
+    await openUnlocked(page);
+    await expect(page.locator('.services')).toContainText(MESSAGES.admin.error.daemon_too_old);
+    await page.waitForTimeout(6_000);
+    await expect(adminScreen(page).updates).toBeVisible();
+    await expect(adminScreen(page).adminPassword).toHaveCount(0);
+    expect((await mock.adminActions()).filter((action) => action === 'services_list')).toHaveLength(1);
+});

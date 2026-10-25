@@ -80,6 +80,7 @@
     "done": {
         "confirmed": "Les nouveaux réglages de {intf} sont gardés.",
         "reverted": "{intf} est revenue à ses réglages précédents.",
+        "not_applied": "La box a gardé ses réglages : le changement de {intf} n’a pas pris effet.",
         "dismiss": "OK"
     },
     "alert": {

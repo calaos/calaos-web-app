@@ -115,7 +115,22 @@ const partialText = computed(() => {
         failed: error.failed === '' ? '?' : stepNames([error.failed]),
     });
 });
-const loadText = computed(() => (time.error !== null && failure.value === null ? errorText(time.error) : ''));
+const loadText = computed(() =>
+    time.error !== null && failure.value === null && time.unconfirmed === null ? errorText(time.error) : '',
+);
+/** Until then, the change may still land: no invitation to apply it again. */
+const settled = computed(() => time.unconfirmed !== 'unread' && (time.unconfirmed?.settled ?? true));
+const unconfirmedText = computed(() => {
+    const read = time.unconfirmed;
+    if (read === null) return '';
+    if (read === 'unread') return t('admin.time.unconfirmed.unread');
+    if (read.unchanged.length === 0) return t('admin.time.unconfirmed.changed', { changed: stepNames(read.changed) });
+    const found =
+        read.changed.length === 0
+            ? t(read.settled ? 'admin.time.unconfirmed.unchanged' : 'admin.time.unconfirmed.unchangedSoFar')
+            : t('admin.time.partial', { applied: stepNames(read.changed), failed: stepNames(read.unchanged) });
+    return read.settled ? found : `${found} ${t('admin.time.unconfirmed.stillApplying')}`;
+});
 
 const kioskPresent = computed(() => {
     const kiosk = services.services?.find((service) => service.id === KIOSK_ID);
@@ -265,12 +280,12 @@ onBeforeUnmount(() => {
             </li>
         </ul>
 
-        <div v-if="time.restartRequired" class="time__restart fade-in" role="status">
-            <p class="time__restart-title">{{ t('admin.time.restartRequired') }}</p>
-            <p class="time__restart-hint">
+        <div v-if="time.restartRequired" class="time__note time__restart fade-in" role="status">
+            <p class="time__note-title">{{ t('admin.time.restartRequired') }}</p>
+            <p class="time__note-hint">
                 {{ selfRestarting ? t('admin.time.serverRestarting') : t('admin.time.restartHint') }}
             </p>
-            <div class="time__restart-actions">
+            <div class="time__note-actions">
                 <AdminButton
                     v-if="offerServer"
                     :disabled="busy"
@@ -284,6 +299,19 @@ onBeforeUnmount(() => {
                 </AdminButton>
                 <AdminButton variant="quiet" :disabled="busy" @click="time.dismissRestart()">
                     {{ t('admin.time.later') }}
+                </AdminButton>
+            </div>
+        </div>
+
+        <div v-if="unconfirmedText !== ''" class="time__note time__unconfirmed fade-in" role="status">
+            <p class="time__note-title">{{ t('admin.time.unconfirmed.title') }}</p>
+            <p class="time__note-hint">{{ unconfirmedText }}</p>
+            <div class="time__note-actions">
+                <AdminButton v-if="!settled" variant="quiet" :disabled="busy" @click="time.checkAgain()">
+                    {{ t('admin.time.unconfirmed.check') }}
+                </AdminButton>
+                <AdminButton v-else variant="quiet" @click="time.dismissUnconfirmed()">
+                    {{ t('admin.time.unconfirmed.dismiss') }}
                 </AdminButton>
             </div>
         </div>
@@ -483,7 +511,7 @@ onBeforeUnmount(() => {
     outline-offset: 2px;
 }
 
-.time__restart {
+.time__note {
     display: grid;
     gap: var(--space-2);
     margin-block-start: var(--space-3);
@@ -493,18 +521,18 @@ onBeforeUnmount(() => {
     background-color: rgba(52, 38, 20, 0.6);
 }
 
-.time__restart-title {
+.time__note-title {
     color: var(--c-warn);
     font-weight: 500;
 }
 
-.time__restart-hint {
+.time__note-hint {
     color: var(--c-text-muted);
     font-size: 0.875rem;
     line-height: 1.4;
 }
 
-.time__restart-actions {
+.time__note-actions {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3);

@@ -205,3 +205,14 @@ test('a backup refused for an ended session asks for the password again', async 
     await page.getByRole('dialog').getByRole('button', { name: cfg.backupConfirm }).click();
     await expect(adminScreen(page).heading).toHaveText(MESSAGES.admin.unlock.title);
 });
+
+test('an older daemon: the settings panel says to update the box, and the Admin page stays unlocked', async ({ page, mock }) => {
+    await mock.admin({ tooOld: ['config_list'] });
+    await openUnlocked(page);
+    await page.locator('.config__toggle').click();
+    await expect(page.locator('.config__status--error')).toContainText(MESSAGES.admin.error.daemon_too_old);
+    await page.waitForTimeout(6_000);
+    await expect(adminScreen(page).updates).toBeVisible();
+    await expect(page.locator('.config__status--error')).toBeVisible();
+    expect((await mock.adminActions()).filter((action) => action === 'config_list')).toHaveLength(1);
+});

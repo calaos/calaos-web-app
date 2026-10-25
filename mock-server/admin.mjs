@@ -197,6 +197,8 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             sessions: new Map(),
             apiAllowedHosts: '',
             scenario: null,
+            /** Actions answered `daemon_too_old`, as from a daemon in memory older than their route. */
+            tooOld: [],
             /** Timestamps of recent unlock failures (rate limiter). */
             failures: [],
             updates: structuredClone(DEFAULT_UPDATES),
@@ -826,6 +828,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             return respond(failure('bad_session', 'Admin session required'));
         }
         const params = typeof data.params === 'object' && data.params !== null ? data.params : {};
+        if (state.tooOld.includes(action)) return respond(failure('daemon_too_old', 'admin daemon too old for this route'));
 
         for (const name of FEATURES) {
             // undefined: not this feature's action; null: the socket is gone, no answer.
@@ -1016,6 +1019,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             if (problem !== null) return { ok: false, error: problem };
         }
         if (Number.isInteger(patch.noiseEvents)) addNoise(patch.noiseEvents);
+        if (Array.isArray(patch.tooOld)) state.tooOld = patch.tooOld.map(String);
         if (patch.codeTtlMs !== undefined) state.codeTtlMs = Number(patch.codeTtlMs);
         if (patch.codeIntervalMs !== undefined) state.codeIntervalMs = Number(patch.codeIntervalMs);
         if (patch.expireCodes) for (const code of state.codes.values()) code.expiresAt = 0;
