@@ -16,6 +16,11 @@
 // the event log (`eventlog`) the way calaos_server stores them.
 
 import { randomBytes, randomUUID } from 'node:crypto';
+import { createConfig } from './admin-config.mjs';
+import { createLogs } from './admin-logs.mjs';
+import { createNetwork, networkBinding } from './admin-network.mjs';
+import { createServices } from './admin-services.mjs';
+import { createTime } from './admin-time.mjs';
 
 export const ADMIN_SCENARIOS = [
     'unavailable',
@@ -43,9 +48,25 @@ const ACTIONS = [
     'code_request',
     'code_verify',
     'console_open',
+    'services_list',
+    'services_restart',
+    'logs_sources',
+    'logs_query',
+    'time_get',
+    'time_zones',
+    'time_set',
+    'network_state',
+    'network_apply',
+    'network_confirm',
+    'network_revert',
+    'config_list',
+    'config_set',
+    'config_backup',
 ];
 
-const CODE_ACTIONS = ['console_open', 'admin_password', 'approver_enroll', 'approver_remove'];
+const CODE_ACTIONS = ['console_open', 'admin_password', 'approver_enroll', 'approver_remove', 'network_config'];
+/** The phase-3 features, each in its own module; `/control {op:'admin', <name>: {...}}` patches one. */
+const FEATURES = ['services', 'logs', 'time', 'config', 'network'];
 const APPROVER_MAX = 2;
 const CODE_FAILURES_MAX = 5;
 const HEX16 = /^[0-9a-f]{16}$/;
@@ -161,10 +182,13 @@ function defaultPushTokens(now) {
 export function createAdmin({ hub, send, broadcast, withMsgId }) {
     let state;
     let timer = null;
+    /** Built once the helpers they share exist; see below. */
+    let features;
 
     function reset() {
         if (timer !== null) clearTimeout(timer);
         timer = null;
+        if (features !== undefined) for (const name of FEATURES) features[name].reset();
         state = {
             set: false,
             password: '',
@@ -481,6 +505,10 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         } else if (action === 'approver_remove') {
             if (!HEX16.test(String(raw.approver_id))) return failure('invalid_request', 'approver_id missing');
             bound = { approver_id: raw.approver_id };
+        } else if (action === 'network_config') {
+            const checked = networkBinding(raw, failure);
+            if (checked.error !== undefined) return checked.error;
+            bound = checked.bound;
         }
         if (params.approver_id !== undefined && !HEX16.test(String(params.approver_id))) {
             return failure('invalid_request', 'invalid approver_id');
@@ -637,6 +665,26 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         });
     }
 
+    // ----------------------------------------------------------- features ---
+
+    features = {
+        services: createServices({ hub, failure, running }),
+        logs: createLogs({ failure }),
+        time: createTime({ failure }),
+        config: createConfig({ failure, hub }),
+        network: createNetwork({ hub, failure, event, running, useCode, proofFormatError }),
+    };
+
+    /** `config_backup` over HTTP: the same guards as the WS action, then a download. */
+    function httpConfigBackup(body) {
+        const scenario = scenarioError();
+        let refusal = null;
+        if (scenario !== null) refusal = scenario;
+        else if (!state.set) refusal = failure('admin_not_set', 'Admin password not set', { api_allowed_hosts: state.apiAllowedHosts });
+        else if (!sessionValid(body.admin_session)) refusal = failure('bad_session', 'Admin session required');
+        return features.config.httpBackup(refusal);
+    }
+
     // ----------------------------------------------------------- messages ---
 
     function handleUnlock(ws, frame) {
@@ -760,6 +808,13 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             return respond(failure('bad_session', 'Admin session required'));
         }
         const params = typeof data.params === 'object' && data.params !== null ? data.params : {};
+
+        for (const name of FEATURES) {
+            // undefined: not this feature's action; null: the socket is gone, no answer.
+            const payload = features[name].handle(action, data.admin_session, params);
+            if (payload === null) return;
+            if (payload !== undefined) return respond(payload);
+        }
 
         switch (action) {
             case 'approver_list':
@@ -937,6 +992,11 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 };
             });
         }
+        for (const name of FEATURES) {
+            if (typeof patch[name] !== 'object' || patch[name] === null) continue;
+            const problem = features[name].configure(patch[name]);
+            if (problem !== null) return { ok: false, error: problem };
+        }
         if (Number.isInteger(patch.noiseEvents)) addNoise(patch.noiseEvents);
         if (patch.codeTtlMs !== undefined) state.codeTtlMs = Number(patch.codeTtlMs);
         if (patch.codeIntervalMs !== undefined) state.codeIntervalMs = Number(patch.codeIntervalMs);
@@ -970,6 +1030,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             pushed: state.pushed,
             events: state.events.length,
             eventlogReads: state.eventlogReads,
+            ...Object.fromEntries(FEATURES.map((name) => [name, features[name].status()])),
         };
     }
 
@@ -990,5 +1051,5 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         return null;
     }
 
-    return { reset, handleFrame, configure, status, event, takeConsoleGrant };
+    return { reset, handleFrame, configure, status, event, takeConsoleGrant, httpConfigBackup };
 }

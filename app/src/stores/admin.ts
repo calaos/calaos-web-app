@@ -19,7 +19,7 @@ import {
     UNAVAILABLE_FAST_RETRY_MS,
     UNAVAILABLE_FAST_WINDOW_MS,
     UNAVAILABLE_SLOW_RETRY_MS,
-    UPDATE_CHECK_TIMEOUT_MS,
+    adminReplyTimeoutMs,
     clientAdminError,
     encodeAdminAction,
     encodeAdminSet,
@@ -690,10 +690,9 @@ export const useAdminStore = defineStore('admin', () => {
         busy.value = action;
         notice.value = null;
         info.value = null;
-        const timeout = action === 'update_check' ? UPDATE_CHECK_TIMEOUT_MS : ADMIN_REPLY_TIMEOUT_MS;
         const outcome = await request(
             (id) => encodeAdminAction(action, session.value, id, params),
-            timeout,
+            adminReplyTimeoutMs(action),
         );
         busy.value = null;
         if (!outcome.ok) {
@@ -729,7 +728,7 @@ export const useAdminStore = defineStore('admin', () => {
         }
         const outcome = await request(
             (id) => encodeAdminAction(action, session.value, id, params),
-            ADMIN_REPLY_TIMEOUT_MS,
+            adminReplyTimeoutMs(action),
         );
         if (hold) busy.value = null;
         if (!outcome.ok) applyGateError(outcome.error);

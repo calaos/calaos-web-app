@@ -1,0 +1,21 @@
+{
+    "title": "Réglages",
+    "group": {
+        "Logging": "Journalisation",
+        "Notifications": "Notifications",
+        "History": "Historique",
+        "InfluxDB": "InfluxDB",
+        "MCP": "MCP",
+        "OTA": "Mises à jour des modules (OTA)",
+        "Origin": "Hôtes autorisés",
+        "Location": "Position",
+        "Kiosk": "Écran tactile"
+    },
+    "secretSet": "Défini",
+    "secretUnset": "Non défini",
+    "secretChange": "Définir…",
+    "restartRequired": "Redémarrez le serveur Calaos pour appliquer.",
+    "backup": "Télécharger une sauvegarde",
+    "backupHint": "Les fichiers de configuration de la box, en un seul fichier.",
+    "backupWarning": "La sauvegarde contient des mots de passe en clair (connexion, caméras, jeton MCP). Gardez-la en lieu sûr."
+}

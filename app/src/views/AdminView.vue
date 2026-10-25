@@ -17,7 +17,12 @@ import AdminButton from '../components/admin/AdminButton.vue';
 import AdminNotice from '../components/admin/AdminNotice.vue';
 import AdminPasswordForm from '../components/admin/AdminPasswordForm.vue';
 import ApproversPanel from '../components/admin/ApproversPanel.vue';
+import ConfigPanel from '../components/admin/ConfigPanel.vue';
 import HouseholdPasswordForm from '../components/admin/HouseholdPasswordForm.vue';
+import LogsEntry from '../components/admin/LogsEntry.vue';
+import NetworkEntry from '../components/admin/NetworkEntry.vue';
+import ServicesPanel from '../components/admin/ServicesPanel.vue';
+import TimeCard from '../components/admin/TimeCard.vue';
 import UpdatesPanel from '../components/admin/UpdatesPanel.vue';
 
 const { t } = useI18n();
@@ -84,8 +89,20 @@ function changeHousehold(user: string, password: string): void {
                 </button>
             </p>
             <UpdatesPanel @reboot="actions?.askReboot()" />
+
+            <ServicesPanel />
+
             <ApproversPanel ref="phones" />
+
             <AdminActions ref="actions" @add-phone="phones?.openAdd()" />
+
+            <TimeCard />
+
+            <LogsEntry />
+
+            <NetworkEntry />
+
+            <ConfigPanel />
         </div>
 
         <!-- ---- the gate ----------------------------------------------- -->

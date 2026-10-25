@@ -1,0 +1,39 @@
+{
+    "title": "Journaux",
+    "open": "Journaux",
+    "openHint": "Lire le journal de la box, par service.",
+    "source": {
+        "calaos-server": "Serveur Calaos",
+        "calaos-home": "Calaos Home (écran tactile)",
+        "haproxy": "haproxy",
+        "mosquitto": "Mosquitto",
+        "zigbee2mqtt": "Zigbee2MQTT",
+        "influxdb": "InfluxDB",
+        "grafana": "Grafana",
+        "hue2mqtt": "hue2mqtt",
+        "envoy": "Envoy",
+        "calaos-container": "calaos-container",
+        "olad": "OLA (olad)",
+        "timesyncd": "Synchronisation de l’heure",
+        "calaos-ddns": "Calaos DDNS",
+        "networkd": "Réseau",
+        "ssh": "SSH",
+        "kernel": "Noyau",
+        "system": "Tout le système"
+    },
+    "priority": {
+        "emerg": "Urgence",
+        "alert": "Alerte",
+        "crit": "Critique",
+        "err": "Erreur",
+        "warning": "Avertissement",
+        "notice": "Note",
+        "info": "Info",
+        "debug": "Débogage"
+    },
+    "loadOlder": "Charger plus ancien",
+    "follow": "Suivre",
+    "empty": "Aucune entrée ne correspond à ces filtres.",
+    "incomplete": "La box a arrêté la recherche avant de trouver assez d’entrées. Chargez les plus anciennes pour continuer.",
+    "masked": "Les mots de passe et les clés sont masqués quand la box les reconnaît (au mieux)."
+}

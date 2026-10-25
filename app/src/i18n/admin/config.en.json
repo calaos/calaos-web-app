@@ -1,0 +1,21 @@
+{
+    "title": "Settings",
+    "group": {
+        "Logging": "Logging",
+        "Notifications": "Notifications",
+        "History": "History",
+        "InfluxDB": "InfluxDB",
+        "MCP": "MCP",
+        "OTA": "Firmware updates (OTA)",
+        "Origin": "Allowed hosts",
+        "Location": "Location",
+        "Kiosk": "Touch screen"
+    },
+    "secretSet": "Set",
+    "secretUnset": "Not set",
+    "secretChange": "Set…",
+    "restartRequired": "Restart Calaos server to apply.",
+    "backup": "Download a backup",
+    "backupHint": "The configuration files of the box, in one file.",
+    "backupWarning": "The backup contains passwords (sign-in, cameras, MCP token) in clear text. Keep it somewhere safe."
+}

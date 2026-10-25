@@ -11,6 +11,7 @@ import { defineStore } from 'pinia';
 import {
     CODE_LIFETIME_S,
     CODE_RESEND_S,
+    bareAdminError,
     toApproverCandidates,
     toApprovers,
     toCodeTicket,
@@ -31,7 +32,7 @@ import { useAdminAlertsStore } from './adminAlerts';
  * Which code is awaited. `approve_enroll`: from an enrolled phone, to let a
  * new one in. `confirm_enroll`: sent to the new phone itself.
  */
-export type ChallengeStep = 'approve_enroll' | 'confirm_enroll' | 'remove' | 'password' | 'console';
+export type ChallengeStep = 'approve_enroll' | 'confirm_enroll' | 'remove' | 'password' | 'console' | 'network';
 
 export interface Challenge {
     step: ChallengeStep;
@@ -52,12 +53,18 @@ export interface Challenge {
 }
 
 export type ApproverWork = 'sending' | 'checking' | null;
-export type ApproverDone = 'enrolled' | 'removed' | 'password' | 'console' | null;
+export type ApproverDone = 'enrolled' | 'removed' | 'password' | 'console' | 'network' | null;
+
+/** Spends the code on the protected action; the error is shown in the code entry. */
+export type ProtectedAction = (proof: CodeProof) => Promise<AdminError | null>;
 
 interface FlowContext {
     candidate?: ApproverCandidate;
     approver?: Approver;
     newPassword?: string;
+    /** A feature's own protected action, with the parameters its code is bound to. */
+    codeParams?: Record<string, unknown>;
+    apply?: ProtectedAction;
     /** The first phone needs no approval: its own code is resent directly. */
     firstEnrolment: boolean;
 }
@@ -210,7 +217,7 @@ export const useApproversStore = defineStore('approvers', () => {
 
     async function requestCode(
         codeAction: CodeAction,
-        codeParams: Record<string, string>,
+        codeParams: Record<string, unknown>,
         step: ChallengeStep,
         approverId: string | undefined,
     ): Promise<void> {
@@ -285,6 +292,15 @@ export const useApproversStore = defineStore('approvers', () => {
         await requestCode('console_open', {}, 'console', target());
     }
 
+    /**
+     * A network change: the code is bound to `codeParams` (the same typed
+     * fields as `network_apply`), and `apply` sends them with the code.
+     */
+    async function startNetworkChange(codeParams: Record<string, unknown>, apply: ProtectedAction): Promise<void> {
+        begin({ codeParams, apply, firstEnrolment: false });
+        await requestCode('network_config', codeParams, 'network', target());
+    }
+
     /** The `code_id` that opens one console within 30 s; handed out once. */
     function takeConsoleGrant(): string | null {
         const grant = consoleGrant;
@@ -295,16 +311,7 @@ export const useApproversStore = defineStore('approvers', () => {
     /** The last phone: refused before a round trip; the server says the same. */
     function refuseLast(): void {
         begin({ firstEnrolment: false });
-        flowError.value = {
-            code: 'approver_last',
-            msg: '',
-            retryAfter: null,
-            jobId: '',
-            minLength: null,
-            apiAllowedHosts: '',
-            attemptsLeft: null,
-            max: null,
-        };
+        flowError.value = bareAdminError('approver_last');
     }
 
     async function confirmEnrolment(proof: CodeProof): Promise<void> {
@@ -382,6 +389,16 @@ export const useApproversStore = defineStore('approvers', () => {
                 else if (error.code !== 'busy') report(error);
                 return;
             }
+            case 'network': {
+                const apply = context.apply;
+                if (apply === undefined) return;
+                working.value = 'checking';
+                const error = await apply(proof);
+                working.value = null;
+                if (error === null) finish('network');
+                else if (error.code !== 'busy') report(error);
+                return;
+            }
         }
     }
 
@@ -412,6 +429,11 @@ export const useApproversStore = defineStore('approvers', () => {
             case 'password':
                 if (context.newPassword !== undefined) {
                     await requestCode('admin_password', { password: context.newPassword }, 'password', to);
+                }
+                return;
+            case 'network':
+                if (context.codeParams !== undefined) {
+                    await requestCode('network_config', context.codeParams, 'network', to);
                 }
                 return;
         }
@@ -472,6 +494,7 @@ export const useApproversStore = defineStore('approvers', () => {
         startRemoval,
         startPasswordChange,
         startConsole,
+        startNetworkChange,
         takeConsoleGrant,
         refuseLast,
         submit,

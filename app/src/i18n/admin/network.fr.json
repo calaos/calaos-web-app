@@ -1,0 +1,11 @@
+{
+    "title": "Réseau",
+    "open": "Réseau",
+    "openHint": "L’adresse de la box et ses réglages réseau.",
+    "dhcp": "Automatique (DHCP)",
+    "static": "Manuel",
+    "pending": "Confirmez le changement dans les {seconds} s, sinon la box revient à ses réglages précédents.",
+    "confirm": "Garder ces réglages",
+    "revert": "Revenir en arrière",
+    "rolledBack": "Le changement réseau sur {intf} n’a pas été confirmé à temps et a été annulé."
+}
