@@ -1,3 +1,25 @@
+<script lang="ts">
+// One formatter per locale for every row: building one is the costly part.
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+function formatterFor(locale: string): Intl.DateTimeFormat {
+    let format = formatters.get(locale);
+    if (format === undefined) {
+        format = new Intl.DateTimeFormat(locale, {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            fractionalSecondDigits: 3,
+            hour12: false,
+        });
+        formatters.set(locale, format);
+    }
+    return format;
+}
+</script>
+
 <script setup lang="ts">
 // One journal entry. Rows never change once read, so the list memoises them
 // and each row formats its own time once.
@@ -21,15 +43,7 @@ const tone = computed(() => {
 const when = computed(() => {
     const ms = Date.parse(props.entry.ts);
     if (!Number.isFinite(ms)) return props.entry.ts;
-    return new Intl.DateTimeFormat(locale.value, {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        fractionalSecondDigits: 3,
-        hour12: false,
-    }).format(ms);
+    return formatterFor(locale.value).format(ms);
 });
 </script>
 

@@ -203,4 +203,62 @@ describe('logs store', () => {
         expect(done).toBe(true);
         expect(logs.entries).toHaveLength(1);
     });
+
+    it('"load older" during a follow read waits for it, then is sent', async () => {
+        await unlocked();
+        const logs = useAdminLogsStore();
+        void logs.search({});
+        ok(page([entry(5)], { complete: false, next_cursor: 'c4' }));
+        await flush();
+        logs.startFollow();
+        vi.advanceTimersByTime(0);
+        expect(last().data.params).toMatchObject({ cursor: 'c5', direction: 'forward' });
+        let done: boolean | null = null;
+        void logs.loadOlder().then((loaded) => (done = loaded));
+        await flush();
+        expect(last().data.params).toMatchObject({ direction: 'forward' });
+        ok(page([entry(6)]));
+        await flush();
+        expect(last().data.params).toMatchObject({ cursor: 'c4', direction: 'backward' });
+        // Follow stands aside while the user's read is out.
+        const sent = harness.sent.length;
+        vi.advanceTimersByTime(2_000);
+        expect(harness.sent).toHaveLength(sent);
+        ok(page([entry(3)], { complete: false, next_cursor: 'c3' }));
+        await flush();
+        expect(done).toBe(true);
+        expect(logs.entries.map((e) => e.cursor)).toEqual(['c3', 'c5', 'c6']);
+        logs.stopFollow();
+    });
+
+    it('a rate-limited search is not lost to a follow tick during its wait', async () => {
+        await unlocked();
+        const logs = useAdminLogsStore();
+        void logs.search({});
+        ok(page([entry(1)], { complete: false }));
+        await flush();
+        logs.startFollow();
+        vi.advanceTimersByTime(0);
+        ok(page([], { next_cursor: 'c2' }));
+        await flush();
+        let done: boolean | null = null;
+        void logs.search({ sources: ['kernel'] }).then((found) => (done = found));
+        fail('rate_limited', { retry_after: '3' });
+        await flush();
+        harness.sent = [];
+        // The follow tick (at 2 s) falls inside the wait: it does not read.
+        vi.advanceTimersByTime(2_999);
+        expect(harness.sent).toEqual([]);
+        vi.advanceTimersByTime(1);
+        await flush();
+        expect(harness.sent).toHaveLength(1);
+        expect(last().data.params).toEqual({ sources: ['kernel'], direction: 'backward' });
+        ok(page([entry(7)], { complete: false, next_cursor: 'c6' }));
+        await flush();
+        expect(done).toBe(true);
+        expect(logs.entries.map((e) => e.cursor)).toEqual(['c7']);
+        void logs.loadOlder();
+        expect(last().data.params).toMatchObject({ cursor: 'c6', direction: 'backward' });
+        logs.stopFollow();
+    });
 });

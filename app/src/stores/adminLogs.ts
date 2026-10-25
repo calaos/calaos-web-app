@@ -63,6 +63,10 @@ export const useAdminLogsStore = defineStore('adminLogs', () => {
     let followTimer: ReturnType<typeof setTimeout> | null = null;
     let refusals = 0;
     let generation = 0;
+    /** The read out, if any, and the search it belongs to. */
+    let inflight: { gen: number; done: Promise<void> } | null = null;
+    /** User queries sent or waiting their turn: follow skips its tick meanwhile. */
+    let userPending = 0;
 
     const hasEntries = computed(() => entries.value.length > 0);
     const canLoadOlder = computed(() => !olderExhausted.value && !capped.value);
@@ -80,37 +84,58 @@ export const useAdminLogsStore = defineStore('adminLogs', () => {
         else if (admin.gate === 'unlocked') error.value = outcome.error;
     }
 
-    /** One query; no page when it failed, was superseded, or another is out. */
-    async function query(params: LogQuery): Promise<{ page: LogPage | null; failure: AdminError | null }> {
-        if (loading.value) return { page: null, failure: null };
+    type Result = { page: LogPage | null; failure: AdminError | null };
+
+    /** One query; no page when it failed or a new search superseded it. */
+    async function send(params: LogQuery): Promise<Result> {
         const gen = generation;
+        let settle = (): void => undefined;
+        const entry = { gen, done: new Promise<void>((resolve) => (settle = resolve)) };
+        inflight = entry;
         loading.value = true;
-        const outcome = await admin.relay('logs_query', logQueryParams(params), false);
-        if (gen !== generation) return { page: null, failure: null };
-        loading.value = false;
-        if (!outcome.ok) {
-            if (admin.gate === 'unlocked') error.value = outcome.error;
-            return { page: null, failure: outcome.error };
+        try {
+            const outcome = await admin.relay('logs_query', logQueryParams(params), false);
+            if (gen !== generation) return { page: null, failure: null };
+            if (!outcome.ok) {
+                if (admin.gate === 'unlocked') error.value = outcome.error;
+                return { page: null, failure: outcome.error };
+            }
+            error.value = null;
+            return { page: toLogPage(outcome.data.result), failure: null };
+        } finally {
+            if (inflight === entry) {
+                inflight = null;
+                loading.value = false;
+            }
+            settle();
         }
-        error.value = null;
-        return { page: toLogPage(outcome.data.result), failure: null };
     }
 
     /**
-     * A query the user asked for. Changing filters quickly easily goes past
-     * the box's 2 per second: wait as told rather than show an error.
+     * A query the user asked for. It waits for a read already out (one at a
+     * time), and follow stands aside until it is done. Changing filters
+     * quickly easily goes past the box's 2 per second: wait as told rather
+     * than show an error.
      */
-    async function userQuery(params: LogQuery): Promise<{ page: LogPage | null; failure: AdminError | null }> {
+    async function userQuery(params: LogQuery): Promise<Result> {
         const gen = generation;
-        for (let attempt = 0; ; attempt += 1) {
-            const result = await query(params);
-            const retryAfter = result.failure?.code === 'rate_limited' ? (result.failure.retryAfter ?? 1) : 0;
-            if (retryAfter <= 0 || attempt >= LOG_USER_RETRIES || gen !== generation) return result;
-            error.value = null;
-            waiting.value = true;
-            await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
-            waiting.value = false;
-            if (gen !== generation) return { page: null, failure: null };
+        userPending += 1;
+        try {
+            for (let attempt = 0; ; attempt += 1) {
+                // A read of an older search is discarded anyway: no need to wait for it.
+                while (inflight !== null && inflight.gen === generation) await inflight.done;
+                if (gen !== generation) return { page: null, failure: null };
+                const result = await send(params);
+                const retryAfter = result.failure?.code === 'rate_limited' ? (result.failure.retryAfter ?? 1) : 0;
+                if (retryAfter <= 0 || attempt >= LOG_USER_RETRIES || gen !== generation) return result;
+                error.value = null;
+                waiting.value = true;
+                await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+                waiting.value = false;
+                if (gen !== generation) return { page: null, failure: null };
+            }
+        } finally {
+            userPending -= 1;
         }
     }
 
@@ -130,7 +155,6 @@ export const useAdminLogsStore = defineStore('adminLogs', () => {
     /** A fresh read of the newest entries matching `next`. */
     async function search(next: LogFilter): Promise<boolean> {
         generation += 1;
-        loading.value = false;
         filter.value = { ...next };
         entries.value = [];
         olderCursor = null;
@@ -152,6 +176,7 @@ export const useAdminLogsStore = defineStore('adminLogs', () => {
         if (olderCursor === null || !canLoadOlder.value) return false;
         const { page } = await userQuery({ ...withoutBounds(filter.value, false), cursor: olderCursor, direction: 'backward' });
         if (page === null) return false;
+        const from = olderCursor;
         const room = Math.max(0, LOG_ROWS_MAX - entries.value.length);
         const kept = room >= page.entries.length ? page.entries : page.entries.slice(page.entries.length - room);
         entries.value = [...kept, ...entries.value];
@@ -159,7 +184,7 @@ export const useAdminLogsStore = defineStore('adminLogs', () => {
         if (kept.length < page.entries.length) {
             capped.value = true;
             // What did not fit is still older than the first row kept.
-            olderCursor = kept[0]?.cursor ?? olderCursor;
+            olderCursor = kept[0]?.cursor ?? from;
         }
         return true;
     }
@@ -169,7 +194,8 @@ export const useAdminLogsStore = defineStore('adminLogs', () => {
         // Without a row yet, from the search itself: the filter's `since` lies
         // behind what the search already scanned backward.
         const from: LogQuery = newerCursor !== null ? { cursor: newerCursor } : { since: followSince };
-        const { page, failure } = await query({ ...withoutBounds(filter.value, true), ...from, direction: 'forward' });
+        if (inflight !== null || userPending > 0) return { ok: false, retryAfterMs: 0, behind: false };
+        const { page, failure } = await send({ ...withoutBounds(filter.value, true), ...from, direction: 'forward' });
         if (page === null) {
             const retry = failure?.code === 'rate_limited' ? (failure.retryAfter ?? 1) * 1000 : 0;
             return { ok: false, retryAfterMs: retry, behind: false };
@@ -247,6 +273,7 @@ export const useAdminLogsStore = defineStore('adminLogs', () => {
     function reset(): void {
         stopFollow();
         generation += 1;
+        inflight = null;
         sources.value = null;
         entries.value = [];
         filter.value = {};
