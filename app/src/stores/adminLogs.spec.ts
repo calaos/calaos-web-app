@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAdminLogsStore } from './adminLogs';
+import { LOG_ROWS_MAX, useAdminLogsStore } from './adminLogs';
 import { fail, flush, harness, last, ok, setUp, unlocked } from './adminTestHarness';
 
 beforeEach(setUp);
@@ -16,15 +16,19 @@ describe('logs store', () => {
         const logs = useAdminLogsStore();
         void logs.search({ sources: ['kernel'], priority: 'warning' });
         expect(last().data.params).toEqual({ sources: ['kernel'], priority: 'warning', direction: 'backward' });
-        ok({ entries: [entry(10), entry(11)], truncated: false, complete: true, next_cursor: 'c10' });
+        ok({ entries: [entry(10), entry(11)], truncated: false, complete: false, next_cursor: 'c10' });
         await flush();
         expect(logs.entries.map((e) => e.cursor)).toEqual(['c10', 'c11']);
+        expect(logs.incomplete).toBe(true);
 
         void logs.loadOlder();
         expect(last().data.params).toEqual({ sources: ['kernel'], priority: 'warning', cursor: 'c10', direction: 'backward' });
         ok({ entries: [entry(8), entry(9)], truncated: false, complete: true, next_cursor: 'c8' });
         await flush();
         expect(logs.entries.map((e) => e.cursor)).toEqual(['c8', 'c9', 'c10', 'c11']);
+        // Complete with fewer than asked: the start of the range.
+        expect(logs.olderExhausted).toBe(true);
+        expect(logs.incomplete).toBe(false);
 
         logs.startFollow();
         vi.advanceTimersByTime(0);
@@ -68,5 +72,135 @@ describe('logs store', () => {
         vi.advanceTimersByTime(1_000);
         await flush();
         expect(logs.loading).toBe(false);
+    });
+
+    const page = (entries: unknown[], extra: Record<string, unknown> = {}) => ({
+        entries,
+        truncated: false,
+        complete: true,
+        next_cursor: (entries.at(-1) as { cursor: string } | undefined)?.cursor ?? null,
+        ...extra,
+    });
+
+    it('drops every cursor on a new search', async () => {
+        await unlocked();
+        const logs = useAdminLogsStore();
+        void logs.search({ sources: ['kernel'] });
+        ok(page([entry(5)], { complete: false, next_cursor: 'c5' }));
+        await flush();
+        void logs.search({ sources: ['ssh'] });
+        expect(last().data.params).toEqual({ sources: ['ssh'], direction: 'backward' });
+        ok(page([], { complete: false, next_cursor: 'c1' }));
+        await flush();
+        void logs.loadOlder();
+        expect(last().data.params).toEqual({ sources: ['ssh'], cursor: 'c1', direction: 'backward' });
+    });
+
+    it('keeps going past an empty incomplete scan, and stops at a truncated page only when told', async () => {
+        await unlocked();
+        const logs = useAdminLogsStore();
+        void logs.search({});
+        ok(page([], { complete: false, next_cursor: 'c900' }));
+        await flush();
+        expect(logs.canLoadOlder).toBe(true);
+        expect(logs.incomplete).toBe(true);
+        void logs.loadOlder();
+        ok(page([entry(3)], { truncated: true, next_cursor: 'c3' }));
+        await flush();
+        expect(logs.truncated).toBe(true);
+        expect(logs.olderExhausted).toBe(false);
+        void logs.loadOlder();
+        expect(last().data.params).toMatchObject({ cursor: 'c3', direction: 'backward' });
+        ok(page([], { next_cursor: null }));
+        await flush();
+        expect(logs.olderExhausted).toBe(true);
+    });
+
+    it('follows from the time of the search when it found nothing', async () => {
+        await unlocked();
+        vi.setSystemTime(new Date('2026-10-25T10:00:00Z'));
+        const logs = useAdminLogsStore();
+        void logs.search({ since: '2026-10-24T10:00:00Z' });
+        ok(page([], { next_cursor: null }));
+        await flush();
+        logs.startFollow();
+        vi.advanceTimersByTime(0);
+        expect(last().data.params).toEqual({ since: '2026-10-25T10:00:00Z', direction: 'forward' });
+        logs.stopFollow();
+    });
+
+    it('doubles the wait on refusals in a row, and catches up faster when behind', async () => {
+        await unlocked();
+        const logs = useAdminLogsStore();
+        void logs.search({});
+        ok(page([entry(1)], { complete: false }));
+        await flush();
+        logs.startFollow();
+        vi.advanceTimersByTime(0);
+        fail('rate_limited', { retry_after: '1' });
+        await flush();
+        expect(logs.backoffMs).toBe(2_000);
+        vi.advanceTimersByTime(2_000);
+        fail('rate_limited', { retry_after: '1' });
+        await flush();
+        expect(logs.backoffMs).toBe(4_000);
+        harness.sent = [];
+        vi.advanceTimersByTime(3_999);
+        expect(harness.sent).toEqual([]);
+        vi.advanceTimersByTime(1);
+        // A page that did not reach the present: the next read comes after 1 s.
+        ok(page([entry(2)], { complete: false }));
+        await flush();
+        expect(logs.backoffMs).toBe(0);
+        harness.sent = [];
+        vi.advanceTimersByTime(1_000);
+        expect(harness.sent).toHaveLength(1);
+        ok(page([], { next_cursor: 'c3' }));
+        await flush();
+        harness.sent = [];
+        vi.advanceTimersByTime(1_999);
+        expect(harness.sent).toEqual([]);
+        vi.advanceTimersByTime(1);
+        expect(last().data.params).toMatchObject({ cursor: 'c3', direction: 'forward' });
+        logs.stopFollow();
+    });
+
+    it('resumes "load older" right before the first row kept once follow passes the cap', async () => {
+        await unlocked();
+        const logs = useAdminLogsStore();
+        void logs.search({});
+        ok(page([entry(1)], { complete: false, next_cursor: 'c0' }));
+        await flush();
+        logs.startFollow();
+        vi.advanceTimersByTime(0);
+        const many = Array.from({ length: LOG_ROWS_MAX }, (_, i) => ({ ...entry(2), cursor: `n${i}` }));
+        ok(page(many, { complete: true }));
+        await flush();
+        expect(logs.entries).toHaveLength(LOG_ROWS_MAX);
+        expect(logs.entries[0].cursor).toBe('n0');
+        logs.stopFollow();
+        void logs.loadOlder();
+        expect(last().data.params).toMatchObject({ cursor: 'n0', direction: 'backward' });
+    });
+
+    it('waits out a rate_limited search instead of failing it', async () => {
+        await unlocked();
+        const logs = useAdminLogsStore();
+        let done: boolean | null = null;
+        void logs.search({ sources: ['ssh'] }).then((ok) => (done = ok));
+        fail('rate_limited', { retry_after: '1' });
+        await flush();
+        expect(logs.error).toBeNull();
+        expect(logs.waiting).toBe(true);
+        harness.sent = [];
+        vi.advanceTimersByTime(999);
+        expect(harness.sent).toEqual([]);
+        vi.advanceTimersByTime(1);
+        await flush();
+        expect(last().data.params).toEqual({ sources: ['ssh'], direction: 'backward' });
+        ok(page([entry(1)]));
+        await flush();
+        expect(done).toBe(true);
+        expect(logs.entries).toHaveLength(1);
     });
 });

@@ -87,6 +87,8 @@ test('a fresh box: household password first, then the admin password, then unloc
         'admin_unlock',
         'admin', // update_status after unlock
         'admin', // approver_list
+        'admin', // time_get, for the Box time card
+        'admin', // time_zones
     ]);
 });
 
