@@ -4,6 +4,7 @@
 // `network_rolled_back` alert; `dropOnApply` cuts every socket right after
 // the answer, as a box that moved to its new address does, and
 // `dropOnApply: 'before'` cuts them before it, the answer never arriving.
+// The rollback alert is stored in the event log, as calaos_server does.
 
 import { randomBytes } from 'node:crypto';
 
@@ -78,7 +79,7 @@ export function networkBinding(params, failure, knownIntf) {
     };
 }
 
-export function createNetwork({ hub, failure, event, running, useCode, proofFormatError }) {
+export function createNetwork({ hub, failure, event, running, useCode, proofFormatError, rolledBack }) {
     let state;
     let timer = null;
 
@@ -134,7 +135,7 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
         restore();
         state.rollbacks += 1;
         state.history.push({ kind: 'rolled_back', intf });
-        event('network_rolled_back', { intf });
+        rolledBack(intf);
     }
 
     function arm(ms) {

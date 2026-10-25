@@ -268,8 +268,8 @@ describe('network', () => {
         expect(refused.change_id).toMatch(/^[0-9a-f]{16}$/);
     });
 
-    it('rolls back on expiry with the network_rolled_back event', async () => {
-        const { ask, waitFor } = await session();
+    it('rolls back on expiry with the network_rolled_back event, stored in the event log', async () => {
+        const { ws, ask, waitFor } = await session();
         await control({ op: 'admin', network: { confirmMs: 100 } });
         const proof = await codeFor(ask, change);
         await ask('network_apply', { ...change, ...proof });
@@ -277,6 +277,12 @@ describe('network', () => {
         expect(event.data.data).toEqual({ intf: 'eth0' });
         const eth0 = (await ask('network_state')).result.interfaces.find((i) => i.name === 'eth0');
         expect(eth0.ipv4).toBe('192.168.1.10/24');
+        ws.send(JSON.stringify({ msg: 'eventlog', msg_id: 'log', data: {} }));
+        const log = await waitFor((f) => f.msg === 'eventlog' && f.msg_id === 'log');
+        expect(log.data.events[0]).toMatchObject({
+            event_type: '22',
+            event_raw: { message: 'Network change rolled back on your Calaos box: eth0' },
+        });
     });
 
     it('validates as the server does before any code is spent', async () => {

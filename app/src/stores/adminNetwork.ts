@@ -1,15 +1,19 @@
 // The box's network configuration (calaos_base docs/08_http_api.md,
 // "Réseau"). A change needs a push code, applies as a trial and reverts
-// by itself unless confirmed within 120 s. The deadline is computed from the
-// daemon's `applied_at`, so a reload or a reconnect at the new address finds
-// the same countdown in `network_state`.
+// by itself unless confirmed within 120 s. The time left comes from the box
+// (`network_state` after a reload or at the new address), and runs down on
+// the browser's monotonic clock, whatever its wall clock says.
 
 import { ref, watch } from 'vue';
 import { defineStore } from 'pinia';
 import {
+    NETWORK_CONFIRM_WINDOW_S,
+    appliedSecondsLeft,
+    eventSecondsLeft,
+    monotonicNow,
     networkApplyParams,
     networkChangeParams,
-    networkDeadline,
+    pendingSecondsLeft,
     toNetworkApplied,
     toNetworkEvent,
     toNetworkFinished,
@@ -25,7 +29,7 @@ export interface PendingChange {
     changeId: string;
     intf: string;
     appliedAt: string;
-    /** ms epoch at which the daemon reverts. */
+    /** When the daemon reverts, on `monotonicNow()`'s clock. */
     deadline: number;
     /** What this client applied, when it did: the address to reopen the page at. */
     change: NetworkChange | null;
@@ -48,6 +52,8 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
      * new-address hint until `network_state` is read again.
      */
     const lostApply = ref<NetworkChange | null>(null);
+    /** With `lostApply`: the latest the box can revert, counted from the send. */
+    const lostDeadline = ref<number | null>(null);
 
     /** The change on its way through the code entry. */
     let draft: NetworkChange | null = null;
@@ -63,6 +69,24 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         return pending.value?.changeId === changeId ? pending.value.change : null;
     }
 
+    function deadlineIn(seconds: number): number {
+        return monotonicNow() + seconds * 1000;
+    }
+
+    /**
+     * The reply and the event of one apply race each other; each reading is
+     * a little late, so the earlier deadline is the closer one.
+     */
+    function track(changeId: string, intf: string, appliedAt: string, seconds: number, change: NetworkChange | null): void {
+        const current = pending.value;
+        const deadline = deadlineIn(seconds);
+        if (current !== null && current.changeId === changeId) {
+            pending.value = { ...current, deadline: Math.min(current.deadline, deadline), change: current.change ?? change };
+            return;
+        }
+        pending.value = { changeId, intf, appliedAt, deadline, change };
+    }
+
     async function load(): Promise<void> {
         const outcome = await admin.relay('network_state', undefined, false);
         if (!outcome.ok) {
@@ -75,6 +99,7 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         const p = state.pending;
         const lost = lostApply.value;
         lostApply.value = null;
+        lostDeadline.value = null;
         pending.value =
             p === null
                 ? null
@@ -82,35 +107,43 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
                       changeId: p.changeId,
                       intf: p.intf,
                       appliedAt: p.appliedAt,
-                      deadline: networkDeadline(p.appliedAt, p.expiresIn),
+                      deadline: deadlineIn(pendingSecondsLeft(p)),
                       change: keepChange(p.changeId) ?? lost,
                   };
     }
 
-    /** Called by services/calaos.ts after every login: a lost apply is resolved here. */
+    /**
+     * Called by services/calaos.ts after every login: a lost apply is
+     * resolved here, and a pending change re-read (it may have ended while
+     * the socket was down, and its events are not replayed).
+     */
     function handleLoggedIn(): void {
-        if (lostApply.value !== null && admin.session !== null) void load();
+        if ((lostApply.value !== null || pending.value !== null) && admin.session !== null) void load();
     }
 
     /** Asks for the `network_config` code; the code entry then calls `apply`. */
     async function startApply(change: NetworkChange): Promise<void> {
         draft = change;
         finished.value = null;
+        rolledBack.value = '';
         await approvers.startNetworkChange(networkChangeParams(change), apply);
     }
 
     /**
      * Spends the code. The box may switch address before the answer arrives:
-     * a dropped connection then is the change working, and `network_state`
-     * at the new address tells the rest.
+     * a lost reply is then kept as `lostApply`, not reported, and
+     * `network_state` (here after a reconnect, or at the new address) tells
+     * the rest.
      */
     async function apply(proof: CodeProof): Promise<AdminError | null> {
         const change = draft;
         if (change === null) return null;
+        const sentAt = monotonicNow();
         const outcome = await admin.relay('network_apply', networkApplyParams(change, proof.codeId, proof.code), false);
         if (!outcome.ok && (outcome.error.code === 'disconnected' || outcome.error.code === 'timeout')) {
             draft = null;
             lostApply.value = change;
+            lostDeadline.value = sentAt + NETWORK_CONFIRM_WINDOW_S * 1000;
             return null;
         }
         if (!outcome.ok) {
@@ -120,13 +153,7 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         draft = null;
         const applied = toNetworkApplied(outcome.data.result);
         if (applied !== null) {
-            pending.value = {
-                changeId: applied.changeId,
-                intf: applied.intf,
-                appliedAt: applied.appliedAt,
-                deadline: networkDeadline(applied.appliedAt, applied.confirmWithin),
-                change,
-            };
+            track(applied.changeId, applied.intf, applied.appliedAt, appliedSecondsLeft(applied), change);
         }
         return null;
     }
@@ -156,18 +183,12 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
 
     /** Called by services/calaos.ts for every `admin_event`. */
     function handleEvent(msg: AdminEventMessage): void {
-        const ev = toNetworkEvent(msg.type, msg.data);
+        const ev = toNetworkEvent(msg.type, msg.data, msg.ts);
         if (ev === null) return;
         switch (ev.type) {
             case 'network_pending':
                 if (ev.changeId === '') return;
-                pending.value = {
-                    changeId: ev.changeId,
-                    intf: ev.intf,
-                    appliedAt: ev.appliedAt,
-                    deadline: networkDeadline(ev.appliedAt, ev.confirmWithin),
-                    change: keepChange(ev.changeId),
-                };
+                track(ev.changeId, ev.intf, ev.appliedAt, eventSecondsLeft(ev.appliedAt, ev.ts, ev.confirmWithin), null);
                 return;
             case 'network_applied':
                 if (pending.value?.changeId === ev.changeId) pending.value = null;
@@ -185,6 +206,10 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         rolledBack.value = '';
     }
 
+    function dismissFinished(): void {
+        finished.value = null;
+    }
+
     function reset(): void {
         interfaces.value = null;
         pending.value = null;
@@ -192,6 +217,7 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         finished.value = null;
         rolledBack.value = '';
         lostApply.value = null;
+        lostDeadline.value = null;
         draft = null;
     }
 
@@ -202,6 +228,7 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         rolledBack,
         finished,
         lostApply,
+        lostDeadline,
         load,
         handleLoggedIn,
         startApply,
@@ -210,6 +237,7 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         revert,
         handleEvent,
         dismissRolledBack,
+        dismissFinished,
         reset,
     };
 });

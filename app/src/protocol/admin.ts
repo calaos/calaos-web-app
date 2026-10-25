@@ -16,6 +16,8 @@ export const UPDATE_CHECK_TIMEOUT_MS = 125_000;
 export const SYSTEM_RESTART_TIMEOUT_MS = 35_000;
 export const LOGS_QUERY_TIMEOUT_MS = 12_000;
 export const TIME_SET_TIMEOUT_MS = 40_000;
+/** `networkctl` can take up to 30 s; calaos_server waits 35 s. */
+export const NETWORK_CHANGE_TIMEOUT_MS = 40_000;
 /** `admin_unavailable`: retry every 5 s for 2 min, then every 60 s. */
 export const UNAVAILABLE_FAST_RETRY_MS = 5_000;
 export const UNAVAILABLE_FAST_WINDOW_MS = 120_000;
@@ -234,6 +236,10 @@ export function adminReplyTimeoutMs(action: AdminAction): number {
             return LOGS_QUERY_TIMEOUT_MS;
         case 'time_set':
             return TIME_SET_TIMEOUT_MS;
+        case 'network_apply':
+        case 'network_confirm':
+        case 'network_revert':
+            return NETWORK_CHANGE_TIMEOUT_MS;
         default:
             return ADMIN_REPLY_TIMEOUT_MS;
     }

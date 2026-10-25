@@ -137,22 +137,56 @@ export function toNetworkFinished(raw: unknown): NetworkFinished | null {
     return { changeId, intf: toWireString(raw.intf), state };
 }
 
-/**
- * When the trial reverts, in ms epoch: from the daemon's `applied_at`, so a
- * reload or a reconnect keeps the same deadline. `fallbackSeconds` covers an
- * `applied_at` that does not parse.
- */
-export function networkDeadline(appliedAt: string, fallbackSeconds: number, nowMs = Date.now()): number {
-    const applied = Date.parse(appliedAt);
-    if (Number.isFinite(applied)) return applied + NETWORK_CONFIRM_WINDOW_S * 1000;
-    return nowMs + Math.max(0, fallbackSeconds) * 1000;
+// The countdown is the daemon's: what is left of `confirm_within`, read from
+// the box's own values at the moment they arrive, then run down on the
+// browser's monotonic clock. A browser whose wall clock is off by minutes
+// still shows the time the box will actually wait.
+
+/** The clock the countdown runs on: monotonic, unmoved by a clock change. */
+export function monotonicNow(): number {
+    return performance.now();
 }
 
-/** `network_pending` and `network_applied` events; `network_rolled_back` carries only `intf`. */
+function clampWindow(seconds: number): number {
+    return Math.min(NETWORK_CONFIRM_WINDOW_S, Math.max(0, seconds));
+}
+
+/** From the `network_apply` reply: the box answers the moment it applies. */
+export function appliedSecondsLeft(applied: NetworkApplied): number {
+    return clampWindow(applied.confirmWithin);
+}
+
+/** From `network_state`: `expires_in` is the box's own reckoning. */
+export function pendingSecondsLeft(pending: NetworkPending): number {
+    return clampWindow(pending.expiresIn);
+}
+
+/**
+ * From a `network_pending` event: the window runs from `applied_at`, and `ts`
+ * is calaos_server's clock when it relayed the event (the same box). After a
+ * daemon restart the event is published again with the original
+ * `applied_at`, so `confirm_within` alone would only be right the first time.
+ */
+export function eventSecondsLeft(appliedAt: string, ts: string, confirmWithin: number): number {
+    const applied = Date.parse(appliedAt);
+    const relayed = Date.parse(ts);
+    if (!Number.isFinite(applied) || !Number.isFinite(relayed)) return clampWindow(confirmWithin);
+    return clampWindow(Math.min(confirmWithin, NETWORK_CONFIRM_WINDOW_S - (relayed - applied) / 1000));
+}
+
+/** `network_pending`, `network_applied` and `network_rolled_back` (which carries only `intf`). */
 export function toNetworkEvent(
     type: string,
     data: unknown,
-): { type: 'network_pending' | 'network_applied' | 'network_rolled_back'; changeId: string; intf: string; appliedAt: string; confirmWithin: number } | null {
+    ts = '',
+): {
+    type: 'network_pending' | 'network_applied' | 'network_rolled_back';
+    changeId: string;
+    intf: string;
+    appliedAt: string;
+    confirmWithin: number;
+    ts: string;
+} | null {
     if (type !== 'network_pending' && type !== 'network_applied' && type !== 'network_rolled_back') return null;
     const r = isRecord(data) ? data : {};
     return {
@@ -161,7 +195,28 @@ export function toNetworkEvent(
         intf: toWireString(r.intf),
         appliedAt: toWireString(r.applied_at),
         confirmWithin: toNumberOrNull(r.confirm_within) ?? 0,
+        ts,
     };
+}
+
+/** The bare address of a CIDR, '' for anything else. */
+export function cidrAddress(cidr: string): string {
+    return isIpv4Cidr(cidr) ? cidr.slice(0, cidr.indexOf('/')) : '';
+}
+
+/**
+ * The page to open once the box has moved: this same page at the new static
+ * address, keeping scheme, port and path (the app lives under `/app/` in
+ * production). '' for a DHCP change, whose address nobody knows yet.
+ */
+export function networkReopenUrl(
+    change: NetworkChange,
+    page: { protocol: string; port: string; pathname: string },
+): string {
+    const address = change.dhcp ? '' : cidrAddress(change.ipv4 ?? '');
+    if (address === '') return '';
+    const port = page.port === '' ? '' : `:${page.port}`;
+    return `${page.protocol}//${address}${port}${page.pathname}#/admin/network`;
 }
 
 // ---------------------------------------------------------- validation ---

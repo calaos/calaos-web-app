@@ -87,6 +87,7 @@ test('a fresh box: household password first, then the admin password, then unloc
         'admin_unlock',
         'admin', // update_status after unlock
         'admin', // approver_list
+        'admin', // network_state, for a change waiting to be kept
     ]);
 });
 

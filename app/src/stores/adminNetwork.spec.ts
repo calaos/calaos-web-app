@@ -5,6 +5,13 @@ import { useAdminNetworkStore } from './adminNetwork';
 import { useApproversStore } from './approvers';
 import { SESSION, fail, flush, last, ok, setUp, unlocked } from './adminTestHarness';
 
+/** Seconds left on the countdown, as the view shows them. */
+function secondsLeft(deadline: number | undefined | null): number {
+    return Math.ceil(((deadline ?? 0) - performance.now()) / 1000);
+}
+
+const event = (type: string, data: unknown, ts = ''): AdminEventMessage => ({ kind: 'admin_event', type, ts, data });
+
 const APPROVER = { id: '1111111111111111', device_name: 'Pixel 8', token_id: '0c1d2e3f4a5b6c7d', created_at: '2026-10-01T00:00:00Z', last_seen: '2026-10-25T09:00:00Z' };
 
 beforeEach(setUp);
@@ -16,7 +23,7 @@ afterEach(() => {
 describe('network store', () => {
     const change = { intf: 'eth0', dhcp: false, ipv4: '192.168.1.20/24', gateway: '192.168.1.1' };
 
-    it('asks a network_config code bound to the fields, applies with it, counts from applied_at', async () => {
+    it('asks a network_config code bound to the fields, applies with it, counts down confirm_within', async () => {
         await unlocked();
         const approvers = useApproversStore();
         void approvers.load();
@@ -43,7 +50,11 @@ describe('network store', () => {
         ok({ change_id: '5d0c8e1f2a3b4c6d', intf: 'eth0', applied_at: '2026-10-25T09:12:03Z', confirm_within: 120 });
         await flush();
         expect(approvers.done).toBe('network');
-        expect(network.pending).toMatchObject({ changeId: '5d0c8e1f2a3b4c6d', deadline: Date.parse('2026-10-25T09:14:03Z') });
+        expect(network.pending).toMatchObject({ changeId: '5d0c8e1f2a3b4c6d', appliedAt: '2026-10-25T09:12:03Z', change });
+        // The browser's wall clock is not 2026-10-25: the countdown does not care.
+        expect(secondsLeft(network.pending?.deadline)).toBe(120);
+        vi.advanceTimersByTime(20_000);
+        expect(secondsLeft(network.pending?.deadline)).toBe(100);
 
         void network.confirm();
         expect(last().data.params).toEqual({ change_id: '5d0c8e1f2a3b4c6d' });
@@ -74,9 +85,8 @@ describe('network store', () => {
         void network.load();
         ok({ interfaces: [], pending: { change_id: '5d0c8e1f2a3b4c6d', intf: 'eth0', applied_at: '2026-10-25T09:12:03Z', expires_in: 30 } });
         await flush();
-        expect(network.pending?.deadline).toBe(Date.parse('2026-10-25T09:14:03Z'));
+        expect(secondsLeft(network.pending?.deadline)).toBe(30);
 
-        const event = (type: string, data: unknown): AdminEventMessage => ({ kind: 'admin_event', type, ts: '', data });
         network.handleEvent(event('network_rolled_back', { intf: 'eth0' }));
         expect(network.pending).toBeNull();
         expect(network.rolledBack).toBe('eth0');
@@ -109,7 +119,7 @@ describe('network store', () => {
         expect(network.pending).toMatchObject({ changeId: '5d0c8e1f2a3b4c6d', change });
     });
 
-    it('a reply that never comes is treated the same way', async () => {
+    it('a reply that never comes (40 s, past calaos_server\'s 35 s) is treated the same way', async () => {
         await unlocked();
         const approvers = useApproversStore();
         void approvers.load();
@@ -120,9 +130,81 @@ describe('network store', () => {
         ok({ code_id: 'c0c0c0c0c0c0c0c0', approver_id: APPROVER.id, expires_in: 60 });
         await flush();
         void approvers.submit('482913');
-        vi.advanceTimersByTime(5_000);
+        vi.advanceTimersByTime(39_000);
+        await flush();
+        expect(network.lostApply).toBeNull();
+        vi.advanceTimersByTime(1_000);
         await flush();
         expect(approvers.done).toBe('network');
         expect(network.lostApply).toEqual(change);
+    });
+
+    it('a pending event published again after a daemon restart keeps the original window', async () => {
+        await unlocked();
+        const network = useAdminNetworkStore();
+        network.handleEvent(
+            event('network_pending', { intf: 'eth0', change_id: '5d0c8e1f2a3b4c6d', applied_at: '2026-10-25T09:12:03Z', confirm_within: 30 }, '2026-10-25T09:13:33Z'),
+        );
+        expect(network.pending).toMatchObject({ changeId: '5d0c8e1f2a3b4c6d', intf: 'eth0', change: null });
+        expect(secondsLeft(network.pending?.deadline)).toBe(30);
+    });
+
+    it('the reply and the event of one apply keep the earlier deadline and our change', async () => {
+        await unlocked();
+        const approvers = useApproversStore();
+        void approvers.load();
+        ok([APPROVER]);
+        await flush();
+        const network = useAdminNetworkStore();
+        void network.startApply(change);
+        ok({ code_id: 'c0c0c0c0c0c0c0c0', approver_id: APPROVER.id, expires_in: 60 });
+        await flush();
+        void approvers.submit('482913');
+        network.handleEvent(
+            event('network_pending', { intf: 'eth0', change_id: '5d0c8e1f2a3b4c6d', applied_at: '2026-10-25T09:12:03Z', confirm_within: 120 }, '2026-10-25T09:12:05Z'),
+        );
+        vi.advanceTimersByTime(1_000);
+        ok({ change_id: '5d0c8e1f2a3b4c6d', intf: 'eth0', applied_at: '2026-10-25T09:12:03Z', confirm_within: 120 });
+        await flush();
+        expect(network.pending?.change).toEqual(change);
+        expect(secondsLeft(network.pending?.deadline)).toBe(117);
+    });
+
+    it('a lost reply bounds the countdown from the moment the apply was sent', async () => {
+        await unlocked();
+        const approvers = useApproversStore();
+        void approvers.load();
+        ok([APPROVER]);
+        await flush();
+        const network = useAdminNetworkStore();
+        void network.startApply(change);
+        ok({ code_id: 'c0c0c0c0c0c0c0c0', approver_id: APPROVER.id, expires_in: 60 });
+        await flush();
+        void approvers.submit('482913');
+        vi.advanceTimersByTime(40_000);
+        await flush();
+        expect(secondsLeft(network.lostDeadline)).toBe(80);
+        network.reset();
+        expect(network.lostDeadline).toBeNull();
+    });
+
+    it('network_pending on apply reads the change already waiting', async () => {
+        await unlocked();
+        const approvers = useApproversStore();
+        void approvers.load();
+        ok([APPROVER]);
+        await flush();
+        const network = useAdminNetworkStore();
+        void network.startApply(change);
+        ok({ code_id: 'c0c0c0c0c0c0c0c0', approver_id: APPROVER.id, expires_in: 60 });
+        await flush();
+        void approvers.submit('482913');
+        fail('network_pending', { change_id: '0123456789abcdef', expires_in: '42' });
+        await flush();
+        expect(approvers.challenge?.error?.code).toBe('network_pending');
+        expect(last().data.action).toBe('network_state');
+        ok({ interfaces: [], pending: { change_id: '0123456789abcdef', intf: 'eth1', applied_at: '2026-10-25T09:12:03Z', expires_in: 42 } });
+        await flush();
+        expect(network.pending).toMatchObject({ changeId: '0123456789abcdef', intf: 'eth1', change: null });
     });
 });

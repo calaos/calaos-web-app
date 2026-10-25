@@ -1,6 +1,7 @@
 // The approver alerts shown in a banner at sign-in: a phone that started (or
 // stopped) receiving admin codes is something every member of the household
 // should see, since whoever holds the admin password could have enrolled it.
+// A network change the box rolled back by itself is shown the same way.
 //
 // Read from the event log after each login and after each live alert; which
 // ones were dismissed is remembered per browser.
@@ -151,9 +152,9 @@ export const useAdminAlertsStore = defineStore('adminAlerts', () => {
         own = own.filter((entry) => entry.kind !== kind || entry.name !== normalized);
     }
 
-    /** Called by services/calaos.ts for `approver_set` / `approver_removed`. */
+    /** Called by services/calaos.ts for every `admin_event`. */
     function handleEvent(type: string): void {
-        if (type === 'approver_set' || type === 'approver_removed') refresh();
+        if (type === 'approver_set' || type === 'approver_removed' || type === 'network_rolled_back') refresh();
     }
 
     function dismiss(): void {

@@ -1,11 +1,84 @@
 {
     "title": "Network",
-    "open": "Network",
-    "openHint": "The box’s address and its network settings.",
+    "hint": "How the box connects to your network. A change is tried first: it only stays if you keep it within 2 minutes.",
+    "loading": "Reading the network settings…",
+    "empty": "The box reports no network interface.",
+    "retry": "Try again",
+    "entry": {
+        "name": "Network",
+        "hint": "The box’s address and its network settings.",
+        "open": "Open",
+        "pending": "A network change on {intf} is waiting to be kept: {time} left.",
+        "review": "Review"
+    },
+    "state": {
+        "routable": "Connected",
+        "degraded": "Connected, limited",
+        "carrier": "Cable in, no address",
+        "noCarrier": "No cable",
+        "off": "Off",
+        "other": "{state}"
+    },
+    "field": {
+        "address": "Address",
+        "gateway": "Gateway",
+        "dns": "DNS servers",
+        "domains": "Search domains",
+        "mac": "MAC address",
+        "settings": "Settings",
+        "none": "None"
+    },
     "dhcp": "Automatic (DHCP)",
     "static": "Manual",
-    "pending": "Confirm the change within {seconds} s, or the box goes back to its previous settings.",
-    "confirm": "Keep these settings",
-    "revert": "Go back",
-    "rolledBack": "The network change on {intf} was not confirmed in time and was rolled back."
+    "edit": "Change",
+    "form": {
+        "title": "New settings for {intf}",
+        "mode": "How the box gets its address",
+        "address": "IPv4 address and prefix",
+        "addressHint": "For example 192.168.1.20/24.",
+        "gateway": "Gateway (optional)",
+        "gatewayHint": "Usually your router, for example 192.168.1.1.",
+        "dns": "DNS servers (optional)",
+        "dnsHint": "Up to 4 IPv4 addresses, separated by commas.",
+        "domains": "Search domains (optional)",
+        "domainsHint": "Up to 4, separated by commas.",
+        "dhcpHint": "The box asks your router for its address, gateway and DNS servers.",
+        "apply": "Apply…",
+        "cancel": "Cancel",
+        "unchanged": "These are the settings the box already uses.",
+        "busy": "Keep or undo the change already waiting before making another one.",
+        "needsApprover": "Changing the network takes a code from an approver phone. Add one first.",
+        "error": {
+            "ipv4": "Enter an IPv4 address with its prefix, like 192.168.1.20/24.",
+            "gateway": "Enter an IPv4 address, like 192.168.1.1, or leave it empty.",
+            "dns_servers": "Enter at most 4 IPv4 addresses, separated by commas.",
+            "search_domains": "Enter at most 4 domain names, separated by commas."
+        }
+    },
+    "warn": {
+        "title": "Apply the new settings?",
+        "hint": "The box switches to them now, and this page may lose it. Keep the new settings within 2 minutes, from the new address if it changed, or the box goes back to the previous ones by itself.",
+        "confirm": "Apply now"
+    },
+    "pending": {
+        "title": "Keep the new settings on {intf}?",
+        "countdown": "{time} left to keep them",
+        "hint": "The box is trying the new settings. If nobody keeps them in time, it goes back to the previous ones by itself.",
+        "confirm": "Keep these settings",
+        "revert": "Go back",
+        "expired": "Time is up. Unless someone kept the settings from the new address, the box is back on the previous ones.",
+        "lost": "The box no longer answers here. That is expected if its address changed.",
+        "reopen": "If this page stops answering, open it at the new address and keep the settings there:",
+        "reopenNow": "Open this page at the new address and keep the settings there:",
+        "reopenDhcp": "The box now takes its address from DHCP: find it in your router’s list of devices, open this page at that address and keep the settings there."
+    },
+    "done": {
+        "confirmed": "The new settings on {intf} are kept.",
+        "reverted": "{intf} is back on its previous settings.",
+        "dismiss": "OK"
+    },
+    "alert": {
+        "title": "The network change on {intf} was rolled back",
+        "hint": "Nobody kept the new settings within 2 minutes, so the box went back to its previous ones. Nothing else was changed."
+    }
 }

@@ -1,11 +1,84 @@
 {
     "title": "Réseau",
-    "open": "Réseau",
-    "openHint": "L’adresse de la box et ses réglages réseau.",
+    "hint": "Comment la box se connecte à votre réseau. Un changement est d’abord essayé : il ne reste que si vous le gardez dans les 2 minutes.",
+    "loading": "Lecture des réglages réseau…",
+    "empty": "La box n’indique aucune interface réseau.",
+    "retry": "Réessayer",
+    "entry": {
+        "name": "Réseau",
+        "hint": "L’adresse de la box et ses réglages réseau.",
+        "open": "Ouvrir",
+        "pending": "Un changement réseau sur {intf} attend d’être gardé : encore {time}.",
+        "review": "Voir"
+    },
+    "state": {
+        "routable": "Connectée",
+        "degraded": "Connectée, limitée",
+        "carrier": "Câble branché, sans adresse",
+        "noCarrier": "Pas de câble",
+        "off": "Éteinte",
+        "other": "{state}"
+    },
+    "field": {
+        "address": "Adresse",
+        "gateway": "Passerelle",
+        "dns": "Serveurs DNS",
+        "domains": "Domaines de recherche",
+        "mac": "Adresse MAC",
+        "settings": "Réglages",
+        "none": "Aucun"
+    },
     "dhcp": "Automatique (DHCP)",
     "static": "Manuel",
-    "pending": "Confirmez le changement dans les {seconds} s, sinon la box revient à ses réglages précédents.",
-    "confirm": "Garder ces réglages",
-    "revert": "Revenir en arrière",
-    "rolledBack": "Le changement réseau sur {intf} n’a pas été confirmé à temps et a été annulé."
+    "edit": "Modifier",
+    "form": {
+        "title": "Nouveaux réglages de {intf}",
+        "mode": "Comment la box obtient son adresse",
+        "address": "Adresse IPv4 et préfixe",
+        "addressHint": "Par exemple 192.168.1.20/24.",
+        "gateway": "Passerelle (facultative)",
+        "gatewayHint": "En général votre routeur, par exemple 192.168.1.1.",
+        "dns": "Serveurs DNS (facultatifs)",
+        "dnsHint": "Jusqu’à 4 adresses IPv4, séparées par des virgules.",
+        "domains": "Domaines de recherche (facultatifs)",
+        "domainsHint": "Jusqu’à 4, séparés par des virgules.",
+        "dhcpHint": "La box demande à votre routeur son adresse, sa passerelle et ses serveurs DNS.",
+        "apply": "Appliquer…",
+        "cancel": "Annuler",
+        "unchanged": "Ce sont déjà les réglages de la box.",
+        "busy": "Gardez ou annulez le changement en attente avant d’en faire un autre.",
+        "needsApprover": "Changer le réseau demande un code d’un téléphone approbateur. Ajoutez-en un d’abord.",
+        "error": {
+            "ipv4": "Saisissez une adresse IPv4 avec son préfixe, comme 192.168.1.20/24.",
+            "gateway": "Saisissez une adresse IPv4, comme 192.168.1.1, ou laissez vide.",
+            "dns_servers": "Saisissez au plus 4 adresses IPv4, séparées par des virgules.",
+            "search_domains": "Saisissez au plus 4 noms de domaine, séparés par des virgules."
+        }
+    },
+    "warn": {
+        "title": "Appliquer les nouveaux réglages ?",
+        "hint": "La box passe dessus tout de suite, et cette page peut la perdre. Gardez les nouveaux réglages dans les 2 minutes, depuis la nouvelle adresse si elle a changé, sinon la box revient d’elle-même aux précédents.",
+        "confirm": "Appliquer maintenant"
+    },
+    "pending": {
+        "title": "Garder les nouveaux réglages de {intf} ?",
+        "countdown": "Encore {time} pour les garder",
+        "hint": "La box essaie les nouveaux réglages. Si personne ne les garde à temps, elle revient d’elle-même aux précédents.",
+        "confirm": "Garder ces réglages",
+        "revert": "Revenir en arrière",
+        "expired": "Le délai est passé. Sauf si quelqu’un a gardé les réglages depuis la nouvelle adresse, la box est revenue aux précédents.",
+        "lost": "La box ne répond plus ici. C’est normal si son adresse a changé.",
+        "reopen": "Si cette page ne répond plus, ouvrez-la à la nouvelle adresse et gardez-y les réglages :",
+        "reopenNow": "Ouvrez cette page à la nouvelle adresse et gardez-y les réglages :",
+        "reopenDhcp": "La box prend maintenant son adresse en DHCP : retrouvez-la dans la liste des appareils de votre routeur, ouvrez cette page à cette adresse et gardez-y les réglages."
+    },
+    "done": {
+        "confirmed": "Les nouveaux réglages de {intf} sont gardés.",
+        "reverted": "{intf} est revenue à ses réglages précédents.",
+        "dismiss": "OK"
+    },
+    "alert": {
+        "title": "Le changement réseau sur {intf} a été annulé",
+        "hint": "Personne n’a gardé les nouveaux réglages dans les 2 minutes : la box est revenue aux précédents. Rien d’autre n’a changé."
+    }
 }
