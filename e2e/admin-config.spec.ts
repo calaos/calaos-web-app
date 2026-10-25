@@ -1,4 +1,4 @@
-// The Settings section against the mock's registry: one editor per type,
+// The Settings page against the mock's registry: one editor per type,
 // the registry's refusal under its row, a write-only secret, the restart
 // notice, and the backup download with its file name and JSON shape.
 
@@ -38,15 +38,12 @@ async function openUnlocked(page: Page): Promise<void> {
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
     await expect(admin.updates).toBeVisible();
+    await page.locator('[data-page="settings"]').click();
+    await expect(page).toHaveURL(/#\/admin\/settings$/);
 }
 
 async function openSettings(page: Page): Promise<void> {
     await openUnlocked(page);
-    const toggle = page.locator('.config__toggle');
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.locator('.config-row')).toHaveCount(0);
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(row(page, 'smtp_auth')).toBeVisible();
 }
 
@@ -206,13 +203,13 @@ test('a backup refused for an ended session asks for the password again', async 
     await expect(adminScreen(page).heading).toHaveText(MESSAGES.admin.unlock.title);
 });
 
-test('an older daemon: the settings panel says to update the box, and the Admin page stays unlocked', async ({ page, mock }) => {
+test('an older daemon: the settings page says to update the box, and the admin session stays', async ({ page, mock }) => {
     await mock.admin({ tooOld: ['config_list'] });
     await openUnlocked(page);
-    await page.locator('.config__toggle').click();
     await expect(page.locator('.config__status--error')).toContainText(MESSAGES.admin.error.daemon_too_old);
     await page.waitForTimeout(6_000);
-    await expect(adminScreen(page).updates).toBeVisible();
+    await expect(page).toHaveURL(/#\/admin\/settings$/);
+    await expect(adminScreen(page).adminPassword).toHaveCount(0);
     await expect(page.locator('.config__status--error')).toBeVisible();
     expect((await mock.adminActions()).filter((action) => action === 'config_list')).toHaveLength(1);
 });

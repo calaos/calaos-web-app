@@ -148,6 +148,7 @@ export interface AdminStatus {
     reboots: number;
     restarts: number;
     mcpRegenerations: number;
+    mcpToken: string;
     approvers: { id: string; device_name: string; token_id: string }[];
     pushed: PushedCode[];
     /** `eventlog` requests answered so far. */

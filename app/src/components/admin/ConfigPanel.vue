@@ -1,12 +1,10 @@
 <script setup lang="ts">
-// calaos_server's own settings, folded by default, and the configuration
-// backup. The registry validates every value; its refusal is shown under the
-// row it concerns. The backup is an HTTP download: the session rides in the
+// calaos_server's own settings and the configuration backup. The registry
+// validates every value; its refusal is shown under the row it concerns. The backup is an HTTP download: the session rides in the
 // POST body, never a URL.
 
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import IconChevron from '~icons/mdi/chevron-down';
 import BaseDialog from '../ui/BaseDialog.vue';
 import { SELF_SERVICE_ID } from '../../protocol/admin-services';
 import type { ConfigOption } from '../../protocol/admin-config';
@@ -27,7 +25,6 @@ const config = useAdminConfigStore();
 const services = useAdminServicesStore();
 const { errorText } = useAdminText();
 
-const open = ref(false);
 const loading = ref(false);
 const saving = ref<string | null>(null);
 const savedKey = ref<string | null>(null);
@@ -49,10 +46,9 @@ async function load(): Promise<void> {
     loading.value = false;
 }
 
-function toggle(): void {
-    open.value = !open.value;
-    if (open.value && config.options === null && !loading.value) void load();
-}
+onMounted(() => {
+    if (config.options === null) void load();
+});
 
 async function save(key: string, value: string): Promise<void> {
     saving.value = key;
@@ -142,9 +138,7 @@ async function downloadBackup(): Promise<void> {
 </script>
 
 <template>
-    <section class="config" aria-labelledby="config-title">
-        <p id="config-title" class="config__eyebrow">{{ t('admin.config.title') }}</p>
-
+    <section class="config" :aria-label="t('admin.config.title')">
         <div v-if="config.restartRequired || restarting" class="config__restart fade-in" role="status">
             <template v-if="restarting">
                 <p class="config__restart-text">{{ t('admin.config.restarting') }}</p>
@@ -193,25 +187,9 @@ async function downloadBackup(): Promise<void> {
                     {{ t('admin.config.backupDone', { name: backupName }) }}
                 </p>
             </li>
-
-            <li class="config__row config__row--toggle">
-                <button
-                    type="button"
-                    class="config__toggle"
-                    :aria-expanded="open"
-                    aria-controls="config-options"
-                    @click="toggle"
-                >
-                    <span class="config__text">
-                        <span class="config__name">{{ open ? t('admin.config.hide') : t('admin.config.show') }}</span>
-                        <span class="config__hint">{{ t('admin.config.hint') }}</span>
-                    </span>
-                    <IconChevron class="config__chevron" :class="{ 'config__chevron--open': open }" aria-hidden="true" />
-                </button>
-            </li>
         </ul>
 
-        <div v-if="open" id="config-options" class="config__options">
+        <div class="config__options">
             <p v-if="loading && config.options === null" class="config__status" role="status">
                 {{ t('admin.config.loading') }}
             </p>
@@ -278,15 +256,6 @@ async function downloadBackup(): Promise<void> {
 </template>
 
 <style scoped>
-.config__eyebrow {
-    padding-inline: var(--space-2);
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
-    color: var(--c-text-muted);
-}
-
 /* The one loud thing here: amber, the colour of "act on the box". */
 .config__restart {
     display: flex;
@@ -294,7 +263,7 @@ async function downloadBackup(): Promise<void> {
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3) var(--space-4);
-    margin-block-start: var(--space-2);
+    margin-block-end: var(--space-4);
     padding: var(--space-4);
     border: 1px solid rgba(224, 163, 86, 0.4);
     border-inline-start: 3px solid var(--c-warn);
@@ -329,7 +298,7 @@ async function downloadBackup(): Promise<void> {
 }
 
 .config__list {
-    margin-block-start: var(--space-2);
+    margin-block-end: var(--space-8);
     border-block-start: 1px solid var(--c-border);
 }
 
@@ -341,10 +310,6 @@ async function downloadBackup(): Promise<void> {
     gap: var(--space-3) var(--space-4);
     padding: var(--space-4) var(--space-2);
     border-block-end: 1px solid var(--c-border);
-}
-
-.config__row--toggle {
-    padding: 0;
 }
 
 .config__text {
@@ -377,38 +342,9 @@ async function downloadBackup(): Promise<void> {
     color: var(--c-danger-text);
 }
 
-.config__toggle {
-    display: flex;
-    align-items: center;
-    gap: var(--space-4);
-    inline-size: 100%;
-    min-block-size: 2.75rem;
-    padding: var(--space-4) var(--space-2);
-    border: 0;
-    background: none;
-    font: inherit;
-    cursor: pointer;
-}
-
-.config__toggle:hover .config__name {
-    color: var(--c-accent);
-}
-
-.config__chevron {
-    flex: none;
-    font-size: 1.5rem;
-    color: var(--c-text-muted);
-    transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-
-.config__chevron--open {
-    transform: rotate(180deg);
-}
-
 .config__options {
     display: grid;
     gap: var(--space-6);
-    margin-block-start: var(--space-4);
 }
 
 .config__status {
@@ -456,12 +392,6 @@ async function downloadBackup(): Promise<void> {
 @media (max-width: 479px) {
     .config__restart-actions > * {
         flex: 1 1 100%;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .config__chevron {
-        transition: none;
     }
 }
 </style>

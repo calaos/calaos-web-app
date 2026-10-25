@@ -213,6 +213,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             reboots: 0,
             restarts: 0,
             mcpRegenerations: 0,
+            mcpToken: randomBytes(32).toString('hex'),
             pushTokens: defaultPushTokens(Date.now()),
             /** <Approver>, oldest first. */
             approvers: [],
@@ -705,6 +706,18 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         return features.config.httpBackup(refusal);
     }
 
+    /** `get_mcp_info` over HTTP: open while no admin is set, then a session in the body. */
+    function httpMcpInfo(body) {
+        const scenario = scenarioError();
+        if (scenario !== null) return scenario;
+        if (state.set && !sessionValid(body.admin_session)) return failure('bad_session', 'Admin session required');
+        return {
+            url_path: '/mcp',
+            token: state.mcpToken,
+            hint: 'Use token as Bearer in Authorization header. Append /mcp to your Calaos HTTPS base URL.',
+        };
+    }
+
     // ----------------------------------------------------------- messages ---
 
     function handleUnlock(ws, frame) {
@@ -911,6 +924,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 return ok({ hostname: 'calaos-mock', uptime: 4242, cpu_usage: 3.5, mem_usage: 41.2 });
             case 'mcp_regenerate':
                 state.mcpRegenerations += 1;
+                state.mcpToken = randomBytes(32).toString('hex');
                 return ok({});
         }
     }
@@ -1044,6 +1058,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             reboots: state.reboots,
             restarts: state.restarts,
             mcpRegenerations: state.mcpRegenerations,
+            mcpToken: state.mcpToken,
             upgradeMs: state.upgradeMs,
             dropAtPercent: state.dropAtPercent,
             failAtPercent: state.failAtPercent,
@@ -1073,5 +1088,5 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         return null;
     }
 
-    return { reset, handleFrame, configure, status, event, takeConsoleGrant, httpConfigBackup };
+    return { reset, handleFrame, configure, status, event, takeConsoleGrant, httpConfigBackup, httpMcpInfo };
 }

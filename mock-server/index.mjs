@@ -370,7 +370,8 @@ export function startServer(options = {}) {
 
     /**
      * `POST /api` with a JSON body — the calaos HTTP API. The mock only
-     * implements `config_backup` (a file download, admin.mjs) and
+     * implements `config_backup` (a file download, admin.mjs), `get_mcp_info`
+     * (admin.mjs) and
      * `{action:'get_cover', id, ...}` (JsonApiHandlerHttp::
      * processGetCover): credentials ride in the body, failures answer the
      * upstream `{success:'false', error_str}` shapes, success returns the
@@ -404,9 +405,14 @@ export function startServer(options = {}) {
             return;
         }
 
+        if (body.action === 'get_mcp_info') {
+            json(hub.admin.httpMcpInfo(body));
+            return;
+        }
+
         if (body.action !== 'get_cover') {
             res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
-            res.end('mock /api POST only implements action=get_cover and config_backup');
+            res.end('mock /api POST only implements action=get_cover, config_backup and get_mcp_info');
             return;
         }
 

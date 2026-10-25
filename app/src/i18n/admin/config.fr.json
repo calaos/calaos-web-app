@@ -1,5 +1,6 @@
 {
     "title": "Réglages",
+    "entryHint": "Les options de Calaos server et la sauvegarde de la configuration.",
     "group": {
         "Logging": "Journalisation",
         "Notifications": "Notifications",
@@ -19,8 +20,6 @@
     "backupHint": "Les fichiers de configuration de la box, en un seul fichier.",
     "backupWarning": "Le fichier contient des mots de passe en clair : la connexion, les caméras, le jeton MCP. Il arrive non chiffré dans vos téléchargements ; gardez-le en lieu sûr.",
     "hint": "Les options de la box : notifications, historique, InfluxDB, écrans tactiles.",
-    "show": "Afficher les réglages",
-    "hide": "Masquer les réglages",
     "loading": "Lecture des réglages…",
     "loadFailed": "Les réglages n'ont pas pu être lus.",
     "retry": "Réessayer",

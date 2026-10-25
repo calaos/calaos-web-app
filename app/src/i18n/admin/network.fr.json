@@ -7,9 +7,7 @@
     "entry": {
         "name": "Réseau",
         "hint": "L’adresse de la box et ses réglages réseau.",
-        "open": "Ouvrir",
-        "pending": "Un changement réseau sur {intf} attend d’être gardé : encore {time}.",
-        "review": "Voir"
+        "pending": "Un changement réseau sur {intf} attend d’être gardé : encore {time}."
     },
     "state": {
         "routable": "Connectée",

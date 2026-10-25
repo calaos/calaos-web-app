@@ -788,9 +788,12 @@ export const useAdminStore = defineStore('admin', () => {
         if (data !== null) info.value = 'reboot_sent';
     }
 
-    async function regenerateMcp(): Promise<void> {
+    /** true once the box has a new token; `get_mcp_info` is how it is read. */
+    async function regenerateMcp(): Promise<boolean> {
         const data = await run('mcp_regenerate');
-        if (data !== null) info.value = 'mcp_regenerated';
+        if (data === null) return false;
+        info.value = 'mcp_regenerated';
+        return true;
     }
 
     // -------------------------------------------------------------- events ---

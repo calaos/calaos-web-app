@@ -7,7 +7,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import IconChevron from '~icons/mdi/chevron-down';
 import IconDownload from '~icons/mdi/download-outline';
+import IconFilter from '~icons/mdi/filter-variant';
 import IconLock from '~icons/mdi/lock-outline';
 import { LOG_PRIORITIES, LOG_SOURCES_MAX, LOG_TEXT_MAX, logQueryProblem, logsFileName, logsText } from '../protocol/admin-logs';
 import type { LogPriorityName } from '../protocol/admin-logs';
@@ -17,6 +19,7 @@ import type { LogFilter } from '../stores/adminLogs';
 import { useAdminStore } from '../stores/admin';
 import { useAdminText } from '../composables/useAdminText';
 import AdminButton from '../components/admin/AdminButton.vue';
+import AdminPageHeader from '../components/admin/AdminPageHeader.vue';
 import LogRow from '../components/admin/LogRow.vue';
 
 type Range = 'min15' | 'hour1' | 'hours24' | 'days7' | 'custom';
@@ -53,6 +56,8 @@ let textTimer: ReturnType<typeof setTimeout> | null = null;
 /** Follow was on when the tab was hidden: it comes back with the tab. */
 const resumeOnShow = ref(false);
 const loadingOlder = ref(false);
+/** Narrow screens only: on wide ones the filters always sit beside the journal. */
+const filtersOpen = ref(false);
 let leaving = false;
 
 const sourceIds = computed(() => logs.sources?.map((source) => source.id) ?? []);
@@ -112,6 +117,14 @@ const filter = computed<LogFilter>(() => {
 });
 
 const problem = computed(() => logQueryProblem(filter.value));
+
+/** What the folded filter bar still says: which sources, over which period. */
+const filterSummary = computed(() =>
+    t('admin.logs.filtersSummary', {
+        sources: selected.value.map((id) => labels.value[id] ?? id).join(', '),
+        range: t(`admin.logs.range.${range.value}`),
+    }),
+);
 /** A range that ends in the past has no live edge. */
 const canFollow = computed(() => filter.value.until === undefined && problem.value === '');
 
@@ -277,10 +290,10 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="logs-view">
-        <h1 class="visually-hidden">{{ t('admin.logs.title') }}</h1>
+        <AdminPageHeader class="logs-view__head" :title="t('admin.logs.title')" />
 
-        <section class="logs fade-in" :aria-label="t('admin.logs.title')">
-            <header class="logs__bar">
+        <aside class="logs-side fade-in" :aria-label="t('admin.logs.filters')">
+            <div class="logs-side__bar">
                 <p class="logs__status" role="status" aria-live="polite">
                     <span class="logs__count">{{ countLine }}</span>
                     <span
@@ -291,7 +304,7 @@ onBeforeUnmount(() => {
                         {{ statusLine }}
                     </span>
                 </p>
-                <div class="logs__bar-actions">
+                <div class="logs__actions">
                     <button
                         type="button"
                         class="logs__follow pressable"
@@ -303,40 +316,71 @@ onBeforeUnmount(() => {
                         <span class="logs__follow-dot" aria-hidden="true" />
                         {{ t('admin.logs.follow') }}
                     </button>
-                    <AdminButton variant="quiet" :disabled="!logs.hasEntries" @click="download">
+                    <AdminButton
+                        v-if="logs.canLoadOlder && (logs.hasEntries || logs.incomplete)"
+                        variant="quiet"
+                        :busy="loadingOlder"
+                        @click="loadOlder"
+                    >
+                        {{ t('admin.logs.loadOlder') }}
+                    </AdminButton>
+                    <AdminButton
+                        class="logs__download"
+                        variant="quiet"
+                        :disabled="!logs.hasEntries"
+                        :title="t('admin.logs.download')"
+                        @click="download"
+                    >
                         <IconDownload aria-hidden="true" class="logs__icon" />
-                        <span>{{ t('admin.logs.download') }}</span>
+                        <span class="logs__download-label">{{ t('admin.logs.download') }}</span>
                     </AdminButton>
                 </div>
-            </header>
+                <button
+                    type="button"
+                    class="logs__filters-toggle"
+                    :aria-expanded="filtersOpen"
+                    aria-controls="logs-filters"
+                    @click="filtersOpen = !filtersOpen"
+                >
+                    <IconFilter aria-hidden="true" class="logs__icon" />
+                    <span class="logs__filters-text">
+                        <span class="logs__filters-name">{{ filtersOpen ? t('admin.logs.filtersHide') : t('admin.logs.filters') }}</span>
+                        <span class="logs__filters-summary">{{ filterSummary }}</span>
+                    </span>
+                    <IconChevron aria-hidden="true" class="logs__chevron" :class="{ 'logs__chevron--open': filtersOpen }" />
+                </button>
+            </div>
 
-            <div class="logs__filters">
-                <fieldset class="logs__sources">
-                    <legend class="visually-hidden">{{ t('admin.logs.sources', { max: LOG_SOURCES_MAX }) }}</legend>
-                    <button
-                        v-for="id in sourceIds"
-                        :key="id"
-                        type="button"
-                        class="logs__chip pressable"
-                        :aria-pressed="selected.includes(id)"
-                        :disabled="!selected.includes(id) && id !== 'system' && full"
-                        @click="toggleSource(id)"
-                    >
-                        {{ labels[id] }}
-                    </button>
+            <div id="logs-filters" class="logs__filters" :class="{ 'logs__filters--open': filtersOpen }">
+                <fieldset class="logs__group logs__sources">
+                    <legend class="logs__label">{{ t('admin.logs.sources', { max: LOG_SOURCES_MAX }) }}</legend>
+                    <div class="logs__chips">
+                        <button
+                            v-for="id in sourceIds"
+                            :key="id"
+                            type="button"
+                            class="logs__chip pressable"
+                            :aria-pressed="selected.includes(id)"
+                            :disabled="!selected.includes(id) && id !== 'system' && full"
+                            @click="toggleSource(id)"
+                        >
+                            {{ labels[id] }}
+                        </button>
+                    </div>
                 </fieldset>
 
-                <div class="logs__line">
-                    <label class="logs__select-label">
-                        <span class="logs__label">{{ t('admin.logs.priorityLabel') }}</span>
-                        <select v-model="priority" class="logs__select">
-                            <option v-for="name in LOG_PRIORITIES" :key="name" :value="name">
-                                {{ t(`admin.logs.priorityUpTo.${name}`) }}
-                            </option>
-                        </select>
-                    </label>
+                <label class="logs__group">
+                    <span class="logs__label">{{ t('admin.logs.priorityLabel') }}</span>
+                    <select v-model="priority" class="logs__select">
+                        <option v-for="name in LOG_PRIORITIES" :key="name" :value="name">
+                            {{ t(`admin.logs.priorityUpTo.${name}`) }}
+                        </option>
+                    </select>
+                </label>
 
-                    <div class="logs__ranges" role="radiogroup" :aria-label="t('admin.logs.rangeLabel')">
+                <div class="logs__group">
+                    <span id="logs-range-label" class="logs__label">{{ t('admin.logs.rangeLabel') }}</span>
+                    <div class="logs__ranges" role="radiogroup" aria-labelledby="logs-range-label">
                         <button
                             v-for="item in RANGES"
                             :key="item.id"
@@ -349,54 +393,47 @@ onBeforeUnmount(() => {
                             {{ t(`admin.logs.range.${item.id}`) }}
                         </button>
                     </div>
-
-                    <label class="logs__search">
-                        <span class="visually-hidden">{{ t('admin.logs.searchLabel') }}</span>
-                        <input
-                            v-model="text"
-                            type="search"
-                            class="logs__input"
-                            :maxlength="LOG_TEXT_MAX"
-                            :placeholder="t('admin.logs.searchPlaceholder')"
-                            autocomplete="off"
-                            spellcheck="false"
-                        />
-                    </label>
+                    <div v-if="range === 'custom'" class="logs__custom">
+                        <label class="logs__date">
+                            <span class="logs__label">{{ t('admin.logs.since') }}</span>
+                            <input v-model="customSince" type="datetime-local" class="logs__input logs__input--date" step="1" />
+                        </label>
+                        <label class="logs__date">
+                            <span class="logs__label">{{ t('admin.logs.until') }}</span>
+                            <input v-model="customUntil" type="datetime-local" class="logs__input logs__input--date" step="1" />
+                        </label>
+                        <p v-if="problem === 'since'" class="logs__problem" role="alert">{{ t('admin.logs.badRange') }}</p>
+                    </div>
                 </div>
 
-                <div v-if="range === 'custom'" class="logs__line logs__custom">
-                    <label class="logs__select-label">
-                        <span class="logs__label">{{ t('admin.logs.since') }}</span>
-                        <input v-model="customSince" type="datetime-local" class="logs__input logs__input--date" step="1" />
-                    </label>
-                    <label class="logs__select-label">
-                        <span class="logs__label">{{ t('admin.logs.until') }}</span>
-                        <input v-model="customUntil" type="datetime-local" class="logs__input logs__input--date" step="1" />
-                    </label>
-                    <p v-if="problem === 'since'" class="logs__problem" role="alert">{{ t('admin.logs.badRange') }}</p>
-                </div>
+                <label class="logs__group">
+                    <span class="visually-hidden">{{ t('admin.logs.searchLabel') }}</span>
+                    <input
+                        v-model="text"
+                        type="search"
+                        class="logs__input"
+                        :maxlength="LOG_TEXT_MAX"
+                        :placeholder="t('admin.logs.searchPlaceholder')"
+                        autocomplete="off"
+                        spellcheck="false"
+                    />
+                </label>
 
-                <p class="logs__masked">
-                    <IconLock aria-hidden="true" class="logs__icon" />
-                    <span>{{ t('admin.logs.masked') }}</span>
-                </p>
-                <p v-if="showHaproxyHint" class="logs__hint">{{ t('admin.logs.haproxyHint') }}</p>
-            </div>
-
-            <div ref="scroller" class="logs__scroller" tabindex="0" :aria-label="t('admin.logs.listLabel')" @scroll.passive="onScroll">
-                <div class="logs__top">
-                    <AdminButton
-                        v-if="logs.canLoadOlder && (logs.hasEntries || logs.incomplete)"
-                        variant="quiet"
-                        :busy="loadingOlder"
-                        @click="loadOlder"
-                    >
-                        {{ t('admin.logs.loadOlder') }}
-                    </AdminButton>
-                    <p v-if="topLine !== ''" class="logs__top-line" :class="{ 'logs__top-line--warn': logs.incomplete || logs.truncated }">
-                        {{ topLine }}
+                <div class="logs__notes">
+                    <p class="logs__masked">
+                        <IconLock aria-hidden="true" class="logs__icon" />
+                        <span>{{ t('admin.logs.masked') }}</span>
                     </p>
+                    <p v-if="showHaproxyHint" class="logs__hint">{{ t('admin.logs.haproxyHint') }}</p>
                 </div>
+            </div>
+        </aside>
+
+        <section class="logs fade-in" :aria-label="t('admin.logs.title')">
+            <div ref="scroller" class="logs__scroller" tabindex="0" :aria-label="t('admin.logs.listLabel')" @scroll.passive="onScroll">
+                <p v-if="topLine !== ''" class="logs__top-line" :class="{ 'logs__top-line--warn': logs.incomplete || logs.truncated }">
+                    {{ topLine }}
+                </p>
 
                 <ol v-if="logs.hasEntries" class="logs__list">
                     <LogRow
@@ -423,52 +460,65 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* Narrow first: title, a compact bar whose filters fold away, then the
+   journal taking the rest of the height. From 1024px the bar and the filters
+   become a column beside a journal that runs the full height. */
 .logs-view {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas:
+        'head'
+        'side'
+        'journal';
+    gap: var(--space-3);
     block-size: 100%;
-    padding: var(--space-4);
+    inline-size: 100%;
+    max-inline-size: 120rem;
+    margin-inline: auto;
+    padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
-@media (min-width: 480px) {
-    .logs-view {
-        padding: var(--space-6);
-    }
+.logs-view__head {
+    grid-area: head;
 }
 
-/* The console's frame: chrome bar on top, black well below. */
-.logs {
-    position: relative;
+/* The trail already says where this is; the big title would cost the journal a line. */
+.logs-view__head :deep(.page-head__title) {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.logs-side {
+    grid-area: side;
     display: flex;
     flex-direction: column;
-    flex: 1;
-    min-block-size: 24rem;
-    inline-size: 100%;
-    max-inline-size: 72rem;
-    margin-inline: auto;
+    min-block-size: 0;
     border: 1px solid var(--c-border);
     border-radius: var(--radius-md);
-    background-color: var(--c-bg);
+    background-color: var(--c-surface);
     overflow: hidden;
 }
 
-.logs__bar {
+.logs-side__bar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    min-block-size: 3rem;
-    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-3);
     background-image: linear-gradient(var(--c-chrome-top), var(--c-chrome-bottom));
-    border-block-end: 1px solid var(--c-chrome-hairline);
 }
 
 .logs__status {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2) var(--space-4);
+    gap: var(--space-1) var(--space-3);
+    margin-inline-end: auto;
     font-size: 0.875rem;
     color: var(--c-text-muted);
 }
@@ -485,8 +535,9 @@ onBeforeUnmount(() => {
     color: var(--c-warn);
 }
 
-.logs__bar-actions {
+.logs__actions {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--space-2);
 }
 
@@ -499,6 +550,7 @@ onBeforeUnmount(() => {
 .logs__follow {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: var(--space-2);
     min-block-size: 2.75rem;
     padding: var(--space-2) var(--space-4);
@@ -539,33 +591,87 @@ onBeforeUnmount(() => {
     cursor: not-allowed;
 }
 
+.logs__filters-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex: 1 1 100%;
+    min-block-size: 2.75rem;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--c-border-strong);
+    border-radius: var(--radius-md);
+    background-color: var(--c-bg);
+    color: var(--c-text);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+.logs__filters-text {
+    display: grid;
+    flex: 1;
+    min-inline-size: 0;
+}
+
+.logs__filters-name {
+    font-size: 0.9375rem;
+    font-weight: 500;
+}
+
+.logs__filters-summary {
+    overflow: hidden;
+    color: var(--c-text-muted);
+    font-size: 0.8125rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.logs__chevron {
+    flex: none;
+    font-size: 1.375rem;
+    color: var(--c-text-muted);
+    transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.logs__chevron--open {
+    transform: rotate(180deg);
+}
+
 /* ---- filters ---------------------------------------------------------- */
 
 .logs__filters {
-    display: grid;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    border-block-end: 1px solid var(--c-border);
-    background-color: var(--c-surface);
+    display: none;
+    gap: var(--space-4);
+    max-block-size: 55dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--space-4);
+    border-block-start: 1px solid var(--c-chrome-hairline);
 }
 
-.logs__sources {
-    display: flex;
-    flex-wrap: wrap;
+.logs__filters--open {
+    display: grid;
+}
+
+.logs__group {
+    display: grid;
     gap: var(--space-2);
     min-inline-size: 0;
+    margin: 0;
+    padding: 0;
     border: 0;
 }
 
-@media (max-width: 639px) {
-    /* One swipeable line instead of five wrapped ones above the journal. */
-    .logs__sources {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        margin-inline: calc(-1 * var(--space-4));
-        padding-inline: var(--space-4);
-        scrollbar-width: none;
-    }
+.logs__label {
+    padding: 0;
+    color: var(--c-text-muted);
+    font-size: 0.8125rem;
+}
+
+.logs__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
 }
 
 .logs__chip {
@@ -597,26 +703,10 @@ onBeforeUnmount(() => {
     cursor: not-allowed;
 }
 
-.logs__line {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-3);
-}
-
-.logs__select-label {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.logs__label {
-    color: var(--c-text-muted);
-    font-size: 0.875rem;
-}
-
 .logs__select,
 .logs__input {
+    inline-size: 100%;
+    min-inline-size: 0;
     min-block-size: 2.5rem;
     padding: var(--space-2) var(--space-3);
     border: 1px solid var(--c-border-strong);
@@ -631,47 +721,50 @@ onBeforeUnmount(() => {
     color-scheme: dark;
 }
 
+/* Segments that wrap as whole cells: the hairlines are the gaps. */
 .logs__ranges {
-    display: inline-flex;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px;
     border: 1px solid var(--c-border-strong);
     border-radius: var(--radius-md);
+    background-color: var(--c-border);
     overflow: hidden;
 }
 
 .logs__range {
+    flex: 1 1 auto;
     min-block-size: 2.5rem;
     padding: var(--space-2) var(--space-3);
     border: 0;
-    border-inline-end: 1px solid var(--c-border);
-    background: none;
+    background-color: var(--c-bg);
     color: var(--c-text-muted);
     font: inherit;
     font-size: 0.875rem;
     cursor: pointer;
-}
-
-.logs__range:last-child {
-    border-inline-end: 0;
+    white-space: nowrap;
 }
 
 .logs__range[aria-checked='true'] {
-    background-color: rgba(56, 176, 211, 0.14);
+    background-color: #0d2a33;
     color: var(--c-accent);
 }
 
-.logs__search {
-    flex: 1 1 12rem;
-    display: flex;
+.logs__custom {
+    display: grid;
+    gap: var(--space-2);
+    margin-block-start: var(--space-1);
 }
 
-.logs__search .logs__input {
-    flex: 1;
-    min-inline-size: 0;
+.logs__date {
+    display: grid;
+    gap: var(--space-1);
 }
 
 .logs__chip:focus-visible,
 .logs__range:focus-visible,
 .logs__follow:focus-visible,
+.logs__filters-toggle:focus-visible,
 .logs__jump:focus-visible,
 .logs__select:focus-visible,
 .logs__input:focus-visible,
@@ -685,10 +778,15 @@ onBeforeUnmount(() => {
     font-size: 0.875rem;
 }
 
+.logs__notes {
+    display: grid;
+    gap: var(--space-2);
+}
+
 .logs__masked,
 .logs__hint {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-2);
     color: var(--c-text-muted);
     font-size: 0.8125rem;
@@ -697,10 +795,22 @@ onBeforeUnmount(() => {
 
 /* ---- the journal ------------------------------------------------------ */
 
+.logs {
+    grid-area: journal;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-block-size: 16rem;
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    background-color: var(--c-bg);
+    overflow: hidden;
+}
+
 .logs__scroller {
     position: relative;
     flex: 1;
-    min-block-size: 12rem;
+    min-block-size: 0;
     overflow: auto;
     overscroll-behavior: contain;
     padding-block: var(--space-2) var(--space-4);
@@ -709,21 +819,10 @@ onBeforeUnmount(() => {
     line-height: 1.55;
 }
 
-.logs__top {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-1) var(--space-3) var(--space-3);
-    font-family: var(--font-sans);
-}
-
-.logs__top:empty {
-    display: none;
-}
-
 .logs__top-line {
+    padding: var(--space-1) var(--space-3) var(--space-3);
     color: var(--c-text-muted);
+    font-family: var(--font-sans);
     font-size: 0.8125rem;
     line-height: 1.4;
 }
@@ -784,14 +883,91 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 639px) {
-    /* The filters would leave the journal a sliver: the page scrolls instead. */
     .logs-view {
-        block-size: auto;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3) var(--space-3);
     }
 
-    .logs__scroller {
-        flex: none;
-        block-size: 70vh;
+    .logs__actions {
+        flex-wrap: nowrap;
+    }
+
+    .logs__follow,
+    .logs__actions :deep(.admin-button) {
+        padding-block: var(--space-2);
+        padding-inline: var(--space-3);
+    }
+
+    /* The icon says it; the label stays for screen readers. */
+    .logs__download-label {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .logs__filters-toggle {
+        padding-block: var(--space-1);
+    }
+
+    .logs__filters {
+        max-block-size: 45dvh;
+    }
+}
+
+@media (min-width: 1024px) {
+    .logs-view {
+        grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-areas:
+            'head journal'
+            'side journal';
+        gap: var(--space-4) var(--space-6);
+        padding: var(--space-6);
+    }
+
+    .logs-view__head :deep(.page-head__title) {
+        position: static;
+        inline-size: auto;
+        block-size: auto;
+        overflow: visible;
+        clip-path: none;
+        white-space: normal;
+    }
+
+    .logs-side {
+        overflow-y: auto;
+    }
+
+    .logs-side__bar {
+        display: grid;
+        gap: var(--space-3);
+        padding: var(--space-4);
+        border-block-end: 1px solid var(--c-chrome-hairline);
+    }
+
+    .logs__actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .logs__follow {
+        grid-column: 1 / -1;
+    }
+
+    .logs__filters-toggle {
+        display: none;
+    }
+
+    .logs__filters,
+    .logs__filters--open {
+        display: grid;
+        align-content: start;
+        max-block-size: none;
+        overflow: visible;
+        border-block-start: 0;
     }
 }
 
@@ -800,7 +976,8 @@ onBeforeUnmount(() => {
         animation: none;
     }
 
-    .logs__follow {
+    .logs__follow,
+    .logs__chevron {
         transition: none;
     }
 }

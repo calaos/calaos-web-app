@@ -116,9 +116,7 @@ function confirm(): void {
 </script>
 
 <template>
-    <section class="services" aria-labelledby="services-title">
-        <p id="services-title" class="services__eyebrow">{{ t('admin.services.title') }}</p>
-        <p class="services__intro">{{ t('admin.services.hint') }}</p>
+    <section class="services" :aria-label="t('admin.services.title')">
 
         <p v-if="services.selfPhase !== null" class="services__banner fade-in" role="status">
             {{ t('admin.services.selfRestarting') }}
@@ -199,24 +197,6 @@ function confirm(): void {
 </template>
 
 <style scoped>
-.services__eyebrow {
-    padding-inline: var(--space-2);
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
-    color: var(--c-text-muted);
-}
-
-.services__intro {
-    margin-block-start: var(--space-2);
-    padding-inline: var(--space-2);
-    color: var(--c-text-muted);
-    font-size: 0.875rem;
-    line-height: 1.45;
-    max-inline-size: 34rem;
-}
-
 .services__banner {
     margin-block-start: var(--space-3);
     padding: var(--space-3) var(--space-4);
