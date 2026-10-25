@@ -326,6 +326,18 @@ describe('network', () => {
         expect((await control({ op: 'admin_status' })).network.pending).toMatchObject({ intf: 'eth0' });
     });
 
+    it('can act and still answer daemon_unreachable with an unknown outcome', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', network: { unknownOutcome: true } });
+        const proof = await codeFor(ask, change);
+        const reply = await ask('network_apply', { ...change, ...proof });
+        expect(reply).toMatchObject({ error: 'daemon_unreachable', outcome: 'unknown' });
+        const pending = (await ask('network_state')).result.pending;
+        expect(pending).toMatchObject({ intf: 'eth0' });
+        expect(await ask('network_confirm', { change_id: pending.change_id })).toMatchObject({ outcome: 'unknown' });
+        expect((await ask('network_state')).result.pending).toBeNull();
+    });
+
     it('answers daemon_too_old to every network action when told, and sets addresses', async () => {
         const { ask } = await session();
         await control({ op: 'admin', network: { ipv4: { eth0: '127.0.0.1/8' } } });

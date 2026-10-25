@@ -21,16 +21,25 @@ import {
     toNetworkState,
 } from '../protocol/admin-network';
 import type { NetInterface, NetworkChange, NetworkFinished } from '../protocol/admin-network';
-import type { AdminError, AdminFailureCode, CodeProof } from '../protocol/admin';
+import type { AdminError, CodeProof } from '../protocol/admin';
 import type { AdminEventMessage } from '../protocol/types';
 import { useAdminStore } from './admin';
 import { useApproversStore } from './approvers';
 
 /**
  * A box whose daemon predates these routes answers `daemon_too_old`: that
- * is this panel's news, not a reason to block the whole Admin page.
+ * is this panel's news, not a reason to block the whole Admin page. An
+ * unknown outcome (calaos_server stopped waiting) is resolved by reading the
+ * state again.
  */
-const LOCAL_ERRORS: readonly AdminFailureCode[] = ['daemon_too_old'];
+function isLocal(error: AdminError): boolean {
+    return error.code === 'daemon_too_old' || error.outcomeUnknown;
+}
+
+/** The action may have happened: the box went quiet, or calaos_server gave up on it. */
+function isUnanswered(error: AdminError): boolean {
+    return error.code === 'timeout' || error.code === 'disconnected' || error.outcomeUnknown;
+}
 /** The box rounds its seconds up and they are read on arrival: keep one in hand. */
 const SAFETY_S = 1;
 
@@ -106,7 +115,7 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
     }
 
     async function load(): Promise<void> {
-        const outcome = await admin.relay('network_state', undefined, false, LOCAL_ERRORS);
+        const outcome = await admin.relay('network_state', undefined, false, isLocal);
         if (!outcome.ok) {
             if (admin.gate === 'unlocked') error.value = outcome.error;
             return;
@@ -165,12 +174,14 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
             'network_apply',
             networkApplyParams(change, proof.codeId, proof.code),
             false,
-            LOCAL_ERRORS,
+            isLocal,
         );
-        if (!outcome.ok && (outcome.error.code === 'disconnected' || outcome.error.code === 'timeout')) {
+        if (!outcome.ok && isUnanswered(outcome.error)) {
             draft = null;
             lostApply.value = change;
             lostDeadline.value = sentAt + NETWORK_CONFIRM_WINDOW_S * 1000;
+            // calaos_server answered: the box is still reachable here.
+            if (outcome.error.outcomeUnknown) void load();
             return null;
         }
         if (!outcome.ok) {
@@ -189,13 +200,25 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         const current = pending.value;
         if (current === null) return null;
         finishing = current.changeId;
-        const outcome = await admin.relay(action, { change_id: current.changeId }, true, LOCAL_ERRORS);
+        const outcome = await admin.relay(action, { change_id: current.changeId }, true, isLocal);
         finishing = '';
+        if (!outcome.ok && outcome.error.outcomeUnknown) {
+            await load();
+            // Still on trial: nothing happened, the buttons are back. Gone and
+            // not rolled back: the daemon did what was asked.
+            if (pending.value === null && rolledBack.value === '') {
+                finished.value = {
+                    changeId: current.changeId,
+                    intf: current.intf,
+                    state: action === 'network_confirm' ? 'confirmed' : 'reverted',
+                };
+            }
+            return null;
+        }
         if (!outcome.ok) {
-            const code = outcome.error.code;
-            if (code === 'timeout' || code === 'disconnected') unanswered.value = true;
+            if (isUnanswered(outcome.error)) unanswered.value = true;
             // Unknown or finished meanwhile (rolled back, confirmed elsewhere).
-            if (code === 'invalid_request') void load();
+            if (outcome.error.code === 'invalid_request') void load();
             return outcome.error;
         }
         finished.value = toNetworkFinished(outcome.data.result);

@@ -34,7 +34,6 @@ import {
 import type {
     AdminAction,
     AdminError,
-    AdminFailureCode,
     CodeProof,
     UpdateEntry,
     UpgradeJob,
@@ -716,14 +715,14 @@ export const useAdminStore = defineStore('admin', () => {
      * One relayed action for another store (approvers): gate errors are
      * applied here, every other error is returned for the caller to show.
      * `hold` marks the page busy for the duration, as a button press does.
-     * `local` lists gate errors the caller shows in its own panel instead: an
+     * `local` picks the gate errors the caller handles in its own panel: an
      * action newer than the daemon must not block the rest of the page.
      */
     async function relay(
         action: AdminAction,
         params: Record<string, unknown> | undefined,
         hold: boolean,
-        local: readonly AdminFailureCode[] = [],
+        local: (error: AdminError) => boolean = () => false,
     ): Promise<Outcome> {
         if (hold) {
             if (busy.value !== null) return { ok: false, error: BUSY };
@@ -735,7 +734,7 @@ export const useAdminStore = defineStore('admin', () => {
             adminReplyTimeoutMs(action),
         );
         if (hold) busy.value = null;
-        if (!outcome.ok && !local.includes(outcome.error.code)) applyGateError(outcome.error);
+        if (!outcome.ok && !local(outcome.error)) applyGateError(outcome.error);
         return outcome;
     }
 

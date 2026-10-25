@@ -106,6 +106,11 @@ export interface AdminError {
     failed: string;
     /** Same case: true once the timezone changed, whatever failed after it. */
     restartRequired: boolean;
+    /**
+     * `"outcome": "unknown"`: calaos_server gave up waiting for the daemon,
+     * which may still have acted. Never resend; read the state again.
+     */
+    outcomeUnknown: boolean;
 }
 
 export const ADMIN_ACTIONS = [
@@ -346,6 +351,7 @@ export function toAdminError(data: unknown): AdminError {
         applied: applied === '' ? [] : applied.split(','),
         failed: toWireString(record.failed),
         restartRequired: toBool(record.restart_required),
+        outcomeUnknown: record.outcome === 'unknown',
     };
 }
 
@@ -365,6 +371,7 @@ export function bareAdminError(code: AdminFailureCode): AdminError {
         applied: [],
         failed: '',
         restartRequired: false,
+        outcomeUnknown: false,
     };
 }
 

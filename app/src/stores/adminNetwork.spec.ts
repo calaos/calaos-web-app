@@ -274,4 +274,55 @@ describe('network store', () => {
         network.handleEvent(event('network_applied', { intf: 'eth0', change_id: '5d0c8e1f2a3b4c6d' }));
         expect(harness.sent.map((frame) => frame.data.action)).toEqual(['network_confirm', 'network_state']);
     });
+
+    it('an unknown outcome is never an error: apply becomes a lost apply, read back at once', async () => {
+        await unlocked();
+        const approvers = useApproversStore();
+        void approvers.load();
+        ok([APPROVER]);
+        await flush();
+        const network = useAdminNetworkStore();
+        void network.startApply(change);
+        ok({ code_id: 'c0c0c0c0c0c0c0c0', approver_id: APPROVER.id, expires_in: 60 });
+        await flush();
+        void approvers.submit('482913');
+        fail('daemon_unreachable', { outcome: 'unknown' });
+        await flush();
+        expect(approvers.done).toBe('network');
+        expect(useAdminStore().gate).toBe('unlocked');
+        expect(network.lostApply).toEqual(change);
+        expect(last().data.action).toBe('network_state');
+        ok({ interfaces: [], pending: { change_id: '5d0c8e1f2a3b4c6d', intf: 'eth0', applied_at: '2026-10-25T09:12:03Z', expires_in: 110 } });
+        await flush();
+        expect(network.pending).toMatchObject({ changeId: '5d0c8e1f2a3b4c6d', change });
+    });
+
+    it('an unknown outcome on keep or go back reads the state and shows what happened', async () => {
+        await unlocked();
+        const network = useAdminNetworkStore();
+        const waiting = { interfaces: [], pending: { change_id: '5d0c8e1f2a3b4c6d', intf: 'eth0', applied_at: '2026-10-25T09:12:03Z', expires_in: 100 } };
+        void network.load();
+        ok(waiting);
+        await flush();
+
+        // Not done after all: still on trial, no error, the buttons are back.
+        const reverted = network.revert();
+        fail('daemon_unreachable', { outcome: 'unknown' });
+        await flush();
+        expect(last().data.action).toBe('network_state');
+        ok(waiting);
+        expect(await reverted).toBeNull();
+        expect(network.pending?.changeId).toBe('5d0c8e1f2a3b4c6d');
+        expect(network.finished).toBeNull();
+
+        // Done: the change is gone, and it was not a rollback.
+        const kept = network.confirm();
+        fail('daemon_unreachable', { outcome: 'unknown' });
+        await flush();
+        ok({ interfaces: [], pending: null });
+        expect(await kept).toBeNull();
+        expect(network.pending).toBeNull();
+        expect(network.finished).toEqual({ changeId: '5d0c8e1f2a3b4c6d', intf: 'eth0', state: 'confirmed' });
+        expect(useAdminStore().gate).toBe('unlocked');
+    });
 });

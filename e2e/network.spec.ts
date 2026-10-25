@@ -22,6 +22,7 @@ interface NetworkPatch {
     dropOnApply?: boolean | 'before';
     hangOnApply?: boolean;
     tooOld?: boolean;
+    unknownOutcome?: boolean;
     ipv4?: Record<string, string>;
     expire?: boolean;
     pending?: { intf?: string; ageMs?: number };
@@ -335,5 +336,19 @@ test('the change moves this page’s own address: the new address comes first, a
     } finally {
         relay.close();
     }
+});
+
+test('calaos_server stops waiting (outcome unknown): no error, the state is read back', async ({ page, mock }) => {
+    await network(mock, { unknownOutcome: true });
+    await openNetwork(page);
+    await proposeStatic(page);
+    await typeCode(page, mock);
+
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(panel(page)).toContainText(fill(net.pending.title, { intf: 'eth0' }));
+    await panel(page).getByRole('button', { name: net.pending.confirm }).click();
+    await expect(page.getByRole('status').filter({ hasText: fill(net.done.confirmed, { intf: 'eth0' }) })).toBeVisible();
+    await expect(page.getByText(t.error.daemon_unreachable)).toHaveCount(0);
+    await expect(adminScreen(page).adminPassword).toHaveCount(0);
 });
 

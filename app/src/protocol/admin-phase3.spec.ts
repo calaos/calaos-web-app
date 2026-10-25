@@ -50,6 +50,14 @@ describe('phase-3 additions to the admin codec', () => {
         });
     });
 
+    it('reads an unknown outcome, the cue to re-read rather than resend', () => {
+        expect(toAdminError({ error: 'daemon_unreachable', outcome: 'unknown' })).toMatchObject({
+            code: 'daemon_unreachable',
+            outcomeUnknown: true,
+        });
+        expect(toAdminError({ error: 'daemon_unreachable' }).outcomeUnknown).toBe(false);
+    });
+
     it('builds a detail-free error for refusals known before asking', () => {
         expect(bareAdminError('approver_last')).toEqual(toAdminError({ error: 'approver_last' }));
     });
