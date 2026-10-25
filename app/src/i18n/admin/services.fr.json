@@ -28,10 +28,29 @@
         "networkd": "Réseau",
         "ssh": "SSH"
     },
-    "since": "depuis {when}",
+    "since": "démarré {when}",
     "restart": "Redémarrer",
     "runNow": "Lancer maintenant",
     "statusOnly": "État seulement",
     "restarting": "Redémarrage…",
-    "selfRestartWarning": "Redémarrer le serveur Calaos déconnecte cette page une trentaine de secondes. Elle se reconnecte d’elle-même."
+    "selfRestartWarning": "Redémarrer le serveur Calaos déconnecte cette page une trentaine de secondes. Elle se reconnecte d’elle-même.",
+    "loading": "Lecture des services…",
+    "loadFailed": "La liste des services n’a pas pu être lue.",
+    "retry": "Réessayer",
+    "lastRun": "dernier lancement {when}",
+    "confirmTitle": "Redémarrer {name} ?",
+    "runTitle": "Lancer {name} maintenant ?",
+    "confirmHint": "Il s’arrête quelques secondes puis redémarre. Ce qui en dépend attend pendant ce temps.",
+    "runHint": "Il s’exécute une fois maintenant, sans attendre son prochain lancement programmé.",
+    "reconnecting": "Reconnexion…",
+    "selfRestarting": "Le serveur Calaos redémarre. Cette page se reconnecte d’elle-même, puis vérifie qu’il est revenu.",
+    "upgrading": "Une mise à jour est en cours : les redémarrages attendent qu’elle se termine.",
+    "result": {
+        "done": "Redémarré.",
+        "ran": "Lancé.",
+        "failed": "Il n’a pas redémarré. Ses logs disent pourquoi.",
+        "not_found": "Ce service n’est pas installé sur la box.",
+        "timeout": "Aucune confirmation après {seconds} secondes. Vérifiez son état ci-dessus.",
+        "upgrade_in_progress": "Une mise à jour est en cours. Redémarrez-le une fois la mise à jour terminée."
+    }
 }
