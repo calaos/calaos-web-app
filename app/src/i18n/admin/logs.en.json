@@ -1,7 +1,7 @@
 {
     "title": "Logs",
-    "open": "Logs",
-    "openHint": "Read the box’s journal, by service.",
+    "open": "Open the logs",
+    "openHint": "Read the box’s journal, by service, and follow it live.",
     "source": {
         "calaos-server": "Calaos server",
         "calaos-home": "Calaos Home (touch screen)",
@@ -31,9 +31,49 @@
         "info": "Info",
         "debug": "Debug"
     },
+    "priorityLabel": "Show",
+    "priorityUpTo": {
+        "emerg": "Emergencies only",
+        "alert": "Alerts and worse",
+        "crit": "Critical and worse",
+        "err": "Errors and worse",
+        "warning": "Warnings and worse",
+        "notice": "Notices and worse",
+        "info": "Everything but debug",
+        "debug": "Everything"
+    },
+    "sources": "Sources (up to {max})",
+    "rangeLabel": "Time range",
+    "range": {
+        "min15": "15 min",
+        "hour1": "1 h",
+        "hours24": "24 h",
+        "days7": "7 days",
+        "custom": "Custom"
+    },
+    "since": "From",
+    "until": "To",
+    "badRange": "The start must be before the end.",
+    "searchLabel": "Search the messages",
+    "searchPlaceholder": "Search the messages",
+    "listLabel": "Journal entries, oldest first",
     "loadOlder": "Load older",
     "follow": "Follow",
+    "followNeedsNow": "Following needs a range that runs to now.",
+    "live": "Following live",
+    "paused": "Paused while this tab is hidden",
+    "slowedDown": "The box is busy: next read in {seconds} s",
+    "count": "No line | 1 line | {count} lines",
+    "download": "Download",
+    "loading": "Reading the journal…",
     "empty": "No entry matches these filters.",
     "incomplete": "The box stopped searching before finding enough entries. Load older ones to go on.",
-    "masked": "Passwords and keys are masked where the box recognises them (best effort)."
+    "truncated": "This page was too large to send at once. Load older ones to get the rest.",
+    "start": "Start of the selected range.",
+    "capped": "{max} lines are shown, the most this page keeps. Narrow the filters to see older ones.",
+    "jump": "Jump to live",
+    "jumpCount": "Jump to live | 1 new line | {count} new lines",
+    "cut": "Message cut at 2 KB by the box",
+    "masked": "Passwords and keys are masked where the box recognises them (best effort).",
+    "haproxyHint": "haproxy sends its own log nowhere on the box: only its start and stop messages appear here."
 }
