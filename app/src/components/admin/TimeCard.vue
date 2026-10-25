@@ -118,13 +118,18 @@ const partialText = computed(() => {
 const loadText = computed(() =>
     time.error !== null && failure.value === null && time.unconfirmed === null ? errorText(time.error) : '',
 );
+/** Until then, the change may still land: no invitation to apply it again. */
+const settled = computed(() => time.unconfirmed !== 'unread' && (time.unconfirmed?.settled ?? true));
 const unconfirmedText = computed(() => {
     const read = time.unconfirmed;
     if (read === null) return '';
     if (read === 'unread') return t('admin.time.unconfirmed.unread');
     if (read.unchanged.length === 0) return t('admin.time.unconfirmed.changed', { changed: stepNames(read.changed) });
-    if (read.changed.length === 0) return t('admin.time.unconfirmed.unchanged');
-    return t('admin.time.partial', { applied: stepNames(read.changed), failed: stepNames(read.unchanged) });
+    const found =
+        read.changed.length === 0
+            ? t(read.settled ? 'admin.time.unconfirmed.unchanged' : 'admin.time.unconfirmed.unchangedSoFar')
+            : t('admin.time.partial', { applied: stepNames(read.changed), failed: stepNames(read.unchanged) });
+    return read.settled ? found : `${found} ${t('admin.time.unconfirmed.stillApplying')}`;
 });
 
 const kioskPresent = computed(() => {
@@ -302,7 +307,7 @@ onBeforeUnmount(() => {
             <p class="time__note-title">{{ t('admin.time.unconfirmed.title') }}</p>
             <p class="time__note-hint">{{ unconfirmedText }}</p>
             <div class="time__note-actions">
-                <AdminButton v-if="time.unconfirmed === 'unread'" variant="quiet" :disabled="busy" @click="time.checkAgain()">
+                <AdminButton v-if="!settled" variant="quiet" :disabled="busy" @click="time.checkAgain()">
                     {{ t('admin.time.unconfirmed.check') }}
                 </AdminButton>
                 <AdminButton v-else variant="quiet" @click="time.dismissUnconfirmed()">

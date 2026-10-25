@@ -47,10 +47,19 @@ describe('time store', () => {
         ok({ ...PARIS, timezone: 'UTC' });
         expect(await pending).toBeNull();
         expect(useAdminStore().gate).toBe('unlocked');
-        expect(time.unconfirmed).toEqual({ changed: ['timezone'], unchanged: ['ntp'], restartRequired: true });
+        expect(time.unconfirmed).toEqual({ changed: ['timezone'], unchanged: ['ntp'], restartRequired: true, settled: false });
         expect(time.restartRequired).toBe(true);
         expect(time.error).toBeNull();
         expect(harness.sent.map((frame) => frame.data.action)).toEqual(['time_set', 'time_get']);
+
+        // The daemon may still be on the ntp step: a missing one is read again before it counts.
+        vi.advanceTimersByTime(5_000);
+        expect(last().data.action).toBe('time_get');
+        ok({ ...PARIS, timezone: 'UTC' });
+        await flush();
+        expect(time.unconfirmed).toMatchObject({ unchanged: ['ntp'], settled: true });
+        vi.advanceTimersByTime(10_000);
+        expect(harness.sent.map((frame) => frame.data.action)).toEqual(['time_set', 'time_get', 'time_get']);
     });
 
     it('an unknown outcome the box cannot be read for waits for a check, still without resending', async () => {
@@ -70,7 +79,7 @@ describe('time store', () => {
         void time.checkAgain();
         ok({ ...PARIS, ntp: false, synchronized: false });
         await flush();
-        expect(time.unconfirmed).toEqual({ changed: ['ntp'], unchanged: [], restartRequired: false });
+        expect(time.unconfirmed).toEqual({ changed: ['ntp'], unchanged: [], restartRequired: false, settled: true });
         expect(time.restartRequired).toBe(false);
         expect(harness.sent.map((frame) => frame.data.action)).toEqual(['time_set', 'time_get', 'time_get']);
     });

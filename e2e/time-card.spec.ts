@@ -194,7 +194,13 @@ test('calaos_server stops waiting on a change that did not take: the card says n
     await openAdmin(page);
     await card(page).getByLabel(T.timezone).selectOption('UTC');
     await card(page).getByRole('button', { name: T.applyZone }).click();
-    await expect(card(page).locator('.time__unconfirmed')).toContainText(T.unconfirmed.unchanged);
+    // The first read may beat the daemon: no invitation to apply again until a later read.
+    const note = card(page).locator('.time__unconfirmed');
+    await expect(note).toContainText(T.unconfirmed.unchangedSoFar);
+    await expect(note).toContainText(T.unconfirmed.stillApplying);
+    await expect(note.getByRole('button', { name: T.unconfirmed.check })).toBeVisible();
+    await expect(note).toContainText(T.unconfirmed.unchanged);
+    await expect(note.getByRole('button', { name: T.unconfirmed.dismiss })).toBeVisible();
     await expect(card(page).locator('.time__restart')).toHaveCount(0);
     await expect(card(page).locator('.time__error')).toHaveCount(0);
     expect((await timeStatus(mock)).timezone).toBe('Europe/Paris');

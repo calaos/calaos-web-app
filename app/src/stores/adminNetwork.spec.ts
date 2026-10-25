@@ -383,4 +383,18 @@ describe('network store', () => {
         expect(network.finished).toEqual({ changeId: '5d0c8e1f2a3b4c6d', intf: 'eth0', state: 'confirmed' });
         expect(harness.sent.map((frame) => frame.data.action)).toEqual(['network_confirm']);
     });
+
+    it('a go back with no answer, kept meanwhile by another session, ends as kept', async () => {
+        await unlocked();
+        const network = useAdminNetworkStore();
+        void network.load();
+        ok({ interfaces: [], pending: { change_id: '5d0c8e1f2a3b4c6d', intf: 'eth0', applied_at: '2026-10-25T09:12:03Z', expires_in: 100 } });
+        await flush();
+        const reverted = network.revert();
+        network.handleEvent(event('network_applied', { intf: 'eth0', change_id: '5d0c8e1f2a3b4c6d' }));
+        fail('daemon_unreachable', { outcome: 'unknown' });
+        expect(await reverted).toBeNull();
+        expect(network.pending).toBeNull();
+        expect(network.finished).toEqual({ changeId: '5d0c8e1f2a3b4c6d', intf: 'eth0', state: 'confirmed' });
+    });
 });

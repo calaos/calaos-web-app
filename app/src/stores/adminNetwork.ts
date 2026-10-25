@@ -21,6 +21,11 @@ import {
     toNetworkState,
 } from '../protocol/admin-network';
 import type { NetInterface, NetworkChange, NetworkFinished } from '../protocol/admin-network';
+import { isPanelError } from '../protocol/admin';
+import type { AdminError, CodeProof } from '../protocol/admin';
+import type { AdminEventMessage } from '../protocol/types';
+import { useAdminStore } from './admin';
+import { useApproversStore } from './approvers';
 
 /** How this client's last change ended; `not_applied` is an apply with no answer that did not take. */
 export interface NetworkOutcome {
@@ -28,11 +33,6 @@ export interface NetworkOutcome {
     intf: string;
     state: NetworkFinished['state'] | 'not_applied';
 }
-import { isPanelError } from '../protocol/admin';
-import type { AdminError, CodeProof } from '../protocol/admin';
-import type { AdminEventMessage } from '../protocol/types';
-import { useAdminStore } from './admin';
-import { useApproversStore } from './approvers';
 
 /** The action may have happened: the box went quiet, or calaos_server gave up on it. */
 function isUnanswered(error: AdminError): boolean {
@@ -215,6 +215,12 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
         finishing = '';
         const kept = keptMeanwhile === current.changeId;
         keptMeanwhile = '';
+        // The box already said it was kept: the lost reply changes nothing.
+        if (!outcome.ok && kept && isUnanswered(outcome.error)) {
+            if (pending.value?.changeId === current.changeId) pending.value = null;
+            finished.value = { changeId: current.changeId, intf: current.intf, state: 'confirmed' };
+            return null;
+        }
         if (!outcome.ok && outcome.error.outcomeUnknown) {
             await load();
             // Still on trial: nothing happened, the buttons are back. Gone and
@@ -226,12 +232,6 @@ export const useAdminNetworkStore = defineStore('adminNetwork', () => {
                     state: action === 'network_confirm' ? 'confirmed' : 'reverted',
                 };
             }
-            return null;
-        }
-        // The box already said it was kept: the lost reply changes nothing.
-        if (!outcome.ok && kept && isUnanswered(outcome.error)) {
-            if (pending.value?.changeId === current.changeId) pending.value = null;
-            finished.value = { changeId: current.changeId, intf: current.intf, state: 'confirmed' };
             return null;
         }
         if (!outcome.ok) {
