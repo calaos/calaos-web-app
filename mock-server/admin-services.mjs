@@ -17,7 +17,7 @@ const TABLE = [
     ['hue2mqtt', 'hue2mqtt.service', 'service', true],
     ['envoy', 'envoy.service', 'service', true],
     ['olad', 'olad.service', 'service', true],
-    ['timesyncd', 'systemd-timesyncd.service', 'service', true],
+    ['ntp', 'chrony.service', 'service', true],
     ['calaos-ddns', 'calaos-ddns.service', 'oneshot', true],
     ['calaos-container', 'calaos-container.service', 'service', false],
     ['haproxy', 'haproxy.service', 'service', false],

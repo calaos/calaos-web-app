@@ -1,6 +1,6 @@
 // `time_get` / `time_zones` / `time_set` (calaos_base docs/08_http_api.md,
 // "Heure de la box"). NO Vue imports. The NTP client of Calaos OS is
-// systemd-timesyncd.
+// chrony.
 
 import { isRecord, toWireString } from './guards';
 import { toBool } from './admin';
@@ -16,7 +16,7 @@ export interface BoxTime {
     /** RFC 3339 UTC. */
     now: string;
     timezone: string;
-    /** timesyncd is enabled. */
+    /** The NTP client is enabled. */
     ntp: boolean;
     synchronized: boolean;
     /** The hardware clock; '' when the box has none. */
