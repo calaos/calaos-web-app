@@ -69,4 +69,35 @@ describe('ApproversPanel', () => {
         expect(wrapper.findAll('.approvers__choice')[1].find('.approvers__check').exists()).toBe(true);
         expect((choices[1].find('input').element as HTMLInputElement).checked).toBe(true);
     });
+
+    it('shows whether codes reach each approver in the app, with an update hint when not', async () => {
+        const wrapper = mountPanel();
+        const base = { createdAt: '', platform: 'ios', registeredAt: '', lastSeen: new Date().toISOString() };
+        useApproversStore().approvers = [
+            { ...base, id: '1111111111111111', deviceName: 'A', tokenId: 'aaaaaaaaaaaaaaaa', secure: true },
+            { ...base, id: '2222222222222222', deviceName: 'B', tokenId: 'bbbbbbbbbbbbbbbb', secure: false },
+        ];
+        await flushPromises();
+        const rows = wrapper.findAll('.approvers__row');
+        expect(rows[0].find('.approvers__badge').text()).toBe('Code shown in the app');
+        expect(rows[0].text()).not.toContain('Update the Calaos app');
+        expect(rows[1].find('.approvers__badge').classes()).toContain('approvers__badge--plain');
+        expect(rows[1].text()).toContain('Update the Calaos app');
+    });
+
+    it('shows `secure` on enrolment candidates', async () => {
+        const wrapper = mountPanel();
+        const approvers = useApproversStore();
+        approvers.approvers = [];
+        (wrapper.vm as unknown as { openAdd: () => void }).openAdd();
+        approvers.candidates = [
+            { tokenId: 'a1b2c3d4e5f60718', deviceName: 'A', platform: 'ios', registeredAt: '', lastSeen: '', approver: false, secure: true },
+            { tokenId: '9f8e7d6c5b4a3921', deviceName: 'B', platform: 'ios', registeredAt: '', lastSeen: '', approver: false, secure: false },
+        ];
+        await flushPromises();
+        const choices = wrapper.findAll('.approvers__choice');
+        expect(choices[0].find('.approvers__badge').text()).toBe('Code shown in the app');
+        expect(choices[1].find('.approvers__badge').text()).toBe('Code in the notification');
+        expect(choices[1].text()).toContain('Update the Calaos app');
+    });
 });

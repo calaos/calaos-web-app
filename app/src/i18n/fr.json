@@ -368,6 +368,11 @@
             "retry": "Réessayer",
             "enrolled": "Téléphone approbateur ajouté.",
             "removed": "Téléphone approbateur retiré.",
+            "secure": {
+                "on": "Code affiché dans l’application",
+                "off": "Code dans la notification",
+                "hint": "Mettez à jour l’application Calaos sur ce téléphone et ouvrez-la : les codes s’afficheront alors dans l’application, plus dans la notification."
+            },
             "platform": {
                 "ios": "iPhone ou iPad",
                 "android": "Android",
