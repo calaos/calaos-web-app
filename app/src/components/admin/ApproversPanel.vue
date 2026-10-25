@@ -10,6 +10,8 @@ import IconAndroid from '~icons/mdi/android';
 import IconApple from '~icons/mdi/apple';
 import IconCellphone from '~icons/mdi/cellphone';
 import IconCheckCircle from '~icons/mdi/check-circle';
+import IconLock from '~icons/mdi/lock';
+import IconLockOpenVariant from '~icons/mdi/lock-open-variant';
 import { APPROVER_MAX } from '../../protocol/admin';
 import type { Approver, ApproverCandidate } from '../../protocol/admin';
 import { useAdminStore } from '../../stores/admin';
@@ -168,6 +170,11 @@ async function submitCode(code: string): Promise<void> {
                         {{ platformLabel(approver.platform) }}.
                         {{ t('admin.approvers.added', { date: day(approver.createdAt) }) }}
                     </span>
+                    <span class="approvers__badge" :class="{ 'approvers__badge--plain': !approver.secure }">
+                        <component :is="approver.secure ? IconLock : IconLockOpenVariant" aria-hidden="true" />
+                        {{ t(approver.secure ? 'admin.approvers.secure.on' : 'admin.approvers.secure.off') }}
+                    </span>
+                    <span v-if="!approver.secure" class="approvers__meta">{{ t('admin.approvers.secure.hint') }}</span>
                     <span v-if="freshness(approver.lastSeen) === 'ok'" class="approvers__meta">
                         {{ t('admin.approvers.lastSeen', { when: ago(approver.lastSeen) }) }}
                     </span>
@@ -272,6 +279,11 @@ async function submitCode(code: string): Promise<void> {
                                 {{ platformLabel(candidate.platform) }}.
                                 {{ t('admin.approvers.registered', { date: day(candidate.registeredAt) }) }}
                             </span>
+                            <span class="approvers__badge" :class="{ 'approvers__badge--plain': !candidate.secure }">
+                                <component :is="candidate.secure ? IconLock : IconLockOpenVariant" aria-hidden="true" />
+                                {{ t(candidate.secure ? 'admin.approvers.secure.on' : 'admin.approvers.secure.off') }}
+                            </span>
+                            <span v-if="!candidate.secure" class="approvers__meta">{{ t('admin.approvers.secure.hint') }}</span>
                             <span class="approvers__meta">
                                 <template v-if="candidate.approver">{{ t('admin.approvers.pick.already') }}</template>
                                 <template v-else>{{ t('admin.approvers.lastSeen', { when: ago(candidate.lastSeen) }) }}</template>
@@ -396,6 +408,24 @@ async function submitCode(code: string): Promise<void> {
     color: var(--c-text-muted);
     font-size: 0.875rem;
     line-height: 1.4;
+}
+
+.approvers__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    justify-self: start;
+    color: var(--c-success);
+    font-size: 0.8125rem;
+}
+
+.approvers__badge svg {
+    inline-size: 1rem;
+    block-size: 1rem;
+}
+
+.approvers__badge--plain {
+    color: var(--c-warn);
 }
 
 .approvers__meta--warn {

@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { LOG_SOURCE_IDS, logQueryParams, logQueryProblem, priorityName, toLogPage, toLogSources } from './admin-logs';
+import {
+    LOG_SOURCE_IDS,
+    logEntryLine,
+    logQueryParams,
+    logQueryProblem,
+    logsFileName,
+    logsText,
+    priorityName,
+    toLogPage,
+    toLogSources,
+} from './admin-logs';
 
 describe('logs codec', () => {
     it('reads the sources, dropping entries without an id', () => {
@@ -67,5 +77,20 @@ describe('logs codec', () => {
         expect(priorityName(0)).toBe('emerg');
         expect(priorityName(4)).toBe('warning');
         expect(priorityName(9)).toBe('debug');
+    });
+
+    it('writes the shown rows as text, one per entry', () => {
+        const page = toLogPage({
+            entries: [
+                { cursor: 'a', ts: '2026-10-25T08:12:03.412Z', source: 'calaos-server', unit: 'u', priority: 3, pid: 812, message: 'one\ntwo' },
+                { cursor: 'b', ts: '2026-10-25T08:12:04.000Z', source: 'kernel', unit: 'kernel', priority: 6, message: 'x', cut: true },
+            ],
+        });
+        expect(logEntryLine(page.entries[0])).toBe('2026-10-25T08:12:03.412Z calaos-server[812] err: one\n    two');
+        expect(logsText(page.entries)).toBe(
+            '2026-10-25T08:12:03.412Z calaos-server[812] err: one\n    two\n2026-10-25T08:12:04.000Z kernel info: x […]\n',
+        );
+        expect(logsText([])).toBe('');
+        expect(logsFileName(new Date(2026, 9, 5, 7, 3))).toBe('calaos-logs-20261005-0703.txt');
     });
 });

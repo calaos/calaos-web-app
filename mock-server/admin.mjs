@@ -174,9 +174,9 @@ function iso(ms) {
 function defaultPushTokens(now) {
     const day = 86_400_000;
     return [
-        { token_id: '0c1d2e3f4a5b6c7d', device_name: 'Pixel 8', platform: 'android', registered_at: iso(now - 90 * day), last_seen: iso(now - 10 * 60_000) },
-        { token_id: 'a1b2c3d4e5f60718', device_name: 'iPhone', platform: 'ios', registered_at: iso(now - 200 * day), last_seen: iso(now - 2 * 3_600_000) },
-        { token_id: '9f8e7d6c5b4a3921', device_name: 'iPhone', platform: 'ios', registered_at: iso(now - 30 * day), last_seen: iso(now - 3 * day) },
+        { token_id: '0c1d2e3f4a5b6c7d', device_name: 'Pixel 8', platform: 'android', registered_at: iso(now - 90 * day), last_seen: iso(now - 10 * 60_000), secure: true },
+        { token_id: 'a1b2c3d4e5f60718', device_name: 'iPhone', platform: 'ios', registered_at: iso(now - 200 * day), last_seen: iso(now - 2 * 3_600_000), secure: false },
+        { token_id: '9f8e7d6c5b4a3921', device_name: 'iPhone', platform: 'ios', registered_at: iso(now - 30 * day), last_seen: iso(now - 3 * day), secure: false },
     ];
 }
 
@@ -409,6 +409,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 platform: entry?.platform ?? '',
                 registered_at: entry?.registered_at ?? '',
                 last_seen: entry?.last_seen ?? '',
+                secure: entry?.secure === true,
             };
         });
     }

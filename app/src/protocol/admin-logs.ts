@@ -162,3 +162,22 @@ export function logQueryProblem(query: LogQuery): string {
 export function priorityName(priority: number): LogPriorityName {
     return LOG_PRIORITIES[Math.min(7, Math.max(0, Math.trunc(priority)))];
 }
+
+/** One row as the downloaded file has it: UTC time, source, level, pid, message. */
+export function logEntryLine(entry: LogEntry): string {
+    const pid = entry.pid === null ? '' : `[${entry.pid}]`;
+    // A message may hold newlines (stack dumps): indent them under their row.
+    const message = entry.message.replace(/\r?\n/g, '\n    ');
+    return `${entry.ts} ${entry.source}${pid} ${priorityName(entry.priority)}: ${message}${entry.cut ? ' […]' : ''}`;
+}
+
+export function logsText(entries: readonly LogEntry[]): string {
+    return entries.map(logEntryLine).join('\n') + (entries.length > 0 ? '\n' : '');
+}
+
+/** `calaos-logs-20261025-0912.txt`, in the browser's local time. */
+export function logsFileName(at: Date): string {
+    const two = (n: number) => String(n).padStart(2, '0');
+    const day = `${at.getFullYear()}${two(at.getMonth() + 1)}${two(at.getDate())}`;
+    return `calaos-logs-${day}-${two(at.getHours())}${two(at.getMinutes())}.txt`;
+}

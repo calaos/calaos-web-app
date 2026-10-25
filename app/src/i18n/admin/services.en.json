@@ -28,10 +28,29 @@
         "networkd": "Network",
         "ssh": "SSH"
     },
-    "since": "since {when}",
+    "since": "started {when}",
     "restart": "Restart",
     "runNow": "Run now",
     "statusOnly": "Status only",
     "restarting": "Restarting…",
-    "selfRestartWarning": "Restarting Calaos server disconnects this page for about 30 seconds. It reconnects by itself."
+    "selfRestartWarning": "Restarting Calaos server disconnects this page for about 30 seconds. It reconnects by itself.",
+    "loading": "Reading the services…",
+    "loadFailed": "The list of services could not be read.",
+    "retry": "Try again",
+    "lastRun": "last run {when}",
+    "confirmTitle": "Restart {name}?",
+    "runTitle": "Run {name} now?",
+    "confirmHint": "It stops for a few seconds and starts again. Whatever relies on it waits meanwhile.",
+    "runHint": "It runs once now instead of waiting for its next scheduled run.",
+    "reconnecting": "Reconnecting…",
+    "selfRestarting": "Calaos server is restarting. This page reconnects by itself, then checks that it came back.",
+    "upgrading": "An update is running: restarts wait until it ends.",
+    "result": {
+        "done": "Restarted.",
+        "ran": "Ran.",
+        "failed": "It did not start again. Its logs tell why.",
+        "not_found": "This service is not installed on the box.",
+        "timeout": "No confirmation after {seconds} seconds. Check its state above.",
+        "upgrade_in_progress": "An update is running. Restart it once the update has ended."
+    }
 }

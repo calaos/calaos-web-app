@@ -110,6 +110,12 @@ describe('services', () => {
         expect((await ask('services_restart', { unit: 'Mosquitto.service' })).error).toBe('invalid_request');
     });
 
+    it('refuses every restart while told an upgrade runs', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', services: { upgradeInProgress: true } });
+        expect((await ask('services_restart', { unit: 'mosquitto' })).error).toBe('upgrade_in_progress');
+    });
+
     it('drops every socket when calaos-server restarts', async () => {
         const { ws, ask } = await session();
         await control({ op: 'admin', services: { restartMs: 50 } });
