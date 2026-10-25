@@ -40,6 +40,7 @@ describe('ApproversPanel', () => {
                 platform: 'android',
                 registeredAt: '',
                 lastSeen: new Date().toISOString(),
+                secure: false,
             },
         ];
         await flushPromises();
@@ -56,8 +57,8 @@ describe('ApproversPanel', () => {
         approvers.approvers = [];
         (wrapper.vm as unknown as { openAdd: () => void }).openAdd();
         approvers.candidates = [
-            { tokenId: 'a1b2c3d4e5f60718', deviceName: RTL_NAME, platform: 'ios', registeredAt: '', lastSeen: '', approver: false },
-            { tokenId: '9f8e7d6c5b4a3921', deviceName: 'iPhone', platform: 'ios', registeredAt: '', lastSeen: '', approver: false },
+            { tokenId: 'a1b2c3d4e5f60718', deviceName: RTL_NAME, platform: 'ios', registeredAt: '', lastSeen: '', approver: false, secure: false },
+            { tokenId: '9f8e7d6c5b4a3921', deviceName: 'iPhone', platform: 'ios', registeredAt: '', lastSeen: '', approver: false, secure: false },
         ];
         await flushPromises();
         const choices = wrapper.findAll('.approvers__choice');

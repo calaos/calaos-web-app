@@ -24,7 +24,13 @@
 //                               failAtPercent, rebootRequired, clearSessions,
 //                               pushTokens, approvers (token_ids), codeTtlMs,
 //                               codeIntervalMs, expireCodes, alerts,
-//                               noiseEvents
+//                               noiseEvents; and one object per phase-3
+//                               feature: services {restartMs, fail, state,
+//                               dropOnSelfRestart}, logs {live,
+//                               rateLimitNext, failNext}, time {offsetMs,
+//                               timezone, ntp, synchronized, rtc, failStep},
+//                               config {hostname, values}, network
+//                               {confirmMs, dropOnApply, expire, pending}
 //   {op:'admin_status'}         the fake daemon's state and counters
 //   {op:'console', ...patch}    the echo console (console.mjs `configure`):
 //                               close (a close code for every open console) with reason (its reason text),

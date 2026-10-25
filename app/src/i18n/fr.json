@@ -344,6 +344,7 @@
             "unknown": "Réponse inattendue de la box. {msg}",
             "household_refused": "Le mot de passe de connexion n’a pas pu être changé. Déconnectez-vous puis reconnectez-vous, et réessayez.",
             "console_limit": "{max} consoles sont déjà ouvertes sur la box, le maximum. Fermez-en une d’abord.",
+            "network_pending": "Un changement réseau attend déjà sa confirmation. Confirmez-le ou annulez-le d’abord.",
             "login_failed": "La box a refusé votre connexion. Reconnectez-vous."
         },
         "approvers": {
@@ -422,6 +423,10 @@
             "console": {
                 "title": "Ouvrir la console",
                 "hint": "Saisissez le code reçu sur {phone} pour ouvrir un shell root sur la box."
+            },
+            "network": {
+                "title": "Confirmer le changement réseau",
+                "hint": "Saisissez le code reçu sur {phone} pour appliquer les nouveaux réglages réseau."
             }
         },
         "alerts": {

@@ -1,0 +1,10 @@
+{
+    "title": "Box time",
+    "timezone": "Time zone",
+    "ntp": "Set the time automatically (NTP)",
+    "synchronized": "Synchronized",
+    "notSynchronized": "Not synchronized",
+    "drift": "The box is {seconds} s off from this device.",
+    "setFromDevice": "Set from this device",
+    "restartRequired": "The new time zone is used once Calaos server is restarted."
+}

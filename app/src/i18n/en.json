@@ -344,6 +344,7 @@
             "unknown": "Unexpected answer from the box. {msg}",
             "household_refused": "Your sign-in password could not be changed. Sign out and back in, then try again.",
             "console_limit": "{max} consoles are already open on the box, the most it allows. Close one first.",
+            "network_pending": "A network change is already waiting to be confirmed. Confirm or revert it first.",
             "login_failed": "The box refused your sign-in. Sign in again."
         },
         "approvers": {
@@ -422,6 +423,10 @@
             "console": {
                 "title": "Open the console",
                 "hint": "Enter the code received on {phone} to open a root shell on the box."
+            },
+            "network": {
+                "title": "Confirm the network change",
+                "hint": "Enter the code received on {phone} to apply the new network settings."
             }
         },
         "alerts": {

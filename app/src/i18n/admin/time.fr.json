@@ -1,0 +1,10 @@
+{
+    "title": "Heure de la box",
+    "timezone": "Fuseau horaire",
+    "ntp": "Régler l’heure automatiquement (NTP)",
+    "synchronized": "Synchronisée",
+    "notSynchronized": "Non synchronisée",
+    "drift": "La box a {seconds} s d’écart avec cet appareil.",
+    "setFromDevice": "Régler depuis cet appareil",
+    "restartRequired": "Le nouveau fuseau est pris en compte après un redémarrage du serveur Calaos."
+}

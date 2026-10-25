@@ -1,0 +1,37 @@
+{
+    "title": "Services",
+    "hint": "The programs that make up the box. Restarting one interrupts it for a few seconds.",
+    "state": {
+        "active": "Running",
+        "inactive": "Stopped",
+        "failed": "Failed",
+        "activating": "Starting",
+        "deactivating": "Stopping",
+        "reloading": "Reloading",
+        "not-found": "Not installed",
+        "unknown": "Unknown"
+    },
+    "name": {
+        "calaos-server": "Calaos server",
+        "calaos-home": "Calaos Home (touch screen)",
+        "mosquitto": "Mosquitto (MQTT)",
+        "zigbee2mqtt": "Zigbee2MQTT",
+        "influxdb": "InfluxDB",
+        "grafana": "Grafana",
+        "hue2mqtt": "hue2mqtt",
+        "envoy": "Envoy",
+        "olad": "OLA (DMX)",
+        "timesyncd": "Time sync",
+        "calaos-ddns": "Calaos DDNS",
+        "calaos-container": "calaos-container",
+        "haproxy": "haproxy",
+        "networkd": "Network",
+        "ssh": "SSH"
+    },
+    "since": "since {when}",
+    "restart": "Restart",
+    "runNow": "Run now",
+    "statusOnly": "Status only",
+    "restarting": "Restarting…",
+    "selfRestartWarning": "Restarting Calaos server disconnects this page for about 30 seconds. It reconnects by itself."
+}

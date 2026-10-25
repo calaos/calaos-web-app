@@ -1,0 +1,37 @@
+{
+    "title": "Services",
+    "hint": "Les programmes qui composent la box. En redémarrer un l’interrompt quelques secondes.",
+    "state": {
+        "active": "En marche",
+        "inactive": "Arrêté",
+        "failed": "En échec",
+        "activating": "Démarrage",
+        "deactivating": "Arrêt",
+        "reloading": "Rechargement",
+        "not-found": "Non installé",
+        "unknown": "Inconnu"
+    },
+    "name": {
+        "calaos-server": "Serveur Calaos",
+        "calaos-home": "Calaos Home (écran tactile)",
+        "mosquitto": "Mosquitto (MQTT)",
+        "zigbee2mqtt": "Zigbee2MQTT",
+        "influxdb": "InfluxDB",
+        "grafana": "Grafana",
+        "hue2mqtt": "hue2mqtt",
+        "envoy": "Envoy",
+        "olad": "OLA (DMX)",
+        "timesyncd": "Synchronisation de l’heure",
+        "calaos-ddns": "Calaos DDNS",
+        "calaos-container": "calaos-container",
+        "haproxy": "haproxy",
+        "networkd": "Réseau",
+        "ssh": "SSH"
+    },
+    "since": "depuis {when}",
+    "restart": "Redémarrer",
+    "runNow": "Lancer maintenant",
+    "statusOnly": "État seulement",
+    "restarting": "Redémarrage…",
+    "selfRestartWarning": "Redémarrer le serveur Calaos déconnecte cette page une trentaine de secondes. Elle se reconnecte d’elle-même."
+}

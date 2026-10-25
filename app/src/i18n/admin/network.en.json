@@ -1,0 +1,11 @@
+{
+    "title": "Network",
+    "open": "Network",
+    "openHint": "The box’s address and its network settings.",
+    "dhcp": "Automatic (DHCP)",
+    "static": "Manual",
+    "pending": "Confirm the change within {seconds} s, or the box goes back to its previous settings.",
+    "confirm": "Keep these settings",
+    "revert": "Go back",
+    "rolledBack": "The network change on {intf} was not confirmed in time and was rolled back."
+}
