@@ -16,7 +16,7 @@
         "envoy": "Envoy",
         "calaos-container": "calaos-container",
         "olad": "OLA (olad)",
-        "timesyncd": "Time sync",
+        "ntp": "Time sync",
         "calaos-ddns": "Calaos DDNS",
         "networkd": "Network",
         "ssh": "SSH",

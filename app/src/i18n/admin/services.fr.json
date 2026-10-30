@@ -22,7 +22,7 @@
         "hue2mqtt": "hue2mqtt",
         "envoy": "Envoy",
         "olad": "OLA (DMX)",
-        "timesyncd": "Synchronisation de l’heure",
+        "ntp": "Synchronisation de l’heure",
         "calaos-ddns": "Calaos DDNS",
         "calaos-container": "calaos-container",
         "haproxy": "haproxy",
