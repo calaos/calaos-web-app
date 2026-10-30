@@ -10,7 +10,8 @@
         "submitting": "Connexion…",
         "error": "Nom d’utilisateur ou mot de passe incorrect.",
         "offline": "Aucune connexion à Calaos",
-        "offlineHint": "La connexion devient possible dès que le serveur répond."
+        "offlineHint": "La connexion devient possible dès que le serveur répond.",
+        "restoredHousehold": "La configuration restaurée a sa propre connexion : utilisez le mot de passe du foyer de la sauvegarde."
     },
     "home": {
         "title": "Pièces",

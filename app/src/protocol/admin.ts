@@ -16,6 +16,8 @@ export const UPDATE_CHECK_TIMEOUT_MS = 125_000;
 export const SYSTEM_RESTART_TIMEOUT_MS = 35_000;
 export const LOGS_QUERY_TIMEOUT_MS = 12_000;
 export const TIME_SET_TIMEOUT_MS = 40_000;
+/** The upload of up to 4 MiB, then the validation and the copy of the current files. */
+export const CONFIG_RESTORE_TIMEOUT_MS = 35_000;
 /** `networkctl` can take up to 30 s; calaos_server waits 35 s. */
 export const NETWORK_CHANGE_TIMEOUT_MS = 40_000;
 /** `admin_unavailable`: retry every 5 s for 2 min, then every 60 s. */
@@ -145,6 +147,7 @@ export const ADMIN_ACTIONS = [
     'config_list',
     'config_set',
     'config_backup',
+    'config_restore',
 ] as const;
 
 export type AdminAction = (typeof ADMIN_ACTIONS)[number];
@@ -241,6 +244,8 @@ export function adminReplyTimeoutMs(action: AdminAction): number {
             return LOGS_QUERY_TIMEOUT_MS;
         case 'time_set':
             return TIME_SET_TIMEOUT_MS;
+        case 'config_restore':
+            return CONFIG_RESTORE_TIMEOUT_MS;
         case 'network_apply':
         case 'network_confirm':
         case 'network_revert':

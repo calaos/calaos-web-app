@@ -64,8 +64,17 @@ const props = withDefaults(
         confirmDisabled?: boolean;
         /** 35rem instead of 22rem, for a body that is a view rather than a form. */
         wide?: boolean;
+        /** For what cannot be undone from here: the filament and the primary button turn red. */
+        danger?: boolean;
     }>(),
-    { eyebrow: '', confirmLabel: undefined, cancelLabel: undefined, confirmDisabled: false, wide: false },
+    {
+        eyebrow: '',
+        confirmLabel: undefined,
+        cancelLabel: undefined,
+        confirmDisabled: false,
+        wide: false,
+        danger: false,
+    },
 );
 
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
@@ -177,7 +186,7 @@ watch(
             <div
                 ref="panel"
                 class="base-dialog__panel fade-in-up"
-                :class="{ 'base-dialog__panel--wide': wide }"
+                :class="{ 'base-dialog__panel--wide': wide, 'base-dialog__panel--danger': danger }"
                 role="dialog"
                 aria-modal="true"
                 :aria-labelledby="titleId"
@@ -365,6 +374,28 @@ watch(
     color: var(--c-text-muted);
     box-shadow: none;
     cursor: not-allowed;
+}
+
+.base-dialog__panel--danger::before {
+    background-image: linear-gradient(
+        90deg,
+        transparent,
+        var(--c-danger) 30%,
+        var(--c-danger) 70%,
+        transparent
+    );
+    box-shadow: 0 0 12px rgba(224, 86, 86, 0.45);
+}
+
+.base-dialog__panel--danger .base-dialog__button--primary:not(:disabled) {
+    background-color: var(--c-danger);
+    /* Near-black, as on cyan: white is under 4.5:1 on this red. */
+    color: #2a0808;
+    box-shadow: 0 0 18px rgba(224, 86, 86, 0.35);
+}
+
+.base-dialog__panel--danger .base-dialog__button--primary:hover:not(:disabled) {
+    background-color: var(--c-danger-text);
 }
 
 @media (prefers-reduced-motion: reduce) {

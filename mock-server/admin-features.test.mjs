@@ -74,7 +74,7 @@ async function session() {
     const unlocked = await raw('admin_unlock', { admin_pass: 'correct horse battery' });
     const token = unlocked.admin_session;
     const ask = (action, params) => raw('admin', { action, admin_session: token, ...(params === undefined ? {} : { params }) });
-    return { ws, ask, token, waitFor, frames };
+    return { ws, raw, ask, token, waitFor, frames };
 }
 
 describe('services', () => {
@@ -248,11 +248,34 @@ describe('config', () => {
         expect(ok.headers.get('cache-control')).toBe('no-store');
         expect(ok.headers.get('x-content-type-options')).toBe('nosniff');
         const doc = await ok.json();
-        expect(doc.format).toBe('calaos-config-backup/1');
-        expect(Object.keys(doc.files).sort()).toEqual(['io.xml', 'local_config.xml', 'rules.xml', 'widgets.xml']);
+        expect(doc.format).toBe('calaos-config-backup/2');
+        expect(doc.io_format).toBe(2);
+        expect(Object.keys(doc.files).sort()).toEqual(['io.xml', 'local_config.xml', 'rules.xml']);
         const refused = await post({ action: 'config_backup', cn_user: 'demo', cn_pass: 'demo', admin_session: 'f'.repeat(64) });
         expect(refused.headers.get('content-disposition')).toBeNull();
         expect(await refused.json()).toMatchObject({ success: 'false', error: 'bad_session' });
+    });
+
+    it('validates a restore before the session, previews it, then restarts once', async () => {
+        const { raw, ask } = await session();
+        const IO = '<?xml version="1.0"?><calaos:ioconfig xmlns:calaos="http://www.calaos.fr" format="2"/>';
+        const RULES = '<?xml version="1.0"?><calaos:rules xmlns:calaos="http://www.calaos.fr"/>';
+        const refused = await raw('admin', {
+            action: 'config_restore',
+            admin_session: 'f'.repeat(64),
+            params: { files: { 'io.xml': 'nope', 'rules.xml': RULES } },
+        });
+        expect(refused).toMatchObject({ success: 'false', error: 'invalid_request' });
+        const newer = await ask('config_restore', { files: { 'io.xml': IO.replace('"2"', '"3"'), 'rules.xml': RULES } });
+        expect(newer).toMatchObject({ success: 'false', error: 'invalid_request' });
+
+        const preview = await ask('config_restore', { files: { 'io.xml': IO, 'rules.xml': RULES }, dry_run: true });
+        expect(preview.result).toMatchObject({ dry_run: true, warnings: ['no_local_config'] });
+        expect(preview.result.previous).toBeUndefined();
+
+        const done = await ask('config_restore', { files: { 'io.xml': IO, 'rules.xml': RULES } });
+        expect(done.result).toMatchObject({ dry_run: false, restarting: true });
+        expect(done.result.previous).toMatch(/^\d{4}\//);
     });
 
     it('serves get_mcp_info with the session in the body, and a new token after mcp_regenerate', async () => {

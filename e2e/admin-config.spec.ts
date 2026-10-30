@@ -1,9 +1,9 @@
 // The Settings page against the mock's registry: one editor per type,
 // the registry's refusal under its row, a write-only secret, the restart
-// notice, and the backup download with its file name and JSON shape.
+// notice, the backup zip and the restore of one across the restart it causes.
 
 import { readFile } from 'node:fs/promises';
-import { MESSAGES, adminScreen, expect, loginAs, test } from './fixtures';
+import { LOGIN_URL, MESSAGES, adminScreen, expect, loginAs, loginForm, test } from './fixtures';
 import type { ControlOp, MockControl } from './fixtures';
 import type { Page } from '@playwright/test';
 import cfg from '../app/src/i18n/admin/config.en.json';
@@ -14,6 +14,7 @@ interface ConfigStatus {
     values: Record<string, string>;
     sets: string[];
     backups: number;
+    restores: { dry_run: boolean; files: string[] }[];
 }
 
 async function configStatus(mock: MockControl): Promise<ConfigStatus> {
@@ -50,6 +51,58 @@ async function openSettings(page: Page): Promise<void> {
 function row(page: Page, key: string) {
     return page.locator(`.config-row[data-key="${key}"]`);
 }
+
+function crc32(bytes: Buffer): number {
+    let crc = 0xffffffff;
+    for (const byte of bytes) {
+        crc ^= byte;
+        for (let bit = 0; bit < 8; bit += 1) crc = crc & 1 ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1;
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+/** Walks the local headers of a zip of stored entries, checking each CRC. */
+function storedEntries(zip: Buffer): Map<string, string> {
+    const entries = new Map<string, string>();
+    for (let at = 0; zip.readUInt32LE(at) === 0x04034b50; ) {
+        const method = zip.readUInt16LE(at + 8);
+        const crc = zip.readUInt32LE(at + 14);
+        const size = zip.readUInt32LE(at + 18);
+        const nameLength = zip.readUInt16LE(at + 26);
+        const start = at + 30 + nameLength + zip.readUInt16LE(at + 28);
+        const data = zip.subarray(start, start + size);
+        expect(method).toBe(0);
+        expect(crc32(data)).toBe(crc);
+        entries.set(zip.toString('latin1', at + 30, at + 30 + nameLength), data.toString('utf8'));
+        at = start + size;
+    }
+    return entries;
+}
+
+const IO_XML = '<?xml version="1.0"?>\n<calaos:ioconfig xmlns:calaos="http://www.calaos.fr" format="2"/>\n';
+const RULES_XML = '<?xml version="1.0"?>\n<calaos:rules xmlns:calaos="http://www.calaos.fr"/>\n';
+
+function localConfigXml(user: string, pass: string): string {
+    return (
+        '<?xml version="1.0"?>\n<calaos:config xmlns:calaos="http://www.calaos.fr">\n' +
+        `  <calaos:option name="cn_user" value="${user}"/>\n` +
+        `  <calaos:option name="cn_pass" value="${pass}"/>\n</calaos:config>\n`
+    );
+}
+
+function backupJson(files: Record<string, string>): { name: string; mimeType: string; buffer: Buffer } {
+    const doc = {
+        format: 'calaos-config-backup/2',
+        created_at: '2026-10-25T09:12:58Z',
+        server_version: '4.6.0',
+        hostname: 'maison',
+        io_format: 2,
+        files,
+    };
+    return { name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(doc)) };
+}
+
+const restoreRow = (page: Page) => page.locator('.config__row').nth(1);
 
 test('a switch and a list save as they change; a restart key raises the notice', async ({ page, mock }) => {
     // The registry also stores a bool as `1`.
@@ -155,7 +208,7 @@ test('a secret is written, never shown', async ({ page, mock }) => {
     expect((await configStatus(mock)).values.smtp_password).toBeUndefined();
 });
 
-test('the backup warns about its secrets, then downloads under the server name as JSON', async ({ page, mock }) => {
+test('the backup warns about its secrets, then downloads as a zip of five entries with valid CRCs', async ({ page, mock }) => {
     await patchAdmin(mock, { config: { hostname: 'Maison Box/../x' } });
     await openUnlocked(page);
     const backupRow = page.locator('.config__row').first();
@@ -178,21 +231,22 @@ test('the backup warns about its secrets, then downloads under the server name a
 
     const file = await download;
     const name = file.suggestedFilename();
-    expect(name).toMatch(/^calaos-backup-MaisonBox..x-\d{8}-\d{4}\.json$/);
+    expect(name).toMatch(/^calaos-backup-MaisonBox..x-\d{8}-\d{4}\.zip$/);
     await expect(backupRow).toContainText(name);
 
-    const path = await file.path();
-    const doc = JSON.parse(await readFile(path, 'utf8')) as Record<string, unknown>;
-    expect(Object.keys(doc).sort()).toEqual(['created_at', 'files', 'format', 'hostname', 'server_version']);
-    expect(doc.format).toBe('calaos-config-backup/1');
-    expect(doc.hostname).toBe('Maison Box/../x');
-    expect(doc.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
-    const stamp = String(doc.created_at).replace(/[-:]/g, '').replace('T', '-').slice(0, 13);
-    expect(name).toBe(`calaos-backup-MaisonBox..x-${stamp}.json`);
-    const files = doc.files as Record<string, unknown>;
-    expect(Object.keys(files).sort()).toEqual(['io.xml', 'local_config.xml', 'rules.xml', 'widgets.xml']);
-    for (const content of Object.values(files)) expect(typeof content).toBe('string');
-    expect(files['local_config.xml']).toContain('cn_pass');
+    const entries = storedEntries(await readFile(await file.path()));
+    expect([...entries.keys()]).toEqual(['io.xml', 'rules.xml', 'local_config.xml', 'calaos-backup.json', 'README.txt']);
+
+    const manifest = JSON.parse(entries.get('calaos-backup.json') ?? '') as Record<string, unknown>;
+    expect(manifest.format).toBe('calaos-backup/2');
+    expect(manifest.hostname).toBe('Maison Box/../x');
+    expect(manifest.io_format).toBe(2);
+    expect(manifest.files).toEqual(['io.xml', 'rules.xml', 'local_config.xml']);
+    expect(manifest.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    const stamp = String(manifest.created_at).replace(/[-:]/g, '').replace('T', '-').slice(0, 13);
+    expect(name).toBe(`calaos-backup-MaisonBox..x-${stamp}.zip`);
+    expect(entries.get('local_config.xml')).toContain('cn_pass');
+    expect(entries.get('README.txt')).toContain('ddns');
 });
 
 test('a backup refused for an ended session asks for the password again', async ({ page, mock }) => {
@@ -212,4 +266,116 @@ test('an older daemon: the settings page says to update the box, and the admin s
     await expect(adminScreen(page).adminPassword).toHaveCount(0);
     await expect(page.locator('.config__status--error')).toBeVisible();
     expect((await mock.adminActions()).filter((action) => action === 'config_list')).toHaveLength(1);
+});
+
+test('a restore shows the dry run, then restarts and tells where the previous files are', async ({ page, mock }) => {
+    await patchAdmin(mock, { config: { restore: { warnings: ['mcp_token_changes', 'ddns_changes', 'invalid_options', 'devices_removed'] } } });
+    await openUnlocked(page);
+
+    // The backup zip of this very box is the file a real user comes back with.
+    await page.locator('.config__row').first().getByRole('button', { name: cfg.backupConfirm }).click();
+    const download = page.waitForEvent('download');
+    await page.getByRole('dialog').getByRole('button', { name: cfg.backupConfirm }).click();
+    const zipPath = await (await download).path();
+
+    await restoreRow(page).locator('input[type="file"]').setInputFiles({
+        name: 'backup.zip',
+        mimeType: 'application/zip',
+        buffer: await readFile(zipPath),
+    });
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText(cfg.restoreBackup);
+    await expect(dialog.getByRole('rowheader', { name: cfg.restoreCount.ios })).toBeVisible();
+    await expect(dialog.getByRole('row', { name: cfg.restoreCount.ios })).toContainText('21');
+    await expect(dialog.getByRole('row', { name: cfg.restoreCount.ios })).toContainText('24');
+    for (const code of ['mcp_token_changes', 'ddns_changes', 'invalid_options', 'devices_removed']) {
+        await expect(dialog.locator(`[data-warning="${code}"]`)).toBeVisible();
+    }
+    await expect(dialog).toContainText(cfg.restoreKept);
+    expect((await configStatus(mock)).restores).toEqual([
+        { dry_run: true, files: ['io.xml', 'rules.xml', 'local_config.xml'] },
+    ]);
+
+    await dialog.getByRole('checkbox').uncheck();
+    await dialog.getByRole('button', { name: cfg.restoreConfirm }).click();
+
+    await expect(page.locator('.config__restart')).toHaveText(cfg.restoreRestarting);
+    await expect(page.locator('.config__restored')).toContainText(
+        'Configuration restored. The previous one is kept on the box (backups/2026/10/25-10-2026_17-14-15).',
+        { timeout: 15_000 },
+    );
+    const { restores, backups } = await configStatus(mock);
+    expect(restores.map((restore) => restore.dry_run)).toEqual([true, false]);
+    expect(backups).toBe(1);
+    await expect(page).not.toHaveURL(LOGIN_URL);
+});
+
+test('a restore downloads the current configuration first unless told not to', async ({ page, mock }) => {
+    await openUnlocked(page);
+    await restoreRow(page).locator('input[type="file"]').setInputFiles([
+        { name: 'io.xml', mimeType: 'text/xml', buffer: Buffer.from(IO_XML) },
+        { name: 'rules.xml', mimeType: 'text/xml', buffer: Buffer.from(RULES_XML) },
+    ]);
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.locator('[data-warning="no_local_config"]')).toBeVisible();
+    await expect(dialog).toContainText(cfg.restoreTitleBare);
+    await expect(dialog.getByRole('checkbox')).toBeChecked();
+
+    const download = page.waitForEvent('download');
+    await dialog.getByRole('button', { name: cfg.restoreConfirm }).click();
+    expect((await download).suggestedFilename()).toMatch(/\.zip$/);
+    await expect(page.locator('.config__restored')).toBeVisible({ timeout: 15_000 });
+    expect((await configStatus(mock)).backups).toBe(1);
+});
+
+test('the box refuses a backup: the dry run says why and nothing is restored', async ({ page, mock }) => {
+    await openUnlocked(page);
+    const refused = { 'io.xml': IO_XML.replace('format="2"', 'format="9"'), 'rules.xml': RULES_XML };
+    await restoreRow(page).locator('input[type="file"]').setInputFiles(backupJson(refused));
+    await expect(restoreRow(page).getByRole('alert')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect((await configStatus(mock)).restores).toEqual([]);
+});
+
+test('a file that is no backup is stopped in the browser, nothing sent', async ({ page, mock }) => {
+    await openUnlocked(page);
+    await restoreRow(page).locator('input[type="file"]').setInputFiles({
+        name: 'notes.zip',
+        mimeType: 'application/zip',
+        buffer: Buffer.from('these are not the files you are looking for'),
+    });
+    await expect(restoreRow(page).getByRole('alert')).toHaveText(cfg.restoreError.not_a_zip);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect((await configStatus(mock)).restores).toEqual([]);
+});
+
+test('a failed restore stays in the dialog and says so', async ({ page, mock }) => {
+    await patchAdmin(mock, { config: { restore: { fail: 'previous files in backups/2026/x' } } });
+    await openUnlocked(page);
+    await restoreRow(page).locator('input[type="file"]').setInputFiles(
+        backupJson({ 'io.xml': IO_XML, 'rules.xml': RULES_XML }),
+    );
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('checkbox').uncheck();
+    await dialog.getByRole('button', { name: cfg.restoreConfirm }).click();
+    await expect(dialog.getByRole('alert')).toContainText('previous files in backups/2026/x');
+    await expect(page.locator('.config__restart')).toHaveCount(0);
+});
+
+test('a changed household login sends the page to sign-in, which says why', async ({ page }) => {
+    await openUnlocked(page);
+    await restoreRow(page).locator('input[type="file"]').setInputFiles(
+        backupJson({ 'io.xml': IO_XML, 'rules.xml': RULES_XML, 'local_config.xml': localConfigXml('demo', 'from-the-backup') }),
+    );
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.locator('[data-warning="household_login_changes"]')).toBeVisible();
+    await dialog.getByRole('checkbox').uncheck();
+    await dialog.getByRole('button', { name: cfg.restoreConfirm }).click();
+
+    await expect(page).toHaveURL(LOGIN_URL, { timeout: 15_000 });
+    await expect(page.locator('#login-restored')).toHaveText(MESSAGES.login.restoredHousehold);
+    await loginAs(page, { user: 'demo', pass: 'from-the-backup' });
+    await expect(page).not.toHaveURL(LOGIN_URL);
+    await expect(loginForm(page).submit).toHaveCount(0);
 });

@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { backupFilename, configBackupBody, configSetParams, toConfigBackup, toConfigOptions, toConfigSetResult } from './admin-config';
+import {
+    MAX_WEBSOCKET_MESSAGE_BYTES,
+    configBackupBody,
+    configRestoreParams,
+    configSetParams,
+    isBackupDownload,
+    restoreFitsOneMessage,
+    toConfigBackup,
+    toConfigOptions,
+    toConfigRestoreResult,
+    toConfigSetResult,
+} from './admin-config';
 
 describe('config codec', () => {
     it('reads options, a secret never carrying a value', () => {
@@ -44,7 +55,8 @@ describe('config codec', () => {
 
     it('reads a backup document only in its format', () => {
         const doc = { format: 'calaos-config-backup/1', created_at: 'c', server_version: 'v', hostname: 'h', files: { 'io.xml': '<x/>', bad: 3 } };
-        expect(toConfigBackup(doc)).toEqual({ format: 'calaos-config-backup/1', createdAt: 'c', serverVersion: 'v', hostname: 'h', files: { 'io.xml': '<x/>' } });
+        expect(toConfigBackup(doc)).toEqual({ format: 'calaos-config-backup/1', createdAt: 'c', serverVersion: 'v', hostname: 'h', ioFormat: 0, files: { 'io.xml': '<x/>' } });
+        expect(toConfigBackup({ ...doc, format: 'calaos-config-backup/2', io_format: 2 })?.ioFormat).toBe(2);
         expect(toConfigBackup({ ...doc, format: 'other' })).toBeNull();
     });
 
@@ -52,12 +64,52 @@ describe('config codec', () => {
         expect(JSON.parse(configBackupBody('u', 'p', 'abc'))).toEqual({ action: 'config_backup', cn_user: 'u', cn_pass: 'p', admin_session: 'abc' });
     });
 
-    it('takes the file name of an attachment only in the server pattern', () => {
-        expect(backupFilename('attachment; filename="calaos-backup-calaos-20261025-0912.json"')).toBe('calaos-backup-calaos-20261025-0912.json');
-        expect(backupFilename(null)).toBe('');
-        expect(backupFilename('inline')).toBe('');
-        const now = Date.parse('2026-10-25T09:12:59Z');
-        expect(backupFilename('attachment; filename="../../.bashrc"', 'my box!', now)).toBe('calaos-backup-mybox-20261025-0912.json');
-        expect(backupFilename('attachment', '', now)).toBe('calaos-backup-box-20261025-0912.json');
+    it('tells a download from an error answer by its attachment header', () => {
+        expect(isBackupDownload('attachment; filename="x.json"')).toBe(true);
+        expect(isBackupDownload('  ATTACHMENT')).toBe(true);
+        expect(isBackupDownload(null)).toBe(false);
+        expect(isBackupDownload('inline')).toBe(false);
+    });
+
+    it('reads a restore answer, a dry run having no previous folder', () => {
+        const raw = {
+            dry_run: true,
+            files: ['io.xml', 'rules.xml', 3],
+            backup: { rooms: 4, ios: 21, devices: 3, rules: 12 },
+            box: { rooms: 5, ios: '24' },
+            io_format: 2,
+            kept: ['listen_address'],
+            warnings: ['devices_removed'],
+        };
+        expect(toConfigRestoreResult(raw)).toEqual({
+            dryRun: true,
+            files: ['io.xml', 'rules.xml'],
+            backup: { rooms: 4, ios: 21, devices: 3, rules: 12 },
+            box: { rooms: 5, ios: 0, devices: 0, rules: 0 },
+            ioFormat: 2,
+            kept: ['listen_address'],
+            warnings: ['devices_removed'],
+            previous: null,
+            restarting: false,
+        });
+        expect(toConfigRestoreResult({ ...raw, dry_run: false, previous: '2026/x', restarting: true })).toMatchObject({
+            dryRun: false,
+            previous: '2026/x',
+            restarting: true,
+        });
+        expect(toConfigRestoreResult({ previous: '' })?.previous).toBeNull();
+        expect(toConfigRestoreResult(null)).toBeNull();
+    });
+
+    it('sends the files with the dry run flag', () => {
+        expect(configRestoreParams({ 'io.xml': 'a' }, true)).toEqual({ files: { 'io.xml': 'a' }, dry_run: true });
+    });
+
+    it('measures the frame, whose JSON escapes grow the XML', () => {
+        const session = 'b'.repeat(64);
+        const room = MAX_WEBSOCKET_MESSAGE_BYTES - 300;
+        expect(restoreFitsOneMessage({ 'io.xml': 'x'.repeat(room) }, session)).toBe(true);
+        expect(restoreFitsOneMessage({ 'io.xml': '"'.repeat(room / 2 + 300) }, session)).toBe(false);
+        expect(restoreFitsOneMessage({ 'io.xml': 'é'.repeat(room / 2 + 300) }, session)).toBe(false);
     });
 });

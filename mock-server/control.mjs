@@ -29,7 +29,8 @@
 //                               dropOnSelfRestart}, logs {live,
 //                               rateLimitNext, failNext, truncateNext}, time {offsetMs,
 //                               timezone, ntp, synchronized, rtc, failStep},
-//                               config {hostname, values}, network
+//                               config {hostname, values, restore {warnings,
+//                               backup, box, kept, fail, drop}}, network
 //                               {confirmMs, dropOnApply (true | 'before'),
 //                               expire, pending}
 //   {op:'admin_status'}         the fake daemon's state and counters

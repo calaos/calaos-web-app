@@ -1,7 +1,7 @@
-// `config_list` / `config_set` / `config_backup` of the mock calaos_server
-// (calaos_base docs/08_http_api.md "Configuration"): handled by the server
-// itself, the daemon only validating the session. Secrets are write-only.
-// The backup is also an HTTP action, answered as a file download.
+// `config_list` / `config_set` / `config_backup` / `config_restore` of the mock
+// calaos_server (calaos_base docs/08_http_api.md "Configuration"): handled by
+// the server itself, the daemon only validating the session. Secrets are
+// write-only. The backup is also an HTTP action, answered as a file download.
 
 /**
  * [key, group, type, default, restart, secret, choices?, bounds?] — a subset of
@@ -41,6 +41,12 @@ const REGISTRY = [
     ['lang', 'Kiosk', 'enum', '', false, false, ['de', 'en', 'es', 'fr', 'hi', 'nb', 'pl', 'ru']],
 ];
 
+const RESTORE_ROOTS = { 'io.xml': 'calaos:ioconfig', 'rules.xml': 'calaos:rules', 'local_config.xml': 'calaos:config' };
+const RESTORE_MAX_BYTES = 2 * 1024 * 1024;
+const IO_FORMAT_DEVICES = 2;
+/** calaos_server stops about this long after its answer left. */
+const RESTORE_RESTART_MS = 500;
+
 function describe(key) {
     return key.replaceAll('_', ' ');
 }
@@ -52,10 +58,39 @@ export function backupFilename(hostname, createdAtMs) {
     return `calaos-backup-${host}-${stamp}.json`;
 }
 
-export function createConfig({ failure, hub }) {
+/** What calaos_server refuses before any session check, as its message; null when acceptable. */
+function restoreRefusal(params) {
+    const files = params?.files;
+    if (typeof files !== 'object' || files === null) return 'files is required';
+    for (const [name, content] of Object.entries(files)) {
+        const root = RESTORE_ROOTS[name];
+        if (root === undefined) return `Unexpected file: ${name}`;
+        if (typeof content !== 'string') return `${name} must be a string`;
+        if (Buffer.byteLength(content) > RESTORE_MAX_BYTES) return `${name} is too big`;
+        if (!content.startsWith('<?xml')) return `${name} is not an XML file`;
+        if (!content.includes(`<${root}`)) return `${name}: unexpected root element`;
+    }
+    for (const name of ['io.xml', 'rules.xml']) {
+        if (files[name] === undefined) return `${name} is missing`;
+    }
+    const format = /<calaos:ioconfig[^>]*\sformat="(\d+)"/.exec(files['io.xml']);
+    if (format !== null && Number(format[1]) > IO_FORMAT_DEVICES) {
+        return `io.xml was made by a newer Calaos (format ${format[1]})`;
+    }
+    return null;
+}
+
+function localOption(xml, name) {
+    return new RegExp(`name="${name}" value="([^"]*)"`).exec(xml)?.[1];
+}
+
+export function createConfig({ failure, hub, running }) {
     let state;
+    const timers = new Set();
 
     function reset() {
+        for (const handle of timers) clearTimeout(handle);
+        timers.clear();
         state = {
             /** key → stored value; absent means default. */
             values: new Map([
@@ -67,6 +102,15 @@ export function createConfig({ failure, hub }) {
             hostname: 'calaos-mock',
             sets: [],
             backups: 0,
+            restores: [],
+            restore: {
+                warnings: [],
+                backup: { rooms: 4, ios: 21, devices: 3, rules: 12 },
+                box: { rooms: 5, ios: 24, devices: 4, rules: 12 },
+                kept: ['listen_address', 'mcp_service_token'],
+                fail: '',
+                drop: true,
+            },
         };
     }
     reset();
@@ -130,6 +174,48 @@ export function createConfig({ failure, hub }) {
         return { success: 'true', result };
     }
 
+    /** Warnings the sent files really earn, then those the test asked for. */
+    function restoreWarnings(local) {
+        if (local === undefined) return ['no_local_config', ...state.restore.warnings];
+        const user = localOption(local, 'cn_user');
+        const pass = localOption(local, 'cn_pass');
+        const changes = (user !== undefined && user !== hub.user) || (pass !== undefined && pass !== hub.pass);
+        return [...(changes ? ['household_login_changes'] : []), ...state.restore.warnings];
+    }
+
+    function restartOnRestored(local) {
+        const handle = setTimeout(() => {
+            timers.delete(handle);
+            if (local !== undefined) {
+                hub.user = localOption(local, 'cn_user') ?? hub.user;
+                hub.pass = localOption(local, 'cn_pass') ?? hub.pass;
+            }
+            if (state.restore.drop) hub.dropClients();
+        }, RESTORE_RESTART_MS);
+        timers.add(handle);
+    }
+
+    function restore(params) {
+        if (running()) return failure('upgrade_in_progress', 'An update is running');
+        const dryRun = params.dry_run === true;
+        const local = params.files['local_config.xml'];
+        const names = Object.keys(params.files);
+        state.restores.push({ dry_run: dryRun, files: names });
+        const result = {
+            dry_run: dryRun,
+            files: names,
+            backup: state.restore.backup,
+            box: state.restore.box,
+            io_format: IO_FORMAT_DEVICES,
+            kept: state.restore.kept,
+            warnings: restoreWarnings(local),
+        };
+        if (dryRun) return { success: 'true', result };
+        if (state.restore.fail !== '') return failure('internal', state.restore.fail);
+        restartOnRestored(local);
+        return { success: 'true', result: { ...result, previous: '2026/10/25-10-2026_17-14-15', restarting: true } };
+    }
+
     function backup() {
         state.backups += 1;
         const created = Date.now();
@@ -137,15 +223,15 @@ export function createConfig({ failure, hub }) {
         return {
             createdAtMs: created,
             document: {
-                format: 'calaos-config-backup/1',
+                format: 'calaos-config-backup/2',
                 created_at: new Date(created).toISOString().replace(/\.\d{3}Z$/, 'Z'),
                 server_version: '4.6.0-mock',
                 hostname: state.hostname,
+                io_format: IO_FORMAT_DEVICES,
                 files: {
                     'io.xml': '<?xml version="1.0"?>\n<calaos:ioconfig xmlns:calaos="http://www.calaos.fr"/>\n',
                     'rules.xml': '<?xml version="1.0"?>\n<calaos:rules xmlns:calaos="http://www.calaos.fr"/>\n',
                     'local_config.xml': `<?xml version="1.0"?>\n<calaos:config xmlns:calaos="http://www.calaos.fr">\n  <calaos:option name="cn_user" value="${hub.user}"/>\n  <calaos:option name="cn_pass" value="${hub.pass}"/>\n${local}\n</calaos:config>\n`,
-                    'widgets.xml': '<?xml version="1.0"?>\n<widgets/>\n',
                 },
             },
         };
@@ -159,6 +245,8 @@ export function createConfig({ failure, hub }) {
                 return set(params);
             case 'config_backup':
                 return { success: 'true', result: backup().document };
+            case 'config_restore':
+                return restore(params);
             default:
                 return undefined;
         }
@@ -181,9 +269,10 @@ export function createConfig({ failure, hub }) {
         };
     }
 
-    /** `/control {op:'admin', config:{hostname, values}}`. */
+    /** `/control {op:'admin', config:{hostname, values, restore}}`. */
     function configure(patch) {
         if (typeof patch.hostname === 'string') state.hostname = patch.hostname;
+        if (typeof patch.restore === 'object' && patch.restore !== null) Object.assign(state.restore, patch.restore);
         if (typeof patch.values === 'object' && patch.values !== null) {
             for (const [key, value] of Object.entries(patch.values)) {
                 if (entry(key) === undefined) return `unknown config key '${key}'`;
@@ -194,8 +283,13 @@ export function createConfig({ failure, hub }) {
     }
 
     function status() {
-        return { values: Object.fromEntries(state.values), sets: [...state.sets], backups: state.backups };
+        return {
+            values: Object.fromEntries(state.values),
+            sets: [...state.sets],
+            backups: state.backups,
+            restores: [...state.restores],
+        };
     }
 
-    return { reset, handle, httpBackup, configure, status };
+    return { reset, handle, httpBackup, configure, status, restoreRefusal };
 }
