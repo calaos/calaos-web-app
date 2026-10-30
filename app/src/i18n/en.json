@@ -363,9 +363,10 @@
             "timeout": "The box did not answer. calaos-server may be too old: update the box once with its usual update (the button on the touch screen, or calaos-os upgrade).",
             "disconnected": "Connection lost before the box answered. Try again once it is back.",
             "unknown": "Unexpected answer from the box. {msg}",
-            "household_refused": "Your sign-in password could not be changed. Sign out and back in, then try again.",
+            "household_refused": "The box refused your sign-in details. Sign out and back in, then try again.",
             "console_limit": "{max} consoles are already open on the box, the most it allows. Close one first.",
             "network_pending": "A network change is already waiting to be confirmed. Confirm or revert it first.",
+            "service_unavailable": "This service is not available on this box.",
             "login_failed": "The box refused your sign-in. Sign in again."
         },
         "approvers": {

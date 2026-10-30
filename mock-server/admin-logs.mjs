@@ -17,7 +17,6 @@ const SOURCES = [
     ['calaos-container', 'calaos-container'],
     ['olad', 'OLA (olad)'],
     ['ntp', 'Time sync (NTP)'],
-    ['calaos-ddns', 'Calaos DDNS'],
     ['networkd', 'Network (networkd)'],
     ['ssh', 'SSH'],
     ['kernel', 'Kernel'],
@@ -78,7 +77,6 @@ const TEMPLATES = {
         [6, 'apt: 0 upgraded, 0 newly installed'],
     ],
     ntp: [[6, 'Selected source 162.159.200.{n} (2.debian.pool.ntp.org)']],
-    'calaos-ddns': [[6, 'Updated calaos-{n}.calaos.fr to 82.65.12.{n}']],
     networkd: [
         [6, 'eth0: Gained carrier'],
         [5, 'eth0: DHCPv4 address 192.168.1.{n}/24, gateway 192.168.1.1'],
@@ -108,7 +106,6 @@ const WEIGHTS = [
     ['influxdb', 3],
     ['grafana', 2],
     ['envoy', 1],
-    ['calaos-ddns', 1],
 ];
 const WEIGHT_TOTAL = WEIGHTS.reduce((sum, [, w]) => sum + w, 0);
 

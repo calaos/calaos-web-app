@@ -17,7 +17,6 @@
         "calaos-container": "calaos-container",
         "olad": "OLA (olad)",
         "ntp": "Time sync",
-        "calaos-ddns": "Calaos DDNS",
         "networkd": "Network",
         "ssh": "SSH",
         "kernel": "Kernel",

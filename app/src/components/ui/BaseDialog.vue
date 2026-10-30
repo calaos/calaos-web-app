@@ -62,18 +62,18 @@ const props = withDefaults(
         cancelLabel?: string;
         /** Greys the primary button; Enter is refused too. */
         confirmDisabled?: boolean;
+        /** For an action that takes something away: the filament and the confirm button turn red. */
+        danger?: boolean;
         /** 35rem instead of 22rem, for a body that is a view rather than a form. */
         wide?: boolean;
-        /** For what cannot be undone from here: the filament and the primary button turn red. */
-        danger?: boolean;
     }>(),
     {
         eyebrow: '',
         confirmLabel: undefined,
         cancelLabel: undefined,
         confirmDisabled: false,
-        wide: false,
         danger: false,
+        wide: false,
     },
 );
 
@@ -218,7 +218,8 @@ watch(
                         <button
                             v-if="confirmLabel !== undefined"
                             type="submit"
-                            class="base-dialog__button base-dialog__button--primary pressable"
+                            class="base-dialog__button pressable"
+                            :class="danger ? 'base-dialog__button--danger' : 'base-dialog__button--primary'"
                             :disabled="confirmDisabled"
                         >
                             {{ confirmLabel }}
@@ -384,18 +385,22 @@ watch(
         var(--c-danger) 70%,
         transparent
     );
-    box-shadow: 0 0 12px rgba(224, 86, 86, 0.45);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--c-danger) 45%, transparent);
 }
 
-.base-dialog__panel--danger .base-dialog__button--primary:not(:disabled) {
-    background-color: var(--c-danger);
-    /* Near-black, as on cyan: white is under 4.5:1 on this red. */
-    color: #2a0808;
-    box-shadow: 0 0 18px rgba(224, 86, 86, 0.35);
+.base-dialog__button--danger {
+    border: 1px solid color-mix(in srgb, var(--c-danger) 50%, transparent);
+    background-color: color-mix(in srgb, var(--c-danger) 14%, transparent);
+    color: var(--c-danger-text);
 }
 
-.base-dialog__panel--danger .base-dialog__button--primary:hover:not(:disabled) {
-    background-color: var(--c-danger-text);
+.base-dialog__button--danger:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--c-danger) 24%, transparent);
+}
+
+.base-dialog__button--danger:disabled {
+    color: var(--c-text-muted);
+    cursor: not-allowed;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n';
 import type { ConfigOption } from '../../protocol/admin-config';
 import { configEditor, isOn, selectChoices } from './configEditors';
 import AdminButton from './AdminButton.vue';
+import AdminSwitch from './AdminSwitch.vue';
 
 const props = defineProps<{
     option: ConfigOption;
@@ -84,21 +85,16 @@ function choiceLabel(choice: string): string {
         </div>
 
         <div class="config-row__control">
-            <button
+            <AdminSwitch
                 v-if="editor === 'bool'"
-                type="button"
-                role="switch"
-                class="config-switch pressable"
-                :aria-checked="isOn(option.value)"
+                :checked="isOn(option.value)"
+                :label="isOn(option.value) ? t('admin.config.on') : t('admin.config.off')"
                 :aria-labelledby="nameId"
                 :aria-describedby="describedBy"
-                :aria-busy="saving || undefined"
+                :busy="saving"
                 :disabled="disabled"
                 @click="emit('save', isOn(option.value) ? 'false' : 'true')"
-            >
-                <span class="config-switch__track" aria-hidden="true"><span class="config-switch__thumb" /></span>
-                <span class="config-switch__state">{{ isOn(option.value) ? t('admin.config.on') : t('admin.config.off') }}</span>
-            </button>
+            />
 
             <div v-else-if="editor === 'select'" class="config-row__select">
                 <select
@@ -374,74 +370,6 @@ function choiceLabel(choice: string): string {
     cursor: not-allowed;
 }
 
-/* ---- the switch ----------------------------------------------------- */
-
-.config-switch {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-3);
-    min-block-size: 2.75rem;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--c-text-muted);
-    font: inherit;
-    font-size: 0.875rem;
-    cursor: pointer;
-}
-
-.config-switch__track {
-    position: relative;
-    inline-size: 2.75rem;
-    block-size: 1.5rem;
-    border-radius: 0.75rem;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid var(--c-border-strong);
-    transition:
-        background-color 200ms ease,
-        border-color 200ms ease,
-        box-shadow 200ms ease;
-}
-
-.config-switch__thumb {
-    position: absolute;
-    inset-block-start: 50%;
-    inset-inline-start: 0.1875rem;
-    inline-size: 1.0625rem;
-    block-size: 1.0625rem;
-    border-radius: 50%;
-    background-color: var(--c-text-muted);
-    transform: translateY(-50%);
-    transition:
-        transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
-        background-color 200ms ease;
-}
-
-.config-switch[aria-checked='true'] {
-    color: var(--c-text);
-}
-
-.config-switch[aria-checked='true'] .config-switch__track {
-    background-color: rgba(56, 176, 211, 0.3);
-    border-color: var(--c-accent);
-    box-shadow: 0 0 12px var(--c-accent-glow);
-}
-
-.config-switch[aria-checked='true'] .config-switch__thumb {
-    background-color: var(--c-accent);
-    transform: translate(1.25rem, -50%);
-}
-
-.config-switch:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-.config-switch__state {
-    min-inline-size: 5.5rem;
-    text-align: start;
-}
-
 @media (max-width: 479px) {
     .config-row {
         grid-template-columns: minmax(0, 1fr);
@@ -454,9 +382,7 @@ function choiceLabel(choice: string): string {
 
 @media (prefers-reduced-motion: reduce) {
     .config-row__field,
-    .config-row__input::after,
-    .config-switch__track,
-    .config-switch__thumb {
+    .config-row__input::after {
         transition: none;
     }
 }

@@ -363,9 +363,10 @@
             "timeout": "La box n’a pas répondu. calaos-server est peut-être trop ancien : mettez la box à jour une fois avec l’outil habituel (le bouton de l’écran tactile, ou calaos-os upgrade).",
             "disconnected": "Connexion perdue avant la réponse de la box. Réessayez quand elle est revenue.",
             "unknown": "Réponse inattendue de la box. {msg}",
-            "household_refused": "Le mot de passe de connexion n’a pas pu être changé. Déconnectez-vous puis reconnectez-vous, et réessayez.",
+            "household_refused": "La box a refusé vos identifiants de connexion. Déconnectez-vous puis reconnectez-vous, et réessayez.",
             "console_limit": "{max} consoles sont déjà ouvertes sur la box, le maximum. Fermez-en une d’abord.",
             "network_pending": "Un changement réseau attend déjà sa confirmation. Confirmez-le ou annulez-le d’abord.",
+            "service_unavailable": "Ce service n’est pas disponible sur cette box.",
             "login_failed": "La box a refusé votre connexion. Reconnectez-vous."
         },
         "approvers": {
