@@ -26,7 +26,7 @@ describe('ConfigPanel restore follow-up', () => {
     it('offers no way out while the box restarts on time', async () => {
         const config = useAdminConfigStore();
         config.options = [];
-        config.restoreFollowUp = { phase: 'restarting', previous: null, householdChanges: false };
+        config.restoreFollowUp = { phase: 'restarting', previous: null };
         const wrapper = mountPanel();
         await flushPromises();
         expect(wrapper.find('.config__restart button').exists()).toBe(false);
@@ -35,7 +35,7 @@ describe('ConfigPanel restore follow-up', () => {
     it('lets go of a box that never came back, and gives the restore button back', async () => {
         const config = useAdminConfigStore();
         config.options = [];
-        config.restoreFollowUp = { phase: 'slow', previous: null, householdChanges: false };
+        config.restoreFollowUp = { phase: 'slow', previous: null };
         const wrapper = mountPanel();
         await flushPromises();
         const pick = wrapper.findAll('.config__row button').at(1);

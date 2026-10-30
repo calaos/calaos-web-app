@@ -34,7 +34,6 @@ export interface RestoreFollowUp {
     phase: 'restarting' | 'slow' | 'done';
     /** The `backups/` folder of the replaced files; null when the answer was lost to the restart. */
     previous: string | null;
-    householdChanges: boolean;
 }
 
 export const useAdminConfigStore = defineStore('adminConfig', () => {
@@ -47,14 +46,16 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
     const error = ref<AdminError | null>(null);
     /** A saved key needs calaos-server restarted. */
     const restartRequired = ref(false);
-    /** Outlives the admin session: the sign-in page reads it when the new household login is refused. */
     const restoreFollowUp = ref<RestoreFollowUp | null>(null);
+    /**
+     * Read by the sign-in page when the new household login is refused, so it
+     * outlives the admin session and a dismissed follow-up: the box may come
+     * back long after the "slow" banner was closed.
+     */
+    const householdChanged = ref(false);
 
     /** Connection and household re-login: only then has the restarted server read the restored files. */
     const online = computed(() => connection.isOpen && auth.isAuthed);
-    const householdChanged = computed(
-        () => restoreFollowUp.value?.householdChanges === true && restoreFollowUp.value.phase !== 'done',
-    );
 
     let restoreDropped = false;
     let restoreTimer: ReturnType<typeof setTimeout> | undefined;
@@ -67,16 +68,18 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
     );
 
     watch(online, (now) => {
-        const followUp = restoreFollowUp.value;
-        if (followUp === null || followUp.phase === 'done') return;
         if (!now) {
             restoreDropped = true;
-        } else if (restoreDropped) {
-            clearTimeout(restoreTimer);
-            followUp.phase = 'done';
-            restartRequired.value = false;
-            void load();
+            return;
         }
+        if (!restoreDropped) return;
+        householdChanged.value = false;
+        const followUp = restoreFollowUp.value;
+        if (followUp === null || followUp.phase === 'done') return;
+        clearTimeout(restoreTimer);
+        followUp.phase = 'done';
+        restartRequired.value = false;
+        void load();
     });
 
     async function load(): Promise<void> {
@@ -180,7 +183,8 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
 
     function followRestart(previous: string | null, householdChanges: boolean): void {
         restoreDropped = !online.value;
-        restoreFollowUp.value = { phase: 'restarting', previous, householdChanges };
+        restoreFollowUp.value = { phase: 'restarting', previous };
+        householdChanged.value = householdChanges;
         clearTimeout(restoreTimer);
         restoreTimer = setTimeout(() => {
             if (restoreFollowUp.value?.phase === 'restarting') restoreFollowUp.value.phase = 'slow';

@@ -140,7 +140,7 @@ describe('config restore', () => {
         expect(last().data).toMatchObject({ action: 'config_restore', params: { dry_run: false } });
         ok(ANSWER);
         expect(await pending).toBeNull();
-        expect(config.restoreFollowUp).toEqual({ phase: 'restarting', previous: ANSWER.previous, householdChanges: true });
+        expect(config.restoreFollowUp).toEqual({ phase: 'restarting', previous: ANSWER.previous });
         expect(config.householdChanged).toBe(true);
 
         dropConnection();
@@ -191,7 +191,8 @@ describe('config restore', () => {
         const pending = config.restore(FILES, true);
         await vi.advanceTimersByTimeAsync(CONFIG_RESTORE_TIMEOUT_MS);
         expect(await pending).toBeNull();
-        expect(config.restoreFollowUp).toMatchObject({ phase: 'restarting', previous: null, householdChanges: true });
+        expect(config.restoreFollowUp).toMatchObject({ phase: 'restarting', previous: null });
+        expect(config.householdChanged).toBe(true);
     });
 
     it('hands a refusal back and follows nothing', async () => {
@@ -214,5 +215,45 @@ describe('config restore', () => {
         await pending;
         config.dismissRestore();
         expect(config.restoreFollowUp).toBeNull();
+    });
+
+    it('keeps the household hint past a dismissed slow banner, until the sign-in succeeds', async () => {
+        await unlocked();
+        goOnline();
+        const config = useAdminConfigStore();
+        const pending = config.restore(FILES, true);
+        ok(ANSWER);
+        await pending;
+        dropConnection();
+        await vi.advanceTimersByTimeAsync(SELF_RESTART_DEADLINE_MS);
+        expect(config.restoreFollowUp?.phase).toBe('slow');
+
+        config.dismissRestore();
+        expect(config.restoreFollowUp).toBeNull();
+        expect(config.householdChanged).toBe(true);
+
+        // The box is back, the old login is refused: still no household session.
+        useConnectionStore().applyStatus({ status: 'open', attempt: 0, nextRetryMs: 0 });
+        await flush();
+        expect(config.householdChanged).toBe(true);
+
+        useAuthStore().state = 'authed';
+        await flush();
+        expect(config.householdChanged).toBe(false);
+        expect(config.restoreFollowUp).toBeNull();
+    });
+
+    it('a later restore without a login change drops an earlier hint', async () => {
+        await unlocked();
+        goOnline();
+        const config = useAdminConfigStore();
+        const first = config.restore(FILES, true);
+        ok(ANSWER);
+        await first;
+        config.dismissRestore();
+        const second = config.restore(FILES, false);
+        ok(ANSWER);
+        await second;
+        expect(config.householdChanged).toBe(false);
     });
 });

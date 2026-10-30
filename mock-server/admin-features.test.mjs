@@ -350,6 +350,10 @@ describe('config', () => {
         const done = await ask('config_restore', { files: { 'io.xml': IO, 'rules.xml': RULES } });
         expect(done.result).toMatchObject({ dry_run: false, restarting: true });
         expect(done.result.previous).toMatch(/^\d{4}\//);
+
+        await control({ op: 'admin', config: { restore: { upgrading: true } } });
+        const busy = await ask('config_restore', { files: { 'io.xml': IO, 'rules.xml': RULES }, dry_run: true });
+        expect(busy).toMatchObject({ success: 'false', error: 'upgrade_in_progress' });
     });
 
     it('serves get_mcp_info with the session in the body, and a new token after mcp_regenerate', async () => {

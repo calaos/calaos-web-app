@@ -109,6 +109,7 @@ export function createConfig({ failure, hub, running }) {
                 box: { rooms: 5, ios: 24, devices: 4, rules: 12 },
                 kept: ['listen_address', 'mcp_service_token'],
                 fail: '',
+                upgrading: false,
                 drop: true,
             },
         };
@@ -196,7 +197,7 @@ export function createConfig({ failure, hub, running }) {
     }
 
     function restore(params) {
-        if (running()) return failure('upgrade_in_progress', 'An update is running');
+        if (running() || state.restore.upgrading) return failure('upgrade_in_progress', 'An update is running');
         const dryRun = params.dry_run === true;
         const local = params.files['local_config.xml'];
         const names = Object.keys(params.files);

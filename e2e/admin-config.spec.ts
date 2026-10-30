@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { constants, deflateRawSync } from 'node:zlib';
 import { LOGIN_URL, MESSAGES, adminScreen, expect, loginAs, loginForm, test } from './fixtures';
 import type { ControlOp, MockControl } from './fixtures';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import cfg from '../app/src/i18n/admin/config.en.json';
 
 const ADMIN_PASSWORD = 'correct horse battery';
@@ -23,6 +23,11 @@ async function configStatus(mock: MockControl): Promise<ConfigStatus> {
 }
 
 /** The config and services knobs of `{op:'admin'}`, which AdminPatch does not spell out. */
+/** The last screenshot of a test must show the message, not its fade-in. */
+async function expectFadedIn(message: Locator): Promise<void> {
+    await expect(message).toHaveCSS('opacity', '1');
+}
+
 async function patchAdmin(mock: MockControl, patch: Record<string, unknown>): Promise<void> {
     await mock.send({ op: 'admin', ...patch } as ControlOp);
 }
@@ -359,6 +364,7 @@ test('the box refuses a backup: the dry run says why and nothing is restored', a
     const refused = { 'io.xml': IO_XML.replace('format="2"', 'format="9"'), 'rules.xml': RULES_XML };
     await restoreRow(page).locator('input[type="file"]').setInputFiles(backupJson(refused));
     await expect(restoreRow(page).getByRole('alert')).toContainText('io.xml was made by a newer Calaos (format 9)');
+    await expectFadedIn(restoreRow(page).getByRole('alert'));
     await expect(page.getByRole('dialog')).toHaveCount(0);
     expect((await configStatus(mock)).restores).toEqual([]);
 });
@@ -371,6 +377,7 @@ test('a file that is no backup is stopped in the browser, nothing sent', async (
         buffer: Buffer.from('these are not the files you are looking for'),
     });
     await expect(restoreRow(page).getByRole('alert')).toHaveText(cfg.restoreError.not_a_zip);
+    await expectFadedIn(restoreRow(page).getByRole('alert'));
     await expect(page.getByRole('dialog')).toHaveCount(0);
     expect((await configStatus(mock)).restores).toEqual([]);
 });
@@ -418,11 +425,52 @@ test('a failed restore stays in the dialog and says so', async ({ page, mock }) 
         backupJson({ 'io.xml': IO_XML, 'rules.xml': RULES_XML }),
     );
     const dialog = page.getByRole('dialog');
-    await dialog.getByRole('checkbox').uncheck();
     await dialog.getByRole('button', { name: cfg.restoreConfirm }).click();
     await expect(dialog.getByRole('alert')).toContainText('previous files in backups/2026/x');
     await expect(page.locator('.config__restart')).toHaveCount(0);
 });
+
+for (const { code, refuse } of [
+    {
+        code: 'upgrade_in_progress',
+        refuse: (mock: MockControl) => patchAdmin(mock, { config: { restore: { upgrading: true } } }),
+    },
+    {
+        code: 'daemon_too_old',
+        refuse: async (mock: MockControl) => {
+            await mock.admin({ tooOld: ['config_restore'] });
+        },
+    },
+] as const) {
+    const message = MESSAGES.admin.error[code];
+
+    test(`${code} at the dry run: the row says it and no dialog opens`, async ({ page, mock }) => {
+        await refuse(mock);
+        await openUnlocked(page);
+        await restoreRow(page).locator('input[type="file"]').setInputFiles(
+            backupJson({ 'io.xml': IO_XML, 'rules.xml': RULES_XML }),
+        );
+        await expect(restoreRow(page).getByRole('alert')).toHaveText(message);
+        await expectFadedIn(restoreRow(page).getByRole('alert'));
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+        expect((await configStatus(mock)).restores).toEqual([]);
+    });
+
+    test(`${code} once the dialog is open: it stays open, says it, and nothing is restored`, async ({ page, mock }) => {
+        await openUnlocked(page);
+        await restoreRow(page).locator('input[type="file"]').setInputFiles(
+            backupJson({ 'io.xml': IO_XML, 'rules.xml': RULES_XML }),
+        );
+        const dialog = page.getByRole('dialog');
+        await expect(dialog.getByRole('checkbox')).toBeChecked();
+        await refuse(mock);
+        await dialog.getByRole('button', { name: cfg.restoreConfirm }).click();
+        await expect(dialog.getByRole('alert')).toHaveText(message);
+        await expect(dialog.getByRole('button', { name: cfg.restoreConfirm })).toBeEnabled();
+        await expect(page.locator('.config__restart')).toHaveCount(0);
+        expect((await configStatus(mock)).restores.map((restore) => restore.dry_run)).toEqual([true]);
+    });
+}
 
 async function restoreChangingHousehold(page: Page): Promise<void> {
     await openUnlocked(page);
