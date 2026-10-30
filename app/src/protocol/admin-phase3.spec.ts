@@ -18,8 +18,8 @@ describe('phase-3 additions to the admin codec', () => {
         expect(adminReplyTimeoutMs('services_restart')).toBe(ADMIN_REPLY_TIMEOUT_MS);
         expect(adminReplyTimeoutMs('services_start')).toBe(20_000);
         expect(adminReplyTimeoutMs('services_stop')).toBe(20_000);
-        expect(adminReplyTimeoutMs('services_enable')).toBe(20_000);
-        expect(adminReplyTimeoutMs('services_disable')).toBe(20_000);
+        expect(adminReplyTimeoutMs('services_enable')).toBe(40_000);
+        expect(adminReplyTimeoutMs('services_disable')).toBe(40_000);
         expect(adminReplyTimeoutMs('network_apply')).toBe(40_000);
         expect(adminReplyTimeoutMs('network_confirm')).toBe(40_000);
         expect(adminReplyTimeoutMs('network_revert')).toBe(40_000);

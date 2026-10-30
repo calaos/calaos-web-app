@@ -140,7 +140,7 @@ describe('config restore', () => {
         expect(last().data).toMatchObject({ action: 'config_restore', params: { dry_run: false } });
         ok(ANSWER);
         expect(await pending).toBeNull();
-        expect(config.restoreFollowUp).toEqual({ phase: 'restarting', previous: ANSWER.previous });
+        expect(config.restoreFollowUp).toEqual({ phase: 'restarting', previous: ANSWER.previous, partial: false });
         expect(config.householdChanged).toBe(true);
 
         dropConnection();
@@ -204,6 +204,42 @@ describe('config restore', () => {
         expect(await pending).toMatchObject({ code: 'upgrade_in_progress' });
         expect(config.restoreFollowUp).toBeNull();
         expect(config.householdChanged).toBe(false);
+    });
+
+    it('follows the restart of a write that failed half way, with its folder', async () => {
+        await unlocked();
+        goOnline();
+        const config = useAdminConfigStore();
+        const pending = config.restore(FILES, false);
+        fail('internal', { msg: 'disk full; previous files in backups/2026/x', previous: '2026/x', restarting: 'true' });
+        expect(await pending).toMatchObject({ code: 'internal', previous: '2026/x', restarting: true });
+        expect(config.restoreFollowUp).toEqual({ phase: 'restarting', previous: '2026/x', partial: true });
+    });
+
+    it('follows nothing when a failed write leaves the server running', async () => {
+        await unlocked();
+        goOnline();
+        const config = useAdminConfigStore();
+        const pending = config.restore(FILES, false);
+        fail('internal', { msg: 'disk full', previous: '2026/x', restarting: 'false' });
+        expect(await pending).toMatchObject({ restarting: false });
+        expect(config.restoreFollowUp).toBeNull();
+    });
+
+    it('reloads the options when the box returns after a dismissed slow banner', async () => {
+        await unlocked();
+        goOnline();
+        const config = useAdminConfigStore();
+        config.options = [];
+        const pending = config.restore(FILES, false);
+        ok(ANSWER);
+        await pending;
+        dropConnection();
+        await vi.advanceTimersByTimeAsync(SELF_RESTART_DEADLINE_MS);
+        config.dismissRestore();
+        goOnline();
+        await flush();
+        expect(last().data).toMatchObject({ action: 'config_list' });
     });
 
     it('forgets the follow-up on dismiss', async () => {

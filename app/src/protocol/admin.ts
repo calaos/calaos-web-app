@@ -20,8 +20,10 @@ export const TIME_SET_TIMEOUT_MS = 40_000;
 export const CONFIG_RESTORE_TIMEOUT_MS = 35_000;
 /** `networkctl` can take up to 30 s; calaos_server waits 35 s. */
 export const NETWORK_CHANGE_TIMEOUT_MS = 40_000;
-/** Start, stop, enable and disable answer once systemd has run them. */
+/** Start and stop answer once systemd has run them. */
 export const SERVICE_ACTION_TIMEOUT_MS = 20_000;
+/** Enable and disable also wait on the daemon's `reset-failed`; the relay waits 35 s. */
+export const SERVICE_BOOT_TIMEOUT_MS = 40_000;
 /** `admin_unavailable`: retry every 5 s for 2 min, then every 60 s. */
 export const UNAVAILABLE_FAST_RETRY_MS = 5_000;
 export const UNAVAILABLE_FAST_WINDOW_MS = 120_000;
@@ -116,6 +118,10 @@ export interface AdminError {
      * which may still have acted. Never resend; read the state again.
      */
     outcomeUnknown: boolean;
+    /** With the `internal` of a failed `config_restore`: the `backups/` folder of the replaced files. */
+    previous: string;
+    /** Same case: calaos_server restarts anyway, because a file was replaced. */
+    restarting: boolean;
 }
 
 export const ADMIN_ACTIONS = [
@@ -255,9 +261,10 @@ export function adminReplyTimeoutMs(action: AdminAction): number {
             return CONFIG_RESTORE_TIMEOUT_MS;
         case 'services_start':
         case 'services_stop':
+            return SERVICE_ACTION_TIMEOUT_MS;
         case 'services_enable':
         case 'services_disable':
-            return SERVICE_ACTION_TIMEOUT_MS;
+            return SERVICE_BOOT_TIMEOUT_MS;
         case 'network_apply':
         case 'network_confirm':
         case 'network_revert':
@@ -369,6 +376,8 @@ export function toAdminError(data: unknown): AdminError {
         failed: toWireString(record.failed),
         restartRequired: toBool(record.restart_required),
         outcomeUnknown: record.outcome === 'unknown',
+        previous: toWireString(record.previous),
+        restarting: toBool(record.restarting),
     };
 }
 
@@ -398,6 +407,8 @@ export function bareAdminError(code: AdminFailureCode): AdminError {
         failed: '',
         restartRequired: false,
         outcomeUnknown: false,
+        previous: '',
+        restarting: false,
     };
 }
 

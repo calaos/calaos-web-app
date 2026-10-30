@@ -52,6 +52,8 @@ function describe(key) {
 }
 
 /** calaos_server's sanitised file name: `[A-Za-z0-9._-]`, 32 chars, `box` if empty. */
+const PREVIOUS_FOLDER = '2026/10/25-10-2026_17-14-15';
+
 export function backupFilename(hostname, createdAtMs) {
     const host = hostname.replace(/[^A-Za-z0-9._-]/g, '').slice(0, 32) || 'box';
     const stamp = new Date(createdAtMs).toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 13);
@@ -73,11 +75,17 @@ function restoreRefusal(params) {
     for (const name of ['io.xml', 'rules.xml']) {
         if (files[name] === undefined) return `${name} is missing`;
     }
-    const format = /<calaos:ioconfig[^>]*\sformat="(\d+)"/.exec(files['io.xml']);
-    if (format !== null && Number(format[1]) > IO_FORMAT_DEVICES) {
-        return `io.xml was made by a newer Calaos (format ${format[1]})`;
+    if (ioFormatOf(files['io.xml']) > IO_FORMAT_DEVICES) {
+        return `io.xml was made by a newer Calaos (format ${ioFormatOf(files['io.xml'])})`;
     }
+    if (typeof params.dry_run !== 'boolean') return 'dry_run is required';
     return null;
+}
+
+/** 1 when the attribute is absent. */
+function ioFormatOf(xml) {
+    const format = /<calaos:ioconfig[^>]*\sformat="(\d+)"/.exec(xml);
+    return format === null ? 1 : Number(format[1]);
 }
 
 function localOption(xml, name) {
@@ -109,6 +117,7 @@ export function createConfig({ failure, hub, running }) {
                 box: { rooms: 5, ios: 24, devices: 4, rules: 12 },
                 kept: ['listen_address', 'mcp_service_token'],
                 fail: '',
+                failRestarting: false,
                 upgrading: false,
                 drop: true,
             },
@@ -207,14 +216,22 @@ export function createConfig({ failure, hub, running }) {
             files: names,
             backup: state.restore.backup,
             box: state.restore.box,
-            io_format: IO_FORMAT_DEVICES,
+            io_format: ioFormatOf(params.files['io.xml']),
             kept: state.restore.kept,
             warnings: restoreWarnings(local),
         };
         if (dryRun) return { success: 'true', result };
-        if (state.restore.fail !== '') return failure('internal', state.restore.fail);
+        if (state.restore.fail !== '') {
+            // The extra fields of an error are strings on the wire.
+            const restarting = state.restore.failRestarting === true;
+            if (restarting) restartOnRestored(local);
+            return failure('internal', `${state.restore.fail}; previous files in backups/${PREVIOUS_FOLDER}`, {
+                previous: PREVIOUS_FOLDER,
+                restarting: String(restarting),
+            });
+        }
         restartOnRestored(local);
-        return { success: 'true', result: { ...result, previous: '2026/10/25-10-2026_17-14-15', restarting: true } };
+        return { success: 'true', result: { ...result, previous: PREVIOUS_FOLDER, restarting: true } };
     }
 
     function backup() {

@@ -220,8 +220,14 @@ async function sendRestore(source: RestoreInput, preview: ConfigRestoreResult): 
         saveFile(current);
     }
     const error = await config.restore(source.files, preview.warnings.includes('household_login_changes'));
-    if (error !== null) restoreDialogError.value = restoreErrorText(error);
-    else closeRestore();
+    if (error === null) {
+        closeRestore();
+    } else if (error.restarting) {
+        // The box restarts anyway: the follow-up banner tells it, nothing is left to retry.
+        closeRestore();
+    } else {
+        restoreDialogError.value = restoreErrorText(error);
+    }
 }
 
 async function confirmRestore(): Promise<void> {
@@ -247,7 +253,10 @@ async function confirmRestore(): Promise<void> {
         </div>
         <div v-else-if="followUp !== null" class="config__restored fade-in" role="status">
             <p class="config__restored-text">
-                <template v-if="followUp.previous !== null">
+                <template v-if="followUp.partial">
+                    {{ t('admin.config.restorePartial', { folder: followUp.previous ?? '' }) }}
+                </template>
+                <template v-else-if="followUp.previous !== null">
                     {{ t('admin.config.restoreDone', { folder: followUp.previous }) }}
                 </template>
                 <template v-else>{{ t('admin.config.restoreUnconfirmed') }}</template>

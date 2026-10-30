@@ -34,6 +34,8 @@ export interface RestoreFollowUp {
     phase: 'restarting' | 'slow' | 'done';
     /** The `backups/` folder of the replaced files; null when the answer was lost to the restart. */
     previous: string | null;
+    /** The write failed half way: the box restarts, on files that may be a mix. */
+    partial: boolean;
 }
 
 export const useAdminConfigStore = defineStore('adminConfig', () => {
@@ -58,6 +60,8 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
     const online = computed(() => connection.isOpen && auth.isAuthed);
 
     let restoreDropped = false;
+    /** Outlives a dismissed banner: the box is still to come back. */
+    let restoreAwaiting = false;
     let restoreTimer: ReturnType<typeof setTimeout> | undefined;
 
     watch(
@@ -74,10 +78,10 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
         }
         if (!restoreDropped) return;
         householdChanged.value = false;
-        const followUp = restoreFollowUp.value;
-        if (followUp === null || followUp.phase === 'done') return;
+        if (!restoreAwaiting) return;
+        restoreAwaiting = false;
         clearTimeout(restoreTimer);
-        followUp.phase = 'done';
+        if (restoreFollowUp.value !== null) restoreFollowUp.value.phase = 'done';
         restartRequired.value = false;
         void load();
     });
@@ -170,20 +174,24 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
         const sentAt = Date.now();
         const outcome = await admin.relay('config_restore', configRestoreParams(files, false), true, isPanelError);
         if (outcome.ok) {
-            followRestart(toConfigRestoreResult(outcome.data.result)?.previous ?? null, householdChanges);
+            followRestart(toConfigRestoreResult(outcome.data.result)?.previous ?? null, householdChanges, false);
             return null;
         }
         const code = outcome.error.code;
         if (code === 'timeout' || (code === 'disconnected' && Date.now() - sentAt <= SELF_RESTART_DROP_MS)) {
-            followRestart(null, householdChanges);
+            followRestart(null, householdChanges, false);
             return null;
+        }
+        if (code === 'internal' && outcome.error.restarting) {
+            followRestart(outcome.error.previous === '' ? null : outcome.error.previous, householdChanges, true);
         }
         return outcome.error;
     }
 
-    function followRestart(previous: string | null, householdChanges: boolean): void {
+    function followRestart(previous: string | null, householdChanges: boolean, partial: boolean): void {
         restoreDropped = !online.value;
-        restoreFollowUp.value = { phase: 'restarting', previous };
+        restoreAwaiting = true;
+        restoreFollowUp.value = { phase: 'restarting', previous, partial };
         householdChanged.value = householdChanges;
         clearTimeout(restoreTimer);
         restoreTimer = setTimeout(() => {

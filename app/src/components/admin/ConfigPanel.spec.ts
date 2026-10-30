@@ -26,7 +26,7 @@ describe('ConfigPanel restore follow-up', () => {
     it('offers no way out while the box restarts on time', async () => {
         const config = useAdminConfigStore();
         config.options = [];
-        config.restoreFollowUp = { phase: 'restarting', previous: null };
+        config.restoreFollowUp = { phase: 'restarting', previous: null, partial: false };
         const wrapper = mountPanel();
         await flushPromises();
         expect(wrapper.find('.config__restart button').exists()).toBe(false);
@@ -35,7 +35,7 @@ describe('ConfigPanel restore follow-up', () => {
     it('lets go of a box that never came back, and gives the restore button back', async () => {
         const config = useAdminConfigStore();
         config.options = [];
-        config.restoreFollowUp = { phase: 'slow', previous: null };
+        config.restoreFollowUp = { phase: 'slow', previous: null, partial: false };
         const wrapper = mountPanel();
         await flushPromises();
         const pick = wrapper.findAll('.config__row button').at(1);
@@ -46,5 +46,15 @@ describe('ConfigPanel restore follow-up', () => {
         expect(config.restoreFollowUp).toBeNull();
         expect(wrapper.find('.config__restart').exists()).toBe(false);
         expect(pick?.attributes('disabled')).toBeUndefined();
+    });
+
+    it('says a restore failed half way, with the folder of the previous files', async () => {
+        const config = useAdminConfigStore();
+        config.options = [];
+        config.restoreFollowUp = { phase: 'done', previous: '2026/x', partial: true };
+        const wrapper = mountPanel();
+        await flushPromises();
+        expect(wrapper.find('.config__restored-text').text()).toContain('2026/x');
+        expect(wrapper.find('.config__restored-text').text()).toContain('failed half way');
     });
 });

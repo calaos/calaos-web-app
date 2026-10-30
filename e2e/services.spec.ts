@@ -143,7 +143,7 @@ test('the boot switch turns a service on and off, asking only to turn it off', a
     await expect(toggle).toHaveAttribute('aria-checked', 'false');
 });
 
-test('turning off a failed service ends, though the unit stays `failed`', async ({ page, mock }) => {
+test('turning off a failed service ends with the unit `inactive`', async ({ page, mock }) => {
     await configure(mock, { restartMs: 200, state: { zigbee2mqtt: 'failed' }, startup: { zigbee2mqtt: 'enabled' } });
     await openUnlocked(page);
     await bootSwitch(page, 'zigbee2mqtt').click();
@@ -152,7 +152,7 @@ test('turning off a failed service ends, though the unit stays `failed`', async 
         timeout: 15_000,
     });
     await expect(bootSwitch(page, 'zigbee2mqtt')).toHaveAttribute('aria-checked', 'false');
-    await expect(row(page, 'zigbee2mqtt').locator('.services__light--failed')).toBeVisible();
+    await expect(row(page, 'zigbee2mqtt').locator('.services__light--failed')).toHaveCount(0);
 });
 
 test('the time service leads to the Time card for its on/off', async ({ page }) => {
