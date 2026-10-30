@@ -241,6 +241,9 @@ async function confirmRestore(): Promise<void> {
             <p class="config__restart-text">
                 {{ followUp?.phase === 'slow' ? t('admin.config.restoreSlow') : t('admin.config.restoreRestarting') }}
             </p>
+            <AdminButton v-if="followUp?.phase === 'slow'" variant="quiet" @click="config.dismissRestore()">
+                {{ t('admin.config.restoreDismiss') }}
+            </AdminButton>
         </div>
         <div v-else-if="followUp !== null" class="config__restored fade-in" role="status">
             <p class="config__restored-text">
@@ -415,10 +418,10 @@ async function confirmRestore(): Promise<void> {
     gap: var(--space-3) var(--space-4);
     margin-block-end: var(--space-4);
     padding: var(--space-4);
-    border: 1px solid rgba(224, 163, 86, 0.4);
+    border: 1px solid var(--c-warn-border);
     border-inline-start: 3px solid var(--c-warn);
     border-radius: var(--radius-md);
-    background-color: rgba(52, 38, 20, 0.6);
+    background-color: var(--c-warn-bg);
     font-size: 0.875rem;
     line-height: 1.4;
     color: var(--c-text-muted);
@@ -455,7 +458,7 @@ async function confirmRestore(): Promise<void> {
     gap: var(--space-3) var(--space-4);
     margin-block-end: var(--space-4);
     padding: var(--space-4);
-    border: 1px solid rgba(76, 175, 125, 0.4);
+    border: 1px solid var(--c-success-border);
     border-inline-start: 3px solid var(--c-success);
     border-radius: var(--radius-md);
     font-size: 0.9375rem;
@@ -557,9 +560,9 @@ async function confirmRestore(): Promise<void> {
 
 .config__warning {
     padding: var(--space-3) var(--space-4);
-    border: 1px solid rgba(224, 163, 86, 0.4);
+    border: 1px solid var(--c-warn-border);
     border-radius: var(--radius-md);
-    background-color: rgba(52, 38, 20, 0.6);
+    background-color: var(--c-warn-bg);
     color: var(--c-warn);
     font-size: 0.9375rem;
     line-height: 1.45;

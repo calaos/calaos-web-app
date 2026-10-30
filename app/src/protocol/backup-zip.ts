@@ -16,8 +16,8 @@ export const MAX_ENTRIES = 64;
 export const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
 const README = `Calaos backup: io.xml and rules.xml are your home, local_config.xml the settings of the box.
-It contains passwords: the household login, tokens, mail and InfluxDB passwords, and the
-ddns token, which lets anyone delete your calaos.fr address. Keep this file private.
+It contains passwords: the household login, tokens, mail and InfluxDB passwords. local_config.xml
+also holds the ddns token, which lets anyone delete your calaos.fr address. Keep this backup private.
 To restore it, one of:
 1. Web app: Admin, Settings, "Restore a backup...", then pick this zip.
 2. Calaos Installer: unzip, "Open project" on the folder, "Send project to Calaos Server"
@@ -26,10 +26,10 @@ To restore it, one of:
    root@<box>:/mnt/calaos/config/, systemctl start calaos-server.
 
 Sauvegarde Calaos : io.xml et rules.xml sont votre maison, local_config.xml les réglages de la box.
-Elle contient des mots de passe : identifiant du foyer, jetons, mots de passe mail et InfluxDB,
-et le jeton ddns, qui permet à n'importe qui de supprimer votre adresse calaos.fr. Gardez-la privée.
-Pour la restaurer : par l'application web (Admin, Réglages, « Restaurer une sauvegarde… »), par
-Calaos Installer (décompresser, ouvrir le dossier, envoyer le projet) ou par SSH (comme ci-dessus).
+Elle contient des mots de passe : foyer, jetons, mail et InfluxDB. local_config.xml contient aussi
+le jeton ddns, qui permet à n'importe qui de supprimer votre adresse calaos.fr. Gardez-la privée.
+Pour la restaurer : application web (Admin, Réglages, « Restaurer une sauvegarde… »), Calaos
+Installer (décompresser, ouvrir le dossier, envoyer le projet) ou SSH (comme ci-dessus).
 `;
 
 const LOCAL_HEADER = 0x04034b50;
@@ -39,6 +39,7 @@ const LOCAL_HEADER_BYTES = 30;
 const CENTRAL_HEADER_BYTES = 46;
 const END_OF_DIRECTORY_BYTES = 22;
 const MAX_COMMENT_BYTES = 0xffff;
+const INFLATE_WRITE_BYTES = 64 * 1024;
 const METHOD_STORED = 0;
 const METHOD_DEFLATE = 8;
 const FLAG_ENCRYPTED = 0x0001;
@@ -151,6 +152,7 @@ export type RestoreReadError =
     | 'too_many_entries'
     | 'encrypted'
     | 'duplicate'
+    | 'two_folders'
     | 'compression'
     | 'entry_too_big'
     | 'not_a_zip'
@@ -233,20 +235,28 @@ function readDirectory(bytes: Uint8Array): ZipEntry[] {
     return entries;
 }
 
-/** The file name, or null when the path is not one a restore looks at. */
-function restorePathName(path: string): string | null {
+/** Folder ('' at the root) and file name, or null when the path is not one a restore looks at. */
+function restorePath(path: string): { folder: string; name: string } | null {
     const parts = path.replaceAll('\\', '/').split('/');
     if (parts.length > 2 || parts[0] === '__MACOSX') return null;
     if (parts.some((part) => part === '' || part.startsWith('.'))) return null;
-    return parts[parts.length - 1] ?? null;
+    const name = parts.pop();
+    return name === undefined ? null : { folder: parts[0] ?? '', name };
 }
 
 async function inflate(data: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
     if (typeof DecompressionStream === 'undefined') throw new Refused('no_inflate');
     const stream = new DecompressionStream('deflate-raw');
     const writer = stream.writable.getWriter();
-    // Rejects when the reader below stops early or the data is broken; the read reports it.
-    void writer.write(data).then(() => writer.close()).catch(() => undefined);
+    // One big write inflates in full before the first read returns, so the limit
+    // below would only fire once the bomb is in memory. Rejects when the reader
+    // stops early or the data is broken; the read reports it.
+    void (async () => {
+        for (let at = 0; at < data.length; at += INFLATE_WRITE_BYTES) {
+            await writer.write(data.subarray(at, at + INFLATE_WRITE_BYTES));
+        }
+        await writer.close();
+    })().catch(() => undefined);
     const reader = stream.readable.getReader();
     const chunks: Uint8Array[] = [];
     let total = 0;
@@ -326,12 +336,16 @@ async function readManifest(bytes: Uint8Array<ArrayBuffer>, entry: ZipEntry): Pr
 
 async function readZip(bytes: Uint8Array<ArrayBuffer>): Promise<RestoreInput> {
     const found = new Map<string, ZipEntry>();
+    const folders = new Set<string>();
     for (const entry of readDirectory(bytes)) {
-        const name = restorePathName(entry.name);
-        if (name === null || (name !== MANIFEST_NAME && !RESTORE_NAMES.includes(name))) continue;
-        if (found.has(name)) throw new Refused('duplicate');
-        found.set(name, entry);
+        const path = restorePath(entry.name);
+        if (path === null || (path.name !== MANIFEST_NAME && !RESTORE_NAMES.includes(path.name))) continue;
+        if (found.has(path.name)) throw new Refused('duplicate');
+        found.set(path.name, entry);
+        folders.add(path.folder);
     }
+    // io.xml of one project with rules.xml of another is no backup of anything.
+    if (folders.size > 1) throw new Refused('two_folders');
     const files: Record<string, string> = {};
     for (const name of RESTORE_NAMES) {
         const entry = found.get(name);

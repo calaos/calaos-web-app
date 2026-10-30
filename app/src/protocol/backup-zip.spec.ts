@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { backupZipName, toConfigBackup } from './admin-config';
 import type { ConfigBackup } from './admin-config';
 import {
@@ -85,6 +85,18 @@ function patchCentral(bytes: Uint8Array<ArrayBuffer>, field: number, value: numb
         if (view.getUint32(at, true) === 0x02014b50) view.setUint16(at + field, value, true);
     }
     return bytes;
+}
+
+/** The last file becomes deflate; its size stays the packed one, so the archive lies about it. */
+function markLastDeflated(bytes: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
+    const view = new DataView(bytes.buffer);
+    for (let at = bytes.length - 22; at >= 0; at -= 1) {
+        if (view.getUint32(at, true) === 0x02014b50) {
+            view.setUint16(at + 10, 8, true);
+            return bytes;
+        }
+    }
+    throw new Error('no central directory');
 }
 
 function doc(overrides: Partial<ConfigBackup> = {}): ConfigBackup {
@@ -238,15 +250,61 @@ describe('restore input', () => {
         void writer.close();
         const compressed = new Uint8Array(await new Response(bomb.readable).arrayBuffer());
         const bytes = encodeZip([...entries(PROJECT), { name: 'local_config.xml', data: compressed }], '');
-        const view = new DataView(bytes.buffer);
-        // The last central record: deflate, and a size that lies.
-        for (let at = bytes.length - 22, seen = 0; at >= 0 && seen === 0; at -= 1) {
-            if (view.getUint32(at, true) === 0x02014b50) {
-                view.setUint16(at + 10, 8, true);
-                seen = 1;
-            }
+        expect(await readRestoreInput([zipFile(markLastDeflated(bytes))])).toEqual({ ok: false, error: 'entry_too_big' });
+    });
+
+    describe('with a deflate bomb', () => {
+        afterEach(() => vi.unstubAllGlobals());
+
+        /** 512 MiB of zeros, about 512 KiB once packed: under the limits the archive is checked against. */
+        async function bomb(): Promise<Uint8Array<ArrayBuffer>> {
+            const stream = new CompressionStream('deflate-raw');
+            const writer = stream.writable.getWriter();
+            const mib = new Uint8Array(1024 * 1024);
+            const written = (async () => {
+                for (let count = 0; count < 512; count += 1) await writer.write(mib);
+                await writer.close();
+            })();
+            const packed = new Uint8Array(await new Response(stream.readable).arrayBuffer());
+            await written;
+            return packed;
         }
-        expect(await readRestoreInput([zipFile(bytes)])).toEqual({ ok: false, error: 'entry_too_big' });
+
+        it('stops feeding the inflater at the limit, long before the end of the entry', async () => {
+            const packed = await bomb();
+            const bytes = encodeZip([...entries(PROJECT), { name: 'local_config.xml', data: packed }], '');
+            const writes: number[] = [];
+            const Real = DecompressionStream;
+            // The output only stays small if the input stops coming, so the input is what is counted.
+            class Counting {
+                private readonly inner = new Real('deflate-raw');
+                readonly readable = this.inner.readable;
+                readonly writable = {
+                    getWriter: () => {
+                        const writer = this.inner.writable.getWriter();
+                        return {
+                            write: (chunk: Uint8Array<ArrayBuffer>) => {
+                                writes.push(chunk.length);
+                                return writer.write(chunk);
+                            },
+                            close: () => writer.close(),
+                        };
+                    },
+                };
+            }
+            vi.stubGlobal('DecompressionStream', Counting);
+
+            const read = await readRestoreInput([zipFile(markLastDeflated(bytes))]);
+
+            expect(read).toEqual({ ok: false, error: 'entry_too_big' });
+            expect(Math.max(...writes)).toBeLessThanOrEqual(64 * 1024);
+            expect(writes.reduce((sum, length) => sum + length, 0)).toBeLessThan(packed.length / 2);
+        });
+    });
+
+    it('refuses two project folders side by side', async () => {
+        const bytes = encodeZip(entries({ 'A/io.xml': '<x/>', 'B/rules.xml': '<x/>' }), '');
+        expect(await readRestoreInput([zipFile(bytes)])).toEqual({ ok: false, error: 'two_folders' });
     });
 
     it('refuses a file whose CRC does not match', async () => {

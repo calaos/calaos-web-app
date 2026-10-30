@@ -3,6 +3,7 @@
 // notice, the backup zip and the restore of one across the restart it causes.
 
 import { readFile } from 'node:fs/promises';
+import { constants, deflateRawSync } from 'node:zlib';
 import { LOGIN_URL, MESSAGES, adminScreen, expect, loginAs, loginForm, test } from './fixtures';
 import type { ControlOp, MockControl } from './fixtures';
 import type { Page } from '@playwright/test';
@@ -81,6 +82,30 @@ function storedEntries(zip: Buffer): Map<string, string> {
 
 const IO_XML = '<?xml version="1.0"?>\n<calaos:ioconfig xmlns:calaos="http://www.calaos.fr" format="2"/>\n';
 const RULES_XML = '<?xml version="1.0"?>\n<calaos:rules xmlns:calaos="http://www.calaos.fr"/>\n';
+
+/** io.xml says 1 KiB and inflates to 4 GiB, from a zip under the 8 MiB limit. */
+function zipBomb(): { zip: Buffer; packed: number } {
+    // A sync flush ends on a byte boundary, so the same run chains into one deflate stream.
+    const run = deflateRawSync(Buffer.alloc(64 * 1024 * 1024), { finishFlush: constants.Z_SYNC_FLUSH });
+    const lastEmptyBlock = Buffer.from([1, 0, 0, 0xff, 0xff]);
+    const data = Buffer.concat([...Array.from({ length: 64 }, () => run), lastEmptyBlock]);
+    const name = Buffer.from('io.xml');
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(name.length, 26);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(8, 10);
+    central.writeUInt32LE(data.length, 20);
+    central.writeUInt32LE(1024, 24);
+    central.writeUInt16LE(name.length, 28);
+    const end = Buffer.alloc(22);
+    end.writeUInt32LE(0x06054b50, 0);
+    end.writeUInt16LE(1, 10);
+    end.writeUInt32LE(central.length + name.length, 12);
+    end.writeUInt32LE(local.length + name.length + data.length, 16);
+    return { zip: Buffer.concat([local, name, data, central, name, end]), packed: data.length };
+}
 
 function localConfigXml(user: string, pass: string): string {
     return (
@@ -333,7 +358,7 @@ test('the box refuses a backup: the dry run says why and nothing is restored', a
     await openUnlocked(page);
     const refused = { 'io.xml': IO_XML.replace('format="2"', 'format="9"'), 'rules.xml': RULES_XML };
     await restoreRow(page).locator('input[type="file"]').setInputFiles(backupJson(refused));
-    await expect(restoreRow(page).getByRole('alert')).toBeVisible();
+    await expect(restoreRow(page).getByRole('alert')).toContainText('io.xml was made by a newer Calaos (format 9)');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     expect((await configStatus(mock)).restores).toEqual([]);
 });
@@ -350,6 +375,42 @@ test('a file that is no backup is stopped in the browser, nothing sent', async (
     expect((await configStatus(mock)).restores).toEqual([]);
 });
 
+test('a zip bomb is refused with most of it never unpacked', async ({ page, mock }) => {
+    await page.addInitScript(() => {
+        const Real = window.DecompressionStream;
+        const seen = { bytes: 0 };
+        Object.assign(window, { inflateInput: seen });
+        window.DecompressionStream = class {
+            private readonly inner = new Real('deflate-raw');
+            readonly readable = this.inner.readable;
+            readonly writable = {
+                getWriter: () => {
+                    const writer = this.inner.writable.getWriter();
+                    return {
+                        write: (chunk: Uint8Array<ArrayBuffer>) => {
+                            seen.bytes += chunk.length;
+                            return writer.write(chunk);
+                        },
+                        close: () => writer.close(),
+                    };
+                },
+            };
+        } as unknown as typeof DecompressionStream;
+    });
+    await openUnlocked(page);
+    const { zip, packed } = zipBomb();
+    await restoreRow(page).locator('input[type="file"]').setInputFiles({
+        name: 'bomb.zip',
+        mimeType: 'application/zip',
+        buffer: zip,
+    });
+    await expect(restoreRow(page).getByRole('alert')).toHaveText(cfg.restoreError.entry_too_big);
+    const fed = await page.evaluate(() => (window as unknown as { inflateInput: { bytes: number } }).inflateInput.bytes);
+    expect(fed).toBeGreaterThan(0);
+    expect(fed).toBeLessThan(packed / 4);
+    expect((await configStatus(mock)).restores).toEqual([]);
+});
+
 test('a failed restore stays in the dialog and says so', async ({ page, mock }) => {
     await patchAdmin(mock, { config: { restore: { fail: 'previous files in backups/2026/x' } } });
     await openUnlocked(page);
@@ -363,7 +424,7 @@ test('a failed restore stays in the dialog and says so', async ({ page, mock }) 
     await expect(page.locator('.config__restart')).toHaveCount(0);
 });
 
-test('a changed household login sends the page to sign-in, which says why', async ({ page }) => {
+async function restoreChangingHousehold(page: Page): Promise<void> {
     await openUnlocked(page);
     await restoreRow(page).locator('input[type="file"]').setInputFiles(
         backupJson({ 'io.xml': IO_XML, 'rules.xml': RULES_XML, 'local_config.xml': localConfigXml('demo', 'from-the-backup') }),
@@ -374,7 +435,15 @@ test('a changed household login sends the page to sign-in, which says why', asyn
     await dialog.getByRole('button', { name: cfg.restoreConfirm }).click();
 
     await expect(page).toHaveURL(LOGIN_URL, { timeout: 15_000 });
+}
+
+test('a changed household login sends the page to sign-in, which says why', async ({ page }) => {
+    await restoreChangingHousehold(page);
     await expect(page.locator('#login-restored')).toHaveText(MESSAGES.login.restoredHousehold);
+});
+
+test('after a changed household login, the restored password signs in', async ({ page }) => {
+    await restoreChangingHousehold(page);
     await loginAs(page, { user: 'demo', pass: 'from-the-backup' });
     await expect(page).not.toHaveURL(LOGIN_URL);
     await expect(loginForm(page).submit).toHaveCount(0);

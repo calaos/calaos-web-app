@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The last stop before the box's files are replaced. Everything shown comes
-// from the box's dry run, so it describes the files as the server read them.
+// The last stop before the box's files are replaced. The title comes from the
+// file's own manifest; the rest from the box's dry run, as the server read them.
 
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -10,6 +10,8 @@ import type { RestoreManifest } from '../../protocol/backup-zip';
 import { useAdminDates } from '../../composables/useAdminDates';
 
 const COUNTS: (keyof RestoreCounts)[] = ['rooms', 'ios', 'devices', 'rules'];
+/** The manifest is whatever the file says: as long as a hostname label, no more. */
+const MAX_TITLE_FIELD_CHARS = 63;
 
 const props = defineProps<{
     /** Open while set. */
@@ -25,15 +27,20 @@ const emit = defineEmits<{ confirm: []; cancel: [] }>();
 const { t, te } = useI18n();
 const { dayTime } = useAdminDates();
 
+function clipped(text: string): string {
+    return text.length > MAX_TITLE_FIELD_CHARS ? `${text.slice(0, MAX_TITLE_FIELD_CHARS - 1)}…` : text;
+}
+
 const title = computed(() => {
-    const date = props.manifest !== null ? dayTime(props.manifest.createdAt) : '';
-    if (props.manifest === null || props.manifest.hostname === '' || date === '') {
+    const manifest = props.manifest;
+    const date = manifest !== null ? dayTime(manifest.createdAt) : '';
+    if (manifest === null || manifest.hostname === '' || manifest.serverVersion === '' || date === '') {
         return t('admin.config.restoreTitleBare');
     }
     return t('admin.config.restoreTitle', {
-        host: props.manifest.hostname,
+        host: clipped(manifest.hostname),
         date,
-        version: props.manifest.serverVersion,
+        version: clipped(manifest.serverVersion),
     });
 });
 
@@ -153,9 +160,9 @@ function warningText(code: string): string {
     gap: var(--space-2);
     margin-block-start: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    border: 1px solid rgba(224, 163, 86, 0.4);
+    border: 1px solid var(--c-warn-border);
     border-radius: var(--radius-md);
-    background-color: rgba(52, 38, 20, 0.6);
+    background-color: var(--c-warn-bg);
     color: var(--c-warn);
     font-size: 0.9375rem;
     line-height: 1.45;

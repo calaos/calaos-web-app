@@ -85,6 +85,7 @@
         "too_many_entries": "Ce zip contient trop de fichiers pour être une sauvegarde Calaos.",
         "encrypted": "Ce zip est chiffré. Décompressez-le, puis choisissez io.xml et rules.xml.",
         "duplicate": "Ce zip contient deux fois le même fichier : impossible de savoir lequel restaurer.",
+        "two_folders": "Ce zip contient deux dossiers de projet. Décompressez-le, puis choisissez io.xml et rules.xml de l'un d'eux.",
         "compression": "Ce zip utilise une compression que le navigateur ne sait pas lire. Décompressez-le, puis choisissez io.xml et rules.xml.",
         "entry_too_big": "Un fichier de ce zip dépasse 2 Mio une fois décompressé, plus que la box n’accepte.",
         "not_a_zip": "Ce fichier n’est pas une archive zip.",
