@@ -149,7 +149,7 @@ describe('services', () => {
         expect(await read()).toBe('failed');
     });
 
-    it('fails a restart when told, and leaves a stopped `failed` unit `failed`', async () => {
+    it('fails a restart when told, and a stop or disable clears the `failed` state', async () => {
         const { ask } = await session();
         await control({ op: 'admin', services: { restartMs: 50, fail_service: { unit: 'envoy', verb: 'restart' } } });
         await ask('services_restart', { unit: 'envoy' });
@@ -158,7 +158,7 @@ describe('services', () => {
         expect((await read()).active_state).toBe('failed');
         await ask('services_disable', { unit: 'envoy' });
         await sleep(700);
-        expect(await read()).toMatchObject({ active_state: 'failed', startup: 'disabled' });
+        expect(await read()).toMatchObject({ active_state: 'inactive', startup: 'disabled' });
     });
 
     it('keeps `since` of a reloaded unit, and moves everyone else\'s', async () => {
@@ -346,9 +346,21 @@ describe('config', () => {
         const preview = await ask('config_restore', { files: { 'io.xml': IO, 'rules.xml': RULES }, dry_run: true });
         expect(preview.result).toMatchObject({ dry_run: true, warnings: ['no_local_config'] });
         expect(preview.result.previous).toBeUndefined();
+        const bare = IO.replace(' format="2"', '');
+        const older = await ask('config_restore', { files: { 'io.xml': bare, 'rules.xml': RULES }, dry_run: true });
+        expect(older.result.io_format).toBe(1);
 
-        const done = await ask('config_restore', { files: { 'io.xml': IO, 'rules.xml': RULES } });
-        expect(done.result).toMatchObject({ dry_run: false, restarting: true });
+        await control({ op: 'admin', config: { restore: { fail: 'disk full', failRestarting: true } } });
+        const half = await ask('config_restore', { files: { 'io.xml': IO, 'rules.xml': RULES }, dry_run: false });
+        expect(half).toMatchObject({ error: 'internal', restarting: 'true' });
+        expect(half.previous).toMatch(/^\d{4}\//);
+        await control({ op: 'admin', config: { restore: { fail: '', failRestarting: false } } });
+
+        const noFlag = await ask('config_restore', { files: { 'io.xml': IO, 'rules.xml': RULES } });
+        expect(noFlag).toMatchObject({ success: 'false', error: 'invalid_request' });
+
+        const done = await ask('config_restore', { files: { 'io.xml': IO, 'rules.xml': RULES }, dry_run: false });
+        expect(done.result).toMatchObject({ dry_run: false, restarting: true, io_format: 2 });
         expect(done.result.previous).toMatch(/^\d{4}\//);
 
         await control({ op: 'admin', config: { restore: { upgrading: true } } });

@@ -69,6 +69,8 @@
     "restoreRestarting": "Calaos server is restarting with the restored configuration. The page reconnects by itself.",
     "restoreSlow": "The box is taking longer than expected. This page reconnects by itself when it comes back.",
     "restoreDone": "Configuration restored. The previous one is kept on the box (backups/{folder}).",
+    "restorePartialWaiting": "The restore failed half way and the box is restarting: its files may be a mix. The previous configuration is kept on the box (backups/{folder}). The page reconnects by itself.",
+    "restorePartial": "The restore failed half way: the box's files may be a mix. The previous configuration is kept on the box (backups/{folder}).",
     "restoreUnconfirmed": "The box is back, but its answer was lost in the restart. Check that the configuration is the one you restored.",
     "restoreDismiss": "Close",
     "restoreWarningUnknown": "The box also reports: {code}.",
