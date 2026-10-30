@@ -1,6 +1,7 @@
 {
     "title": "Services",
     "hint": "The programs that make up the box. Restarting one interrupts it for a few seconds.",
+    "entryHint": "Check the programs that make up the box and restart one.",
     "state": {
         "active": "Running",
         "inactive": "Stopped",

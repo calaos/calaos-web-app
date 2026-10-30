@@ -1,6 +1,7 @@
 {
     "title": "Services",
     "hint": "Les programmes qui composent la box. En redémarrer un l’interrompt quelques secondes.",
+    "entryHint": "Voir les programmes qui composent la box et en redémarrer un.",
     "state": {
         "active": "En marche",
         "inactive": "Arrêté",

@@ -1,4 +1,4 @@
-// The services panel of the Admin tab against the mock's fake daemon: a
+// The services page of the Admin tab against the mock's fake daemon: a
 // restart followed until `since` moves, calaos-server taking the page's own
 // connection with it, a unit that fails to start, a unit gone missing, and
 // the 409 of an upgrade this client did not see start.
@@ -41,6 +41,8 @@ async function openUnlocked(page: Page): Promise<void> {
     await expect(admin.heading).toHaveText(MESSAGES.admin.unlock.title);
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
+    await page.locator('[data-page="services"]').click();
+    await expect(page).toHaveURL(/#\/admin\/services$/);
     await expect(page.locator('.services')).toBeVisible();
 }
 
@@ -140,12 +142,22 @@ test('an upgrade started elsewhere refuses the restart with its own message', as
     expect(await restarts(mock)).toEqual([]);
 });
 
-test('an older daemon: the services panel says to update the box, and the Admin page stays unlocked', async ({ page, mock }) => {
+test('an older daemon: the services page says to update the box, and the admin session stays', async ({ page, mock }) => {
     await mock.admin({ tooOld: ['services_list'] });
     await openUnlocked(page);
     await expect(page.locator('.services')).toContainText(MESSAGES.admin.error.daemon_too_old);
     await page.waitForTimeout(6_000);
-    await expect(adminScreen(page).updates).toBeVisible();
+    await expect(page).toHaveURL(/#\/admin\/services$/);
     await expect(adminScreen(page).adminPassword).toHaveCount(0);
     expect((await mock.adminActions()).filter((action) => action === 'services_list')).toHaveLength(1);
+});
+
+test('the page says where it is and leads back to the Admin hub', async ({ page }) => {
+    await openUnlocked(page);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(services.title);
+    const trail = page.getByRole('navigation', { name: MESSAGES.admin.pages.trail });
+    await expect(trail.locator('[aria-current="page"]')).toHaveText(services.title);
+    await trail.getByRole('link', { name: MESSAGES.admin.title }).click();
+    await expect(page).toHaveURL(/#\/admin$/);
+    await expect(adminScreen(page).updates).toBeVisible();
 });

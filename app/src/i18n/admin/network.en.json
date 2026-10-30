@@ -7,9 +7,7 @@
     "entry": {
         "name": "Network",
         "hint": "The box’s address and its network settings.",
-        "open": "Open",
-        "pending": "A network change on {intf} is waiting to be kept: {time} left.",
-        "review": "Review"
+        "pending": "A network change on {intf} is waiting to be kept: {time} left."
     },
     "state": {
         "routable": "Connected",

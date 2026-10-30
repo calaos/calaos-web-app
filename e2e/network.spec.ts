@@ -58,7 +58,7 @@ async function openNetwork(page: Page, url = '/'): Promise<void> {
     await page.goto(url);
     await loginAs(page);
     await unlock(page);
-    await page.locator('.net-entry').getByRole('button').click();
+    await page.locator('[data-page="network"]').click();
     await expect(page).toHaveURL(/#\/admin\/network$/);
     await expect(row(page, 'eth0')).toContainText(/\d+\.\d+\.\d+\.\d+\/\d+/);
 }
@@ -244,9 +244,9 @@ test('a reload during the trial finds the countdown again after unlocking', asyn
     await loginAs(page);
     await unlock(page);
 
-    const entry = page.locator('.net-entry');
+    const entry = page.locator('[data-page="network"]');
     await expect(entry).toContainText(fill(net.entry.pending, { intf: 'eth0', time: '@' }).split('@')[0]);
-    await entry.getByRole('button', { name: net.entry.review }).click();
+    await entry.click();
     await expect(panel(page)).toContainText(fill(net.pending.title, { intf: 'eth0' }));
     // The box's own count, not a fresh 2:00 from the reload.
     const boxLeft = (await networkStatus(mock)).pending?.expires_in ?? 0;
@@ -297,7 +297,7 @@ test('an older daemon: the network row says so, and the Admin page stays unlocke
     await page.goto('/');
     await loginAs(page);
     await unlock(page);
-    const entry = page.locator('.net-entry');
+    const entry = page.locator('[data-page="network"]');
     await expect(entry).toContainText(t.error.daemon_too_old);
     // Nothing flips the page to "being activated" and back.
     await page.waitForTimeout(7_000);

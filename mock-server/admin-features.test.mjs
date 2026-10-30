@@ -254,6 +254,22 @@ describe('config', () => {
         expect(refused.headers.get('content-disposition')).toBeNull();
         expect(await refused.json()).toMatchObject({ success: 'false', error: 'bad_session' });
     });
+
+    it('serves get_mcp_info with the session in the body, and a new token after mcp_regenerate', async () => {
+        const { ask, token } = await session();
+        const post = (body) =>
+            fetch(`${server.url}/api`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+        const info = await (await post({ action: 'get_mcp_info', cn_user: 'demo', cn_pass: 'demo', admin_session: token })).json();
+        expect(info).toMatchObject({ url_path: '/mcp', token: expect.stringMatching(/^[0-9a-f]{64}$/) });
+        expect(typeof info.hint).toBe('string');
+        const refused = await post({ action: 'get_mcp_info', cn_user: 'demo', cn_pass: 'demo' });
+        expect(await refused.json()).toMatchObject({ success: 'false', error: 'bad_session' });
+
+        await ask('mcp_regenerate');
+        const next = await (await post({ action: 'get_mcp_info', cn_user: 'demo', cn_pass: 'demo', admin_session: token })).json();
+        expect(next.token).toMatch(/^[0-9a-f]{64}$/);
+        expect(next.token).not.toBe(info.token);
+    });
 });
 
 describe('network', () => {
@@ -336,7 +352,6 @@ describe('network', () => {
         await control({ op: 'admin', network: { hangOnApply: true } });
         const proof = await codeFor(ask, change);
         const applied = await ask('network_apply', { ...change, ...proof });
-        await sleep(100);
         ws.send(JSON.stringify({ msg: 'admin', msg_id: 'keep', data: { action: 'network_confirm', admin_session: token, params: { change_id: applied.result.change_id } } }));
         await sleep(200);
         expect(ws.readyState).toBe(WebSocket.OPEN);

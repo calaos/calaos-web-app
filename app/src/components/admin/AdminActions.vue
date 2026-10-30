@@ -10,6 +10,7 @@ import { useRouter } from 'vue-router';
 import BaseDialog from '../ui/BaseDialog.vue';
 import { ADMIN_PASSWORD_MIN_LENGTH } from '../../protocol/admin';
 import { useAdminStore } from '../../stores/admin';
+import { useAdminMcpStore } from '../../stores/adminMcp';
 import { useApproversStore } from '../../stores/approvers';
 import { useAdminText } from '../../composables/useAdminText';
 import AdminButton from './AdminButton.vue';
@@ -20,6 +21,7 @@ const { t } = useI18n();
 const router = useRouter();
 const admin = useAdminStore();
 const approvers = useApproversStore();
+const mcp = useAdminMcpStore();
 const { errorText } = useAdminText();
 
 const confirming = ref<'reboot' | 'mcp' | null>(null);
@@ -55,7 +57,11 @@ function confirm(): void {
     const what = confirming.value;
     confirming.value = null;
     if (what === 'reboot') void admin.reboot();
-    if (what === 'mcp') void admin.regenerateMcp();
+    if (what === 'mcp') void regenerate();
+}
+
+async function regenerate(): Promise<void> {
+    if (await admin.regenerateMcp()) await mcp.load(true);
 }
 
 function openChange(): void {

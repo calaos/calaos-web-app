@@ -33,8 +33,14 @@ async function openLogs(page: Page): Promise<void> {
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
     await expect(admin.updates).toBeVisible();
-    await page.getByRole('button', { name: L.open }).click();
+    await page.locator('[data-page="logs"]').click();
     await expect(page).toHaveURL(/#\/admin\/logs$/);
+    // Narrow screens fold the filters away; wide ones show them beside the journal.
+    const toggle = page.locator('.logs__filters-toggle');
+    if (await toggle.isVisible()) {
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    }
 }
 
 const rows = (page: Page) => page.locator('.log-row');

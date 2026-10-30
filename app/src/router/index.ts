@@ -133,6 +133,20 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 meta: { requiresAuth: true, detail: true },
                 beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
             },
+            {
+                path: '/admin/services',
+                name: 'adminServices',
+                component: () => import('../views/ServicesView.vue'),
+                meta: { requiresAuth: true, detail: true },
+                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+            },
+            {
+                path: '/admin/settings',
+                name: 'adminSettings',
+                component: () => import('../views/SettingsView.vue'),
+                meta: { requiresAuth: true, detail: true },
+                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+            },
             // Unknown hash → home, where the auth guard takes over.
             { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
         ],

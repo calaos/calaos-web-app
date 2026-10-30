@@ -1,5 +1,6 @@
 {
     "title": "Settings",
+    "entryHint": "Calaos server options and the configuration backup.",
     "group": {
         "Logging": "Logging",
         "Notifications": "Notifications",
@@ -19,8 +20,6 @@
     "backupHint": "The configuration files of the box, in one file.",
     "backupWarning": "The file contains passwords in clear text: the sign-in, the cameras, the MCP token. It lands unencrypted in your downloads; keep it somewhere safe.",
     "hint": "The box's own options: notifications, history, InfluxDB, touch screens.",
-    "show": "Show settings",
-    "hide": "Hide settings",
     "loading": "Reading the settings…",
     "loadFailed": "The settings could not be read.",
     "retry": "Try again",

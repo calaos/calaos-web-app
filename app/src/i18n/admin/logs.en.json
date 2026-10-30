@@ -1,7 +1,9 @@
 {
     "title": "Logs",
-    "open": "Open the logs",
     "openHint": "Read the box’s journal, by service, and follow it live.",
+    "filters": "Filters",
+    "filtersHide": "Hide filters",
+    "filtersSummary": "{sources}, {range}",
     "source": {
         "calaos-server": "Calaos server",
         "calaos-home": "Calaos Home (touch screen)",

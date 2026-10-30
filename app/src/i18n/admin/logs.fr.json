@@ -1,7 +1,9 @@
 {
     "title": "Journaux",
-    "open": "Ouvrir les journaux",
     "openHint": "Lire le journal de la box, par service, et le suivre en direct.",
+    "filters": "Filtres",
+    "filtersHide": "Masquer les filtres",
+    "filtersSummary": "{sources}, {range}",
     "source": {
         "calaos-server": "Serveur Calaos",
         "calaos-home": "Calaos Home (écran tactile)",

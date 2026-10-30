@@ -15,6 +15,7 @@ import { useAdminText } from '../composables/useAdminText';
 import BaseDialog from '../components/ui/BaseDialog.vue';
 import AdminButton from '../components/admin/AdminButton.vue';
 import AdminNotice from '../components/admin/AdminNotice.vue';
+import AdminPageHeader from '../components/admin/AdminPageHeader.vue';
 import CodeEntry from '../components/admin/CodeEntry.vue';
 import NetworkForm from '../components/admin/NetworkForm.vue';
 import NetworkPending from '../components/admin/NetworkPending.vue';
@@ -155,10 +156,7 @@ onBeforeUnmount(() => {
 <template>
     <div class="network">
         <div class="network__page">
-            <header class="network__intro fade-in-down">
-                <h1 class="network__heading">{{ t('admin.network.title') }}</h1>
-                <p class="network__hint">{{ t('admin.network.hint') }}</p>
-            </header>
+            <AdminPageHeader :title="t('admin.network.title')" :hint="t('admin.network.hint')" />
 
             <p
                 v-if="outcome !== null"
@@ -328,21 +326,6 @@ onBeforeUnmount(() => {
     inline-size: 100%;
     max-inline-size: 40rem;
     margin-inline: auto;
-}
-
-.network__heading {
-    font-size: clamp(1.5rem, 6vw, 1.875rem);
-    font-weight: 400;
-    letter-spacing: var(--tracking-tight);
-    line-height: 1.15;
-}
-
-.network__hint {
-    margin-block-start: var(--space-2);
-    color: var(--c-text-muted);
-    font-size: 0.9375rem;
-    line-height: 1.45;
-    max-inline-size: 52ch;
 }
 
 .network__outcome {

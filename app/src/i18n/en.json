@@ -199,6 +199,26 @@
     },
     "admin": {
         "title": "Administration",
+        "pages": {
+            "label": "Box pages",
+            "trail": "You are here"
+        },
+        "mcp": {
+            "title": "MCP access",
+            "hint": "What an AI assistant needs to reach the box. It sends the token as a Bearer token in the Authorization header.",
+            "url": "Address",
+            "token": "Token",
+            "show": "Show",
+            "hide": "Hide",
+            "copy": "Copy",
+            "copied": "Copied",
+            "copyFailed": "Copying did not work: show the token and select it by hand.",
+            "hidden": "Token hidden",
+            "loading": "Reading the MCP access…",
+            "loadFailed": "The MCP access could not be read.",
+            "retry": "Try again",
+            "renewed": "New token. Assistants need this one from now on."
+        },
         "probing": "Checking the box…",
         "unlock": {
             "title": "Admin password",
@@ -308,7 +328,7 @@
             "password_changed": "Admin password changed.",
             "session_invalidated": "The admin password was just changed. Enter the new one.",
             "already_set": "Someone just set the admin password. Enter it to continue.",
-            "mcp_regenerated": "New MCP token generated. Read it from the Calaos installer.",
+            "mcp_regenerated": "New MCP token generated. It is shown under MCP access.",
             "reboot_sent": "Restarting the box… the app reconnects on its own.",
             "code_locked": "Too many wrong codes. Enter the admin password again."
         },
