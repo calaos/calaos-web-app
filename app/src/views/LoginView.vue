@@ -36,11 +36,13 @@ import { onBeforeRouteLeave } from 'vue-router';
 import IconAlert from '~icons/mdi/alert-outline';
 import IconLoading from '~icons/mdi/loading';
 import { useMinDuration } from '../composables/useMinDuration';
+import { useAdminConfigStore } from '../stores/adminConfig';
 import { useAuthStore } from '../stores/auth';
 import { useConnectionStore } from '../stores/connection';
 
 const { t } = useI18n();
 const auth = useAuthStore();
+const config = useAdminConfigStore();
 const connection = useConnectionStore();
 
 // Seeded from the store, which matters in exactly one case: a re-login
@@ -206,6 +208,9 @@ watch(
 
                     <p v-if="showError" id="login-error" class="login__error fade-in">
                         {{ t('login.error') }}
+                    </p>
+                    <p v-if="showError && config.householdChanged" id="login-restored" class="login__restored fade-in">
+                        {{ t('login.restoredHousehold') }}
                     </p>
                 </div>
             </form>
@@ -436,6 +441,12 @@ watch(
 .login__error {
     color: var(--c-danger);
     font-size: 0.8125rem;
+}
+
+.login__restored {
+    color: var(--c-warn);
+    font-size: 0.8125rem;
+    line-height: 1.4;
 }
 
 @media (prefers-reduced-motion: reduce) {

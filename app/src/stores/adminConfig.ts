@@ -1,28 +1,64 @@
-// calaos_server's own settings and the configuration backup (calaos_base
-// docs/08_http_api.md, "Configuration"). Session only. A secret is never
-// read back: the list only says whether one is stored.
+// calaos_server's own settings, the configuration backup and its restore
+// (calaos_base docs/08_http_api.md, "Configuration"). Session only. A secret
+// is never read back: the list only says whether one is stored.
 
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { defineStore } from 'pinia';
-import { backupFilename, configBackupBody, configSetParams, toConfigOptions, toConfigSetResult } from '../protocol/admin-config';
-import type { ConfigOption, ConfigSetResult } from '../protocol/admin-config';
+import {
+    backupZipName,
+    configBackupBody,
+    configRestoreParams,
+    configSetParams,
+    isBackupDownload,
+    toConfigBackup,
+    toConfigOptions,
+    toConfigRestoreResult,
+    toConfigSetResult,
+} from '../protocol/admin-config';
+import type { ConfigBackup, ConfigOption, ConfigRestoreResult, ConfigSetResult } from '../protocol/admin-config';
 import { bareAdminError, isAdminFailure, isPanelError, toAdminError } from '../protocol/admin';
 import type { AdminError } from '../protocol/admin';
+import { buildBackupZip } from '../protocol/backup-zip';
 import { useAdminStore } from './admin';
+import { SELF_RESTART_DEADLINE_MS, SELF_RESTART_DROP_MS } from './adminServices';
+import { useAuthStore } from './auth';
+import { useConnectionStore } from './connection';
 
 export interface BackupFile {
     filename: string;
     blob: Blob;
 }
 
+/** The restart a restore causes, followed across the reconnection. */
+export interface RestoreFollowUp {
+    phase: 'restarting' | 'slow' | 'done';
+    /** The `backups/` folder of the replaced files; null when the answer was lost to the restart. */
+    previous: string | null;
+}
+
 export const useAdminConfigStore = defineStore('adminConfig', () => {
     const admin = useAdminStore();
+    const auth = useAuthStore();
+    const connection = useConnectionStore();
 
     /** null until read. */
     const options = ref<ConfigOption[] | null>(null);
     const error = ref<AdminError | null>(null);
     /** A saved key needs calaos-server restarted. */
     const restartRequired = ref(false);
+    const restoreFollowUp = ref<RestoreFollowUp | null>(null);
+    /**
+     * Read by the sign-in page when the new household login is refused, so it
+     * outlives the admin session and a dismissed follow-up: the box may come
+     * back long after the "slow" banner was closed.
+     */
+    const householdChanged = ref(false);
+
+    /** Connection and household re-login: only then has the restarted server read the restored files. */
+    const online = computed(() => connection.isOpen && auth.isAuthed);
+
+    let restoreDropped = false;
+    let restoreTimer: ReturnType<typeof setTimeout> | undefined;
 
     watch(
         () => admin.session,
@@ -30,6 +66,21 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
             if (session === null && admin.busy !== 'set' && admin.busy !== 'unlock') reset();
         },
     );
+
+    watch(online, (now) => {
+        if (!now) {
+            restoreDropped = true;
+            return;
+        }
+        if (!restoreDropped) return;
+        householdChanged.value = false;
+        const followUp = restoreFollowUp.value;
+        if (followUp === null || followUp.phase === 'done') return;
+        clearTimeout(restoreTimer);
+        followUp.phase = 'done';
+        restartRequired.value = false;
+        void load();
+    });
 
     async function load(): Promise<void> {
         const outcome = await admin.relay('config_list', undefined, false, isPanelError);
@@ -80,8 +131,7 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
         // A refused household sign-in is HTTP 400 with an HTML page.
         if (response.status === 400) return bareAdminError('household_refused');
         if (!response.ok) return bareAdminError('internal');
-        const filename = backupFilename(response.headers.get('content-disposition'));
-        if (filename === '') {
+        if (!isBackupDownload(response.headers.get('content-disposition'))) {
             let payload: unknown = null;
             try {
                 payload = await response.json();
@@ -92,7 +142,58 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
             if (failure.code === 'bad_session') admin.dropSession(null);
             return failure;
         }
-        return { filename, blob: await response.blob() };
+        let doc: ConfigBackup | null = null;
+        try {
+            doc = toConfigBackup(await response.json());
+        } catch {
+            // Reported below, like a document in an unknown format.
+        }
+        if (doc === null) return bareAdminError('internal');
+        return { filename: backupZipName(doc.hostname, doc.createdAt), blob: buildBackupZip(doc) };
+    }
+
+    /** Validates `files` on the box and counts what would change. Nothing is written. */
+    async function previewRestore(
+        files: Record<string, string>,
+    ): Promise<{ result: ConfigRestoreResult | null; error: AdminError | null }> {
+        const outcome = await admin.relay('config_restore', configRestoreParams(files, true), true, isPanelError);
+        if (!outcome.ok) return { result: null, error: outcome.error };
+        const result = toConfigRestoreResult(outcome.data.result);
+        return result === null ? { result: null, error: bareAdminError('unknown') } : { result, error: null };
+    }
+
+    /**
+     * Replaces the files and follows the restart. A lost answer may be that
+     * restart at work: it is followed too, but without claiming a success.
+     */
+    async function restore(files: Record<string, string>, householdChanges: boolean): Promise<AdminError | null> {
+        const sentAt = Date.now();
+        const outcome = await admin.relay('config_restore', configRestoreParams(files, false), true, isPanelError);
+        if (outcome.ok) {
+            followRestart(toConfigRestoreResult(outcome.data.result)?.previous ?? null, householdChanges);
+            return null;
+        }
+        const code = outcome.error.code;
+        if (code === 'timeout' || (code === 'disconnected' && Date.now() - sentAt <= SELF_RESTART_DROP_MS)) {
+            followRestart(null, householdChanges);
+            return null;
+        }
+        return outcome.error;
+    }
+
+    function followRestart(previous: string | null, householdChanges: boolean): void {
+        restoreDropped = !online.value;
+        restoreFollowUp.value = { phase: 'restarting', previous };
+        householdChanged.value = householdChanges;
+        clearTimeout(restoreTimer);
+        restoreTimer = setTimeout(() => {
+            if (restoreFollowUp.value?.phase === 'restarting') restoreFollowUp.value.phase = 'slow';
+        }, SELF_RESTART_DEADLINE_MS);
+    }
+
+    function dismissRestore(): void {
+        clearTimeout(restoreTimer);
+        restoreFollowUp.value = null;
     }
 
     function dismissRestart(): void {
@@ -105,5 +206,19 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
         restartRequired.value = false;
     }
 
-    return { options, error, restartRequired, load, set, downloadBackup, dismissRestart, reset };
+    return {
+        options,
+        error,
+        restartRequired,
+        restoreFollowUp,
+        householdChanged,
+        load,
+        set,
+        downloadBackup,
+        previewRestore,
+        restore,
+        dismissRestart,
+        dismissRestore,
+        reset,
+    };
 });

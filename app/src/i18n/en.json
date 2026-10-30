@@ -10,7 +10,8 @@
         "submitting": "Signing in…",
         "error": "Username or password is incorrect.",
         "offline": "No connection to Calaos",
-        "offlineHint": "Sign in becomes available as soon as the server answers."
+        "offlineHint": "Sign in becomes available as soon as the server answers.",
+        "restoredHousehold": "The restored configuration has its own sign-in: use the household password of the backup."
     },
     "home": {
         "title": "Rooms",

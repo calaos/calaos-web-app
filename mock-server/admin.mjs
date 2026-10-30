@@ -66,6 +66,7 @@ const ACTIONS = [
     'config_list',
     'config_set',
     'config_backup',
+    'config_restore',
 ];
 
 const CODE_ACTIONS = ['console_open', 'admin_password', 'approver_enroll', 'approver_remove', 'network_config'];
@@ -688,7 +689,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         services: createServices({ hub, failure, running }),
         logs: createLogs({ failure }),
         time: createTime({ failure }),
-        config: createConfig({ failure, hub }),
+        config: createConfig({ failure, hub, running }),
         network: createNetwork({
             hub,
             failure,
@@ -825,6 +826,11 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         const scenario = scenarioError();
         if (scenario !== null) return respond(scenario);
         if (!ACTIONS.includes(action)) return respond(failure('not_allowed', 'unknown action'));
+        if (action === 'config_restore') {
+            // calaos_server validates the files before it even asks the daemon about the session.
+            const refused = features.config.restoreRefusal(data.params);
+            if (refused !== null) return respond(failure('invalid_request', refused));
+        }
         if (!state.set) {
             return respond(failure('admin_not_set', 'Admin password not set', {
                 api_allowed_hosts: state.apiAllowedHosts,

@@ -1,19 +1,27 @@
 <script setup lang="ts">
 // The registry validates every value and its refusal is shown under the row concerned.
 // The backup is an HTTP download: the session rides in the POST body, never a URL.
+// A restore is read here, checked by the box's dry run, then sent: the box
+// restarts, and the store follows it across the reconnection.
 
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import BaseDialog from '../ui/BaseDialog.vue';
 import { SELF_SERVICE_ID } from '../../protocol/admin-services';
-import type { ConfigOption } from '../../protocol/admin-config';
+import { restoreFitsOneMessage } from '../../protocol/admin-config';
+import type { ConfigOption, ConfigRestoreResult } from '../../protocol/admin-config';
+import type { AdminError } from '../../protocol/admin';
+import { readRestoreInput } from '../../protocol/backup-zip';
+import type { RestoreInput } from '../../protocol/backup-zip';
 import { useAdminStore } from '../../stores/admin';
 import { useAdminConfigStore } from '../../stores/adminConfig';
+import type { BackupFile } from '../../stores/adminConfig';
 import { useAdminServicesStore } from '../../stores/adminServices';
 import { useAdminText } from '../../composables/useAdminText';
 import { groupOptions } from './configEditors';
 import AdminButton from './AdminButton.vue';
 import AdminField from './AdminField.vue';
+import ConfigRestoreDialog from './ConfigRestoreDialog.vue';
 import ConfigRow from './ConfigRow.vue';
 
 const SAVED_FLASH_MS = 2_500;
@@ -111,6 +119,19 @@ const downloading = ref(false);
 const backupError = ref('');
 const backupName = ref('');
 
+function saveFile(file: BackupFile): void {
+    const url = URL.createObjectURL(file.blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = file.filename;
+    anchor.rel = 'noopener';
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    // Revoking at once can cancel the save in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 async function downloadBackup(): Promise<void> {
     confirmingBackup.value = false;
     downloading.value = true;
@@ -122,23 +143,118 @@ async function downloadBackup(): Promise<void> {
         backupError.value = errorText(outcome);
         return;
     }
-    const url = URL.createObjectURL(outcome.blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = outcome.filename;
-    anchor.rel = 'noopener';
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
-    // Revoking at once can cancel the save in some browsers.
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    saveFile(outcome);
     backupName.value = outcome.filename;
+}
+
+// ---- restore ------------------------------------------------------------
+
+const restorePicker = ref<HTMLInputElement | null>(null);
+const checkingRestore = ref(false);
+const restoreError = ref('');
+const restoreSource = ref<RestoreInput | null>(null);
+const restorePreview = ref<ConfigRestoreResult | null>(null);
+const restoreDownloadFirst = ref(true);
+const restoreSending = ref(false);
+const restoreDialogError = ref('');
+
+const followUp = computed(() => config.restoreFollowUp);
+const restoreWaiting = computed(() => followUp.value !== null && followUp.value.phase !== 'done');
+
+/** `internal` carries the folder of the previous files when a write fails half way. */
+function restoreErrorText(error: AdminError): string {
+    const text = errorText(error);
+    return error.code === 'internal' && error.msg !== '' ? `${text} ${error.msg}` : text;
+}
+
+async function checkRestore(selected: File[]): Promise<void> {
+    const read = await readRestoreInput(selected);
+    if (!read.ok) {
+        restoreError.value = t(`admin.config.restoreError.${read.error}`);
+        return;
+    }
+    if (!restoreFitsOneMessage(read.input.files, admin.session ?? '')) {
+        restoreError.value = t('admin.config.restoreError.message_too_big');
+        return;
+    }
+    const { result, error } = await config.previewRestore(read.input.files);
+    if (error !== null) {
+        restoreError.value = restoreErrorText(error);
+    } else {
+        restoreDialogError.value = '';
+        restoreDownloadFirst.value = true;
+        restoreSource.value = read.input;
+        restorePreview.value = result;
+    }
+}
+
+async function pickRestore(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const selected = Array.from(input.files ?? []);
+    // Otherwise picking the same file again, once fixed, fires no change.
+    input.value = '';
+    if (selected.length === 0) return;
+    config.dismissRestore();
+    restoreError.value = '';
+    checkingRestore.value = true;
+    await checkRestore(selected);
+    checkingRestore.value = false;
+}
+
+function closeRestore(): void {
+    restorePreview.value = null;
+    restoreSource.value = null;
+}
+
+function cancelRestore(): void {
+    if (!restoreSending.value) closeRestore();
+}
+
+async function sendRestore(source: RestoreInput, preview: ConfigRestoreResult): Promise<void> {
+    if (restoreDownloadFirst.value) {
+        const current = await config.downloadBackup();
+        if (!('blob' in current)) {
+            restoreDialogError.value = t('admin.config.restoreDownloadFailed', { reason: errorText(current) });
+            return;
+        }
+        saveFile(current);
+    }
+    const error = await config.restore(source.files, preview.warnings.includes('household_login_changes'));
+    if (error !== null) restoreDialogError.value = restoreErrorText(error);
+    else closeRestore();
+}
+
+async function confirmRestore(): Promise<void> {
+    const source = restoreSource.value;
+    const preview = restorePreview.value;
+    if (source === null || preview === null || restoreSending.value) return;
+    restoreDialogError.value = '';
+    restoreSending.value = true;
+    await sendRestore(source, preview);
+    restoreSending.value = false;
 }
 </script>
 
 <template>
     <section class="config" :aria-label="t('admin.config.title')">
-        <div v-if="config.restartRequired || restarting" class="config__restart fade-in" role="status">
+        <div v-if="restoreWaiting" class="config__restart fade-in" role="status">
+            <p class="config__restart-text">
+                {{ followUp?.phase === 'slow' ? t('admin.config.restoreSlow') : t('admin.config.restoreRestarting') }}
+            </p>
+            <AdminButton v-if="followUp?.phase === 'slow'" variant="quiet" @click="config.dismissRestore()">
+                {{ t('admin.config.restoreDismiss') }}
+            </AdminButton>
+        </div>
+        <div v-else-if="followUp !== null" class="config__restored fade-in" role="status">
+            <p class="config__restored-text">
+                <template v-if="followUp.previous !== null">
+                    {{ t('admin.config.restoreDone', { folder: followUp.previous }) }}
+                </template>
+                <template v-else>{{ t('admin.config.restoreUnconfirmed') }}</template>
+            </p>
+            <AdminButton variant="quiet" @click="config.dismissRestore()">{{ t('admin.config.restoreDismiss') }}</AdminButton>
+        </div>
+        <div v-else-if="config.restartRequired || restarting" class="config__restart fade-in" role="status">
             <template v-if="restarting">
                 <p class="config__restart-text">{{ t('admin.config.restarting') }}</p>
             </template>
@@ -184,6 +300,34 @@ async function downloadBackup(): Promise<void> {
                 </p>
                 <p v-else-if="backupName !== ''" class="config__row-note fade-in" role="status">
                     {{ t('admin.config.backupDone', { name: backupName }) }}
+                </p>
+            </li>
+            <li class="config__row">
+                <div class="config__text">
+                    <span class="config__name">{{ t('admin.config.restore') }}</span>
+                    <span class="config__hint">{{ t('admin.config.restoreHint') }}</span>
+                </div>
+                <input
+                    ref="restorePicker"
+                    class="config__picker"
+                    type="file"
+                    accept=".zip,.json,.xml"
+                    multiple
+                    tabindex="-1"
+                    aria-hidden="true"
+                    @change="pickRestore"
+                />
+                <AdminButton
+                    variant="quiet"
+                    :busy="checkingRestore"
+                    :busy-label="t('admin.config.restoreChecking')"
+                    :disabled="busy || restoreWaiting"
+                    @click="restorePicker?.click()"
+                >
+                    {{ t('admin.config.restorePick') }}
+                </AdminButton>
+                <p v-if="restoreError !== ''" class="config__row-note config__row-note--error fade-in" role="alert">
+                    {{ restoreError }}
                 </p>
             </li>
         </ul>
@@ -251,6 +395,16 @@ async function downloadBackup(): Promise<void> {
         >
             <p class="config__warning">{{ t('admin.config.backupWarning') }}</p>
         </BaseDialog>
+
+        <ConfigRestoreDialog
+            v-model:download-first="restoreDownloadFirst"
+            :preview="restorePreview"
+            :manifest="restoreSource?.manifest ?? null"
+            :sending="restoreSending"
+            :error="restoreDialogError"
+            @confirm="confirmRestore"
+            @cancel="cancelRestore"
+        />
     </section>
 </template>
 
@@ -264,10 +418,10 @@ async function downloadBackup(): Promise<void> {
     gap: var(--space-3) var(--space-4);
     margin-block-end: var(--space-4);
     padding: var(--space-4);
-    border: 1px solid rgba(224, 163, 86, 0.4);
+    border: 1px solid var(--c-warn-border);
     border-inline-start: 3px solid var(--c-warn);
     border-radius: var(--radius-md);
-    background-color: rgba(52, 38, 20, 0.6);
+    background-color: var(--c-warn-bg);
     font-size: 0.875rem;
     line-height: 1.4;
     color: var(--c-text-muted);
@@ -294,6 +448,28 @@ async function downloadBackup(): Promise<void> {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3);
+}
+
+.config__restored {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3) var(--space-4);
+    margin-block-end: var(--space-4);
+    padding: var(--space-4);
+    border: 1px solid var(--c-success-border);
+    border-inline-start: 3px solid var(--c-success);
+    border-radius: var(--radius-md);
+    font-size: 0.9375rem;
+    line-height: 1.4;
+    color: var(--c-text);
+}
+
+.config__restored-text {
+    min-inline-size: 0;
+    flex: 1 1 16rem;
+    overflow-wrap: anywhere;
 }
 
 .config__list {
@@ -328,6 +504,10 @@ async function downloadBackup(): Promise<void> {
     color: var(--c-text-muted);
     font-size: 0.875rem;
     line-height: 1.4;
+}
+
+.config__picker {
+    display: none;
 }
 
 .config__row-note {
@@ -380,9 +560,9 @@ async function downloadBackup(): Promise<void> {
 
 .config__warning {
     padding: var(--space-3) var(--space-4);
-    border: 1px solid rgba(224, 163, 86, 0.4);
+    border: 1px solid var(--c-warn-border);
     border-radius: var(--radius-md);
-    background-color: rgba(52, 38, 20, 0.6);
+    background-color: var(--c-warn-bg);
     color: var(--c-warn);
     font-size: 0.9375rem;
     line-height: 1.45;
