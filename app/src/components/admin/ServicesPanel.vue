@@ -5,7 +5,7 @@
 // shows its outcome; restarting what carries this page's connection says so
 // and waits for the reconnect.
 
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { TIME_SERVICE_ID } from '../../protocol/admin-services';
@@ -48,6 +48,14 @@ onBeforeUnmount(() => {
 
 const list = computed(() => services.services ?? []);
 const blocked = computed(() => admin.isUpgrading || admin.busy !== null);
+
+// The dialog's button would only earn a 409 once the update runs.
+watch(
+    () => admin.isUpgrading,
+    (upgrading) => {
+        if (upgrading) confirming.value = null;
+    },
+);
 
 function nameOf(id: string): string {
     const key = `admin.services.name.${id}`;

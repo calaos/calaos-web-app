@@ -1,5 +1,6 @@
 // Dates of phones and alerts in the user's words: "12 Mar 2026", "3 hours
-// ago", and "2h" for how long something has been going. The wire dates are RFC 3339 UTC; '' means unknown.
+// ago", and "2h" for how long something has been going. The wire dates are
+// RFC 3339 UTC; '' means unknown.
 
 import { useI18n } from 'vue-i18n';
 

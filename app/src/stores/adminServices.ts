@@ -47,7 +47,11 @@ function dropsConnection(id: string, verb: ServiceVerb): boolean {
     return verb === 'restart' && CONNECTION_SERVICE_IDS.includes(id);
 }
 
-/** `start` can still be queued behind a dependency, so `inactive` is no answer yet; only `active` is. */
+/**
+ * `start` can still be queued behind a dependency, so `inactive` is no answer
+ * yet; only `active` is. A `failed` that gets here predates the verb, and
+ * stopping such a unit leaves it `failed` until a `reset-failed`.
+ */
 function reached(entry: ServiceState, verb: ServiceVerb, before: string): boolean {
     const state = entry.activeState;
     switch (verb) {
@@ -57,11 +61,11 @@ function reached(entry: ServiceState, verb: ServiceVerb, before: string): boolea
         case 'start':
             return state === 'active';
         case 'stop':
-            return state === 'inactive';
+            return state === 'inactive' || state === 'failed';
         case 'enable':
             return state === 'active' && entry.startup === 'enabled';
         case 'disable':
-            return state === 'inactive' && entry.startup === 'disabled';
+            return (state === 'inactive' || state === 'failed') && entry.startup === 'disabled';
     }
 }
 
@@ -70,6 +74,8 @@ interface Tracked {
     verb: ServiceVerb;
     /** `since` before the request: `active` alone may be the old process, not the restarted one. */
     before: string;
+    /** The row was `failed` when asked and no list has shown it move: that is not this verb failing. */
+    stillFailed: boolean;
     deadline: number;
 }
 
@@ -176,7 +182,13 @@ export const useAdminServicesStore = defineStore('adminServices', () => {
         if (tracked.value[id] !== undefined) return;
         const entry = services.value?.find((s) => s.id === id);
         delete results.value[id];
-        tracked.value[id] = { phase: 'sending', verb, before: entry?.since ?? '', deadline: 0 };
+        tracked.value[id] = {
+            phase: 'sending',
+            verb,
+            before: entry?.since ?? '',
+            stillFailed: entry?.activeState === 'failed',
+            deadline: 0,
+        };
         const { error: failure } = await act(id, verb);
         const item = tracked.value[id];
         if (item === undefined) return;
@@ -197,16 +209,30 @@ export const useAdminServicesStore = defineStore('adminServices', () => {
         for (const [id, item] of Object.entries(tracked.value)) {
             if (item.phase === 'sending') continue;
             const entry = list.find((s) => s.id === id);
+            if (item.stillFailed && (entry?.activeState !== 'failed' || entry.since !== item.before)) {
+                item.stillFailed = false;
+            }
             let status: 'done' | 'failed' | 'not_found' | 'timeout' | null = null;
             if (entry === undefined || entry.activeState === 'not-found') status = 'not_found';
-            else if (entry.activeState === 'failed') status = 'failed';
+            else if (entry.activeState === 'failed' && !item.stillFailed) status = 'failed';
             else if (reached(entry, item.verb, item.before)) status = 'done';
             else if (now >= item.deadline) status = 'timeout';
-            if (status === null) continue;
-            delete tracked.value[id];
-            results.value[id] = { verb: item.verb, status };
-            if (dropsConnection(id, item.verb)) selfRestartAt.value = null;
+            if (status !== null) finish(id, item, status);
         }
+    }
+
+    /** No list to judge by: only the deadline can still end the wait. */
+    function expire(): void {
+        const now = Date.now();
+        for (const [id, item] of Object.entries(tracked.value)) {
+            if (item.phase !== 'sending' && now >= item.deadline) finish(id, item, 'timeout');
+        }
+    }
+
+    function finish(id: string, item: Tracked, status: 'done' | 'failed' | 'not_found' | 'timeout'): void {
+        delete tracked.value[id];
+        results.value[id] = { verb: item.verb, status };
+        if (dropsConnection(id, item.verb)) selfRestartAt.value = null;
     }
 
     function schedulePoll(delayMs: number): void {
@@ -219,12 +245,9 @@ export const useAdminServicesStore = defineStore('adminServices', () => {
 
     async function poll(): Promise<void> {
         if (!working.value) return;
-        if (online.value) {
-            await load();
-        } else {
-            // Offline past the deadline still ends: the box may never come back on this address.
-            if (services.value !== null) settle(services.value);
-        }
+        // The last list predates the verb, and the box may never come back on this address.
+        const list = online.value ? await load() : null;
+        if (list === null) expire();
         if (working.value) schedulePoll(RESTART_POLL_MS);
     }
 

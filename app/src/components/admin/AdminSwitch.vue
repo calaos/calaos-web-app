@@ -45,7 +45,7 @@ defineProps<{
     inline-size: 2.75rem;
     block-size: 1.5rem;
     border-radius: 0.75rem;
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: color-mix(in srgb, var(--c-text) 10%, transparent);
     border: 1px solid var(--c-border-strong);
     transition:
         background-color var(--duration-fade) ease,
@@ -84,6 +84,10 @@ defineProps<{
 
 .admin-switch:disabled {
     cursor: not-allowed;
+}
+
+/* The label stays readable: it says what the service does at boot. */
+.admin-switch:disabled .admin-switch__track {
     opacity: 0.6;
 }
 

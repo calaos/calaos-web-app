@@ -36,6 +36,14 @@ async function poll(...units: ReturnType<typeof unit>[]): Promise<void> {
     await flush();
 }
 
+/** Answers the next poll with this error. */
+async function pollFails(code = 'daemon_unreachable'): Promise<void> {
+    vi.advanceTimersByTime(RESTART_POLL_MS);
+    expect(last().data.action).toBe('services_list');
+    fail(code);
+    await flush();
+}
+
 async function accepted(
     services: ReturnType<typeof useAdminServicesStore>,
     id: string,
@@ -157,6 +165,39 @@ describe('services store', () => {
         expect(last().data.action).toBe('services_list');
     });
 
+    it('stops a `failed` unit without its state ever leaving `failed`', async () => {
+        const services = await listed(unit('zigbee2mqtt', 'failed'), unit('envoy', 'failed'));
+        await accepted(services, 'zigbee2mqtt', 'disable');
+        await accepted(services, 'envoy', 'stop');
+        await poll(unit('zigbee2mqtt', 'failed'), unit('envoy', 'failed'));
+        expect(services.results.envoy).toEqual({ verb: 'stop', status: 'done' });
+        expect(services.results.zigbee2mqtt).toBeUndefined();
+        await poll(unit('zigbee2mqtt', 'failed', BEFORE, 'disabled'), unit('envoy', 'failed'));
+        expect(services.results.zigbee2mqtt).toEqual({ verb: 'disable', status: 'done' });
+    });
+
+    it('gives a `failed` unit it was asked to start the time to leave that state', async () => {
+        const services = await listed(unit('grafana', 'failed'), unit('envoy', 'failed'), unit('influxdb', 'failed'));
+        await accepted(services, 'grafana', 'start');
+        await accepted(services, 'envoy', 'start');
+        await accepted(services, 'influxdb', 'restart');
+        await poll(unit('grafana', 'failed'), unit('envoy', 'failed'), unit('influxdb', 'failed'));
+        expect(services.results).toEqual({});
+        await poll(unit('grafana', 'active'), unit('envoy', 'activating'), unit('influxdb', 'failed', AFTER));
+        expect(services.results.grafana).toEqual({ verb: 'start', status: 'done' });
+        expect(services.results.envoy).toBeUndefined();
+        expect(services.results.influxdb).toEqual({ verb: 'restart', status: 'failed' });
+        await poll(unit('envoy', 'failed'));
+        expect(services.results.envoy).toEqual({ verb: 'start', status: 'failed' });
+    });
+
+    it('still reports a disable that fails on a unit that was running', async () => {
+        const services = await listed(unit('mosquitto', 'active'));
+        await accepted(services, 'mosquitto', 'disable');
+        await poll(unit('mosquitto', 'failed', BEFORE, 'disabled'));
+        expect(services.results.mosquitto).toEqual({ verb: 'disable', status: 'failed' });
+    });
+
     it('takes a drop after restarting haproxy as the restart working, and names it', async () => {
         const services = await listed(unit('haproxy', 'active'));
         await accepted(services, 'haproxy');
@@ -183,6 +224,44 @@ describe('services store', () => {
         expect(services.working).toBe(true);
         await poll(unit('calaos-container', 'active', AFTER));
         expect(services.results['calaos-container']).toEqual({ verb: 'restart', status: 'done' });
+    });
+
+    it('ends at the deadline when the daemon never comes back', async () => {
+        const services = await listed(unit('calaos-container', 'active'), unit('ssh', 'active'));
+        await accepted(services, 'calaos-container');
+        await accepted(services, 'ssh');
+        for (let waited = RESTART_POLL_MS; waited < RESTART_DEADLINE_MS; waited += RESTART_POLL_MS) {
+            await pollFails();
+            // The last list predates the verb: it proves nothing, least of all a reload.
+            expect(services.results).toEqual({});
+        }
+        await pollFails();
+        expect(services.results['calaos-container']).toEqual({ verb: 'restart', status: 'timeout' });
+        expect(services.results.ssh).toEqual({ verb: 'restart', status: 'timeout' });
+        expect(services.working).toBe(false);
+        expect(useAdminStore().gate).toBe('unlocked');
+    });
+
+    it('does not read the outcome off the old list while offline', async () => {
+        const services = await listed(unit('ssh', 'active'));
+        await accepted(services, 'ssh');
+        useConnectionStore().applyStatus({ status: 'reconnecting', attempt: 1, nextRetryMs: 1000 });
+        await flush();
+        vi.advanceTimersByTime(RESTART_POLL_MS);
+        await flush();
+        expect(services.results.ssh).toBeUndefined();
+        vi.advanceTimersByTime(RESTART_DEADLINE_MS);
+        await flush();
+        expect(services.results.ssh).toEqual({ verb: 'restart', status: 'timeout' });
+    });
+
+    it('frees the row when the network job refuses the daemon restart', async () => {
+        const services = await listed(unit('calaos-container', 'active'));
+        void services.actAndWatch('calaos-container', 'restart');
+        fail('network_pending');
+        await flush();
+        expect(services.results['calaos-container']).toMatchObject({ status: 'error', error: { code: 'network_pending' } });
+        expect(services.working).toBe(false);
     });
 
     it('follows a restart whose reply timed out: the daemon may still run it', async () => {

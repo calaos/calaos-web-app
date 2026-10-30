@@ -3,12 +3,24 @@ import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import { messages } from '../../i18n/messages';
+import type { UpgradeJob } from '../../protocol/admin';
 import { toServices } from '../../protocol/admin-services';
 import { useAdminStore } from '../../stores/admin';
 import { useAdminServicesStore } from '../../stores/adminServices';
 import ServicesPanel from './ServicesPanel.vue';
 
 const ALL = ['restart', 'start', 'stop', 'enable', 'disable'];
+const UPGRADE_JOB: UpgradeJob = {
+    id: 'j1',
+    kind: 'upgrade_all',
+    package: '',
+    status: 'running',
+    error: '',
+    rebootRequired: false,
+    daemonRestart: false,
+    startedAt: '',
+    finishedAt: '',
+};
 
 function mountPanel() {
     return mount(ServicesPanel, {
@@ -182,7 +194,7 @@ describe('ServicesPanel', () => {
     it('shows one busy control while a verb runs, and the switch waits', async () => {
         const wrapper = mountPanel();
         const services = show(service('mosquitto'));
-        services.tracked.mosquitto = { phase: 'waiting', verb: 'stop', before: '', deadline: 0 };
+        services.tracked.mosquitto = { phase: 'waiting', verb: 'stop', before: '', stillFailed: false, deadline: 0 };
         await flushPromises();
 
         expect(labels(wrapper, 'mosquitto')).toEqual(['Stopping…']);
@@ -195,7 +207,7 @@ describe('ServicesPanel', () => {
     it('names what is restarting in the banner', async () => {
         const wrapper = mountPanel();
         const services = show(service('haproxy', 'active', 'enabled', ['restart']));
-        services.tracked.haproxy = { phase: 'reconnecting', verb: 'restart', before: '', deadline: 0 };
+        services.tracked.haproxy = { phase: 'reconnecting', verb: 'restart', before: '', stillFailed: false, deadline: 0 };
         await flushPromises();
         expect(wrapper.find('.services__banner').text()).toContain('haproxy is restarting');
         expect(labels(wrapper, 'haproxy')).toEqual(['Reconnecting…']);
@@ -211,6 +223,18 @@ describe('ServicesPanel', () => {
         for (const control of row(wrapper, 'mosquitto').findAll('button')) {
             expect(control.attributes('disabled')).toBeDefined();
         }
+    });
+
+    it('closes an open dialog when an update starts', async () => {
+        const wrapper = mountPanel();
+        show(service('mosquitto'));
+        await flushPromises();
+        await clickLabel(wrapper, 'mosquitto', 'Stop');
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(true);
+
+        useAdminStore().job = UPGRADE_JOB;
+        await flushPromises();
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
     });
 
     it('writes each result by verb, and notes a start that will not last', async () => {

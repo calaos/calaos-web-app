@@ -149,6 +149,18 @@ describe('services', () => {
         expect(await read()).toBe('failed');
     });
 
+    it('fails a restart when told, and leaves a stopped `failed` unit `failed`', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', services: { restartMs: 50, fail_service: { unit: 'envoy', verb: 'restart' } } });
+        await ask('services_restart', { unit: 'envoy' });
+        await sleep(700);
+        const read = async () => (await ask('services_list')).result.services.find((s) => s.id === 'envoy');
+        expect((await read()).active_state).toBe('failed');
+        await ask('services_disable', { unit: 'envoy' });
+        await sleep(700);
+        expect(await read()).toMatchObject({ active_state: 'failed', startup: 'disabled' });
+    });
+
     it('keeps `since` of a reloaded unit, and moves everyone else\'s', async () => {
         const { ask } = await session();
         const before = (await ask('services_list')).result.services;

@@ -139,10 +139,13 @@ export function createServices({ hub, failure, running }) {
         if (verb === 'restart') state.restarts.push(id);
 
         const stopping = verb === 'stop' || verb === 'disable';
+        // systemd keeps `failed` until `reset-failed`: stopping such a unit changes nothing.
+        const staysFailed = stopping && entry.active_state === 'failed';
         later(ACT_DELAY_MS, () => {
             if (entry.active_state === 'not-found') return;
             if (verb === 'enable') setStartup(entry, 'enabled');
             if (verb === 'disable') setStartup(entry, 'disabled');
+            if (staysFailed) return;
             if (stopping) setActive(entry, 'deactivating', 'stop-sigterm');
             else setActive(entry, 'activating', 'start');
             if (verb === 'restart' && CONNECTION_IDS.includes(id) && state.dropOnSelfRestart) hub.dropClients();
@@ -150,7 +153,7 @@ export function createServices({ hub, failure, running }) {
         });
         later(ACT_DELAY_MS + state.restartMs, () => {
             if (id === DAEMON_ID) state.daemonDown = false;
-            if (entry.active_state === 'not-found') return;
+            if (entry.active_state === 'not-found' || staysFailed) return;
             if (takesFailure(id, verb)) {
                 setActive(entry, 'failed', 'failed');
             } else if (stopping) {
