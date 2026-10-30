@@ -18,6 +18,10 @@ export const useAdminMcpStore = defineStore('adminMcp', () => {
     const loading = ref(false);
     /** Bumped when a read follows a regeneration, so the card can mark the new token. */
     const renewed = ref(0);
+    /** Only the newest load may write its outcome; reset() disowns them all. */
+    let generation = 0;
+    /** Up from the card's first load until reset(). A regeneration can end after the card went. */
+    let cardUp = false;
 
     watch(
         () => admin.session,
@@ -53,14 +57,22 @@ export const useAdminMcpStore = defineStore('adminMcp', () => {
         const parsed = toMcpInfo(payload);
         if (parsed !== null) return parsed;
         const failure = isAdminFailure(payload) ? toAdminError(payload) : bareAdminError('unknown');
-        if (failure.code === 'bad_session') admin.dropSession(null);
+        // A late refusal of a session already replaced says nothing about the new one.
+        if (failure.code === 'bad_session' && admin.session === session) admin.dropSession(null);
         return failure;
     }
 
     async function load(afterRegenerate = false, fetchImpl: typeof fetch = fetch): Promise<void> {
+        if (afterRegenerate && !cardUp) return;
+        cardUp = true;
+        generation += 1;
+        const mine = generation;
+        const session = admin.session;
         loading.value = true;
         const outcome = await read(fetchImpl);
+        if (mine !== generation) return;
         loading.value = false;
+        if (admin.session !== session) return;
         if ('token' in outcome) {
             info.value = outcome;
             error.value = null;
@@ -73,6 +85,8 @@ export const useAdminMcpStore = defineStore('adminMcp', () => {
     }
 
     function reset(): void {
+        generation += 1;
+        cardUp = false;
         info.value = null;
         error.value = null;
         loading.value = false;

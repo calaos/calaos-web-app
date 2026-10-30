@@ -199,7 +199,8 @@ export function createNetwork({ hub, failure, event, running, useCode, proofForm
             return null;
         }
         if (state.dropOnApply) setTimeout(() => hub.dropClients(), 100);
-        if (state.hangOnApply) setTimeout(() => hub.hangClients(), 50);
+        // Runs once the reply below is written, ahead of any frame answering it.
+        if (state.hangOnApply) setImmediate(() => hub.hangClients());
         return { success: 'true', result };
     }
 

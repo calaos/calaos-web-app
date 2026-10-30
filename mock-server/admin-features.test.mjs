@@ -352,7 +352,6 @@ describe('network', () => {
         await control({ op: 'admin', network: { hangOnApply: true } });
         const proof = await codeFor(ask, change);
         const applied = await ask('network_apply', { ...change, ...proof });
-        await sleep(100);
         ws.send(JSON.stringify({ msg: 'admin', msg_id: 'keep', data: { action: 'network_confirm', admin_session: token, params: { change_id: applied.result.change_id } } }));
         await sleep(200);
         expect(ws.readyState).toBe(WebSocket.OPEN);
