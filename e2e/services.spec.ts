@@ -1,7 +1,7 @@
-// The services page of the Admin tab against the mock's fake daemon: a
-// restart followed until `since` moves, calaos-server taking the page's own
-// connection with it, a unit that fails to start, a unit gone missing, and
-// the 409 of an upgrade this client did not see start.
+// The services page of the Admin tab against the mock's fake daemon: each
+// verb followed until the list shows it, what carries the page's connection
+// restarting, a unit that fails, a masked or missing one, and the 409 of an
+// upgrade this client did not see start.
 
 import type { Page } from '@playwright/test';
 import services from '../app/src/i18n/admin/services.en.json';
@@ -14,7 +14,9 @@ const ADMIN_PASSWORD = 'correct horse battery';
 interface ServicesPatch {
     restartMs?: number;
     fail?: string;
+    fail_service?: { unit: string; verb: string };
     state?: Record<string, string>;
+    startup?: Record<string, string>;
     dropOnSelfRestart?: boolean;
     upgradeInProgress?: boolean;
 }
@@ -50,22 +52,29 @@ function row(page: Page, id: string) {
     return page.locator(`.services [data-service="${id}"]`);
 }
 
-async function restart(page: Page, id: string, label = services.restart): Promise<void> {
-    await row(page, id).getByRole('button', { name: label }).click();
-    await page.getByRole('dialog').getByRole('button', { name: label }).click();
+async function restart(page: Page, id: string): Promise<void> {
+    await row(page, id).getByRole('button', { name: services.restart, exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: services.restart, exact: true }).click();
 }
 
-test('lists the services, status-only ones without a button', async ({ page }) => {
+function bootSwitch(page: Page, id: string) {
+    return row(page, id).getByRole('switch');
+}
+
+test('lists the services, with the verbs each one offers', async ({ page }) => {
     await openUnlocked(page);
-    await expect(page.locator('.services__row')).toHaveCount(15);
+    await expect(page.locator('.services__row')).toHaveCount(14);
     await expect(row(page, 'mosquitto').locator('.services__meta')).toContainText(services.state.active);
+    await expect(row(page, 'mosquitto').getByRole('button', { name: services.stop })).toBeVisible();
     await expect(row(page, 'olad').locator('.services__meta')).toHaveText(services.state['not-found']);
     await expect(row(page, 'olad').getByRole('button')).toHaveCount(0);
-    for (const id of ['calaos-container', 'haproxy', 'networkd', 'ssh']) {
-        await expect(row(page, id).getByRole('button')).toHaveCount(0);
-        await expect(row(page, id)).toContainText(services.statusOnly);
+    await expect(row(page, 'hue2mqtt').locator('.services__meta')).toHaveText(services.state.masked);
+    await expect(row(page, 'hue2mqtt').getByRole('button')).toHaveCount(0);
+    await expect(row(page, 'networkd').getByRole('button')).toHaveCount(0);
+    await expect(row(page, 'networkd')).toContainText(services.statusOnly);
+    for (const id of ['calaos-container', 'haproxy', 'ssh']) {
+        await expect(row(page, id).getByRole('button')).toHaveText([services.restart]);
     }
-    await expect(row(page, 'calaos-ddns').getByRole('button', { name: services.runNow })).toBeVisible();
 });
 
 test('a restart asks once, then waits for the new process', async ({ page, mock }) => {
@@ -77,34 +86,95 @@ test('a restart asks once, then waits for the new process', async ({ page, mock 
     expect(await restarts(mock)).toEqual([]);
 
     await restart(page, 'mosquitto');
-    await expect(row(page, 'mosquitto').getByRole('button')).toHaveText(services.restarting);
-    await expect(row(page, 'mosquitto').locator('.services__result')).toHaveText(services.result.done, {
+    await expect(row(page, 'mosquitto').getByRole('button')).toHaveText(services.busy.restart);
+    await expect(row(page, 'mosquitto').locator('.services__result')).toHaveText(services.result.done.restart, {
         timeout: 15_000,
     });
-    await expect(row(page, 'mosquitto').getByRole('button')).toHaveText(services.restart);
+    await expect(row(page, 'mosquitto').getByRole('button')).toHaveText([services.restart, services.stop]);
     expect(await restarts(mock)).toEqual(['mosquitto']);
 });
 
-test('run now on a oneshot ends once it is no longer running', async ({ page, mock }) => {
+test('stopping asks what it costs, then the row offers Start', async ({ page, mock }) => {
     await openUnlocked(page);
-    await configure(mock, { restartMs: 100 });
-    await restart(page, 'calaos-ddns', services.runNow);
-    await expect(row(page, 'calaos-ddns').locator('.services__result')).toHaveText(services.result.ran, {
+    await configure(mock, { restartMs: 200 });
+    await row(page, 'mosquitto').getByRole('button', { name: services.stop }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText(services.stopTitle.replace('{name}', services.name.mosquitto));
+    await expect(dialog).toContainText(services.consequence.mosquitto);
+    await dialog.getByRole('button', { name: services.stop, exact: true }).click();
+
+    await expect(row(page, 'mosquitto').locator('.services__result')).toHaveText(services.result.done.stop, {
         timeout: 15_000,
     });
-    expect(await restarts(mock)).toEqual(['calaos-ddns']);
+    await expect(row(page, 'mosquitto').getByRole('button')).toHaveText([services.start]);
+    await expect(bootSwitch(page, 'mosquitto')).toHaveAttribute('aria-checked', 'true');
+});
+
+test('a manual start of a service off at boot says it will not last', async ({ page, mock }) => {
+    await openUnlocked(page);
+    await configure(mock, { restartMs: 200 });
+    await row(page, 'zigbee2mqtt').getByRole('button', { name: services.start }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(row(page, 'zigbee2mqtt').locator('.services__result')).toHaveText(services.result.done.start, {
+        timeout: 15_000,
+    });
+    await expect(row(page, 'zigbee2mqtt').locator('.services__note')).toHaveText(services.startNote);
+});
+
+test('the boot switch turns a service on and off, asking only to turn it off', async ({ page, mock }) => {
+    await openUnlocked(page);
+    await configure(mock, { restartMs: 200 });
+    const toggle = bootSwitch(page, 'zigbee2mqtt');
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await toggle.click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(row(page, 'zigbee2mqtt').locator('.services__result')).toHaveText(services.result.done.enable, {
+        timeout: 15_000,
+    });
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+
+    await toggle.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText(services.disableTitle.replace('{name}', services.name.zigbee2mqtt));
+    await dialog.getByRole('button', { name: services.disableConfirm }).click();
+    await expect(row(page, 'zigbee2mqtt').locator('.services__result')).toHaveText(services.result.done.disable, {
+        timeout: 15_000,
+    });
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+});
+
+test('turning off a failed service ends, though the unit stays `failed`', async ({ page, mock }) => {
+    await configure(mock, { restartMs: 200, state: { zigbee2mqtt: 'failed' }, startup: { zigbee2mqtt: 'enabled' } });
+    await openUnlocked(page);
+    await bootSwitch(page, 'zigbee2mqtt').click();
+    await page.getByRole('dialog').getByRole('button', { name: services.disableConfirm }).click();
+    await expect(row(page, 'zigbee2mqtt').locator('.services__result')).toHaveText(services.result.done.disable, {
+        timeout: 15_000,
+    });
+    await expect(bootSwitch(page, 'zigbee2mqtt')).toHaveAttribute('aria-checked', 'false');
+    await expect(row(page, 'zigbee2mqtt').locator('.services__light--failed')).toBeVisible();
+});
+
+test('the time service leads to the Time card for its on/off', async ({ page }) => {
+    await openUnlocked(page);
+    await expect(bootSwitch(page, 'ntp')).toHaveCount(0);
+    await row(page, 'ntp').getByRole('link', { name: services.timeLink }).click();
+    await expect(page).toHaveURL(/#\/admin#time$/);
+    await expect(page.locator('.time')).toBeInViewport();
 });
 
 test('restarting calaos-server drops the page, which reconnects and confirms', async ({ page, mock }) => {
     await openUnlocked(page);
     const loginsBefore = (await mock.loginFrames()).length;
     await row(page, 'calaos-server').getByRole('button', { name: services.restart }).click();
-    await expect(page.locator('.services__warning')).toHaveText(services.selfRestartWarning);
+    await expect(page.locator('.services__warning')).toHaveText(services.restartWarning['calaos-server']);
     await page.getByRole('dialog').getByRole('button', { name: services.restart }).click();
 
-    await expect(page.locator('.services__banner')).toHaveText(services.selfRestarting);
+    await expect(page.locator('.services__banner')).toHaveText(
+        services.selfRestarting.replace('{name}', services.name['calaos-server']),
+    );
     await expect.poll(async () => (await mock.loginFrames()).length, { timeout: 15_000 }).toBe(loginsBefore + 1);
-    await expect(row(page, 'calaos-server').locator('.services__result')).toHaveText(services.result.done, {
+    await expect(row(page, 'calaos-server').locator('.services__result')).toHaveText(services.result.done.restart, {
         timeout: 20_000,
     });
     await expect(page.locator('.services__banner')).toHaveCount(0);
@@ -114,11 +184,37 @@ test('restarting calaos-server drops the page, which reconnects and confirms', a
     await expect(page.locator('.services__result--danger')).toHaveCount(0);
 });
 
-test('a unit that does not come back is failed; one gone missing is not installed', async ({ page, mock }) => {
+test('restarting haproxy reads as a restart, not as a lost box', async ({ page, mock }) => {
+    await openUnlocked(page);
+    const loginsBefore = (await mock.loginFrames()).length;
+    await row(page, 'haproxy').getByRole('button', { name: services.restart }).click();
+    await expect(page.locator('.services__warning')).toHaveText(services.restartWarning.haproxy);
+    await page.getByRole('dialog').getByRole('button', { name: services.restart, exact: true }).click();
+    await expect(page.locator('.services__banner')).toHaveText(
+        services.selfRestarting.replace('{name}', services.name.haproxy),
+    );
+    await expect.poll(async () => (await mock.loginFrames()).length, { timeout: 15_000 }).toBe(loginsBefore + 1);
+    await expect(row(page, 'haproxy').locator('.services__result')).toHaveText(services.result.done.restart, {
+        timeout: 20_000,
+    });
+    await expect(adminScreen(page).adminPassword).toHaveCount(0);
+});
+
+test('restarting calaos-container waits out the daemon, admin stays unlocked', async ({ page, mock }) => {
+    await openUnlocked(page);
+    await configure(mock, { restartMs: 3000 });
+    await restart(page, 'calaos-container');
+    await expect(row(page, 'calaos-container').locator('.services__result')).toHaveText(services.result.done.restart, {
+        timeout: 20_000,
+    });
+    await expect(adminScreen(page).adminPassword).toHaveCount(0);
+});
+
+test('a unit that does not come back is failed; one gone missing is not available', async ({ page, mock }) => {
     await openUnlocked(page);
     await configure(mock, { restartMs: 500, fail: 'grafana' });
     await restart(page, 'grafana');
-    await expect(row(page, 'grafana').locator('.services__result')).toHaveText(services.result.failed, {
+    await expect(row(page, 'grafana').locator('.services__result')).toHaveText(services.result.failed.restart, {
         timeout: 15_000,
     });
     await expect(row(page, 'grafana').locator('.services__light--failed')).toBeVisible();
@@ -126,19 +222,21 @@ test('a unit that does not come back is failed; one gone missing is not installe
     await row(page, 'envoy').getByRole('button', { name: services.restart }).click();
     await configure(mock, { state: { envoy: 'not-found' } });
     await page.getByRole('dialog').getByRole('button', { name: services.restart }).click();
-    await expect(row(page, 'envoy').locator('.services__result')).toHaveText(services.result.not_found, {
-        timeout: 15_000,
-    });
+    await expect(row(page, 'envoy').locator('.services__result')).toHaveText(
+        MESSAGES.admin.error.service_unavailable,
+        { timeout: 15_000 },
+    );
+    await expect(row(page, 'envoy').locator('.services__meta')).toHaveText(services.state['not-found']);
 });
 
 test('an upgrade started elsewhere refuses the restart with its own message', async ({ page, mock }) => {
     await openUnlocked(page);
     await configure(mock, { upgradeInProgress: true });
-    await restart(page, 'zigbee2mqtt');
-    await expect(row(page, 'zigbee2mqtt').locator('.services__result')).toHaveText(
+    await restart(page, 'mosquitto');
+    await expect(row(page, 'mosquitto').locator('.services__result')).toHaveText(
         services.result.upgrade_in_progress,
     );
-    await expect(row(page, 'zigbee2mqtt').getByRole('button')).toHaveText(services.restart);
+    await expect(row(page, 'mosquitto').getByRole('button')).toHaveText([services.restart, services.stop]);
     expect(await restarts(mock)).toEqual([]);
 });
 

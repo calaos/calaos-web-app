@@ -144,8 +144,8 @@ const tiles = computed<Tile[]>(() => {
     color: var(--c-text);
     text-decoration: none;
     transition:
-        border-color 200ms ease,
-        box-shadow 200ms ease;
+        border-color var(--duration-fade) ease,
+        box-shadow var(--duration-fade) ease;
 }
 
 a.pages__tile:hover {
@@ -159,7 +159,7 @@ a.pages__tile:focus-visible {
 }
 
 .pages__tile--warn {
-    border-color: rgba(224, 163, 86, 0.6);
+    border-color: color-mix(in srgb, var(--c-warn) 60%, transparent);
 }
 
 .pages__tile--off {

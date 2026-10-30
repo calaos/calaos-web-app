@@ -17,7 +17,6 @@
         "calaos-container": "calaos-container",
         "olad": "OLA (olad)",
         "ntp": "Synchronisation de l’heure",
-        "calaos-ddns": "Calaos DDNS",
         "networkd": "Réseau",
         "ssh": "SSH",
         "kernel": "Noyau",

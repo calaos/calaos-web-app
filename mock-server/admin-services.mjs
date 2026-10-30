@@ -1,35 +1,70 @@
-// `services_list` / `services_restart` of the fake daemon (calaos-container
-// docs/API.md "Services"). A restart answers first, then goes `activating`
-// after 500 ms and `active` (or `failed`) after `restartMs`; restarting
-// calaos-server drops every socket, as the real one does.
+// `services_list` and the five service verbs of the fake daemon (calaos_base
+// docs/08_http_api.md "Services"). A verb answers first, then the unit
+// changes state after 500 ms and settles after `restartMs`; restarting
+// calaos-server or haproxy drops every socket, as the real ones do, and
+// restarting calaos-container leaves the admin routes unreachable meanwhile.
 
 const SERVICE_ID = /^[a-z0-9-]{1,32}$/;
-/** The daemon answers first, then restarts the unit about this much later. */
-const RESTART_DELAY_MS = 500;
+/** The daemon answers first, then acts on the unit about this much later. */
+const ACT_DELAY_MS = 500;
+
+const ALL_VERBS = ['restart', 'start', 'stop', 'enable', 'disable'];
+const RESTART_ONLY = ['restart'];
+const VERBS = new Set(ALL_VERBS);
 
 const TABLE = [
-    ['calaos-server', 'calaos-server.service', 'service', true],
-    ['calaos-home', 'calaos-home.service', 'service', true],
-    ['mosquitto', 'mosquitto.service', 'service', true],
-    ['zigbee2mqtt', 'zigbee2mqtt.service', 'service', true],
-    ['influxdb', 'influxdb.service', 'service', true],
-    ['grafana', 'grafana.service', 'service', true],
-    ['hue2mqtt', 'hue2mqtt.service', 'service', true],
-    ['envoy', 'envoy.service', 'service', true],
-    ['olad', 'olad.service', 'service', true],
-    ['ntp', 'chrony.service', 'service', true],
-    ['calaos-ddns', 'calaos-ddns.service', 'oneshot', true],
-    ['calaos-container', 'calaos-container.service', 'service', false],
-    ['haproxy', 'haproxy.service', 'service', false],
-    ['networkd', 'systemd-networkd.service', 'service', false],
-    ['ssh', 'ssh.service', 'service', false],
+    ['calaos-server', 'calaos-server.service', RESTART_ONLY],
+    ['calaos-home', 'calaos-home.service', ALL_VERBS],
+    ['mosquitto', 'mosquitto.service', ALL_VERBS],
+    ['zigbee2mqtt', 'zigbee2mqtt.service', ALL_VERBS],
+    ['influxdb', 'influxdb.service', ALL_VERBS],
+    ['grafana', 'grafana.service', ALL_VERBS],
+    ['hue2mqtt', 'hue2mqtt.service', ALL_VERBS],
+    ['envoy', 'envoy.service', ALL_VERBS],
+    ['olad', 'olad.service', ALL_VERBS],
+    ['ntp', 'chrony.service', RESTART_ONLY],
+    ['calaos-container', 'calaos-container.service', RESTART_ONLY],
+    ['haproxy', 'haproxy.service', RESTART_ONLY],
+    ['networkd', 'systemd-networkd.service', []],
+    ['ssh', 'ssh.service', RESTART_ONLY],
 ];
 
 /** Not installed on the mock box. */
-const NOT_FOUND = ['hue2mqtt', 'olad'];
+const NOT_FOUND = ['olad'];
+/** The defaults of a real box: SSH turned off by masking, Zigbee2MQTT installed but off. */
+const MASKED = ['hue2mqtt'];
+const STOPPED = ['zigbee2mqtt'];
+
+/** Every browser socket goes through these. */
+const CONNECTION_IDS = ['calaos-server', 'haproxy'];
+const DAEMON_ID = 'calaos-container';
+/** `reload-or-restart` keeps the process, so `since` does not move. */
+const RELOADED_IDS = ['ssh'];
+
+const PENDING_STATE = {
+    restart: 'restarting',
+    start: 'starting',
+    stop: 'stopping',
+    enable: 'enabling',
+    disable: 'disabling',
+};
 
 function iso(ms) {
     return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
+function initialUnit([id, unit, actions], bootedAt) {
+    const row = { id, unit, boot_unit: unit, actions, restartable: actions.includes('restart') };
+    if (NOT_FOUND.includes(id)) {
+        return { ...row, active_state: 'not-found', sub_state: '', enabled: '', startup: '', since: null };
+    }
+    if (MASKED.includes(id)) {
+        return { ...row, active_state: 'inactive', sub_state: 'dead', enabled: 'masked', startup: 'masked', since: null };
+    }
+    if (STOPPED.includes(id)) {
+        return { ...row, active_state: 'inactive', sub_state: 'dead', enabled: 'disabled', startup: 'disabled', since: null };
+    }
+    return { ...row, active_state: 'active', sub_state: 'running', enabled: 'enabled', startup: 'enabled', since: iso(bootedAt) };
 }
 
 export function createServices({ hub, failure, running }) {
@@ -49,34 +84,20 @@ export function createServices({ hub, failure, running }) {
         timers.clear();
         const bootedAt = Date.now() - 3 * 86_400_000;
         state = {
-            units: new Map(
-                TABLE.map(([id, unit, kind, restartable]) => {
-                    const missing = NOT_FOUND.includes(id);
-                    const oneshot = kind === 'oneshot';
-                    return [
-                        id,
-                        {
-                            id,
-                            unit,
-                            kind,
-                            restartable,
-                            active_state: missing ? 'not-found' : oneshot ? 'inactive' : 'active',
-                            sub_state: missing ? '' : oneshot ? 'dead' : 'running',
-                            enabled: missing ? '' : oneshot ? 'static' : 'enabled',
-                            // A oneshot never enters `active`, so systemd has no ActiveEnterTimestamp.
-                            since: missing || oneshot ? null : iso(bootedAt),
-                        },
-                    ];
-                }),
-            ),
+            units: new Map(TABLE.map((row) => [row[0], initialUnit(row, bootedAt)])),
             restartMs: 3000,
-            /** Ids whose next restart ends `failed`. */
+            /** Ids whose next verb ends `failed`. */
             fail: new Set(),
-            /** Restarting calaos-server drops every socket. */
+            /** `<id>:<verb>` pairs, for one verb only. */
+            failVerb: new Set(),
+            /** Restarting what carries the sockets drops every one of them. */
             dropOnSelfRestart: true,
-            /** Refuses every restart as during a job this client did not see start. */
+            /** Refuses every verb as during a job this client did not see start. */
             upgradeInProgress: false,
+            /** calaos-container is restarting: nothing answers on its socket. */
+            daemonDown: false,
             restarts: [],
+            actions: [],
         };
     }
     reset();
@@ -85,62 +106,106 @@ export function createServices({ hub, failure, running }) {
         return { services: [...state.units.values()].map((entry) => ({ ...entry })) };
     }
 
-    function restart(params) {
+    function setActive(entry, active, sub) {
+        entry.active_state = active;
+        entry.sub_state = sub;
+    }
+
+    function setStartup(entry, startup) {
+        entry.startup = startup;
+        entry.enabled = startup;
+    }
+
+    function takesFailure(id, verb) {
+        const pair = `${id}:${verb}`;
+        const told = state.fail.has(id) || state.failVerb.has(pair);
+        state.fail.delete(id);
+        state.failVerb.delete(pair);
+        return told;
+    }
+
+    function act(verb, params) {
         const id = params.unit;
         if (typeof id !== 'string' || !SERVICE_ID.test(id)) return failure('invalid_request', 'invalid unit');
         const entry = state.units.get(id);
-        if (entry === undefined || !entry.restartable) {
-            return failure('invalid_request', 'unknown or non-restartable service');
+        if (entry === undefined || !entry.actions.includes(verb)) {
+            return failure('invalid_request', 'unknown service, or verb not offered for it');
         }
         if (running() || state.upgradeInProgress) return failure('upgrade_in_progress', 'upgrade already in progress');
-        state.restarts.push(id);
-        later(RESTART_DELAY_MS, () => {
+        if (entry.startup === 'masked' || entry.active_state === 'not-found') {
+            return failure('service_unavailable', 'unit masked or not installed');
+        }
+        state.actions.push({ unit: id, verb });
+        if (verb === 'restart') state.restarts.push(id);
+
+        const stopping = verb === 'stop' || verb === 'disable';
+        // systemd keeps `failed` until `reset-failed`: stopping such a unit changes nothing.
+        const staysFailed = stopping && entry.active_state === 'failed';
+        later(ACT_DELAY_MS, () => {
             if (entry.active_state === 'not-found') return;
-            entry.active_state = 'activating';
-            entry.sub_state = 'start';
-            if (id === 'calaos-server' && state.dropOnSelfRestart) hub.dropClients();
+            if (verb === 'enable') setStartup(entry, 'enabled');
+            if (verb === 'disable') setStartup(entry, 'disabled');
+            if (staysFailed) return;
+            if (stopping) setActive(entry, 'deactivating', 'stop-sigterm');
+            else setActive(entry, 'activating', 'start');
+            if (verb === 'restart' && CONNECTION_IDS.includes(id) && state.dropOnSelfRestart) hub.dropClients();
+            if (verb === 'restart' && id === DAEMON_ID) state.daemonDown = true;
         });
-        later(RESTART_DELAY_MS + state.restartMs, () => {
-            if (entry.active_state === 'not-found') return;
-            if (state.fail.has(id)) {
-                state.fail.delete(id);
-                entry.active_state = 'failed';
-                entry.sub_state = 'failed';
-                return;
+        later(ACT_DELAY_MS + state.restartMs, () => {
+            if (id === DAEMON_ID) state.daemonDown = false;
+            if (entry.active_state === 'not-found' || staysFailed) return;
+            if (takesFailure(id, verb)) {
+                setActive(entry, 'failed', 'failed');
+            } else if (stopping) {
+                setActive(entry, 'inactive', 'dead');
+            } else {
+                setActive(entry, 'active', 'running');
+                if (!RELOADED_IDS.includes(id)) entry.since = iso(Date.now());
             }
-            const oneshot = entry.kind === 'oneshot';
-            entry.active_state = oneshot ? 'inactive' : 'active';
-            entry.sub_state = oneshot ? 'dead' : 'running';
-            if (!oneshot) entry.since = iso(Date.now());
         });
-        return { success: 'true', result: { id, state: 'restarting' } };
+        return { success: 'true', result: { id, state: PENDING_STATE[verb] } };
     }
 
     function handle(action, session, params) {
+        if (action !== 'services_list' && !action.startsWith('services_')) return undefined;
+        if (state.daemonDown) return failure('daemon_unreachable', 'calaos-container unreachable');
         if (action === 'services_list') return { success: 'true', result: list() };
-        if (action === 'services_restart') return restart(params);
-        return undefined;
+        const verb = action.slice('services_'.length);
+        return VERBS.has(verb) ? act(verb, params) : undefined;
     }
 
-    /** `/control {op:'admin', services:{restartMs, fail, state, dropOnSelfRestart, upgradeInProgress}}`. */
+    /**
+     * `/control {op:'admin', services:{restartMs, fail, fail_service:{unit, verb},
+     * state, startup, dropOnSelfRestart, upgradeInProgress}}`.
+     */
     function configure(patch) {
         if (patch.upgradeInProgress !== undefined) state.upgradeInProgress = Boolean(patch.upgradeInProgress);
         if (patch.restartMs !== undefined) state.restartMs = Number(patch.restartMs);
         if (typeof patch.fail === 'string') state.fail.add(patch.fail);
+        if (typeof patch.fail_service === 'object' && patch.fail_service !== null) {
+            state.failVerb.add(`${patch.fail_service.unit}:${patch.fail_service.verb}`);
+        }
         if (patch.dropOnSelfRestart !== undefined) state.dropOnSelfRestart = Boolean(patch.dropOnSelfRestart);
         if (typeof patch.state === 'object' && patch.state !== null) {
             for (const [id, activeState] of Object.entries(patch.state)) {
                 const entry = state.units.get(id);
                 if (entry === undefined) return `unknown service '${id}'`;
-                entry.active_state = activeState;
-                entry.sub_state = activeState === 'not-found' ? '' : activeState === 'active' ? 'running' : 'dead';
+                const sub = activeState === 'not-found' ? '' : activeState === 'active' ? 'running' : 'dead';
+                setActive(entry, activeState, sub);
+            }
+        }
+        if (typeof patch.startup === 'object' && patch.startup !== null) {
+            for (const [id, startup] of Object.entries(patch.startup)) {
+                const entry = state.units.get(id);
+                if (entry === undefined) return `unknown service '${id}'`;
+                setStartup(entry, startup);
             }
         }
         return null;
     }
 
     function status() {
-        return { restarts: [...state.restarts] };
+        return { restarts: [...state.restarts], actions: state.actions.map((item) => ({ ...item })) };
     }
 
     return { reset, handle, configure, status };

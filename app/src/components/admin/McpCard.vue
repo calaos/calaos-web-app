@@ -185,7 +185,7 @@ onBeforeUnmount(() => {
 @keyframes mcp-fresh {
     0%,
     60% {
-        background-color: rgba(56, 176, 211, 0.14);
+        background-color: color-mix(in srgb, var(--c-accent) 14%, transparent);
         box-shadow: inset 3px 0 0 var(--c-accent);
     }
 
@@ -219,7 +219,7 @@ onBeforeUnmount(() => {
 }
 
 .mcp__fresh {
-    color: var(--c-accent);
+    color: var(--c-text);
     font-size: 0.875rem;
 }
 

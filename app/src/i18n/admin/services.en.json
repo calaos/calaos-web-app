@@ -1,7 +1,7 @@
 {
     "title": "Services",
-    "hint": "The programs that make up the box. Restarting one interrupts it for a few seconds.",
-    "entryHint": "Check the programs that make up the box and restart one.",
+    "hint": "The programs that make up the box. Start or stop them here, and choose which ones start at boot.",
+    "entryHint": "Check the programs that make up the box, start or stop them.",
     "state": {
         "active": "Running",
         "inactive": "Stopped",
@@ -10,7 +10,8 @@
         "deactivating": "Stopping",
         "reloading": "Reloading",
         "not-found": "Not installed",
-        "unknown": "Unknown"
+        "unknown": "Unknown",
+        "masked": "Masked (SSH)"
     },
     "name": {
         "calaos-server": "Calaos server",
@@ -23,35 +24,71 @@
         "envoy": "Envoy",
         "olad": "OLA (DMX)",
         "ntp": "Time sync",
-        "calaos-ddns": "Calaos DDNS",
         "calaos-container": "calaos-container",
         "haproxy": "haproxy",
         "networkd": "Network",
         "ssh": "SSH"
     },
-    "since": "started {when}",
+    "runningSince": "{state} since {when}",
     "restart": "Restart",
-    "runNow": "Run now",
+    "start": "Start",
+    "stop": "Stop",
     "statusOnly": "Status only",
-    "restarting": "Restarting…",
-    "selfRestartWarning": "Restarting Calaos server disconnects this page for about 30 seconds. It reconnects by itself.",
+    "startAtBoot": "Start at boot",
+    "startAtBootOf": "Start at boot: {name}",
+    "timeLink": "On/off: Time",
+    "busy": {
+        "restart": "Restarting…",
+        "start": "Starting…",
+        "stop": "Stopping…",
+        "enable": "Turning on…",
+        "disable": "Turning off…"
+    },
     "loading": "Reading the services…",
     "loadFailed": "The list of services could not be read.",
     "retry": "Try again",
-    "lastRun": "last run {when}",
     "confirmTitle": "Restart {name}?",
-    "runTitle": "Run {name} now?",
     "confirmHint": "It stops for a few seconds and starts again. Whatever relies on it waits meanwhile.",
-    "runHint": "It runs once now instead of waiting for its next scheduled run.",
+    "restartWarning": {
+        "calaos-server": "This page loses its connection for about 30 seconds. It reconnects by itself.",
+        "haproxy": "This page loses its connection for a few seconds. It reconnects by itself.",
+        "calaos-container": "This page loses its connection for a few seconds. Admin features are unavailable for about 10 s."
+    },
+    "stopTitle": "Stop {name}?",
+    "stopHint": "It starts again at the next reboot or update. To keep it off, turn off Start at boot.",
+    "disableTitle": "Stop {name} now and at every boot?",
+    "disableConfirm": "Stop and turn off",
+    "consequence": {
+        "calaos-home": "The touch screen goes blank.",
+        "mosquitto": "Zigbee, Hue, Enphase and MQTT devices stop responding.",
+        "zigbee2mqtt": "Zigbee devices stop responding.",
+        "influxdb": "History is no longer recorded, and Grafana shows nothing new.",
+        "grafana": "Graphs are no longer available. History keeps being recorded.",
+        "hue2mqtt": "Hue lights stop responding.",
+        "envoy": "Enphase solar readings stop updating.",
+        "olad": "DMX lights stop responding."
+    },
+    "startNote": "It will not start again after a reboot or an update. Turn on Start at boot to keep it.",
     "reconnecting": "Reconnecting…",
-    "selfRestarting": "Calaos server is restarting. This page reconnects by itself, then checks that it came back.",
-    "upgrading": "An update is running: restarts wait until it ends.",
+    "selfRestarting": "{name} is restarting. This page reconnects by itself, then checks that it came back.",
+    "upgrading": "An update is running: every control waits until it ends.",
     "result": {
-        "done": "Restarted.",
-        "ran": "Ran.",
-        "failed": "It did not start again. Its logs tell why.",
+        "done": {
+            "restart": "Restarted.",
+            "start": "Started.",
+            "stop": "Stopped.",
+            "enable": "Started, and it now starts at boot.",
+            "disable": "Stopped, and it no longer starts at boot."
+        },
+        "failed": {
+            "restart": "It did not start again. Its logs tell why.",
+            "start": "It did not start. Its logs tell why.",
+            "stop": "It did not stop cleanly. Its logs tell why.",
+            "enable": "It did not start. Its logs tell why.",
+            "disable": "It did not stop cleanly. Its logs tell why."
+        },
         "not_found": "This service is not installed on the box.",
         "timeout": "No confirmation after {seconds} seconds. Check its state above.",
-        "upgrade_in_progress": "An update is running. Restart it once the update has ended."
+        "upgrade_in_progress": "An update is running. Try again once it has ended."
     }
 }

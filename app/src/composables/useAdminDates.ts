@@ -1,5 +1,6 @@
-// Dates of phones and alerts in the user's words: "12 Mar 2026" and
-// "3 hours ago". The wire dates are RFC 3339 UTC; '' means unknown.
+// Dates of phones and alerts in the user's words: "12 Mar 2026", "3 hours
+// ago", and "2h" for how long something has been going. The wire dates are
+// RFC 3339 UTC; '' means unknown.
 
 import { useI18n } from 'vue-i18n';
 
@@ -13,6 +14,7 @@ export function useAdminDates(): {
     day: (value: string | number) => string;
     dayTime: (value: string | number) => string;
     ago: (value: string) => string;
+    elapsed: (value: string) => string;
 } {
     const { locale } = useI18n();
 
@@ -43,5 +45,14 @@ export function useAdminDates(): {
         return format.format(0, 'minute');
     }
 
-    return { day, dayTime, ago };
+    function elapsed(value: string): string {
+        const time = Date.parse(value);
+        if (!Number.isFinite(time)) return '';
+        const spent = Math.max(0, Date.now() - time);
+        const [unit, ms] = UNITS.find(([, length]) => spent >= length) ?? UNITS[UNITS.length - 1];
+        const format = new Intl.NumberFormat(locale.value, { style: 'unit', unit, unitDisplay: 'narrow' });
+        return format.format(Math.floor(spent / ms));
+    }
+
+    return { day, dayTime, ago, elapsed };
 }

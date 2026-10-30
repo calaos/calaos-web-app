@@ -20,7 +20,6 @@ export const LOG_SOURCE_IDS = [
     'calaos-container',
     'olad',
     'ntp',
-    'calaos-ddns',
     'networkd',
     'ssh',
     'kernel',
