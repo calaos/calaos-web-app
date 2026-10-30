@@ -216,6 +216,29 @@ describe('config restore', () => {
         expect(config.restoreFollowUp).toEqual({ phase: 'restarting', previous: '2026/x', partial: true });
     });
 
+    it('does not announce a household login change after a partial restore', async () => {
+        await unlocked();
+        goOnline();
+        const config = useAdminConfigStore();
+        const pending = config.restore(FILES, true);
+        fail('internal', { msg: 'disk full', previous: '2026/x', restarting: 'true' });
+        await pending;
+        expect(config.householdChanged).toBe(false);
+    });
+
+    it('keeps a partial failure told when Close ends the wait', async () => {
+        await unlocked();
+        goOnline();
+        const config = useAdminConfigStore();
+        const pending = config.restore(FILES, false);
+        fail('internal', { msg: 'disk full', previous: '2026/x', restarting: 'true' });
+        await pending;
+        config.dismissRestore();
+        expect(config.restoreFollowUp).toEqual({ phase: 'done', previous: '2026/x', partial: true });
+        config.dismissRestore();
+        expect(config.restoreFollowUp).toBeNull();
+    });
+
     it('follows nothing when a failed write leaves the server running', async () => {
         await unlocked();
         goOnline();

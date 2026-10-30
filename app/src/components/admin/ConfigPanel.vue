@@ -220,10 +220,8 @@ async function sendRestore(source: RestoreInput, preview: ConfigRestoreResult): 
         saveFile(current);
     }
     const error = await config.restore(source.files, preview.warnings.includes('household_login_changes'));
-    if (error === null) {
-        closeRestore();
-    } else if (error.restarting) {
-        // The box restarts anyway: the follow-up banner tells it, nothing is left to retry.
+    if (error === null || error.restarting) {
+        // With `restarting` the box restarts anyway: the follow-up banner tells it, nothing is left to retry.
         closeRestore();
     } else {
         restoreDialogError.value = restoreErrorText(error);
@@ -245,7 +243,12 @@ async function confirmRestore(): Promise<void> {
     <section class="config" :aria-label="t('admin.config.title')">
         <div v-if="restoreWaiting" class="config__restart fade-in" role="status">
             <p class="config__restart-text">
-                {{ followUp?.phase === 'slow' ? t('admin.config.restoreSlow') : t('admin.config.restoreRestarting') }}
+                <template v-if="followUp?.partial">
+                    {{ t('admin.config.restorePartialWaiting', { folder: followUp.previous ?? '' }) }}
+                </template>
+                <template v-else>
+                    {{ followUp?.phase === 'slow' ? t('admin.config.restoreSlow') : t('admin.config.restoreRestarting') }}
+                </template>
             </p>
             <AdminButton v-if="followUp?.phase === 'slow'" variant="quiet" @click="config.dismissRestore()">
                 {{ t('admin.config.restoreDismiss') }}

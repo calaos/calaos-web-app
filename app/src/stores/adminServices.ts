@@ -49,8 +49,8 @@ function dropsConnection(id: string, verb: ServiceVerb): boolean {
 
 /**
  * `start` can still be queued behind a dependency, so `inactive` is no answer
- * yet; only `active` is. A `failed` that gets here predates the verb, and
- * stopping such a unit leaves it `failed` until a `reset-failed`.
+ * yet; only `active` is. A `failed` that gets here predates the verb, or the
+ * daemon's reset-failed failed, which it only logs.
  */
 function reached(entry: ServiceState, verb: ServiceVerb, before: string): boolean {
     const state = entry.activeState;

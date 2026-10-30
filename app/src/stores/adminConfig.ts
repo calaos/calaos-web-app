@@ -192,7 +192,8 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
         restoreDropped = !online.value;
         restoreAwaiting = true;
         restoreFollowUp.value = { phase: 'restarting', previous, partial };
-        householdChanged.value = householdChanges;
+        // A partial restore may not have replaced the file holding the login: the hint would be a guess.
+        householdChanged.value = householdChanges && !partial;
         clearTimeout(restoreTimer);
         restoreTimer = setTimeout(() => {
             if (restoreFollowUp.value?.phase === 'restarting') restoreFollowUp.value.phase = 'slow';
@@ -201,6 +202,11 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
 
     function dismissRestore(): void {
         clearTimeout(restoreTimer);
+        // A failed restore must stay told: Close only stops the wait.
+        if (restoreFollowUp.value?.partial && restoreFollowUp.value.phase !== 'done') {
+            restoreFollowUp.value.phase = 'done';
+            return;
+        }
         restoreFollowUp.value = null;
     }
 
