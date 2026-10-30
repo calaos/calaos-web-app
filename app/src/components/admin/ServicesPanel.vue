@@ -117,7 +117,6 @@ function confirm(): void {
 
 <template>
     <section class="services" :aria-label="t('admin.services.title')">
-
         <p v-if="services.selfPhase !== null" class="services__banner fade-in" role="status">
             {{ t('admin.services.selfRestarting') }}
         </p>

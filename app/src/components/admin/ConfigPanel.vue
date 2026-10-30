@@ -1,7 +1,6 @@
 <script setup lang="ts">
-// calaos_server's own settings and the configuration backup. The registry
-// validates every value; its refusal is shown under the row it concerns. The backup is an HTTP download: the session rides in the
-// POST body, never a URL.
+// The registry validates every value and its refusal is shown under the row concerned.
+// The backup is an HTTP download: the session rides in the POST body, never a URL.
 
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';

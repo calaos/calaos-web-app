@@ -746,7 +746,7 @@ onBeforeUnmount(() => {
 }
 
 .logs__range[aria-checked='true'] {
-    background-color: #0d2a33;
+    background-color: color-mix(in srgb, var(--c-accent) 24%, var(--c-bg));
     color: var(--c-accent);
 }
 

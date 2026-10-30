@@ -140,7 +140,7 @@ const tiles = computed<Tile[]>(() => {
     padding: var(--space-4);
     border: 1px solid var(--c-border);
     border-radius: var(--radius-md);
-    background-color: rgba(26, 26, 26, 0.85);
+    background-color: color-mix(in srgb, var(--c-surface) 85%, transparent);
     color: var(--c-text);
     text-decoration: none;
     transition:
