@@ -34,6 +34,7 @@ onUnmounted(() => admin.deactivate());
 
 const actions = ref<InstanceType<typeof AdminActions> | null>(null);
 const phones = ref<InstanceType<typeof ApproversPanel> | null>(null);
+const time = ref<InstanceType<typeof TimeCard> | null>(null);
 const route = useRoute();
 const router = useRouter();
 
@@ -45,6 +46,15 @@ watch(
         if (panel === null || route.query.add !== 'phone') return;
         void router.replace({ name: 'admin' });
         panel.openAdd();
+    },
+    { flush: 'post' },
+);
+
+// The services page leads here for what only the Time card can change.
+watch(
+    time,
+    (card) => {
+        if (card !== null && route.hash === '#time') (card.$el as HTMLElement).scrollIntoView();
     },
     { flush: 'post' },
 );
@@ -97,7 +107,7 @@ function changeHousehold(user: string, password: string): void {
 
             <McpCard />
 
-            <TimeCard />
+            <TimeCard ref="time" />
         </div>
 
         <!-- ---- the gate ----------------------------------------------- -->

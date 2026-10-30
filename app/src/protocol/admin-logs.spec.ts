@@ -16,7 +16,7 @@ describe('logs codec', () => {
         expect(toLogSources({ sources: [{ id: 'kernel', label: 'Kernel' }, { label: 'x' }] })).toEqual([
             { id: 'kernel', label: 'Kernel' },
         ]);
-        expect(LOG_SOURCE_IDS).toHaveLength(17);
+        expect(LOG_SOURCE_IDS).toHaveLength(16);
     });
 
     it('reads a page with its typed fields', () => {

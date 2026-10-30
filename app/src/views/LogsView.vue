@@ -562,9 +562,9 @@ onBeforeUnmount(() => {
     font-weight: 500;
     cursor: pointer;
     transition:
-        border-color 200ms ease,
-        color 200ms ease,
-        box-shadow 200ms ease;
+        border-color var(--duration-fade) ease,
+        color var(--duration-fade) ease,
+        box-shadow var(--duration-fade) ease;
 }
 
 .logs__follow-dot {
@@ -630,7 +630,7 @@ onBeforeUnmount(() => {
     flex: none;
     font-size: 1.375rem;
     color: var(--c-text-muted);
-    transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition: transform var(--duration-slide) cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .logs__chevron--open {

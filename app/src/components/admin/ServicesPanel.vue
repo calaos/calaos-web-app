@@ -1,38 +1,37 @@
 <script setup lang="ts">
-// The box's services as the same hairline list as the box actions, each
-// with a status light. A restart asks once, then the row follows it until the
-// list shows the new process; restarting calaos-server takes this page's
-// connection with it, so the panel says so and waits for the reconnect.
+// The box's services as the same hairline list as the box actions, each with
+// a status light and the verbs the daemon offers for that row. What takes
+// something away asks first, then the row follows the action until the list
+// shows its outcome; restarting what carries this page's connection says so
+// and waits for the reconnect.
 
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { SELF_SERVICE_ID } from '../../protocol/admin-services';
-import type { ServiceState } from '../../protocol/admin-services';
+import { TIME_SERVICE_ID } from '../../protocol/admin-services';
+import type { ServiceState, ServiceVerb } from '../../protocol/admin-services';
 import { useAdminStore } from '../../stores/admin';
-import {
-    RESTART_DEADLINE_MS,
-    SELF_RESTART_DEADLINE_MS,
-    useAdminServicesStore,
-} from '../../stores/adminServices';
-import type { RestartResult } from '../../stores/adminServices';
+import { serviceDeadlineMs, useAdminServicesStore } from '../../stores/adminServices';
+import type { ServiceResult } from '../../stores/adminServices';
 import { useAdminDates } from '../../composables/useAdminDates';
 import { useAdminText } from '../../composables/useAdminText';
 import BaseDialog from '../ui/BaseDialog.vue';
 import AdminButton from './AdminButton.vue';
+import AdminSwitch from './AdminSwitch.vue';
 
 const REFRESH_MS = 10_000;
 
 const { t, te } = useI18n();
 const admin = useAdminStore();
 const services = useAdminServicesStore();
-const { ago } = useAdminDates();
+const { elapsed } = useAdminDates();
 const { errorText } = useAdminText();
 
-const confirming = ref<ServiceState | null>(null);
+const confirming = ref<{ entry: ServiceState; verb: ServiceVerb } | null>(null);
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 function refresh(): void {
-    if (document.visibilityState !== 'visible' || !admin.isUnlocked || services.restarting) return;
+    if (document.visibilityState !== 'visible' || !admin.isUnlocked || services.working) return;
     void services.load();
 }
 
@@ -48,79 +47,150 @@ onBeforeUnmount(() => {
 });
 
 const list = computed(() => services.services ?? []);
-const blocked = computed(() => admin.isUpgrading);
+const blocked = computed(() => admin.isUpgrading || admin.busy !== null);
 
-function nameOf(entry: ServiceState): string {
-    const key = `admin.services.name.${entry.id}`;
-    return te(key) ? t(key) : entry.id;
+function nameOf(id: string): string {
+    const key = `admin.services.name.${id}`;
+    return te(key) ? t(key) : id;
 }
 
-function canAct(entry: ServiceState): boolean {
-    return entry.restartable && entry.activeState !== 'not-found';
+const selfName = computed(() => (services.selfId === null ? '' : nameOf(services.selfId)));
+
+function isMasked(entry: ServiceState): boolean {
+    return entry.startup === 'masked';
+}
+
+/** Masked or missing, a row has nothing to act on, whatever the daemon lists. */
+function isOutOfReach(entry: ServiceState): boolean {
+    return isMasked(entry) || entry.activeState === 'not-found';
+}
+
+function isTracked(entry: ServiceState): boolean {
+    return services.tracked[entry.id] !== undefined;
+}
+
+/** A running service restarts or stops; a stopped one only starts. */
+function verbsOf(entry: ServiceState): ServiceVerb[] {
+    if (isOutOfReach(entry)) return [];
+    const offered = (verb: ServiceVerb): boolean => entry.actions.includes(verb);
+    if (entry.activeState === 'inactive' || entry.activeState === 'failed') {
+        if (offered('start')) return ['start'];
+        return offered('restart') ? ['restart'] : [];
+    }
+    return (['restart', 'stop'] as const).filter(offered);
+}
+
+function hasSwitch(entry: ServiceState): boolean {
+    return (
+        entry.id !== TIME_SERVICE_ID &&
+        !isOutOfReach(entry) &&
+        entry.actions.includes('enable') &&
+        entry.actions.includes('disable') &&
+        (entry.startup === 'enabled' || entry.startup === 'disabled')
+    );
+}
+
+function hasTimeLink(entry: ServiceState): boolean {
+    return entry.id === TIME_SERVICE_ID && !isOutOfReach(entry);
+}
+
+function lightOf(entry: ServiceState): string {
+    if (isTracked(entry)) return 'working';
+    return isMasked(entry) ? 'not-found' : entry.activeState;
 }
 
 /** `since` is when the unit last became active: for a stopped service it is history, not state. */
 function meta(entry: ServiceState): string {
+    if (isMasked(entry)) return t('admin.services.state.masked');
     const state = t(`admin.services.state.${entry.activeState}`);
-    if (entry.since === '') return state;
-    if (entry.kind === 'oneshot') return `${state}, ${t('admin.services.lastRun', { when: ago(entry.since) })}`;
-    if (entry.activeState !== 'active') return state;
-    return `${state}, ${t('admin.services.since', { when: ago(entry.since) })}`;
+    if (entry.activeState !== 'active' || entry.since === '') return state;
+    return t('admin.services.runningSince', { state, when: elapsed(entry.since) });
 }
 
-function resultText(entry: ServiceState, result: RestartResult): string {
-    if (result.status === 'error') {
-        return result.error.code === 'upgrade_in_progress'
-            ? t('admin.services.result.upgrade_in_progress')
-            : errorText(result.error);
+function resultText(entry: ServiceState, result: ServiceResult): string {
+    switch (result.status) {
+        case 'error':
+            return result.error.code === 'upgrade_in_progress'
+                ? t('admin.services.result.upgrade_in_progress')
+                : errorText(result.error);
+        case 'done':
+        case 'failed':
+            return t(`admin.services.result.${result.status}.${result.verb}`);
+        case 'timeout':
+            return t('admin.services.result.timeout', { seconds: serviceDeadlineMs(entry.id) / 1000 });
+        case 'not_found':
+            return t('admin.services.result.not_found');
     }
-    if (result.status === 'done') return t(`admin.services.result.${entry.kind === 'oneshot' ? 'ran' : 'done'}`);
-    if (result.status === 'timeout') {
-        const ms = entry.id === SELF_SERVICE_ID ? SELF_RESTART_DEADLINE_MS : RESTART_DEADLINE_MS;
-        return t('admin.services.result.timeout', { seconds: ms / 1000 });
-    }
-    return t(`admin.services.result.${result.status}`);
 }
 
-function tone(result: RestartResult): 'ok' | 'warn' | 'danger' {
+function tone(result: ServiceResult): 'ok' | 'warn' | 'danger' {
     if (result.status === 'done') return 'ok';
     if (result.status === 'failed' || result.status === 'error') return 'danger';
     return 'warn';
 }
 
+/** A manual start lasts until the next boot, which the row should not leave unsaid. */
+function needsStartNote(entry: ServiceState, result: ServiceResult): boolean {
+    return result.status === 'done' && result.verb === 'start' && entry.startup === 'disabled';
+}
+
 function busyLabel(id: string): string {
-    return services.tracked[id]?.phase === 'reconnecting'
-        ? t('admin.services.reconnecting')
-        : t('admin.services.restarting');
+    const item = services.tracked[id];
+    if (item === undefined) return '';
+    return t(item.phase === 'reconnecting' ? 'admin.services.reconnecting' : `admin.services.busy.${item.verb}`);
 }
 
 const dialogTitle = computed(() => {
-    const entry = confirming.value;
-    if (entry === null) return '';
-    const name = nameOf(entry);
-    return entry.kind === 'oneshot'
-        ? t('admin.services.runTitle', { name })
-        : t('admin.services.confirmTitle', { name });
+    if (confirming.value === null) return '';
+    const name = nameOf(confirming.value.entry.id);
+    switch (confirming.value.verb) {
+        case 'stop':
+            return t('admin.services.stopTitle', { name });
+        case 'disable':
+            return t('admin.services.disableTitle', { name });
+        default:
+            return t('admin.services.confirmTitle', { name });
+    }
 });
 
-function ask(entry: ServiceState): void {
+const dialogConfirm = computed(() => {
+    const verb = confirming.value?.verb;
+    if (verb === 'stop') return t('admin.services.stop');
+    return verb === 'disable' ? t('admin.services.disableConfirm') : t('admin.services.restart');
+});
+
+const dialogDanger = computed(() => confirming.value !== null && confirming.value.verb !== 'restart');
+
+const dialogConsequence = computed(() => {
+    const key = `admin.services.consequence.${confirming.value?.entry.id}`;
+    return dialogDanger.value && te(key) ? t(key) : '';
+});
+
+const dialogWarning = computed(() => {
+    const key = `admin.services.restartWarning.${confirming.value?.entry.id}`;
+    return !dialogDanger.value && te(key) ? t(key) : '';
+});
+
+/** Starting asks nothing: it takes nothing away, and it can be stopped again. */
+function ask(entry: ServiceState, verb: ServiceVerb): void {
     services.dismiss(entry.id);
-    confirming.value = entry;
+    if (verb === 'start' || verb === 'enable') void services.actAndWatch(entry.id, verb);
+    else confirming.value = { entry, verb };
 }
 
 function confirm(): void {
-    const entry = confirming.value;
+    const asked = confirming.value;
     confirming.value = null;
-    if (entry !== null) void services.restartAndWatch(entry.id);
+    if (asked !== null) void services.actAndWatch(asked.entry.id, asked.verb);
 }
 </script>
 
 <template>
     <section class="services" :aria-label="t('admin.services.title')">
         <p v-if="services.selfPhase !== null" class="services__banner fade-in" role="status">
-            {{ t('admin.services.selfRestarting') }}
+            {{ t('admin.services.selfRestarting', { name: selfName }) }}
         </p>
-        <p v-else-if="blocked" class="services__banner services__banner--warn fade-in" role="status">
+        <p v-else-if="admin.isUpgrading" class="services__banner services__banner--warn fade-in" role="status">
             {{ t('admin.services.upgrading') }}
         </p>
 
@@ -141,56 +211,88 @@ function confirm(): void {
                 v-for="entry in list"
                 :key="entry.id"
                 class="services__row"
-                :class="{ 'services__row--busy': services.tracked[entry.id] !== undefined }"
+                :class="{ 'services__row--busy': isTracked(entry) }"
                 :data-service="entry.id"
             >
-                <span
-                    class="services__light"
-                    :class="`services__light--${services.tracked[entry.id] !== undefined ? 'working' : entry.activeState}`"
-                    aria-hidden="true"
-                />
+                <span class="services__light" :class="`services__light--${lightOf(entry)}`" aria-hidden="true" />
                 <div class="services__text">
-                    <span class="services__name">{{ nameOf(entry) }}</span>
+                    <span class="services__name">{{ nameOf(entry.id) }}</span>
                     <span class="services__meta">{{ meta(entry) }}</span>
-                    <span
-                        v-if="services.results[entry.id] !== undefined"
-                        class="services__result fade-in"
-                        :class="`services__result--${tone(services.results[entry.id])}`"
-                        :role="tone(services.results[entry.id]) === 'ok' ? 'status' : 'alert'"
+                    <template v-if="services.results[entry.id] !== undefined">
+                        <span
+                            class="services__result fade-in"
+                            :class="`services__result--${tone(services.results[entry.id])}`"
+                            :role="tone(services.results[entry.id]) === 'ok' ? 'status' : 'alert'"
+                        >
+                            {{ resultText(entry, services.results[entry.id]) }}
+                        </span>
+                        <span v-if="needsStartNote(entry, services.results[entry.id])" class="services__note fade-in">
+                            {{ t('admin.services.startNote') }}
+                        </span>
+                    </template>
+                </div>
+                <div class="services__controls">
+                    <RouterLink
+                        v-if="hasTimeLink(entry)"
+                        class="services__link"
+                        :to="{ name: 'admin', hash: '#time' }"
                     >
-                        {{ resultText(entry, services.results[entry.id]) }}
+                        {{ t('admin.services.timeLink') }}
+                    </RouterLink>
+                    <AdminSwitch
+                        v-else-if="hasSwitch(entry)"
+                        :checked="entry.startup === 'enabled'"
+                        :label="t('admin.services.startAtBoot')"
+                        :aria-label="t('admin.services.startAtBootOf', { name: nameOf(entry.id) })"
+                        :busy="isTracked(entry)"
+                        :disabled="blocked || isTracked(entry)"
+                        @click="ask(entry, entry.startup === 'enabled' ? 'disable' : 'enable')"
+                    />
+                    <AdminButton
+                        v-if="isTracked(entry)"
+                        variant="quiet"
+                        busy
+                        :busy-label="busyLabel(entry.id)"
+                    >
+                        {{ busyLabel(entry.id) }}
+                    </AdminButton>
+                    <template v-else>
+                        <AdminButton
+                            v-for="verb in verbsOf(entry)"
+                            :key="verb"
+                            variant="quiet"
+                            :disabled="blocked"
+                            @click="ask(entry, verb)"
+                        >
+                            {{ t(`admin.services.${verb}`) }}
+                        </AdminButton>
+                    </template>
+                    <span v-if="entry.actions.length === 0 && !isOutOfReach(entry)" class="services__tag">
+                        {{ t('admin.services.statusOnly') }}
                     </span>
                 </div>
-                <AdminButton
-                    v-if="canAct(entry)"
-                    variant="quiet"
-                    :busy="services.tracked[entry.id] !== undefined"
-                    :busy-label="busyLabel(entry.id)"
-                    :disabled="blocked || admin.busy !== null"
-                    @click="ask(entry)"
-                >
-                    {{ entry.kind === 'oneshot' ? t('admin.services.runNow') : t('admin.services.restart') }}
-                </AdminButton>
-                <span v-else-if="!entry.restartable" class="services__tag">{{ t('admin.services.statusOnly') }}</span>
             </li>
         </ul>
 
         <BaseDialog
             :open="confirming !== null"
             :title="dialogTitle"
-            :confirm-label="
-                confirming?.kind === 'oneshot' ? t('admin.services.runNow') : t('admin.services.restart')
-            "
+            :confirm-label="dialogConfirm"
             :cancel-label="t('dialog.cancel')"
+            :danger="dialogDanger"
             @confirm="confirm"
             @cancel="confirming = null"
         >
-            <p class="services__dialog-hint">
-                {{ confirming?.kind === 'oneshot' ? t('admin.services.runHint') : t('admin.services.confirmHint') }}
+            <p v-if="dialogConsequence !== ''" class="services__dialog-hint services__consequence">
+                {{ dialogConsequence }}
             </p>
-            <p v-if="confirming?.id === SELF_SERVICE_ID" class="services__warning">
-                {{ t('admin.services.selfRestartWarning') }}
+            <p v-if="confirming?.verb === 'stop'" class="services__dialog-hint">
+                {{ t('admin.services.stopHint') }}
             </p>
+            <p v-else-if="confirming?.verb === 'restart'" class="services__dialog-hint">
+                {{ t('admin.services.confirmHint') }}
+            </p>
+            <p v-if="dialogWarning !== ''" class="services__warning">{{ dialogWarning }}</p>
         </BaseDialog>
     </section>
 </template>
@@ -199,17 +301,17 @@ function confirm(): void {
 .services__banner {
     margin-block-start: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    border: 1px solid rgba(56, 176, 211, 0.35);
+    border: 1px solid color-mix(in srgb, var(--c-accent) 35%, transparent);
     border-radius: var(--radius-md);
-    background-color: rgba(56, 176, 211, 0.08);
+    background-color: color-mix(in srgb, var(--c-accent) 8%, transparent);
     color: var(--c-accent);
     font-size: 0.9375rem;
     line-height: 1.45;
 }
 
 .services__banner--warn {
-    border-color: rgba(224, 163, 86, 0.35);
-    background-color: rgba(224, 163, 86, 0.08);
+    border-color: color-mix(in srgb, var(--c-warn) 35%, transparent);
+    background-color: color-mix(in srgb, var(--c-warn) 8%, transparent);
     color: var(--c-warn);
 }
 
@@ -258,12 +360,12 @@ function confirm(): void {
 
 .services__light--active {
     background-color: var(--c-success);
-    box-shadow: 0 0 8px rgba(76, 175, 125, 0.55);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--c-success) 55%, transparent);
 }
 
 .services__light--failed {
     background-color: var(--c-danger);
-    box-shadow: 0 0 8px rgba(224, 86, 86, 0.55);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--c-danger) 55%, transparent);
 }
 
 .services__light--inactive,
@@ -309,6 +411,29 @@ function confirm(): void {
     color: var(--c-danger-text);
 }
 
+.services__note {
+    color: var(--c-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.services__controls {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2) var(--space-4);
+}
+
+.services__link {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    color: var(--c-accent);
+    font-size: 0.875rem;
+}
+
 .services__tag {
     flex: none;
     color: var(--c-text-muted);
@@ -321,15 +446,37 @@ function confirm(): void {
     line-height: 1.45;
 }
 
+.services__consequence {
+    margin-block-end: var(--space-2);
+    color: var(--c-text);
+}
+
 .services__warning {
     margin-block-start: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    border: 1px solid rgba(224, 163, 86, 0.35);
+    border: 1px solid color-mix(in srgb, var(--c-warn) 35%, transparent);
     border-radius: var(--radius-md);
-    background-color: rgba(52, 38, 20, 0.6);
+    background-color: color-mix(in srgb, var(--c-warn) 10%, transparent);
     color: var(--c-warn);
     font-size: 0.875rem;
     line-height: 1.45;
+}
+
+@media (max-width: 599px) {
+    .services__row {
+        flex-wrap: wrap;
+    }
+
+    .services__text {
+        flex-basis: calc(100% - 0.625rem - var(--space-4));
+    }
+
+    /* Aligned on the text, past the light. */
+    .services__controls {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+        padding-inline-start: calc(0.625rem + var(--space-4));
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

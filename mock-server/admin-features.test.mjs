@@ -78,16 +78,18 @@ async function session() {
 }
 
 describe('services', () => {
-    it('lists the fifteen ids in the daemon order, with typed fields', async () => {
+    it('lists the fourteen ids in the daemon order, with typed fields', async () => {
         const { ask } = await session();
         const reply = await ask('services_list');
         expect(reply.success).toBe('true');
-        const ids = reply.result.services.map((s) => s.id);
-        expect(ids.slice(0, 2)).toEqual(['calaos-server', 'calaos-home']);
-        expect(ids).toHaveLength(15);
-        const ssh = reply.result.services.find((s) => s.id === 'ssh');
-        expect(ssh.restartable).toBe(false);
-        expect(reply.result.services.find((s) => s.id === 'olad').active_state).toBe('not-found');
+        const rows = reply.result.services;
+        expect(rows.slice(0, 2).map((s) => s.id)).toEqual(['calaos-server', 'calaos-home']);
+        expect(rows).toHaveLength(14);
+        expect(rows.find((s) => s.id === 'ssh').actions).toEqual(['restart']);
+        expect(rows.find((s) => s.id === 'networkd').actions).toEqual([]);
+        expect(rows.find((s) => s.id === 'olad').active_state).toBe('not-found');
+        expect(rows.find((s) => s.id === 'hue2mqtt').startup).toBe('masked');
+        expect(rows.find((s) => s.id === 'zigbee2mqtt')).toMatchObject({ active_state: 'inactive', startup: 'disabled' });
     });
 
     it('restarts through activating to active, or failed when told', async () => {
@@ -104,10 +106,70 @@ describe('services', () => {
         expect(after.find((s) => s.id === 'grafana').active_state).toBe('failed');
     });
 
-    it('refuses a status-only id and a malformed one', async () => {
+    it('refuses a verb the row does not offer and a malformed id', async () => {
         const { ask } = await session();
-        expect((await ask('services_restart', { unit: 'haproxy' })).error).toBe('invalid_request');
+        expect((await ask('services_restart', { unit: 'networkd' })).error).toBe('invalid_request');
+        expect((await ask('services_stop', { unit: 'haproxy' })).error).toBe('invalid_request');
         expect((await ask('services_restart', { unit: 'Mosquitto.service' })).error).toBe('invalid_request');
+    });
+
+    it('refuses a masked or missing unit, after the upgrade check', async () => {
+        const { ask } = await session();
+        expect((await ask('services_start', { unit: 'hue2mqtt' })).error).toBe('service_unavailable');
+        expect((await ask('services_enable', { unit: 'olad' })).error).toBe('service_unavailable');
+        await control({ op: 'admin', services: { upgradeInProgress: true } });
+        expect((await ask('services_start', { unit: 'hue2mqtt' })).error).toBe('upgrade_in_progress');
+    });
+
+    it('stops, starts, and moves `startup` with enable and disable', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', services: { restartMs: 50 } });
+        const read = async (id) => (await ask('services_list')).result.services.find((s) => s.id === id);
+        expect((await ask('services_stop', { unit: 'mosquitto' })).result).toEqual({ id: 'mosquitto', state: 'stopping' });
+        expect((await ask('services_enable', { unit: 'zigbee2mqtt' })).result).toEqual({ id: 'zigbee2mqtt', state: 'enabling' });
+        expect((await ask('services_disable', { unit: 'grafana' })).result).toEqual({ id: 'grafana', state: 'disabling' });
+        await sleep(700);
+        expect(await read('mosquitto')).toMatchObject({ active_state: 'inactive', startup: 'enabled' });
+        expect(await read('zigbee2mqtt')).toMatchObject({ active_state: 'active', startup: 'enabled' });
+        expect(await read('grafana')).toMatchObject({ active_state: 'inactive', startup: 'disabled' });
+        expect((await ask('services_start', { unit: 'mosquitto' })).result.state).toBe('starting');
+        await sleep(700);
+        expect(await read('mosquitto')).toMatchObject({ active_state: 'active', startup: 'enabled' });
+    });
+
+    it('fails one verb only when told', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', services: { restartMs: 50, fail_service: { unit: 'envoy', verb: 'stop' } } });
+        await ask('services_restart', { unit: 'envoy' });
+        await sleep(700);
+        const read = async () => (await ask('services_list')).result.services.find((s) => s.id === 'envoy').active_state;
+        expect(await read()).toBe('active');
+        await ask('services_stop', { unit: 'envoy' });
+        await sleep(700);
+        expect(await read()).toBe('failed');
+    });
+
+    it('keeps `since` of a reloaded unit, and moves everyone else\'s', async () => {
+        const { ask } = await session();
+        const before = (await ask('services_list')).result.services;
+        await control({ op: 'admin', services: { restartMs: 50 } });
+        await ask('services_restart', { unit: 'ssh' });
+        await ask('services_restart', { unit: 'mosquitto' });
+        await sleep(700);
+        const after = (await ask('services_list')).result.services;
+        const since = (rows, id) => rows.find((s) => s.id === id).since;
+        expect(since(after, 'ssh')).toBe(since(before, 'ssh'));
+        expect(since(after, 'mosquitto')).not.toBe(since(before, 'mosquitto'));
+    });
+
+    it('answers daemon_unreachable while calaos-container restarts', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', services: { restartMs: 300 } });
+        await ask('services_restart', { unit: 'calaos-container' });
+        await sleep(600);
+        expect((await ask('services_list')).error).toBe('daemon_unreachable');
+        await sleep(400);
+        expect((await ask('services_list')).success).toBe('true');
     });
 
     it('refuses every restart while told an upgrade runs', async () => {
@@ -116,20 +178,20 @@ describe('services', () => {
         expect((await ask('services_restart', { unit: 'mosquitto' })).error).toBe('upgrade_in_progress');
     });
 
-    it('drops every socket when calaos-server restarts', async () => {
+    it.each(['calaos-server', 'haproxy'])('drops every socket when %s restarts', async (unit) => {
         const { ws, ask } = await session();
         await control({ op: 'admin', services: { restartMs: 50 } });
         const closed = new Promise((resolve) => ws.once('close', resolve));
-        await ask('services_restart', { unit: 'calaos-server' });
+        await ask('services_restart', { unit });
         await closed;
     });
 });
 
 describe('logs', () => {
-    it('lists seventeen sources', async () => {
+    it('lists sixteen sources', async () => {
         const { ask } = await session();
         const reply = await ask('logs_sources');
-        expect(reply.result.sources).toHaveLength(17);
+        expect(reply.result.sources).toHaveLength(16);
         expect(reply.result.sources.at(-1)).toEqual({ id: 'system', label: 'Whole system' });
     });
 

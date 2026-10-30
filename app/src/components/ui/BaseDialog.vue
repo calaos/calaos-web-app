@@ -62,10 +62,12 @@ const props = withDefaults(
         cancelLabel?: string;
         /** Greys the primary button; Enter is refused too. */
         confirmDisabled?: boolean;
+        /** The confirm button of an action that takes something away. */
+        danger?: boolean;
         /** 35rem instead of 22rem, for a body that is a view rather than a form. */
         wide?: boolean;
     }>(),
-    { eyebrow: '', confirmLabel: undefined, cancelLabel: undefined, confirmDisabled: false, wide: false },
+    { eyebrow: '', confirmLabel: undefined, cancelLabel: undefined, confirmDisabled: false, danger: false, wide: false },
 );
 
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
@@ -209,7 +211,8 @@ watch(
                         <button
                             v-if="confirmLabel !== undefined"
                             type="submit"
-                            class="base-dialog__button base-dialog__button--primary pressable"
+                            class="base-dialog__button pressable"
+                            :class="danger ? 'base-dialog__button--danger' : 'base-dialog__button--primary'"
                             :disabled="confirmDisabled"
                         >
                             {{ confirmLabel }}
@@ -364,6 +367,21 @@ watch(
     background-color: rgba(255, 255, 255, 0.08);
     color: var(--c-text-muted);
     box-shadow: none;
+    cursor: not-allowed;
+}
+
+.base-dialog__button--danger {
+    border: 1px solid color-mix(in srgb, var(--c-danger) 50%, transparent);
+    background-color: color-mix(in srgb, var(--c-danger) 14%, transparent);
+    color: var(--c-danger-text);
+}
+
+.base-dialog__button--danger:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--c-danger) 24%, transparent);
+}
+
+.base-dialog__button--danger:disabled {
+    color: var(--c-text-muted);
     cursor: not-allowed;
 }
 

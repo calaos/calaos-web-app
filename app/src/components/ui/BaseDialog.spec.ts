@@ -184,6 +184,16 @@ describe('BaseDialog', () => {
         expect(wrapper.emitted('confirm')).toBeUndefined();
     });
 
+    it('dresses the primary button as dangerous only when asked', async () => {
+        wrapper = mountDialog({ open: true });
+        await nextTick();
+        expect(document.querySelector('.base-dialog__button--danger')).toBeNull();
+        wrapper.unmount();
+        wrapper = mountDialog({ open: true, danger: true });
+        await nextTick();
+        expect(document.querySelector('.base-dialog__button--danger')).not.toBeNull();
+    });
+
     it('refuses to confirm while the primary button is disabled', async () => {
         wrapper = mountDialog({ open: true, confirmDisabled: true });
         await nextTick();

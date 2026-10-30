@@ -18,6 +18,8 @@ export const LOGS_QUERY_TIMEOUT_MS = 12_000;
 export const TIME_SET_TIMEOUT_MS = 40_000;
 /** `networkctl` can take up to 30 s; calaos_server waits 35 s. */
 export const NETWORK_CHANGE_TIMEOUT_MS = 40_000;
+/** Start, stop, enable and disable answer once systemd has run them. */
+export const SERVICE_ACTION_TIMEOUT_MS = 20_000;
 /** `admin_unavailable`: retry every 5 s for 2 min, then every 60 s. */
 export const UNAVAILABLE_FAST_RETRY_MS = 5_000;
 export const UNAVAILABLE_FAST_WINDOW_MS = 120_000;
@@ -60,6 +62,7 @@ export const ADMIN_ERROR_CODES = [
     'code_expired',
     'console_limit',
     'network_pending',
+    'service_unavailable',
     'login_failed',
     'internal',
 ] as const;
@@ -133,6 +136,10 @@ export const ADMIN_ACTIONS = [
     'console_open',
     'services_list',
     'services_restart',
+    'services_start',
+    'services_stop',
+    'services_enable',
+    'services_disable',
     'logs_sources',
     'logs_query',
     'time_get',
@@ -241,6 +248,11 @@ export function adminReplyTimeoutMs(action: AdminAction): number {
             return LOGS_QUERY_TIMEOUT_MS;
         case 'time_set':
             return TIME_SET_TIMEOUT_MS;
+        case 'services_start':
+        case 'services_stop':
+        case 'services_enable':
+        case 'services_disable':
+            return SERVICE_ACTION_TIMEOUT_MS;
         case 'network_apply':
         case 'network_confirm':
         case 'network_revert':
