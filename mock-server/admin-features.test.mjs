@@ -330,6 +330,20 @@ describe('config', () => {
         expect(await refused.json()).toMatchObject({ success: 'false', error: 'bad_session' });
     });
 
+    it('adds `unrestorable` to the backup only when told to', async () => {
+        const { token } = await session();
+        const post = () =>
+            fetch(`${server.url}/api`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ action: 'config_backup', cn_user: 'demo', cn_pass: 'demo', admin_session: token }),
+            }).then((r) => r.json());
+        expect(await post()).not.toHaveProperty('unrestorable');
+        const list = [{ file: 'io.xml', cause: 'not_loaded' }];
+        await control({ op: 'admin', config: { unrestorable: list } });
+        expect((await post()).unrestorable).toEqual(list);
+    });
+
     it('validates a restore before the session, previews it, then restarts once', async () => {
         const { raw, ask } = await session();
         const IO = '<?xml version="1.0"?><calaos:ioconfig xmlns:calaos="http://www.calaos.fr" format="2"/>';

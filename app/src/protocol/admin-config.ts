@@ -49,6 +49,14 @@ export interface ConfigBackup {
     ioFormat: number;
     /** File name → content. */
     files: Record<string, string>;
+    /** Files `config_restore` would refuse as they are; empty when the server says nothing. */
+    unrestorable: UnrestorableFile[];
+}
+
+export interface UnrestorableFile {
+    file: string;
+    /** Kept as sent: a cause from a newer server is shown generically. */
+    cause: string;
 }
 
 export interface RestoreCounts {
@@ -127,7 +135,16 @@ export function toConfigBackup(raw: unknown): ConfigBackup | null {
         hostname: toWireString(raw.hostname),
         ioFormat: toCount(raw.io_format),
         files,
+        unrestorable: toUnrestorable(raw.unrestorable),
     };
+}
+
+function toUnrestorable(raw: unknown): UnrestorableFile[] {
+    if (!Array.isArray(raw)) return [];
+    return raw
+        .filter(isRecord)
+        .filter((r) => typeof r.file === 'string' && r.file !== '')
+        .map((r) => ({ file: r.file as string, cause: toWireString(r.cause) }));
 }
 
 function toCount(raw: unknown): number {
