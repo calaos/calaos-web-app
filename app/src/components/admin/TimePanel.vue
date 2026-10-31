@@ -310,7 +310,13 @@ onBeforeUnmount(() => {
                         :placeholder="t('admin.time.zoneFilter')"
                         :disabled="busy || zones.length === 0"
                     />
-                    <select id="time-zone" v-model="zone" class="time__select" :disabled="busy || zones.length === 0">
+                    <select
+                        id="time-zone"
+                        v-model="zone"
+                        class="time__select"
+                        :aria-label="t('admin.time.timezone')"
+                        :disabled="busy || zones.length === 0"
+                    >
                         <option v-if="shownZones.length === 0" disabled value="">{{ t('admin.time.zoneNone') }}</option>
                         <option v-for="name in shownZones" :key="name" :value="name">{{ name }}</option>
                     </select>
@@ -358,6 +364,7 @@ onBeforeUnmount(() => {
                 <div class="time__controls">
                     <input
                         id="time-manual"
+                        :aria-label="t('admin.time.manualTitle')"
                         v-model="manual"
                         type="datetime-local"
                         step="1"
