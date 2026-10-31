@@ -323,6 +323,7 @@ describe.each([
     ['/admin/logs', 'adminLogs'],
     ['/admin/network', 'adminNetwork'],
     ['/admin/services', 'adminServices'],
+    ['/admin/time', 'adminTime'],
     ['/admin/settings', 'adminSettings'],
 ])('admin route %s', (path, name) => {
     it('without an unlocked admin session, goes to the Admin tab instead', async () => {

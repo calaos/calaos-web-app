@@ -3,11 +3,13 @@
 // clock ticks locally from the last read. Moving the clock by more than an
 // hour is confirmed first: a step back breaks TLS validity and apt. "Set
 // from this device" only exists while the box is not synchronised, so a
-// wrong browser clock cannot overwrite a good NTP time by accident.
+// wrong browser clock cannot overwrite a good NTP time by accident. A time
+// typed by hand is read in the box's zone, never the browser's, and turns
+// NTP off in the same request: the daemon refuses a time while it is on.
 
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { TIME_STEP_CONFIRM_MS, clockDrift, toTimeParam } from '../../protocol/admin-time';
+import { TIME_STEP_CONFIRM_MS, clockDrift, filterZones, fromLocalInput, toLocalInput, toTimeParam } from '../../protocol/admin-time';
 import type { TimeChange } from '../../protocol/admin-time';
 import type { AdminError } from '../../protocol/admin';
 import { SELF_SERVICE_ID } from '../../protocol/admin-services';
@@ -30,7 +32,13 @@ const { errorText } = useAdminText();
 
 const now = ref(Date.now());
 const zone = ref('');
-const confirming = ref<'device' | 'ntp' | null>(null);
+const confirming = ref<'device' | 'ntp' | 'manual' | null>(null);
+const zoneFilter = ref('');
+/** The typed time, in the box's zone; follows the box's clock until edited. */
+const manual = ref('');
+const manualTouched = ref(false);
+const manualProblem = ref<'invalid' | 'range' | 'nonexistent' | null>(null);
+const manualMs = ref(NaN);
 const failure = ref<AdminError | null>(null);
 /** Services restarted from the notice, so their button goes. */
 const restarted = ref<string[]>([]);
@@ -99,6 +107,7 @@ const zones = computed(() => {
     const current = box.value?.timezone ?? '';
     return current !== '' && !list.includes(current) ? [current, ...list] : list;
 });
+const shownZones = computed(() => filterZones(zones.value, zoneFilter.value));
 const zoneChanged = computed(() => box.value !== null && zone.value !== '' && zone.value !== box.value.timezone);
 
 const stepNames = (steps: string[]) => steps.map((step) => t(`admin.time.step.${step}`)).join(', ');
@@ -147,6 +156,27 @@ watch(
     { immediate: true },
 );
 
+function fillManual(): void {
+    if (box.value !== null && Number.isFinite(boxNowMs.value)) {
+        manual.value = toLocalInput(boxNowMs.value, box.value.timezone || 'UTC');
+    }
+}
+
+watch(
+    () => box.value === null,
+    (missing) => {
+        if (!missing && !manualTouched.value) fillManual();
+    },
+    { immediate: true },
+);
+
+watch(
+    () => time.readAt,
+    () => {
+        if (!manualTouched.value) fillManual();
+    },
+);
+
 watch(
     () => time.restartRequired,
     (required) => {
@@ -173,9 +203,39 @@ function askNtp(): void {
     else void apply({ ntp: true });
 }
 
+function stopNtp(): void {
+    void apply({ ntp: false });
+}
+
+/** Wall-clock text in the box's zone to the exact request, or what is wrong with it. */
+function askManual(): void {
+    if (box.value === null) return;
+    const parsed = fromLocalInput(manual.value, box.value.timezone || 'UTC');
+    if ('error' in parsed) {
+        manualProblem.value = parsed.error;
+        return;
+    }
+    manualProblem.value = null;
+    manualMs.value = parsed.ms;
+    const step = parsed.ms - boxNowMs.value;
+    if (box.value.ntp || Math.abs(step) > TIME_STEP_CONFIRM_MS) confirming.value = 'manual';
+    else void applyManual();
+}
+
+async function applyManual(): Promise<void> {
+    const change: TimeChange = { time: toTimeParam(manualMs.value) };
+    // NTP first: the daemon refuses a time while it is on.
+    if (box.value?.ntp) change.ntp = false;
+    manualTouched.value = false;
+    await apply(change);
+}
+
+const manualStep = computed(() => manualMs.value - boxNowMs.value);
+
 function confirm(): void {
     const what = confirming.value;
     confirming.value = null;
+    if (what === 'manual') void applyManual();
     if (what === 'ntp') void apply({ ntp: true });
     if (what === 'device') {
         // NTP first: the daemon refuses a time while it is on.
@@ -210,9 +270,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <section class="time" aria-labelledby="time-title">
-        <p id="time-title" class="time__eyebrow">{{ t('admin.time.title') }}</p>
-
+    <section class="time" :aria-label="t('admin.time.title')">
         <div class="time__face" :class="`time__face--${driftLevel}`">
             <template v-if="box !== null">
                 <p class="time__clock" data-testid="box-clock">
@@ -244,8 +302,17 @@ onBeforeUnmount(() => {
                     <span class="time__hint">{{ t('admin.time.timezoneHint') }}</span>
                 </label>
                 <div class="time__controls">
+                    <input
+                        v-model="zoneFilter"
+                        type="search"
+                        class="time__select time__filter"
+                        :aria-label="t('admin.time.zoneFilter')"
+                        :placeholder="t('admin.time.zoneFilter')"
+                        :disabled="busy || zones.length === 0"
+                    />
                     <select id="time-zone" v-model="zone" class="time__select" :disabled="busy || zones.length === 0">
-                        <option v-for="name in zones" :key="name" :value="name">{{ name }}</option>
+                        <option v-if="shownZones.length === 0" disabled value="">{{ t('admin.time.zoneNone') }}</option>
+                        <option v-for="name in shownZones" :key="name" :value="name">{{ name }}</option>
                     </select>
                     <AdminButton
                         v-if="zoneChanged"
@@ -259,14 +326,50 @@ onBeforeUnmount(() => {
                 </div>
             </li>
 
-            <li v-if="!box.ntp" class="time__row">
+            <li class="time__row">
                 <div class="time__text">
                     <span class="time__name">{{ t('admin.time.ntp') }}</span>
                     <span class="time__hint">{{ t('admin.time.ntpHint') }}</span>
                 </div>
-                <AdminButton variant="quiet" :disabled="busy" :busy="setting && confirming === null" @click="askNtp">
+                <AdminButton
+                    v-if="!box.ntp"
+                    variant="quiet"
+                    :disabled="busy"
+                    :busy="setting && confirming === null"
+                    @click="askNtp"
+                >
                     {{ t('admin.time.useNtp') }}
                 </AdminButton>
+                <AdminButton v-else variant="quiet" :disabled="busy" :busy="setting" @click="stopNtp">
+                    {{ t('admin.time.stopNtp') }}
+                </AdminButton>
+            </li>
+
+            <li class="time__row">
+                <label class="time__text" for="time-manual">
+                    <span class="time__name">{{ t('admin.time.manualTitle') }}</span>
+                    <span class="time__hint">
+                        {{ t('admin.time.manualHint', { zone: box.timezone || t('admin.time.noZone') }) }}
+                    </span>
+                    <span v-if="manualProblem !== null" class="time__problem" role="alert">
+                        {{ t(`admin.time.manualProblem.${manualProblem}`, { zone: box.timezone }) }}
+                    </span>
+                </label>
+                <div class="time__controls">
+                    <input
+                        id="time-manual"
+                        v-model="manual"
+                        type="datetime-local"
+                        step="1"
+                        class="time__select"
+                        min="2020-01-01T00:00"
+                        :disabled="busy"
+                        @input="manualTouched = true"
+                    />
+                    <AdminButton variant="quiet" :disabled="busy || manual === ''" :busy="setting" @click="askManual">
+                        {{ t('admin.time.manualSet') }}
+                    </AdminButton>
+                </div>
             </li>
 
             <li v-if="!box.synchronized" class="time__row">
@@ -336,6 +439,23 @@ onBeforeUnmount(() => {
         </BaseDialog>
 
         <BaseDialog
+            :open="confirming === 'manual'"
+            :title="t('admin.time.manualConfirmTitle')"
+            :confirm-label="t('admin.time.manualConfirm')"
+            :cancel-label="t('dialog.cancel')"
+            @confirm="confirm"
+            @cancel="confirming = null"
+        >
+            <p class="time__dialog-hint">
+                {{ t('admin.time.manualConfirmHint', { time: manual.replace('T', ' '), zone: box?.timezone ?? '' }) }}
+            </p>
+            <p v-if="box?.ntp" class="time__dialog-strong">{{ t('admin.time.manualNtpOff') }}</p>
+            <p v-if="Math.abs(manualStep) > TIME_STEP_CONFIRM_MS" class="time__dialog-strong">
+                {{ t('admin.time.stepWarning', { amount: amount(manualStep) }) }}
+            </p>
+        </BaseDialog>
+
+        <BaseDialog
             :open="confirming === 'ntp'"
             :title="t('admin.time.ntpConfirmTitle')"
             :confirm-label="t('admin.time.useNtp')"
@@ -349,15 +469,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.time__eyebrow {
-    padding-inline: var(--space-2);
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
-    color: var(--c-text-muted);
-}
-
 /* The clock face: the one large thing in the card. Its left rule takes the
    drift's colour, so the state reads before any sentence does. */
 .time__face {
@@ -506,6 +617,15 @@ onBeforeUnmount(() => {
     font-size: 0.9375rem;
 }
 
+.time__filter {
+    max-inline-size: 9rem;
+}
+
+.time__problem {
+    color: var(--c-danger-text);
+    font-size: 0.875rem;
+}
+
 .time__select:focus-visible {
     outline: 2px solid var(--c-accent);
     outline-offset: 2px;
@@ -576,7 +696,8 @@ onBeforeUnmount(() => {
         justify-content: stretch;
     }
 
-    .time__select {
+    .time__select,
+    .time__filter {
         flex: 1;
         max-inline-size: none;
     }

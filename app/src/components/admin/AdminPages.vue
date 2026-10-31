@@ -12,6 +12,7 @@ import IconLogs from '~icons/mdi/text-box-search-outline';
 import IconNetwork from '~icons/mdi/lan';
 import IconServices from '~icons/mdi/application-cog-outline';
 import IconSettings from '~icons/mdi/tune-variant';
+import IconTime from '~icons/mdi/clock-outline';
 import { useAdminStore } from '../../stores/admin';
 import { useAdminNetworkStore } from '../../stores/adminNetwork';
 import { useAdminText } from '../../composables/useAdminText';
@@ -76,6 +77,15 @@ const tiles = computed<Tile[]>(() => {
             icon: IconServices,
             name: t('admin.services.title'),
             hint: t('admin.services.entryHint'),
+            tone: 'muted',
+            disabled: false,
+        },
+        {
+            id: 'time',
+            route: 'adminTime',
+            icon: IconTime,
+            name: t('admin.time.title'),
+            hint: t('admin.time.entryHint'),
             tone: 'muted',
             disabled: false,
         },

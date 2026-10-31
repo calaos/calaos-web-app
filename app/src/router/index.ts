@@ -141,6 +141,13 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
             },
             {
+                path: '/admin/time',
+                name: 'adminTime',
+                component: () => import('../views/TimeView.vue'),
+                meta: { requiresAuth: true, detail: true },
+                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+            },
+            {
                 path: '/admin/settings',
                 name: 'adminSettings',
                 component: () => import('../views/SettingsView.vue'),

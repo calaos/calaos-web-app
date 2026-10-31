@@ -1,5 +1,5 @@
 {
-    "title": "Heure de la box",
+    "title": "Date et heure",
     "loading": "Lecture de l’horloge de la box…",
     "noZone": "Aucun fuseau",
     "synchronized": "Réglée automatiquement (NTP), synchronisée",
@@ -50,5 +50,22 @@
         "unread": "Le changement a peut-être été fait. La box n’a pas encore pu être relue : vérifiez avant de l’appliquer à nouveau.",
         "check": "Vérifier à nouveau",
         "dismiss": "OK"
-    }
+    },
+    "hint": "L’horloge de la box, son fuseau horaire et l’heure automatique.",
+    "entryHint": "Horloge, fuseau horaire et heure automatique",
+    "stopNtp": "Ne plus utiliser NTP",
+    "zoneFilter": "Filtrer les fuseaux horaires",
+    "zoneNone": "Aucun fuseau ne correspond",
+    "manualTitle": "Régler la date et l’heure",
+    "manualHint": "Dans le fuseau horaire de la box ({zone}). Un réglage manuel désactive l’heure automatique.",
+    "manualSet": "Régler",
+    "manualProblem": {
+        "invalid": "Saisissez une date et une heure complètes.",
+        "range": "L’année doit être comprise entre 2020 et 2100.",
+        "nonexistent": "Cette heure n’existe pas en {zone} : les horloges la sautent au passage à l’heure d’été."
+    },
+    "manualConfirmTitle": "Régler l’heure de la box ?",
+    "manualConfirm": "Régler l’heure",
+    "manualConfirmHint": "L’horloge de la box sera réglée sur {time} ({zone}).",
+    "manualNtpOff": "L’heure automatique (NTP) sera désactivée : la box cesse de se synchroniser avec des serveurs de temps."
 }
