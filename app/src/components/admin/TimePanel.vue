@@ -289,7 +289,7 @@ onBeforeUnmount(() => {
 
 <template>
     <section class="time" :aria-label="t('admin.time.title')">
-        <div class="time__face" :class="`time__face--${driftLevel}`">
+        <div v-if="box !== null || loadText === ''" class="time__face" :class="`time__face--${driftLevel}`">
             <template v-if="box !== null">
                 <p class="time__clock" data-testid="box-clock">
                     <time :datetime="box.now">{{ clockText }}</time>
@@ -310,7 +310,7 @@ onBeforeUnmount(() => {
                 </p>
                 <p v-if="driftLevel === 'strong'" class="time__strong">{{ t('admin.time.strongHint') }}</p>
             </template>
-            <p v-else-if="loadText === ''" class="time__loading">{{ t('admin.time.loading') }}</p>
+            <p v-else class="time__loading">{{ t('admin.time.loading') }}</p>
         </div>
 
         <ul v-if="box !== null" class="time__list">
@@ -373,7 +373,7 @@ onBeforeUnmount(() => {
                 </AdminButton>
             </li>
 
-            <li class="time__row">
+            <li class="time__row time__row--manual">
                 <label class="time__text" for="time-manual">
                     <span class="time__name">{{ t('admin.time.manualTitle') }}</span>
                     <span id="time-manual-hint" class="time__hint">
@@ -412,7 +412,7 @@ onBeforeUnmount(() => {
                     <span class="time__name">{{ t('admin.time.setFromDevice') }}</span>
                     <span class="time__hint">{{ t('admin.time.setFromDeviceHint') }}</span>
                 </div>
-                <AdminButton variant="quiet" :disabled="busy" @click="confirming = 'device'">
+                <AdminButton variant="quiet" :disabled="busy" :busy="spinning('device')" @click="confirming = 'device'">
                     {{ t('admin.time.setFromDevice') }}
                 </AdminButton>
             </li>
@@ -642,7 +642,18 @@ onBeforeUnmount(() => {
 }
 
 .time__controls--inline {
+    flex: 0 0 auto;
     flex-wrap: nowrap;
+}
+
+/* The hint says the sync will be cut: it has to stay readable in full. */
+.time__row--manual .time__text {
+    flex: 1 1 16rem;
+    min-inline-size: 14rem;
+}
+
+.time__controls--inline .time__select {
+    max-inline-size: 13rem;
 }
 
 .time__select {
@@ -658,7 +669,7 @@ onBeforeUnmount(() => {
 }
 
 .time__filter {
-    max-inline-size: 11rem;
+    max-inline-size: 14rem;
 }
 
 /* The native cross is blue on the dark surface; keep it but readable. */
@@ -749,6 +760,12 @@ onBeforeUnmount(() => {
 
     .time__controls--inline {
         flex-wrap: wrap;
+    }
+
+    /* Column layout: the basis would become a height. */
+    .time__row--manual .time__text {
+        flex: none;
+        min-inline-size: 0;
     }
 
     .time__select,

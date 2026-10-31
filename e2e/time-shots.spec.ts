@@ -121,6 +121,7 @@ for (const lang of ['en', 'fr'] as const) {
             await manualInput(page).fill('2019-06-01T10:00');
             await button(page, T.manualSet).click();
             await expect(card(page).locator('.time__problem')).toBeVisible();
+            await card(page).locator('.time__problem').scrollIntoViewIfNeeded();
             await shoot(page, testInfo, 'error-range');
         });
 

@@ -2,9 +2,8 @@
 // The Admin tab. One screen at a time, chosen by the store's gate: a notice
 // to wait on, a password to type, or — unlocked — the hub: updates, the ways
 // to the box's own pages, the approver phones, the box's actions and MCP
-// access. The gate
-// screens borrow the login panel so that "enter the admin password" reads as
-// the same gesture as signing in.
+// access. The gate screens borrow the login panel so that "enter the admin
+// password" reads as the same gesture as signing in.
 
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
