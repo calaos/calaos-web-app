@@ -1,7 +1,6 @@
 {
-    "title": "Box time",
+    "title": "Date and time",
     "loading": "Reading the box’s clock…",
-    "noZone": "No time zone",
     "synchronized": "Set automatically (NTP), synchronized",
     "notSynchronized": "Set automatically (NTP), not synchronized yet",
     "manual": "Set by hand",
@@ -50,5 +49,23 @@
         "unread": "The change may have been made. The box could not be read yet: check before applying it again.",
         "check": "Check again",
         "dismiss": "OK"
-    }
+    },
+    "hint": "The box’s clock, time zone and automatic time.",
+    "entryHint": "Clock, time zone and automatic time",
+    "stopNtp": "Stop using NTP",
+    "zoneFilter": "Filter time zones",
+    "zoneNone": "No time zone matches",
+    "manualTitle": "Set date and time",
+    "manualHint": "In the box’s time zone ({zone}). Setting it by hand turns automatic time off.",
+    "manualSet": "Set",
+    "manualProblem": {
+        "invalid": "Enter a full date and time.",
+        "range": "The year must be between 2020 and 2100.",
+        "nonexistent": "This time does not exist in {zone}: the clocks skip it when they go forward.",
+        "zone": "This device cannot read the box’s time zone ({zone}), so a time cannot be set from here."
+    },
+    "manualConfirmTitle": "Set the box time?",
+    "manualConfirm": "Set the time",
+    "manualConfirmHint": "The box clock will be set to {time} ({zone}).",
+    "manualNtpOff": "Automatic time (NTP) will be turned off: the box stops synchronizing with time servers."
 }

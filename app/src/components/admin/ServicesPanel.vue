@@ -243,7 +243,7 @@ function confirm(): void {
                     <RouterLink
                         v-if="hasTimeLink(entry)"
                         class="services__link"
-                        :to="{ name: 'admin', hash: '#time' }"
+                        :to="{ name: 'adminTime' }"
                     >
                         {{ t('admin.services.timeLink') }}
                     </RouterLink>

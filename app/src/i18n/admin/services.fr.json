@@ -36,7 +36,7 @@
     "statusOnly": "État seulement",
     "startAtBoot": "Démarrer avec la box",
     "startAtBootOf": "Démarrer avec la box : {name}",
-    "timeLink": "Marche/arrêt : Heure",
+    "timeLink": "Marche/arrêt : Date et heure",
     "busy": {
         "restart": "Redémarrage…",
         "start": "Démarrage…",
