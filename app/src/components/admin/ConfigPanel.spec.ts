@@ -122,4 +122,40 @@ describe('ConfigPanel unrestorable files', () => {
         expect(note.text()).toContain('rules.xml');
         expect(note.text()).toContain(causeText.unknown);
     });
+
+    async function restoreAfter(wrapper: ReturnType<typeof mountPanel>, safety: { file: string; cause: string }[]) {
+        const config = useAdminConfigStore();
+        vi.spyOn(config, 'restore').mockImplementation(async (_files, _household, safetyList = []) => {
+            config.safetyUnrestorable = safetyList;
+            return null;
+        });
+        const downloadBackup = vi.mocked(config.downloadBackup);
+        downloadBackup.mockResolvedValue({ filename: 'safety.zip', blob: new Blob(['x']), unrestorable: safety });
+        // The file-reading step has its own specs: put the panel where the dialog opens.
+        const state = wrapper.vm as unknown as { restoreSource: unknown; restorePreview: unknown };
+        state.restoreSource = { files: { 'io.xml': '<io/>', 'rules.xml': '<rules/>' }, manifest: null };
+        const counts = { rooms: 1, ios: 1, devices: 1, rules: 1 };
+        state.restorePreview = {
+            dryRun: true, files: [], backup: counts, box: counts, ioFormat: 1, kept: [], warnings: [], previous: null, restarting: false,
+        };
+        await flushPromises();
+        await wrapper.findAll('.base-dialog__form').at(-1)?.trigger('submit');
+        await flushPromises();
+    }
+
+    it('replaces the manual backup note by the safety copy one on restore', async () => {
+        const wrapper = await download([{ file: 'io.xml', cause: 'missing' }]);
+        expect(wrapper.find('.unrestorable').text()).toContain(messages.en.admin.config.unrestorableIntro);
+        await restoreAfter(wrapper, [{ file: 'rules.xml', cause: 'empty' }]);
+        const note = wrapper.find('.unrestorable');
+        expect(note.text()).toContain(messages.en.admin.config.unrestorableSafety);
+        expect(note.text()).toContain('rules.xml');
+    });
+
+    it('drops the manual backup note on a restore without a warning, and keeps the backup name on a healthy safety copy', async () => {
+        const wrapper = await download([{ file: 'io.xml', cause: 'missing' }]);
+        await restoreAfter(wrapper, []);
+        expect(wrapper.find('.unrestorable').exists()).toBe(false);
+        expect(wrapper.find('.config__row-note').text()).toContain('Backup saved as b.zip');
+    });
 });

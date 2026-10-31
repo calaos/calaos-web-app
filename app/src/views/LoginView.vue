@@ -213,12 +213,12 @@ watch(
                     <p v-if="showError && config.householdChanged" id="login-restored" class="login__restored fade-in">
                         {{ t('login.restoredHousehold') }}
                     </p>
-                    <UnrestorableNote
-                        v-if="showError && config.householdChanged && config.safetyUnrestorable.length > 0"
-                        :files="config.safetyUnrestorable"
-                        :safety="true"
-                    />
                 </div>
+                <UnrestorableNote
+                    v-if="showError && config.householdChanged && config.safetyUnrestorable.length > 0"
+                    :files="config.safetyUnrestorable"
+                    :safety="true"
+                />
             </form>
         </div>
     </div>

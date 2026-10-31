@@ -229,6 +229,8 @@ async function sendRestore(source: RestoreInput, preview: ConfigRestoreResult): 
         safety = current.unrestorable;
         if (safety.length > 0) backupName.value = '';
     }
+    // The manual backup's note would hide the safety copy's and outlive the restore.
+    unrestorable.value = [];
     const error = await config.restore(source.files, preview.warnings.includes('household_login_changes'), safety);
     if (error === null || error.restarting) {
         // With `restarting` the box restarts anyway: the follow-up banner tells it, nothing is left to retry.

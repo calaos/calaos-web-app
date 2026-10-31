@@ -84,6 +84,7 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
             return;
         }
         if (!restoreDropped) return;
+        // The sign-in page already told it; the panel after a re-login starts clean.
         if (householdChanged.value) safetyUnrestorable.value = [];
         householdChanged.value = false;
         if (!restoreAwaiting) return;
