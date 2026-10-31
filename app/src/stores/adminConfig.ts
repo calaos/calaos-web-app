@@ -56,6 +56,12 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
      * back long after the "slow" banner was closed.
      */
     const householdChanged = ref(false);
+    /**
+     * Files the safety copy of the last restore could not cover. Like
+     * `householdChanged` it outlives the panel, which a changed household
+     * login unmounts: the sign-in page tells it.
+     */
+    const safetyUnrestorable = ref<UnrestorableFile[]>([]);
 
     /** Connection and household re-login: only then has the restarted server read the restored files. */
     const online = computed(() => connection.isOpen && auth.isAuthed);
@@ -78,6 +84,7 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
             return;
         }
         if (!restoreDropped) return;
+        if (householdChanged.value) safetyUnrestorable.value = [];
         householdChanged.value = false;
         if (!restoreAwaiting) return;
         restoreAwaiting = false;
@@ -171,8 +178,13 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
      * Replaces the files and follows the restart. A lost answer may be that
      * restart at work: it is followed too, but without claiming a success.
      */
-    async function restore(files: Record<string, string>, householdChanges: boolean): Promise<AdminError | null> {
+    async function restore(
+        files: Record<string, string>,
+        householdChanges: boolean,
+        safety: UnrestorableFile[] = [],
+    ): Promise<AdminError | null> {
         const sentAt = Date.now();
+        safetyUnrestorable.value = safety;
         const outcome = await admin.relay('config_restore', configRestoreParams(files, false), true, isPanelError);
         if (outcome.ok) {
             followRestart(toConfigRestoreResult(outcome.data.result)?.previous ?? null, householdChanges, false);
@@ -211,6 +223,10 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
         restoreFollowUp.value = null;
     }
 
+    function clearSafetyUnrestorable(): void {
+        safetyUnrestorable.value = [];
+    }
+
     function dismissRestart(): void {
         restartRequired.value = false;
     }
@@ -227,11 +243,13 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
         restartRequired,
         restoreFollowUp,
         householdChanged,
+        safetyUnrestorable,
         load,
         set,
         downloadBackup,
         previewRestore,
         restore,
+        clearSafetyUnrestorable,
         dismissRestart,
         dismissRestore,
         reset,

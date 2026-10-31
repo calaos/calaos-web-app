@@ -339,4 +339,39 @@ describe('config restore', () => {
         await second;
         expect(config.householdChanged).toBe(false);
     });
+
+    it('keeps the safety copy warning past the sign-in refusal of a changed household login', async () => {
+        await unlocked();
+        goOnline();
+        const config = useAdminConfigStore();
+        const safety = [{ file: 'io.xml', cause: 'not_loaded' }];
+        const pending = config.restore(FILES, true, safety);
+        ok(ANSWER);
+        await pending;
+        dropConnection();
+        config.reset();
+        expect(config.safetyUnrestorable).toEqual(safety);
+
+        // The box is back, the old login is refused: the warning is still to be read.
+        useConnectionStore().applyStatus({ status: 'open', attempt: 0, nextRetryMs: 0 });
+        await flush();
+        expect(config.safetyUnrestorable).toEqual(safety);
+
+        useAuthStore().state = 'authed';
+        await flush();
+        expect(config.safetyUnrestorable).toEqual([]);
+    });
+
+    it('a restore without a safety copy drops the warning of an earlier one', async () => {
+        await unlocked();
+        goOnline();
+        const config = useAdminConfigStore();
+        const first = config.restore(FILES, false, [{ file: 'io.xml', cause: 'missing' }]);
+        ok(ANSWER);
+        await first;
+        const second = config.restore(FILES, false);
+        ok(ANSWER);
+        await second;
+        expect(config.safetyUnrestorable).toEqual([]);
+    });
 });

@@ -46,6 +46,7 @@
     "backupDownloading": "Preparing…",
     "unrestorableIntro": "The backup was saved, but the box would refuse to restore these files as they are:",
     "unrestorableSafety": "The safety copy was saved, but the box would refuse to restore these files from it:",
+    "unrestorableSeparator": ": ",
     "unrestorableCause": {
         "not_loaded": "the server did not load it at startup (corrupted or unreadable); the backup holds its bytes as they are",
         "missing": "it is missing on the box",

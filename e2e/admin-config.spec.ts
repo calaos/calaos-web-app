@@ -281,7 +281,7 @@ test('the backup warns about its secrets, then downloads as a zip of five entrie
 
 test('a backup warns about the files the box would refuse to restore, and the zip stays the same', async ({ page, mock }) => {
     const causes = ['not_loaded', 'missing', 'unreadable', 'empty', 'refused'];
-    await patchAdmin(mock, { config: { unrestorable: causes.map((cause) => ({ file: 'io.xml', cause })) } });
+    await patchAdmin(mock, { config: { unrestorable: causes.map((cause, i) => ({ file: ['io.xml', 'rules.xml', 'local_config.xml'][i % 3], cause })) } });
     await openUnlocked(page);
     const backupRow = page.locator('.config__row').first();
     await backupRow.getByRole('button', { name: cfg.backupConfirm }).click();
@@ -289,7 +289,7 @@ test('a backup warns about the files the box would refuse to restore, and the zi
     await page.getByRole('dialog').getByRole('button', { name: cfg.backupConfirm }).click();
     const file = await download;
 
-    const note = backupRow.locator('.config__unrestorable');
+    const note = backupRow.locator('.unrestorable');
     await expect(note).toContainText(cfg.unrestorableIntro);
     for (const cause of causes) {
         await expect(note).toContainText((cfg.unrestorableCause as Record<string, string>)[cause]);
@@ -309,7 +309,7 @@ test('a healthy backup shows no warning', async ({ page }) => {
     await backupRow.getByRole('button', { name: cfg.backupConfirm }).click();
     await page.getByRole('dialog').getByRole('button', { name: cfg.backupConfirm }).click();
     await expect(backupRow.locator('.config__row-note')).toBeVisible();
-    await expect(backupRow.locator('.config__unrestorable')).toHaveCount(0);
+    await expect(backupRow.locator('.unrestorable')).toHaveCount(0);
 });
 
 test('the safety copy before a restore warns too, and the restore goes on', async ({ page, mock }) => {
@@ -323,12 +323,23 @@ test('the safety copy before a restore warns too, and the restore goes on', asyn
     const download = page.waitForEvent('download');
     await dialog.getByRole('button', { name: cfg.restoreConfirm }).click();
     await download;
-    const note = page.locator('.config__unrestorable');
+    const note = page.locator('.unrestorable');
     await expect(note).toContainText(cfg.unrestorableSafety);
     await expect(note).toContainText('rules.xml');
     await expect(note).toContainText(cfg.unrestorableCause.unknown);
     await expect(page.locator('.config__restored')).toBeVisible({ timeout: 15_000 });
+    await expect(note).toContainText(cfg.unrestorableSafety);
+    await expect(note).toContainText('rules.xml');
     expect((await configStatus(mock)).restores.map((restore) => restore.dry_run)).toEqual([true, false]);
+});
+
+test('the safety copy warning is still told on the sign-in page after a changed household login', async ({ page, mock }) => {
+    await patchAdmin(mock, { config: { unrestorable: [{ file: 'rules.xml', cause: 'refused' }] } });
+    await restoreChangingHousehold(page, true);
+    const note = page.locator('.unrestorable');
+    await expect(note).toContainText(cfg.unrestorableSafety);
+    await expect(note).toContainText('rules.xml');
+    await expect(note).toContainText(cfg.unrestorableCause.refused);
 });
 
 test('a backup refused for an ended session asks for the password again', async ({ page, mock }) => {
@@ -524,14 +535,14 @@ for (const { code, refuse } of [
     });
 }
 
-async function restoreChangingHousehold(page: Page): Promise<void> {
+async function restoreChangingHousehold(page: Page, safetyCopy = false): Promise<void> {
     await openUnlocked(page);
     await restoreRow(page).locator('input[type="file"]').setInputFiles(
         backupJson({ 'io.xml': IO_XML, 'rules.xml': RULES_XML, 'local_config.xml': localConfigXml('demo', 'from-the-backup') }),
     );
     const dialog = page.getByRole('dialog');
     await expect(dialog.locator('[data-warning="household_login_changes"]')).toBeVisible();
-    await dialog.getByRole('checkbox').uncheck();
+    if (!safetyCopy) await dialog.getByRole('checkbox').uncheck();
     await dialog.getByRole('button', { name: cfg.restoreConfirm }).click();
 
     await expect(page).toHaveURL(LOGIN_URL, { timeout: 15_000 });

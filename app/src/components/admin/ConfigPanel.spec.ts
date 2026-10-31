@@ -105,20 +105,20 @@ describe('ConfigPanel unrestorable files', () => {
 
     it('says why each file will not restore, for the five causes, and the download still happens', async () => {
         const wrapper = await download(CAUSES.map((cause) => ({ file: 'io.xml', cause })));
-        const note = wrapper.find('.config__unrestorable');
+        const note = wrapper.find('.unrestorable');
         for (const cause of CAUSES) expect(note.text()).toContain(causeText[cause]);
         expect(wrapper.find('.config__row-note').text()).toContain('Backup saved as b.zip');
     });
 
     it('shows nothing when the server says nothing', async () => {
         const wrapper = await download([]);
-        expect(wrapper.find('.config__unrestorable').exists()).toBe(false);
+        expect(wrapper.find('.unrestorable').exists()).toBe(false);
         expect(wrapper.find('.config__row-note').text()).toContain('Backup saved');
     });
 
     it('shows a cause from a newer server without breaking', async () => {
         const wrapper = await download([{ file: 'rules.xml', cause: 'from_the_future' }]);
-        const note = wrapper.find('.config__unrestorable');
+        const note = wrapper.find('.unrestorable');
         expect(note.text()).toContain('rules.xml');
         expect(note.text()).toContain(causeText.unknown);
     });
