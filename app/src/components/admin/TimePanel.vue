@@ -647,13 +647,18 @@ onBeforeUnmount(() => {
 }
 
 /* The hint says the sync will be cut: it has to stay readable in full. */
+.time__row--manual {
+    flex-wrap: wrap;
+}
+
 .time__row--manual .time__text {
     flex: 1 1 16rem;
     min-inline-size: 14rem;
 }
 
+/* Seconds make the field wider than the 14rem cap: the value must show in full. */
 .time__controls--inline .time__select {
-    max-inline-size: 13rem;
+    max-inline-size: none;
 }
 
 .time__select {

@@ -308,6 +308,17 @@ test('"Set" waits for an edit, and a message goes when one types again', async (
     await expect(card(page).locator('.time__problem')).toHaveCount(0);
 });
 
+test('a 520 px window: "Set" stays in view and the typed value shows in full', async ({ page, mock }) => {
+    await page.setViewportSize({ width: 520, height: 900 });
+    await configure(mock, { time: { ntp: false, synchronized: false } });
+    await openAdmin(page);
+    await manualInput(page).fill('2027-01-15T08:30:45');
+    const set = card(page).getByRole('button', { name: T.manualSet, exact: true });
+    await expect(set).toBeInViewport({ ratio: 1 });
+    const clipped = await manualInput(page).evaluate((el) => el.scrollWidth > el.clientWidth);
+    expect(clipped).toBe(false);
+});
+
 test('"Stop using NTP" sends ntp:false alone', async ({ page, mock }) => {
     await openAdmin(page);
     await card(page).getByRole('button', { name: T.stopNtp }).click();
