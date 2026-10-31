@@ -369,6 +369,7 @@ describe('config restore', () => {
         const first = config.restore(FILES, false, [{ file: 'io.xml', cause: 'missing' }]);
         ok(ANSWER);
         await first;
+        expect(config.safetyUnrestorable).toEqual([{ file: 'io.xml', cause: 'missing' }]);
         const second = config.restore(FILES, false);
         ok(ANSWER);
         await second;
