@@ -7,9 +7,10 @@
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import BaseDialog from '../ui/BaseDialog.vue';
+import UnrestorableNote from './UnrestorableNote.vue';
 import { SELF_SERVICE_ID } from '../../protocol/admin-services';
 import { restoreFitsOneMessage } from '../../protocol/admin-config';
-import type { ConfigOption, ConfigRestoreResult } from '../../protocol/admin-config';
+import type { ConfigOption, ConfigRestoreResult, UnrestorableFile } from '../../protocol/admin-config';
 import type { AdminError } from '../../protocol/admin';
 import { readRestoreInput } from '../../protocol/backup-zip';
 import type { RestoreInput } from '../../protocol/backup-zip';
@@ -118,6 +119,9 @@ const confirmingBackup = ref(false);
 const downloading = ref(false);
 const backupError = ref('');
 const backupName = ref('');
+const unrestorable = ref<UnrestorableFile[]>([]);
+// The safety copy of a restore has no dialog of its own; its warning lives in the store so it survives the restart.
+const safetyUnrestorable = computed(() => config.safetyUnrestorable);
 
 function saveFile(file: BackupFile): void {
     const url = URL.createObjectURL(file.blob);
@@ -137,6 +141,8 @@ async function downloadBackup(): Promise<void> {
     downloading.value = true;
     backupError.value = '';
     backupName.value = '';
+    unrestorable.value = [];
+    config.clearSafetyUnrestorable();
     const outcome = await config.downloadBackup();
     downloading.value = false;
     if (!('blob' in outcome)) {
@@ -145,6 +151,7 @@ async function downloadBackup(): Promise<void> {
     }
     saveFile(outcome);
     backupName.value = outcome.filename;
+    unrestorable.value = outcome.unrestorable;
 }
 
 // ---- restore ------------------------------------------------------------
@@ -211,6 +218,7 @@ function cancelRestore(): void {
 }
 
 async function sendRestore(source: RestoreInput, preview: ConfigRestoreResult): Promise<void> {
+    let safety: UnrestorableFile[] = [];
     if (restoreDownloadFirst.value) {
         const current = await config.downloadBackup();
         if (!('blob' in current)) {
@@ -218,8 +226,10 @@ async function sendRestore(source: RestoreInput, preview: ConfigRestoreResult): 
             return;
         }
         saveFile(current);
+        safety = current.unrestorable;
+        if (safety.length > 0) backupName.value = '';
     }
-    const error = await config.restore(source.files, preview.warnings.includes('household_login_changes'));
+    const error = await config.restore(source.files, preview.warnings.includes('household_login_changes'), safety);
     if (error === null || error.restarting) {
         // With `restarting` the box restarts anyway: the follow-up banner tells it, nothing is left to retry.
         closeRestore();
@@ -313,6 +323,8 @@ async function confirmRestore(): Promise<void> {
                 <p v-else-if="backupName !== ''" class="config__row-note fade-in" role="status">
                     {{ t('admin.config.backupDone', { name: backupName }) }}
                 </p>
+                <UnrestorableNote v-if="unrestorable.length > 0" :files="unrestorable" :safety="false" />
+                <UnrestorableNote v-else-if="safetyUnrestorable.length > 0" :files="safetyUnrestorable" :safety="true" />
             </li>
             <li class="config__row">
                 <div class="config__text">
