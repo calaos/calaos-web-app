@@ -15,7 +15,7 @@ import {
     toConfigRestoreResult,
     toConfigSetResult,
 } from '../protocol/admin-config';
-import type { ConfigBackup, ConfigOption, ConfigRestoreResult, ConfigSetResult } from '../protocol/admin-config';
+import type { ConfigBackup, ConfigOption, ConfigRestoreResult, ConfigSetResult, UnrestorableFile } from '../protocol/admin-config';
 import { bareAdminError, isAdminFailure, isPanelError, toAdminError } from '../protocol/admin';
 import type { AdminError } from '../protocol/admin';
 import { buildBackupZip } from '../protocol/backup-zip';
@@ -27,6 +27,7 @@ import { useConnectionStore } from './connection';
 export interface BackupFile {
     filename: string;
     blob: Blob;
+    unrestorable: UnrestorableFile[];
 }
 
 /** The restart a restore causes, followed across the reconnection. */
@@ -153,7 +154,7 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
             // Reported below, like a document in an unknown format.
         }
         if (doc === null) return bareAdminError('internal');
-        return { filename: backupZipName(doc.hostname, doc.createdAt), blob: buildBackupZip(doc) };
+        return { filename: backupZipName(doc.hostname, doc.createdAt), blob: buildBackupZip(doc), unrestorable: doc.unrestorable };
     }
 
     /** Validates `files` on the box and counts what would change. Nothing is written. */

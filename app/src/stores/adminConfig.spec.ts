@@ -50,6 +50,30 @@ describe('config store', () => {
         expect(JSON.parse(String(init.body))).toMatchObject({ action: 'config_backup', admin_session: SESSION });
     });
 
+    it('hands the unrestorable files to the caller without writing them in the zip', async () => {
+        await unlocked();
+        const config = useAdminConfigStore();
+        const unrestorable = [{ file: 'io.xml', cause: 'not_loaded' }];
+        const answer = async () =>
+            new Response(
+                JSON.stringify({
+                    format: 'calaos-config-backup/2',
+                    created_at: '2026-10-25T09:12:58Z',
+                    server_version: '4.6.0',
+                    hostname: 'box',
+                    io_format: 2,
+                    unrestorable,
+                    files: { 'io.xml': '<x/>' },
+                }),
+                { headers: { 'content-disposition': 'attachment' } },
+            );
+        const file = (await config.downloadBackup(answer as typeof fetch)) as { blob: Blob; unrestorable: unknown };
+        expect(file.unrestorable).toEqual(unrestorable);
+        const bytes = new TextDecoder('latin1').decode(await file.blob.arrayBuffer());
+        expect(bytes).not.toContain('unrestorable');
+        expect(bytes).not.toContain('not_loaded');
+    });
+
     it('reports a download it cannot read, rather than saving it', async () => {
         await unlocked();
         const config = useAdminConfigStore();

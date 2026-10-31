@@ -108,6 +108,8 @@ export function createConfig({ failure, hub, running }) {
                 ['longitude', '4.8357'],
             ]),
             hostname: 'calaos-mock',
+            /** `unrestorable` of the next backups; null leaves the field out, like a healthy box. */
+            unrestorable: null,
             sets: [],
             backups: 0,
             restores: [],
@@ -246,6 +248,7 @@ export function createConfig({ failure, hub, running }) {
                 server_version: '4.6.0-mock',
                 hostname: state.hostname,
                 io_format: IO_FORMAT_DEVICES,
+                ...(state.unrestorable === null ? {} : { unrestorable: state.unrestorable }),
                 files: {
                     'io.xml': '<?xml version="1.0"?>\n<calaos:ioconfig xmlns:calaos="http://www.calaos.fr"/>\n',
                     'rules.xml': '<?xml version="1.0"?>\n<calaos:rules xmlns:calaos="http://www.calaos.fr"/>\n',
@@ -290,6 +293,7 @@ export function createConfig({ failure, hub, running }) {
     /** `/control {op:'admin', config:{hostname, values, restore}}`. */
     function configure(patch) {
         if (typeof patch.hostname === 'string') state.hostname = patch.hostname;
+        if (Array.isArray(patch.unrestorable) || patch.unrestorable === null) state.unrestorable = patch.unrestorable;
         if (typeof patch.restore === 'object' && patch.restore !== null) Object.assign(state.restore, patch.restore);
         if (typeof patch.values === 'object' && patch.values !== null) {
             for (const [key, value] of Object.entries(patch.values)) {

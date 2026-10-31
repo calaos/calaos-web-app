@@ -279,6 +279,58 @@ test('the backup warns about its secrets, then downloads as a zip of five entrie
     expect(entries.get('README.txt')).toContain('ddns');
 });
 
+test('a backup warns about the files the box would refuse to restore, and the zip stays the same', async ({ page, mock }) => {
+    const causes = ['not_loaded', 'missing', 'unreadable', 'empty', 'refused'];
+    await patchAdmin(mock, { config: { unrestorable: causes.map((cause) => ({ file: 'io.xml', cause })) } });
+    await openUnlocked(page);
+    const backupRow = page.locator('.config__row').first();
+    await backupRow.getByRole('button', { name: cfg.backupConfirm }).click();
+    const download = page.waitForEvent('download');
+    await page.getByRole('dialog').getByRole('button', { name: cfg.backupConfirm }).click();
+    const file = await download;
+
+    const note = backupRow.locator('.config__unrestorable');
+    await expect(note).toContainText(cfg.unrestorableIntro);
+    for (const cause of causes) {
+        await expect(note).toContainText((cfg.unrestorableCause as Record<string, string>)[cause]);
+    }
+    await expectFadedIn(note);
+
+    const entries = storedEntries(await readFile(await file.path()));
+    expect([...entries.keys()]).toEqual(['io.xml', 'rules.xml', 'local_config.xml', 'calaos-backup.json', 'README.txt']);
+    const manifest = JSON.parse(entries.get('calaos-backup.json') ?? '') as Record<string, unknown>;
+    expect(Object.keys(manifest).sort()).toEqual(['created_at', 'files', 'format', 'hostname', 'io_format', 'server_version']);
+    expect([...entries.values()].join('')).not.toContain('not_loaded');
+});
+
+test('a healthy backup shows no warning', async ({ page }) => {
+    await openUnlocked(page);
+    const backupRow = page.locator('.config__row').first();
+    await backupRow.getByRole('button', { name: cfg.backupConfirm }).click();
+    await page.getByRole('dialog').getByRole('button', { name: cfg.backupConfirm }).click();
+    await expect(backupRow.locator('.config__row-note')).toBeVisible();
+    await expect(backupRow.locator('.config__unrestorable')).toHaveCount(0);
+});
+
+test('the safety copy before a restore warns too, and the restore goes on', async ({ page, mock }) => {
+    await patchAdmin(mock, { config: { unrestorable: [{ file: 'rules.xml', cause: 'from_the_future' }] } });
+    await openUnlocked(page);
+    await restoreRow(page).locator('input[type="file"]').setInputFiles([
+        { name: 'io.xml', mimeType: 'text/xml', buffer: Buffer.from(IO_XML) },
+        { name: 'rules.xml', mimeType: 'text/xml', buffer: Buffer.from(RULES_XML) },
+    ]);
+    const dialog = page.getByRole('dialog');
+    const download = page.waitForEvent('download');
+    await dialog.getByRole('button', { name: cfg.restoreConfirm }).click();
+    await download;
+    const note = page.locator('.config__unrestorable');
+    await expect(note).toContainText(cfg.unrestorableSafety);
+    await expect(note).toContainText('rules.xml');
+    await expect(note).toContainText(cfg.unrestorableCause.unknown);
+    await expect(page.locator('.config__restored')).toBeVisible({ timeout: 15_000 });
+    expect((await configStatus(mock)).restores.map((restore) => restore.dry_run)).toEqual([true, false]);
+});
+
 test('a backup refused for an ended session asks for the password again', async ({ page, mock }) => {
     await openUnlocked(page);
     await mock.admin({ clearSessions: true });

@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n';
 import BaseDialog from '../ui/BaseDialog.vue';
 import { SELF_SERVICE_ID } from '../../protocol/admin-services';
 import { restoreFitsOneMessage } from '../../protocol/admin-config';
-import type { ConfigOption, ConfigRestoreResult } from '../../protocol/admin-config';
+import type { ConfigOption, ConfigRestoreResult, UnrestorableFile } from '../../protocol/admin-config';
 import type { AdminError } from '../../protocol/admin';
 import { readRestoreInput } from '../../protocol/backup-zip';
 import type { RestoreInput } from '../../protocol/backup-zip';
@@ -118,6 +118,15 @@ const confirmingBackup = ref(false);
 const downloading = ref(false);
 const backupError = ref('');
 const backupName = ref('');
+const unrestorable = ref<UnrestorableFile[]>([]);
+// The safety copy of a restore is saved without a dialog of its own: its warning lives next to the backup row.
+const unrestorableSafety = ref(false);
+
+function causeText(cause: string): string {
+    return te(`admin.config.unrestorableCause.${cause}`)
+        ? t(`admin.config.unrestorableCause.${cause}`)
+        : t('admin.config.unrestorableCause.unknown');
+}
 
 function saveFile(file: BackupFile): void {
     const url = URL.createObjectURL(file.blob);
@@ -137,6 +146,8 @@ async function downloadBackup(): Promise<void> {
     downloading.value = true;
     backupError.value = '';
     backupName.value = '';
+    unrestorable.value = [];
+    unrestorableSafety.value = false;
     const outcome = await config.downloadBackup();
     downloading.value = false;
     if (!('blob' in outcome)) {
@@ -145,6 +156,7 @@ async function downloadBackup(): Promise<void> {
     }
     saveFile(outcome);
     backupName.value = outcome.filename;
+    unrestorable.value = outcome.unrestorable;
 }
 
 // ---- restore ------------------------------------------------------------
@@ -218,6 +230,9 @@ async function sendRestore(source: RestoreInput, preview: ConfigRestoreResult): 
             return;
         }
         saveFile(current);
+        unrestorable.value = current.unrestorable;
+        unrestorableSafety.value = current.unrestorable.length > 0;
+        backupName.value = '';
     }
     const error = await config.restore(source.files, preview.warnings.includes('household_login_changes'));
     if (error === null || error.restarting) {
@@ -313,6 +328,14 @@ async function confirmRestore(): Promise<void> {
                 <p v-else-if="backupName !== ''" class="config__row-note fade-in" role="status">
                     {{ t('admin.config.backupDone', { name: backupName }) }}
                 </p>
+                <div v-if="unrestorable.length > 0" class="config__unrestorable fade-in" role="alert">
+                    <p>{{ t(unrestorableSafety ? 'admin.config.unrestorableSafety' : 'admin.config.unrestorableIntro') }}</p>
+                    <ul>
+                        <li v-for="item in unrestorable" :key="item.file">
+                            <code>{{ item.file }}</code> : {{ causeText(item.cause) }}
+                        </li>
+                    </ul>
+                </div>
             </li>
             <li class="config__row">
                 <div class="config__text">
@@ -531,6 +554,23 @@ async function confirmRestore(): Promise<void> {
 
 .config__row-note--error {
     color: var(--c-danger-text);
+}
+
+.config__unrestorable {
+    flex-basis: 100%;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--c-warn-border);
+    border-radius: var(--radius-md);
+    background-color: var(--c-warn-bg);
+    color: var(--c-warn);
+    font-size: 0.875rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.config__unrestorable ul {
+    margin: var(--space-2) 0 0;
+    padding-left: var(--space-5);
 }
 
 .config__options {
