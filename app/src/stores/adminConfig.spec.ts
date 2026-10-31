@@ -50,6 +50,30 @@ describe('config store', () => {
         expect(JSON.parse(String(init.body))).toMatchObject({ action: 'config_backup', admin_session: SESSION });
     });
 
+    it('hands the unrestorable files to the caller without writing them in the zip', async () => {
+        await unlocked();
+        const config = useAdminConfigStore();
+        const unrestorable = [{ file: 'io.xml', cause: 'not_loaded' }];
+        const answer = async () =>
+            new Response(
+                JSON.stringify({
+                    format: 'calaos-config-backup/2',
+                    created_at: '2026-10-25T09:12:58Z',
+                    server_version: '4.6.0',
+                    hostname: 'box',
+                    io_format: 2,
+                    unrestorable,
+                    files: { 'io.xml': '<x/>' },
+                }),
+                { headers: { 'content-disposition': 'attachment' } },
+            );
+        const file = (await config.downloadBackup(answer as typeof fetch)) as { blob: Blob; unrestorable: unknown };
+        expect(file.unrestorable).toEqual(unrestorable);
+        const bytes = new TextDecoder('latin1').decode(await file.blob.arrayBuffer());
+        expect(bytes).not.toContain('unrestorable');
+        expect(bytes).not.toContain('not_loaded');
+    });
+
     it('reports a download it cannot read, rather than saving it', async () => {
         await unlocked();
         const config = useAdminConfigStore();
@@ -314,5 +338,41 @@ describe('config restore', () => {
         ok(ANSWER);
         await second;
         expect(config.householdChanged).toBe(false);
+    });
+
+    it('keeps the safety copy warning past the sign-in refusal of a changed household login', async () => {
+        await unlocked();
+        goOnline();
+        const config = useAdminConfigStore();
+        const safety = [{ file: 'io.xml', cause: 'not_loaded' }];
+        const pending = config.restore(FILES, true, safety);
+        ok(ANSWER);
+        await pending;
+        dropConnection();
+        config.reset();
+        expect(config.safetyUnrestorable).toEqual(safety);
+
+        // The box is back, the old login is refused: the warning is still to be read.
+        useConnectionStore().applyStatus({ status: 'open', attempt: 0, nextRetryMs: 0 });
+        await flush();
+        expect(config.safetyUnrestorable).toEqual(safety);
+
+        useAuthStore().state = 'authed';
+        await flush();
+        expect(config.safetyUnrestorable).toEqual([]);
+    });
+
+    it('a restore without a safety copy drops the warning of an earlier one', async () => {
+        await unlocked();
+        goOnline();
+        const config = useAdminConfigStore();
+        const first = config.restore(FILES, false, [{ file: 'io.xml', cause: 'missing' }]);
+        ok(ANSWER);
+        await first;
+        expect(config.safetyUnrestorable).toEqual([{ file: 'io.xml', cause: 'missing' }]);
+        const second = config.restore(FILES, false);
+        ok(ANSWER);
+        await second;
+        expect(config.safetyUnrestorable).toEqual([]);
     });
 });

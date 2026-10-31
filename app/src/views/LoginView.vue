@@ -35,6 +35,7 @@ import { useI18n } from 'vue-i18n';
 import { onBeforeRouteLeave } from 'vue-router';
 import IconAlert from '~icons/mdi/alert-outline';
 import IconLoading from '~icons/mdi/loading';
+import UnrestorableNote from '../components/admin/UnrestorableNote.vue';
 import { useMinDuration } from '../composables/useMinDuration';
 import { useAdminConfigStore } from '../stores/adminConfig';
 import { useAuthStore } from '../stores/auth';
@@ -213,6 +214,11 @@ watch(
                         {{ t('login.restoredHousehold') }}
                     </p>
                 </div>
+                <UnrestorableNote
+                    v-if="showError && config.householdChanged && config.safetyUnrestorable.length > 0"
+                    :files="config.safetyUnrestorable"
+                    :safety="true"
+                />
             </form>
         </div>
     </div>

@@ -107,6 +107,7 @@ function doc(overrides: Partial<ConfigBackup> = {}): ConfigBackup {
         hostname: 'maison',
         ioFormat: 2,
         files: { 'io.xml': IO_XML, 'rules.xml': '<?xml version="1.0"?>\n<r/>', 'local_config.xml': '<?xml version="1.0"?>\n<é/>' },
+        unrestorable: [],
         ...overrides,
     };
 }

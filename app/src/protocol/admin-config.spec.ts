@@ -55,9 +55,22 @@ describe('config codec', () => {
 
     it('reads a backup document only in its format', () => {
         const doc = { format: 'calaos-config-backup/1', created_at: 'c', server_version: 'v', hostname: 'h', files: { 'io.xml': '<x/>', bad: 3 } };
-        expect(toConfigBackup(doc)).toEqual({ format: 'calaos-config-backup/1', createdAt: 'c', serverVersion: 'v', hostname: 'h', ioFormat: 0, files: { 'io.xml': '<x/>' } });
+        expect(toConfigBackup(doc)).toEqual({ format: 'calaos-config-backup/1', createdAt: 'c', serverVersion: 'v', hostname: 'h', ioFormat: 0, files: { 'io.xml': '<x/>' }, unrestorable: [] });
         expect(toConfigBackup({ ...doc, format: 'calaos-config-backup/2', io_format: 2 })?.ioFormat).toBe(2);
         expect(toConfigBackup({ ...doc, format: 'other' })).toBeNull();
+    });
+
+    it('reads the files a backup could not restore, causes as sent and junk dropped', () => {
+        const doc = { format: 'calaos-config-backup/2', files: {} };
+        const causes = ['not_loaded', 'missing', 'unreadable', 'empty', 'refused'];
+        const list = causes.map((cause) => ({ file: 'io.xml', cause }));
+        expect(toConfigBackup({ ...doc, unrestorable: list })?.unrestorable).toEqual(list);
+        expect(toConfigBackup({ ...doc, unrestorable: [{ file: 'rules.xml', cause: 'from_the_future' }] })?.unrestorable).toEqual([
+            { file: 'rules.xml', cause: 'from_the_future' },
+        ]);
+        expect(toConfigBackup({ ...doc, unrestorable: [{ cause: 'empty' }, 3, null, { file: '', cause: 'empty' }] })?.unrestorable).toEqual([]);
+        expect(toConfigBackup({ ...doc, unrestorable: 'io.xml' })?.unrestorable).toEqual([]);
+        expect(toConfigBackup(doc)?.unrestorable).toEqual([]);
     });
 
     it('puts the session in the body of the HTTP backup, never the URL', () => {

@@ -44,6 +44,17 @@
     "backupConfirmTitle": "Download a backup?",
     "backupConfirm": "Download",
     "backupDownloading": "Preparing…",
+    "unrestorableIntro": "The backup was saved, but the box would refuse to restore these files as they are:",
+    "unrestorableSafety": "The safety copy was saved, but the box would refuse to restore these files from it:",
+    "unrestorableSeparator": ": ",
+    "unrestorableCause": {
+        "not_loaded": "the server did not load it at startup (corrupted or unreadable); the backup holds its bytes as they are",
+        "missing": "it is missing on the box",
+        "unreadable": "it could not be read on the box",
+        "empty": "it is empty on the box",
+        "refused": "its content fails the checks of a restore (too large, not valid XML, wrong root or newer format)",
+        "unknown": "the box reports a problem with it"
+    },
     "backupDone": "Backup saved as {name}.",
     "restore": "Restore a backup",
     "restoreHint": "A backup zip, its JSON file, or io.xml and rules.xml. Nothing changes before you confirm.",
