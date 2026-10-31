@@ -429,7 +429,7 @@ export function appChrome(page: Page): { navBar: Locator; footerNav: Locator } {
 
 /** Matches the home route and nothing below it (`/#/home/3` is a room). */
 export const HOME_URL = /#\/home$/;
-export const LOGIN_URL = /#\/login$/;
+export const LOGIN_URL = /#\/login(\?|$)/;
 
 /**
  * Fills the form, submits, and waits for the house.
