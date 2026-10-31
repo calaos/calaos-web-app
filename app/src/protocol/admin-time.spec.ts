@@ -98,6 +98,14 @@ describe('a time typed in the box zone', () => {
         expect(ms('2026-02-30T10:00:00', 'UTC')).toBe('invalid');
         expect(ms('2019-12-31T23:59:59', 'UTC')).toBe('range');
         expect(ms('2101-01-01T00:00:00', 'UTC')).toBe('range');
+        // Typed in 2020 but the UTC instant is 2019: refused, as the daemon does.
+        expect(ms('2020-01-01T00:30:00', 'Europe/Paris')).toBe('range');
+        expect(ms('2020-01-01T01:00:00', 'Europe/Paris')).toBe('2020-01-01T00:00:00.000Z');
+    });
+
+    it('does not guess a zone this browser does not know', () => {
+        expect(ms('2026-07-01T12:00:00', 'Not/AZone')).toBe('zone');
+        expect(toLocalInput(Date.parse('2026-07-01T10:00:00Z'), 'Not/AZone')).toBe('');
     });
 
     it('prefills the box wall clock', () => {

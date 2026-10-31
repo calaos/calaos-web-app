@@ -1,7 +1,6 @@
 {
     "title": "Date et heure",
     "loading": "Lecture de l’horloge de la box…",
-    "noZone": "Aucun fuseau",
     "synchronized": "Réglée automatiquement (NTP), synchronisée",
     "notSynchronized": "Réglée automatiquement (NTP), pas encore synchronisée",
     "manual": "Réglée à la main",
@@ -62,7 +61,8 @@
     "manualProblem": {
         "invalid": "Saisissez une date et une heure complètes.",
         "range": "L’année doit être comprise entre 2020 et 2100.",
-        "nonexistent": "Cette heure n’existe pas en {zone} : les horloges la sautent au passage à l’heure d’été."
+        "nonexistent": "Cette heure n’existe pas en {zone} : les horloges la sautent au passage à l’heure d’été.",
+        "zone": "Cet appareil ne connaît pas le fuseau de la box ({zone}) : l’heure ne peut pas être réglée d’ici."
     },
     "manualConfirmTitle": "Régler l’heure de la box ?",
     "manualConfirm": "Régler l’heure",

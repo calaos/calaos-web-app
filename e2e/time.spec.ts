@@ -9,6 +9,10 @@ import type { Page } from '@playwright/test';
 
 const ADMIN_PASSWORD = 'correct horse battery';
 
+// Never the box's zone (Europe/Paris, Asia/Tokyo here): a time read in the
+// browser's zone would be caught.
+test.use({ timezoneId: 'America/Los_Angeles' });
+
 interface TimeStatus {
     timezone: string;
     ntp: boolean;
@@ -49,7 +53,7 @@ test.beforeEach(async ({ mock }) => {
     await mock.admin({ password: ADMIN_PASSWORD });
 });
 
-test('a synchronised box: in step, NTP on, no way to set it by hand', async ({ page }) => {
+test('a synchronised box: in step, NTP on, no way to set it from this device', async ({ page }) => {
     await openAdmin(page);
     await expect(card(page)).toContainText(T.inStep);
     await expect(card(page)).toContainText(T.synchronized);
@@ -115,7 +119,7 @@ test('"Use NTP" on a clock hours off asks first', async ({ page, mock }) => {
     await dialog(page).getByRole('button', { name: T.useNtp }).click();
     await expect.poll(async () => (await timeStatus(mock)).sets).toEqual([{ ntp: true }]);
     await expect(card(page)).toContainText(T.synchronized);
-    // Synchronised again: setting the time by hand is gone.
+    // Synchronised again: "Set from this device" is gone.
     await expect(card(page).getByRole('button', { name: T.setFromDevice })).toHaveCount(0);
 });
 
@@ -167,7 +171,7 @@ async function unlockOnly(page: Page): Promise<void> {
     await expect(admin.updates).toBeVisible();
 }
 
-test('an older daemon: the card says to update the box, and the Admin page stays unlocked', async ({ page, mock }) => {
+test('an older daemon: the page says to update the box, and the Admin page stays unlocked', async ({ page, mock }) => {
     await mock.admin({ tooOld: ['time_get', 'time_zones'] });
     await unlockOnly(page);
     await page.locator('[data-page="time"]').click();
@@ -193,7 +197,7 @@ test('calaos_server stops waiting on a new zone: read back, the restart offered,
     await expect(adminScreen(page).adminPassword).toHaveCount(0);
 });
 
-test('calaos_server stops waiting on a change that did not take: the card says nothing changed', async ({ page, mock }) => {
+test('calaos_server stops waiting on a change that did not take: the page says nothing changed', async ({ page, mock }) => {
     await configure(mock, { time: { unknownOutcome: 'unapplied' } });
     await openAdmin(page);
     await card(page).getByLabel(T.timezone, { exact: true }).selectOption('UTC');
@@ -215,7 +219,7 @@ test('the entry opens the page at its own URL: back returns to the hub, a reload
     await openAdmin(page);
     await page.goBack();
     await expect(adminScreen(page).updates).toBeVisible();
-    // The card left the hub.
+    // The page left the hub.
     await expect(card(page)).toHaveCount(0);
     await page.goForward();
     await expect(card(page).locator('.time__clock')).toBeVisible();
@@ -232,7 +236,7 @@ test('a time typed by hand, NTP off: only the time is sent, read in the box zone
     await openAdmin(page);
     await manualInput(page).fill('2027-01-15T08:30');
     await card(page).getByRole('button', { name: T.manualSet, exact: true }).click();
-    // About two months from now: confirmed with its size.
+    // Months off the box clock: confirmed with its size.
     await expect(dialog(page)).toContainText(T.manualConfirmTitle);
     await dialog(page).getByRole('button', { name: T.manualConfirm }).click();
     await expect.poll(async () => (await timeStatus(mock)).sets).toHaveLength(1);
@@ -265,14 +269,43 @@ test('a time the clocks skip is refused before anything is sent', async ({ page,
     expect((await timeStatus(mock)).sets).toEqual([]);
 });
 
-test('the time zone list filters as one types', async ({ page }) => {
+test('the time zone list filters as one types, and keeps the chosen zone listed', async ({ page }) => {
     await openAdmin(page);
     const zones = card(page).getByLabel(T.timezone, { exact: true });
     await expect(zones.locator('option')).toHaveCount(21);
     await card(page).getByLabel(T.zoneFilter).fill('new york');
-    await expect(zones.locator('option')).toHaveText(['America/New_York']);
+    // Europe/Paris is the chosen one: "Apply" would still send it, so it stays.
+    await expect(zones.locator('option')).toHaveText(['Europe/Paris', 'America/New_York']);
+    await expect(card(page).getByText(T.zoneNone)).toHaveCount(0);
     await card(page).getByLabel(T.zoneFilter).fill('zzz');
-    await expect(zones.locator('option')).toHaveText([T.zoneNone]);
+    await expect(zones.locator('option')).toHaveText(['Europe/Paris']);
+    await expect(zones).toHaveValue('Europe/Paris');
+    await expect(card(page).getByText(T.zoneNone)).toBeVisible();
+});
+
+test('a box zone this browser does not know: said on the page, no time sent', async ({ page, mock }) => {
+    await configure(mock, { time: { ntp: false, synchronized: false, timezone: 'Mars/Olympus_Mons' } });
+    await openAdmin(page);
+    const problem = fill(T.manualProblem.zone, { zone: 'Mars/Olympus_Mons' });
+    await expect(card(page).locator('.time__problem')).toHaveText(problem);
+    await expect(manualInput(page)).toHaveValue('');
+    await manualInput(page).fill('2026-07-01T12:00');
+    await card(page).getByRole('button', { name: T.manualSet, exact: true }).click();
+    await expect(card(page).locator('.time__problem')).toHaveText(problem);
+    await expect(dialog(page)).toHaveCount(0);
+    expect((await timeStatus(mock)).sets).toEqual([]);
+});
+
+test('"Set" waits for an edit, and a message goes when one types again', async ({ page, mock }) => {
+    await configure(mock, { time: { ntp: false, synchronized: false } });
+    await openAdmin(page);
+    const set = card(page).getByRole('button', { name: T.manualSet, exact: true });
+    await expect(set).toBeDisabled();
+    await manualInput(page).fill('2027-03-28T02:30');
+    await set.click();
+    await expect(card(page).locator('.time__problem')).toBeVisible();
+    await manualInput(page).fill('2027-03-28T03:30');
+    await expect(card(page).locator('.time__problem')).toHaveCount(0);
 });
 
 test('"Stop using NTP" sends ntp:false alone', async ({ page, mock }) => {

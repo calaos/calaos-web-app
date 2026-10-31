@@ -113,36 +113,56 @@ export function timeReadBack(change: TimeChange, before: BoxTime | null, after: 
 /** The `<input type="datetime-local" step="1">` value format. */
 const LOCAL_PATTERN = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)(?::(\d\d))?$/;
 
-function zoneParts(ms: number, timeZone: string): Intl.DateTimeFormatPart[] {
-    return new Intl.DateTimeFormat('en-CA', {
-        timeZone,
-        hourCycle: 'h23',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-    }).formatToParts(ms);
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+/** Throws a RangeError for a zone this browser does not know. One formatter per zone: they are costly to build. */
+function zoneFormatter(timeZone: string): Intl.DateTimeFormat {
+    let format = formatters.get(timeZone);
+    if (format === undefined) {
+        format = new Intl.DateTimeFormat('en-CA', {
+            timeZone,
+            hourCycle: 'h23',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        });
+        formatters.set(timeZone, format);
+    }
+    return format;
 }
 
 /** The wall clock of `timeZone` at `ms`, read as if it were UTC. */
 function wallClockMs(ms: number, timeZone: string): number {
-    const part = (type: string) => Number(zoneParts(ms, timeZone).find((p) => p.type === type)?.value);
+    const parts = zoneFormatter(timeZone).formatToParts(ms);
+    const part = (type: string) => Number(parts.find((p) => p.type === type)?.value);
     return Date.UTC(part('year'), part('month') - 1, part('day'), part('hour'), part('minute'), part('second'));
 }
 
-/** "2026-10-31T14:05:09", the wall clock of `timeZone` at `ms`. */
-export function toLocalInput(ms: number, timeZone: string): string {
-    return new Date(wallClockMs(ms, timeZone)).toISOString().slice(0, 19);
+/** True when this browser can read the wall clock of `timeZone`. */
+export function knowsZone(timeZone: string): boolean {
+    try {
+        zoneFormatter(timeZone);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
-export type LocalTimeResult = { ms: number } | { error: 'invalid' | 'range' | 'nonexistent' };
+/** "2026-10-31T14:05:09", the wall clock of `timeZone` at `ms`; '' for a zone this browser does not know. */
+export function toLocalInput(ms: number, timeZone: string): string {
+    return knowsZone(timeZone) ? new Date(wallClockMs(ms, timeZone)).toISOString().slice(0, 19) : '';
+}
+
+export type LocalTimeResult = { ms: number } | { error: 'invalid' | 'range' | 'nonexistent' | 'zone' };
 
 /**
  * A wall-clock time typed for the box, read in the box's time zone and not
  * the browser's. A time repeated when the clocks go back is the first one;
- * one skipped when they go forward does not exist.
+ * one skipped when they go forward does not exist. A zone this browser does
+ * not know is an error: guessing UTC would send a wrong time.
  */
 export function fromLocalInput(value: string, timeZone: string): LocalTimeResult {
     const match = LOCAL_PATTERN.exec(value);
@@ -152,15 +172,18 @@ export function fromLocalInput(value: string, timeZone: string): LocalTimeResult
     if (Number.isNaN(wall) || new Date(wall).toISOString().slice(0, 19) !== `${y}-${mo}-${d}T${h}:${mi}:${s ?? '00'}`) {
         return { error: 'invalid' };
     }
-    const year = Number(y);
-    if (year < TIME_YEAR_MIN || year > TIME_YEAR_MAX) return { error: 'range' };
+    if (!knowsZone(timeZone)) return { error: 'zone' };
     // The offsets in force a day either side bracket any transition near `wall`.
     const day = 86_400_000;
     const offset = (ms: number) => wallClockMs(ms, timeZone) - ms;
     const candidates = [offset(wall - day), offset(wall + day)]
         .map((o) => wall - o)
         .filter((ms) => wallClockMs(ms, timeZone) === wall);
-    return candidates.length === 0 ? { error: 'nonexistent' } : { ms: Math.min(...candidates) };
+    if (candidates.length === 0) return { error: 'nonexistent' };
+    const ms = Math.min(...candidates);
+    // The daemon bounds the year of the UTC instant, not of the typed wall clock.
+    const year = new Date(ms).getUTCFullYear();
+    return year < TIME_YEAR_MIN || year > TIME_YEAR_MAX ? { error: 'range' } : { ms };
 }
 
 /** Case, spaces and underscores do not matter: "new york" finds America/New_York. */

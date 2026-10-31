@@ -1,7 +1,6 @@
 {
     "title": "Date and time",
     "loading": "Reading the box’s clock…",
-    "noZone": "No time zone",
     "synchronized": "Set automatically (NTP), synchronized",
     "notSynchronized": "Set automatically (NTP), not synchronized yet",
     "manual": "Set by hand",
@@ -62,7 +61,8 @@
     "manualProblem": {
         "invalid": "Enter a full date and time.",
         "range": "The year must be between 2020 and 2100.",
-        "nonexistent": "This time does not exist in {zone}: the clocks skip it when they go forward."
+        "nonexistent": "This time does not exist in {zone}: the clocks skip it when they go forward.",
+        "zone": "This device cannot read the box’s time zone ({zone}), so a time cannot be set from here."
     },
     "manualConfirmTitle": "Set the box time?",
     "manualConfirm": "Set the time",
