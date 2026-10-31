@@ -441,6 +441,7 @@ export const LOGIN_URL = /#\/login$/;
 export async function loginAs(
     page: Page,
     credentials: { user: string; pass: string } = CREDENTIALS,
+    landing: RegExp = HOME_URL,
 ): Promise<number> {
     const form = loginForm(page);
     await form.username.fill(credentials.user);
@@ -452,7 +453,7 @@ export async function loginAs(
 
     const startedAt = Date.now();
     await form.submit.click();
-    await page.waitForURL(HOME_URL);
+    await page.waitForURL(landing);
     return Date.now() - startedAt;
 }
 

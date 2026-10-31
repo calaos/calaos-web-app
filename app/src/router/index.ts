@@ -11,7 +11,7 @@
 import { watch } from 'vue';
 import { createRouter, createWebHashHistory } from 'vue-router';
 import type { WatchStopHandle } from 'vue';
-import type { Router, RouterHistory } from 'vue-router';
+import type { RouteLocationNormalized, Router, RouterHistory } from 'vue-router';
 import { useAdminStore } from '../stores/admin';
 import { useAuthStore } from '../stores/auth';
 import { useHomeStore } from '../stores/home';
@@ -30,6 +30,25 @@ declare module 'vue-router' {
         /** Detail route: NavBar shows the back button (old `canGoBack()`). */
         detail?: boolean;
     }
+}
+
+/** Locked admin session: the hub asks for the password, then returns to `to`. */
+function adminOnly(to: RouteLocationNormalized) {
+    return useAdminStore().isUnlocked ? true : { name: 'admin', query: { redirect: to.fullPath } };
+}
+
+/**
+ * The `redirect` query is user-controlled: only a path that resolves to a
+ * real in-app route is followed, never an absolute URL or a protocol-relative
+ * one. `onlyAdmin` restricts the unlock return to admin sub-pages.
+ */
+function safeRedirect(router: Router, raw: unknown, onlyAdmin = false): string | null {
+    if (typeof raw !== 'string' || !/^\/(?![/\\])/.test(raw)) return null;
+    const target = router.resolve(raw);
+    const name = target.name;
+    if (typeof name !== 'string' || name === 'login') return null;
+    if (onlyAdmin && !target.path.startsWith('/admin/')) return null;
+    return target.fullPath;
 }
 
 /**
@@ -117,42 +136,42 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 name: 'adminConsole',
                 component: () => import('../views/ConsoleView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/logs',
                 name: 'adminLogs',
                 component: () => import('../views/LogsView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/network',
                 name: 'adminNetwork',
                 component: () => import('../views/NetworkView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/services',
                 name: 'adminServices',
                 component: () => import('../views/ServicesView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/time',
                 name: 'adminTime',
                 component: () => import('../views/TimeView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/settings',
                 name: 'adminSettings',
                 component: () => import('../views/SettingsView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             // Unknown hash → home, where the auth guard takes over.
             { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
@@ -163,7 +182,11 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
         const auth = useAuthStore();
 
         if (to.meta.requiresAuth && !auth.isAuthed) {
-            return { name: 'login' };
+            // Remember where the visitor was headed (a reload lands here too);
+            // /home is the default landing and needs no memo.
+            return to.name === 'home'
+                ? { name: 'login' }
+                : { name: 'login', query: { redirect: to.fullPath } };
         }
 
         // The mirror of the rule above: a signed-in user who types /#/login
@@ -231,7 +254,11 @@ export function startNavigationIntents(router: Router): WatchStopHandle {
         () => auth.pendingNavigation,
         (intent) => {
             if (intent === null) return;
-            void router.push({ name: intent });
+            const back =
+                intent === 'home'
+                    ? safeRedirect(router, router.currentRoute.value.query.redirect)
+                    : null;
+            void router.push(back ?? { name: intent });
             auth.consumeNavigation();
         },
     );
@@ -244,12 +271,31 @@ export function startNavigationIntents(router: Router): WatchStopHandle {
             // already on /login is the ordinary wrong-password case, and
             // pushing the route they are on would be a no-op navigation.
             if (router.currentRoute.value.meta.requiresAuth !== true) return;
-            void router.push({ name: 'login' });
+            const here = router.currentRoute.value;
+            void router.push(
+                here.name === 'home'
+                    ? { name: 'login' }
+                    : { name: 'login', query: { redirect: here.fullPath } },
+            );
+        },
+    );
+
+    // An admin sub-page reached with a locked session lands on the hub's
+    // password gate; once unlocked, finish the trip.
+    const admin = useAdminStore();
+    const stopUnlock = watch(
+        () => admin.isUnlocked,
+        (unlocked) => {
+            const route = router.currentRoute.value;
+            if (!unlocked || route.name !== 'admin') return;
+            const back = safeRedirect(router, route.query.redirect, true);
+            if (back !== null) void router.push(back);
         },
     );
 
     return () => {
         stopIntents();
         stopRejections();
+        stopUnlock();
     };
 }

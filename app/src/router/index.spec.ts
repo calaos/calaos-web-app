@@ -134,7 +134,7 @@ describe('routes', () => {
 
         await hashRouter.push('/home/1');
 
-        expect(window.location.hash).toBe('#/login');
+        expect(window.location.hash).toBe('#/login?redirect=/home/1');
     });
 
     it('leaves login reachable without meta.requiresAuth', async () => {
@@ -341,5 +341,89 @@ describe.each([
         await router.push(path);
         expect(router.currentRoute.value.name).toBe(name);
         expect(router.currentRoute.value.meta.detail).toBe(true);
+    });
+});
+
+describe('returning to the page a reload interrupted', () => {
+    let stop: () => void;
+
+    afterEach(() => {
+        stop?.();
+    });
+
+    async function signInFrom(redirect: unknown) {
+        stop = startNavigationIntents(router);
+        await router.push({ path: '/login', query: { redirect: redirect as string } });
+        signedIn();
+        useAuthStore().pendingNavigation = 'home';
+    }
+
+    it.each(['/admin/time', '/admin/network', '/audio'])('remembers %s when the guard sends a visitor to login', async (path) => {
+        await router.push(path);
+        expect(router.currentRoute.value.name).toBe('login');
+        expect(router.currentRoute.value.query.redirect).toBe(path);
+    });
+
+    it('does not memorise /home, the default landing', async () => {
+        await router.push('/home');
+        expect(router.currentRoute.value.query.redirect).toBeUndefined();
+    });
+
+    it('a sign-in goes back to the remembered route', async () => {
+        await signInFrom('/audio');
+        await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/audio'));
+    });
+
+    it('a locked admin sub-page falls back to the hub, then finishes the trip once unlocked', async () => {
+        await signInFrom('/admin/time');
+        await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('admin'));
+        expect(router.currentRoute.value.query.redirect).toBe('/admin/time');
+
+        const admin = useAdminStore();
+        admin.gate = 'unlocked';
+        admin.session = 'a'.repeat(64);
+        await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('adminTime'));
+    });
+
+    it('a failed unlock keeps the hub', async () => {
+        await signInFrom('/admin/time');
+        await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('admin'));
+        await Promise.resolve();
+        expect(router.currentRoute.value.name).toBe('admin');
+    });
+
+    it.each([
+        'https://evil.example/',
+        '//evil.example/',
+        '/\\evil.example',
+        'javascript:alert(1)',
+        '/login',
+        '/no/such/page',
+        'admin/time',
+        '',
+    ])('refuses %j as a destination', async (target) => {
+        await signInFrom(target);
+        await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('home'));
+    });
+
+    it('the unlock return only follows admin sub-pages', async () => {
+        stop = startNavigationIntents(router);
+        signedIn();
+        await router.push({ name: 'admin', query: { redirect: '/audio' } });
+        const admin = useAdminStore();
+        admin.gate = 'unlocked';
+        admin.session = 'a'.repeat(64);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(router.currentRoute.value.name).toBe('admin');
+    });
+
+    it('a refused re-login mid-session remembers the page', async () => {
+        stop = startNavigationIntents(router);
+        signedIn();
+        await router.push('/audio');
+        useAuthStore().state = 'failed';
+        await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/login'));
+        expect(router.currentRoute.value.query.redirect).toBe('/audio');
     });
 });

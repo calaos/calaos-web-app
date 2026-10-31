@@ -184,7 +184,7 @@ test('not kept in time: the box rolls back, and the banner says so', async ({ pa
 
     // Stored by the box: the next sign-in shows it again until it is acknowledged.
     await page.reload();
-    await loginAs(page);
+    await loginAs(page, undefined, /#\/admin(\?|$)/);
     await expect(banner).toContainText(fill(net.alert.title, { intf: 'eth0' }));
     await banner.getByRole('button', { name: t.alerts.dismiss }).click();
     await expect(banner).toHaveCount(0);
@@ -241,12 +241,12 @@ test('a reload during the trial finds the countdown again after unlocking', asyn
 
     // Sign-in and admin session lived in memory: both are asked again.
     await page.reload();
-    await loginAs(page);
-    await unlock(page);
+    await loginAs(page, undefined, /#\/admin(\?|$)/);
+    await adminScreen(page).adminPassword.fill(ADMIN_PASSWORD);
+    await adminScreen(page).submit.click();
 
-    const entry = page.locator('[data-page="network"]');
-    await expect(entry).toContainText(fill(net.entry.pending, { intf: 'eth0', time: '@' }).split('@')[0]);
-    await entry.click();
+    // The unlock brings the page back by itself.
+    await expect(page).toHaveURL(/#\/admin\/network$/);
     await expect(panel(page)).toContainText(fill(net.pending.title, { intf: 'eth0' }));
     // The box's own count, not a fresh 2:00 from the reload.
     const boxLeft = (await networkStatus(mock)).pending?.expires_in ?? 0;
