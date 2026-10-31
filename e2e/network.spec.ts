@@ -51,7 +51,7 @@ async function unlock(page: Page): Promise<void> {
     await admin.tab.click();
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
-    await expect(admin.updates).toBeVisible();
+    await expect(admin.hub).toBeVisible();
 }
 
 async function openNetwork(page: Page, url = '/'): Promise<void> {
@@ -301,7 +301,7 @@ test('an older daemon: the network row says so, and the Admin page stays unlocke
     await expect(entry).toContainText(t.error.daemon_too_old);
     // Nothing flips the page to "being activated" and back.
     await page.waitForTimeout(7_000);
-    await expect(adminScreen(page).updates).toBeVisible();
+    await expect(adminScreen(page).hub).toBeVisible();
     await expect(adminScreen(page).adminPassword).toHaveCount(0);
     expect((await mock.adminActions()).filter((action) => action === 'network_state')).toHaveLength(1);
 });

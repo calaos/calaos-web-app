@@ -206,6 +206,7 @@
         },
         "mcp": {
             "title": "Accès MCP",
+            "entryHint": "L’adresse et le jeton pour un assistant IA.",
             "hint": "Ce dont un assistant IA a besoin pour joindre la box. Il envoie le jeton comme jeton Bearer dans l’en-tête Authorization.",
             "url": "Adresse",
             "token": "Jeton",
@@ -276,6 +277,7 @@
         },
         "updates": {
             "title": "Mises à jour",
+            "entryHint": "Vérifier et installer les mises à jour de la box.",
             "unknown": "Mises à jour pas encore vérifiées",
             "unknownHint": "La vérification contacte les serveurs Calaos et peut prendre jusqu’à une minute.",
             "upToDate": "Votre box est à jour",
@@ -302,8 +304,17 @@
             "versions": "{from} → {to}",
             "progress": "Avancement de la mise à jour"
         },
+        "security": {
+            "title": "Sécurité",
+            "hint": "Les téléphones qui approuvent les actions sensibles, et le mot de passe admin.",
+            "entryHint": "Téléphones approbateurs et mot de passe admin."
+        },
+        "system": {
+            "title": "Système",
+            "hint": "Ouvrir un shell sur la box, ou la redémarrer.",
+            "entryHint": "Console et redémarrage."
+        },
         "actions": {
-            "title": "Box",
             "password": "Mot de passe admin",
             "passwordHint": "Changer le mot de passe qui protège cette page.",
             "change": "Changer",

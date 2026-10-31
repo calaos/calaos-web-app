@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// The Admin hub's ways out: one tile per sub-page. The network tile also
-// reads the box's state: someone back after a reload, or at the box's new
-// address, lands here first and must see that a change is waiting to be kept.
+// The Admin hub: one tile per sub-page. The updates and network tiles also
+// read the box's state: someone back after a reload, or at the box's new
+// address, lands here first and must see what is waiting for them.
 
 import { computed, onMounted } from 'vue';
 import type { Component } from 'vue';
@@ -9,14 +9,20 @@ import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
 import IconChevron from '~icons/mdi/chevron-right';
 import IconLogs from '~icons/mdi/text-box-search-outline';
+import IconMcp from '~icons/mdi/robot-outline';
 import IconNetwork from '~icons/mdi/lan';
+import IconSecurity from '~icons/mdi/shield-lock-outline';
 import IconServices from '~icons/mdi/application-cog-outline';
 import IconSettings from '~icons/mdi/tune-variant';
+import IconSystem from '~icons/mdi/server';
 import IconTime from '~icons/mdi/clock-outline';
+import IconUpdates from '~icons/mdi/update';
 import { useAdminStore } from '../../stores/admin';
 import { useAdminNetworkStore } from '../../stores/adminNetwork';
 import { useAdminText } from '../../composables/useAdminText';
 import { useNetworkCountdown } from '../../composables/useNetworkCountdown';
+import { useUpdatesPhase } from '../../composables/useUpdatesPhase';
+import type { UpdatesPhase } from '../../composables/useUpdatesPhase';
 
 interface Tile {
     id: string;
@@ -32,11 +38,19 @@ const { t } = useI18n();
 const admin = useAdminStore();
 const network = useAdminNetworkStore();
 const { errorText } = useAdminText();
+const { phase, headline } = useUpdatesPhase();
+
+/** Something for the admin to act on or follow. */
+const UPDATES_WARN: readonly UpdatesPhase[] = ['available', 'upgrading', 'failed', 'doneReboot'];
 
 const countdown = useNetworkCountdown(() => network.pending?.deadline ?? null);
 const waiting = computed(() => network.pending !== null && (countdown.seconds.value ?? 0) > 0);
 /** An older daemon, say: this tile only, the rest of the page works. */
 const networkProblem = computed(() => (network.error === null ? '' : errorText(network.error)));
+/** A status read refused here has no other place on the hub to say so. */
+const updatesProblem = computed(() =>
+    admin.notice !== null && admin.noticeSource === 'updates' ? errorText(admin.notice) : '',
+);
 
 onMounted(() => {
     if (admin.isUnlocked) void network.load();
@@ -52,15 +66,17 @@ const tiles = computed<Tile[]>(() => {
     } else if (networkProblem.value !== '') {
         networkHint = networkProblem.value;
     }
+    let updatesHint = phase.value === 'unknown' ? t('admin.updates.entryHint') : headline.value;
+    if (updatesProblem.value !== '') updatesHint = updatesProblem.value;
     return [
         {
-            id: 'logs',
-            route: 'adminLogs',
-            icon: IconLogs,
-            name: t('admin.logs.title'),
-            hint: t('admin.logs.openHint'),
-            tone: 'muted',
-            disabled: admin.busy !== null,
+            id: 'updates',
+            route: 'adminUpdates',
+            icon: IconUpdates,
+            name: t('admin.updates.title'),
+            hint: updatesHint,
+            tone: updatesProblem.value !== '' || UPDATES_WARN.includes(phase.value) ? 'warn' : 'muted',
+            disabled: false,
         },
         {
             id: 'network',
@@ -81,11 +97,47 @@ const tiles = computed<Tile[]>(() => {
             disabled: false,
         },
         {
+            id: 'logs',
+            route: 'adminLogs',
+            icon: IconLogs,
+            name: t('admin.logs.title'),
+            hint: t('admin.logs.openHint'),
+            tone: 'muted',
+            disabled: admin.busy !== null,
+        },
+        {
             id: 'time',
             route: 'adminTime',
             icon: IconTime,
             name: t('admin.time.title'),
             hint: t('admin.time.entryHint'),
+            tone: 'muted',
+            disabled: false,
+        },
+        {
+            id: 'mcp',
+            route: 'adminMcp',
+            icon: IconMcp,
+            name: t('admin.mcp.title'),
+            hint: t('admin.mcp.entryHint'),
+            tone: 'muted',
+            disabled: false,
+        },
+        {
+            id: 'security',
+            route: 'adminSecurity',
+            icon: IconSecurity,
+            name: t('admin.security.title'),
+            hint: t('admin.security.entryHint'),
+            tone: 'muted',
+            disabled: false,
+        },
+        {
+            id: 'system',
+            route: 'adminSystem',
+            icon: IconSystem,
+            name: t('admin.system.title'),
+            hint: t('admin.system.entryHint'),
             tone: 'muted',
             disabled: false,
         },

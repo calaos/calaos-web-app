@@ -1,4 +1,4 @@
-// The MCP access card of the Admin hub against the mock: the address and the
+// The MCP page of the Admin section against the mock: the address and the
 // token from `get_mcp_info` (HTTP, session in the body), masked until shown,
 // copied, and replaced by the new one after `mcp_regenerate`.
 
@@ -20,7 +20,10 @@ async function openUnlocked(page: Page): Promise<void> {
     await admin.tab.click();
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
-    await expect(admin.updates).toBeVisible();
+    await expect(admin.hub).toBeVisible();
+    await admin.tile('mcp').click();
+    await expect(page).toHaveURL(/#\/admin\/mcp$/);
+    await expect(card(page)).toBeVisible();
 }
 
 const card = (page: Page) => page.locator('.mcp');
@@ -66,9 +69,15 @@ test('after a regeneration the card shows the new token, marked as new', async (
     await tokenRow(page).getByRole('button', { name: M.show }).click();
     await expect(tokenRow(page).locator('code')).toHaveText(before);
 
+    // Asked first: nothing changes on a cancel.
+    await page.getByRole('button', { name: MESSAGES.admin.actions.regenerate }).click();
+    await page.getByRole('dialog').getByRole('button', { name: MESSAGES.dialog.cancel }).click();
+    expect((await mock.adminStatus()).mcpRegenerations).toBe(0);
+
     await page.getByRole('button', { name: MESSAGES.admin.actions.regenerate }).click();
     await page.getByRole('dialog').getByRole('button', { name: MESSAGES.admin.actions.mcpConfirm }).click();
     await expect(adminScreen(page).info).toContainText(MESSAGES.admin.info.mcp_regenerated);
+    expect((await mock.adminStatus()).mcpRegenerations).toBe(1);
 
     await expect(tokenRow(page)).toHaveClass(/mcp__row--fresh/);
     await expect(tokenRow(page)).toContainText(M.renewed);

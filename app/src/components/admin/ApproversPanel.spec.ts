@@ -55,7 +55,8 @@ describe('ApproversPanel', () => {
         const wrapper = mountPanel();
         const approvers = useApproversStore();
         approvers.approvers = [];
-        (wrapper.vm as unknown as { openAdd: () => void }).openAdd();
+        approvers.requestAdd();
+        await flushPromises();
         approvers.candidates = [
             { tokenId: 'a1b2c3d4e5f60718', deviceName: RTL_NAME, platform: 'ios', registeredAt: '', lastSeen: '', approver: false, secure: false },
             { tokenId: '9f8e7d6c5b4a3921', deviceName: 'iPhone', platform: 'ios', registeredAt: '', lastSeen: '', approver: false, secure: false },
@@ -89,7 +90,8 @@ describe('ApproversPanel', () => {
         const wrapper = mountPanel();
         const approvers = useApproversStore();
         approvers.approvers = [];
-        (wrapper.vm as unknown as { openAdd: () => void }).openAdd();
+        approvers.requestAdd();
+        await flushPromises();
         approvers.candidates = [
             { tokenId: 'a1b2c3d4e5f60718', deviceName: 'A', platform: 'ios', registeredAt: '', lastSeen: '', approver: false, secure: true },
             { tokenId: '9f8e7d6c5b4a3921', deviceName: 'B', platform: 'ios', registeredAt: '', lastSeen: '', approver: false, secure: false },

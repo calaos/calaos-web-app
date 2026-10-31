@@ -97,6 +97,33 @@ describe('mcp store', () => {
     });
 });
 
+describe('mcp store, a new token', () => {
+    it('shows the new token once the box has made it', async () => {
+        await unlocked();
+        const admin = useAdminStore();
+        const mcp = useAdminMcpStore();
+        await mcp.load(false, answer(INFO) as unknown as typeof fetch);
+        const regenerateMcp = vi.spyOn(admin, 'regenerateMcp').mockResolvedValue(true);
+        await mcp.regenerate(answer(NEW_INFO) as unknown as typeof fetch);
+        expect(regenerateMcp).toHaveBeenCalledOnce();
+        expect(mcp.info?.token).toBe(NEW_INFO.token);
+        expect(mcp.renewed).toBe(1);
+    });
+
+    it('reads nothing when the box refused', async () => {
+        await unlocked();
+        const admin = useAdminStore();
+        const mcp = useAdminMcpStore();
+        await mcp.load(false, answer(INFO) as unknown as typeof fetch);
+        vi.spyOn(admin, 'regenerateMcp').mockResolvedValue(false);
+        const fetchImpl = answer(NEW_INFO);
+        await mcp.regenerate(fetchImpl as unknown as typeof fetch);
+        expect(fetchImpl).not.toHaveBeenCalled();
+        expect(mcp.info?.token).toBe(INFO.token);
+        expect(mcp.renewed).toBe(0);
+    });
+});
+
 describe('mcp store, a read that lands late', () => {
     it.each([
         ['the card went', (): void => useAdminMcpStore().reset()],

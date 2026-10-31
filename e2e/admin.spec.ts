@@ -8,6 +8,11 @@
 // `admin_unavailable`. A spec that waits on them is slow by design; the
 // Playwright config already runs the suite serially.
 
+import config from '../app/src/i18n/admin/config.en.json';
+import logs from '../app/src/i18n/admin/logs.en.json';
+import network from '../app/src/i18n/admin/network.en.json';
+import services from '../app/src/i18n/admin/services.en.json';
+import time from '../app/src/i18n/admin/time.en.json';
 import {
     CREDENTIALS,
     MESSAGES,
@@ -33,6 +38,14 @@ async function openUnlocked(page: Parameters<typeof loginAs>[0]): Promise<Return
     await expect(admin.heading).toHaveText(MESSAGES.admin.unlock.title);
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
+    await expect(admin.hub).toBeVisible();
+    return admin;
+}
+
+async function openUpdates(page: Parameters<typeof loginAs>[0]): Promise<ReturnType<typeof adminScreen>> {
+    const admin = adminScreen(page);
+    await admin.tile('updates').click();
+    await expect(page).toHaveURL(/#\/admin\/updates$/);
     await expect(admin.updates).toBeVisible();
     return admin;
 }
@@ -78,7 +91,7 @@ test('a fresh box: household password first, then the admin password, then unloc
     await admin.submit.click();
 
     // Set, then unlocked with the same password: no second form.
-    await expect(admin.updates).toBeVisible();
+    await expect(admin.hub).toBeVisible();
     await expect(admin.info).toContainText(MESSAGES.admin.info.password_set);
     expect(await mock.adminStatus()).toMatchObject({ set: true, sessions: 1 });
     await expect.poll(async () => (await mock.frameKinds()).filter((kind) => kind?.startsWith('admin'))).toEqual([
@@ -87,7 +100,6 @@ test('a fresh box: household password first, then the admin password, then unloc
         'admin_unlock',
         'admin', // update_status after unlock
         'admin', // network_state, for a change waiting to be kept
-        'admin', // approver_list
     ]);
 });
 
@@ -111,7 +123,9 @@ test('unlock: a wrong password is refused, the right one opens the panel, and th
 
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
-    await expect(admin.updates).toBeVisible();
+    await expect(admin.hub).toBeVisible();
+    await expect(admin.hub).toContainText(MESSAGES.admin.updates.entryHint);
+    await openUpdates(page);
     await expect(admin.updatesHeadline).toHaveText(MESSAGES.admin.updates.unknown);
 
     // Checking lists the fake daemon's two packages.
@@ -136,7 +150,8 @@ test('unlock: a wrong password is refused, the right one opens the panel, and th
 
 test('an upgrade survives calaos-server restarting in the middle of it', async ({ page, mock }) => {
     await mock.admin({ password: ADMIN_PASSWORD, upgradeMs: 4_000, dropAtPercent: 40, rebootRequired: true });
-    const admin = await openUnlocked(page);
+    await openUnlocked(page);
+    const admin = await openUpdates(page);
 
     await page.getByRole('button', { name: MESSAGES.admin.updates.check }).click();
     await expect(admin.updatesHeadline).toHaveText('2 updates available');
@@ -168,7 +183,8 @@ test('the end of a run never rewinds the bar and shows the outcome without waiti
     mock,
 }) => {
     await mock.admin({ password: ADMIN_PASSWORD, upgradeMs: 1_000, rebootRequired: true });
-    const admin = await openUnlocked(page);
+    await openUnlocked(page);
+    const admin = await openUpdates(page);
     await page.getByRole('button', { name: MESSAGES.admin.updates.check }).click();
     await expect(admin.updatesHeadline).toHaveText('2 updates available');
 
@@ -198,7 +214,8 @@ test('a job that ends while calaos-server is away is read back from the job, not
     mock,
 }) => {
     await mock.admin({ password: ADMIN_PASSWORD, upgradeMs: 1_000, dropAtPercent: 90, rebootRequired: true });
-    const admin = await openUnlocked(page);
+    await openUnlocked(page);
+    const admin = await openUpdates(page);
     await page.getByRole('button', { name: MESSAGES.admin.updates.check }).click();
     await page.getByRole('button', { name: MESSAGES.admin.updates.upgrade }).click();
 
@@ -212,7 +229,8 @@ test('a job that ends while calaos-server is away is read back from the job, not
 
 test('bad_session asks for the password again, silently, and replays only the read', async ({ page, mock }) => {
     await mock.admin({ password: ADMIN_PASSWORD });
-    const admin = await openUnlocked(page);
+    await openUnlocked(page);
+    const admin = await openUpdates(page);
 
     // The daemon forgets every session (expiry, admin_reset…).
     await mock.admin({ clearSessions: true });
@@ -223,8 +241,8 @@ test('bad_session asks for the password again, silently, and replays only the re
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
 
-    // The refused check is finished for the user, with no extra tap.
-    await expect(admin.updatesHeadline).toHaveText('2 updates available');
+    // The refused check is finished for the user, with no extra tap: the tile says so.
+    await expect(admin.hub).toContainText('2 updates available');
     const actions = await mock.adminActions();
     expect(actions.filter((action) => action === 'update_check')).toHaveLength(2);
     expect(actions).not.toContain('update_upgrade_all');
@@ -254,6 +272,7 @@ test('package names need the session: shown unlocked, gone once the session expi
 
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
+    await openUpdates(page);
     await page.getByRole('button', { name: MESSAGES.admin.updates.check }).click();
     await expect(admin.updatesHeadline).toHaveText('2 updates available');
     await page.getByRole('button', { name: MESSAGES.admin.updates.upgrade }).click();
@@ -269,6 +288,8 @@ test('package names need the session: shown unlocked, gone once the session expi
     await mock.admin({ clearSessions: true });
     await expect(admin.heading).toHaveText(MESSAGES.admin.unlock.title, { timeout: 10_000 });
     await expect(admin.error).toHaveText('');
+    await expect(page).toHaveURL(/#\/admin$/);
+    await expect(admin.hub).toHaveCount(0);
     await expect(admin.updates).toHaveCount(0);
     expect((await mock.adminActions()).filter((action) => action === 'update_upgrade_all')).toHaveLength(1);
     // The run is still followed, now in the household view: a read at once, then the poll.
@@ -348,27 +369,116 @@ test.describe('other blocked states', () => {
     });
 });
 
-test('the box actions: restart asks first, the MCP token too, and the password needs an approver', async ({
-    page,
-    mock,
-}) => {
+test('the hub is only tiles, in order, and a locked sub-page sends back to it', async ({ page, mock }) => {
     await mock.admin({ password: ADMIN_PASSWORD });
-    const admin = await openUnlocked(page);
+    await page.goto('/');
+    await loginAs(page);
+    const admin = adminScreen(page);
+    await admin.tab.click();
+    await expect(admin.heading).toHaveText(MESSAGES.admin.unlock.title);
 
-    await page.locator('.actions').getByRole('button', { name: MESSAGES.admin.actions.rebootConfirm }).click();
+    for (const sub of ['updates', 'mcp', 'security', 'system']) {
+        await page.evaluate((hash) => (location.hash = hash), `#/admin/${sub}`);
+        await expect(page).toHaveURL(/#\/admin$/);
+        await expect(admin.heading).toHaveText(MESSAGES.admin.unlock.title);
+    }
+
+    await admin.adminPassword.fill(ADMIN_PASSWORD);
+    await admin.submit.click();
+    await expect(page.locator('[data-page]')).toHaveCount(9);
+    const titles = MESSAGES.admin;
+    await expect(page.locator('.pages__name')).toHaveText([
+        titles.updates.title,
+        network.entry.name,
+        services.title,
+        logs.title,
+        time.title,
+        titles.mcp.title,
+        titles.security.title,
+        titles.system.title,
+        config.title,
+    ]);
+    await expect(admin.updates).toHaveCount(0);
+    await expect(page.locator('.mcp, .approvers, .system')).toHaveCount(0);
+});
+
+test('the updates tile carries a run: in progress, then what it needs', async ({ page, mock }) => {
+    await mock.admin({ password: ADMIN_PASSWORD, upgradeMs: 3_000, rebootRequired: true });
+    await openUnlocked(page);
+    const admin = await openUpdates(page);
+    await page.getByRole('button', { name: MESSAGES.admin.updates.check }).click();
+    await expect(admin.updatesHeadline).toHaveText('2 updates available');
+    await page.goBack();
+    await expect(admin.hub).toContainText('2 updates available');
+    await expect(admin.hub).toHaveClass(/pages__tile--warn/);
+
+    await admin.tile('updates').click();
+    await page.getByRole('button', { name: MESSAGES.admin.updates.upgrade }).click();
+    await expect(admin.progress).toBeVisible();
+    await page.goBack();
+    await expect(admin.hub).toContainText(MESSAGES.admin.updates.upgrading.split('…')[0]);
+    await expect(admin.hub).toContainText(MESSAGES.admin.updates.doneReboot, { timeout: 15_000 });
+});
+
+test('restart from the updates page: the one dialog, then the message follows to the hub', async ({ page, mock }) => {
+    await mock.admin({ password: ADMIN_PASSWORD, upgradeMs: 500, rebootRequired: true });
+    await openUnlocked(page);
+    const admin = await openUpdates(page);
+    await page.getByRole('button', { name: MESSAGES.admin.updates.check }).click();
+    await page.getByRole('button', { name: MESSAGES.admin.updates.upgrade }).click();
+    await expect(admin.updatesHeadline).toHaveText(MESSAGES.admin.updates.doneReboot, { timeout: 15_000 });
+
+    const restart = page.locator('.updates__actions').getByRole('button', { name: MESSAGES.admin.actions.reboot });
+    await restart.click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toContainText(MESSAGES.admin.actions.rebootConfirmTitle);
     await dialog.getByRole('button', { name: MESSAGES.dialog.cancel }).click();
     expect((await mock.adminStatus()).reboots).toBe(0);
 
-    await page.getByRole('button', { name: MESSAGES.admin.actions.regenerate }).click();
-    await page.getByRole('dialog').getByRole('button', { name: MESSAGES.admin.actions.mcpConfirm }).click();
-    await expect(admin.info).toContainText(MESSAGES.admin.info.mcp_regenerated);
-    expect((await mock.adminStatus()).mcpRegenerations).toBe(1);
+    await restart.click();
+    await dialog.getByRole('button', { name: MESSAGES.admin.actions.rebootConfirm }).click();
+    await expect(admin.info).toContainText(MESSAGES.admin.info.reboot_sent);
+    expect((await mock.adminStatus()).reboots).toBe(1);
 
-    // No approver phone: said up front, before any typing, with the way to add
-    // one (the change with a code is e2e/approvers.spec.ts).
-    await expect(page.locator('.actions')).toContainText(MESSAGES.admin.actions.passwordNeedsApprover);
+    await page.goBack();
+    await expect(admin.hub).toBeVisible();
+    await expect(admin.info).toContainText(MESSAGES.admin.info.reboot_sent);
+});
+
+test('restart from the system page asks first, and its message stays on the way back', async ({ page, mock }) => {
+    await mock.admin({ password: ADMIN_PASSWORD });
+    const admin = await openUnlocked(page);
+    await admin.tile('system').click();
+    await expect(page).toHaveURL(/#\/admin\/system$/);
+
+    const restart = page.locator('.system').getByRole('button', { name: MESSAGES.admin.actions.rebootConfirm });
+    await restart.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText(MESSAGES.admin.actions.rebootConfirmTitle);
+    await dialog.getByRole('button', { name: MESSAGES.dialog.cancel }).click();
+    expect((await mock.adminStatus()).reboots).toBe(0);
+
+    await restart.click();
+    await dialog.getByRole('button', { name: MESSAGES.admin.actions.rebootConfirm }).click();
+    await expect(admin.info).toContainText(MESSAGES.admin.info.reboot_sent);
+    expect((await mock.adminStatus()).reboots).toBe(1);
+
+    await page.getByRole('navigation', { name: MESSAGES.admin.pages.trail }).getByRole('link', { name: MESSAGES.admin.title }).click();
+    await expect(page).toHaveURL(/#\/admin$/);
+    await expect(admin.info).toContainText(MESSAGES.admin.info.reboot_sent);
+    await page.locator('.admin__dismiss').click();
+    await expect(admin.info).toHaveCount(0);
+    expect(CREDENTIALS.user).toBe('demo');
+});
+
+test('the password needs an approver: said up front, with the way to add one', async ({ page, mock }) => {
+    await mock.admin({ password: ADMIN_PASSWORD });
+    const admin = await openUnlocked(page);
+    await admin.tile('security').click();
+    await expect(page).toHaveURL(/#\/admin\/security$/);
+
+    // The change with a code is e2e/approvers.spec.ts.
+    await expect(page.locator('.password')).toContainText(MESSAGES.admin.actions.passwordNeedsApprover);
     await page.getByRole('button', { name: MESSAGES.admin.actions.change }).click();
     const change = page.getByRole('dialog');
     await expect(change).toContainText(MESSAGES.admin.actions.passwordNeedsApprover);
@@ -378,10 +488,4 @@ test('the box actions: restart asks first, the MCP token too, and the password n
     await page.getByRole('dialog').getByRole('button', { name: MESSAGES.dialog.cancel }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     expect(await mock.adminStatus()).toMatchObject({ sessions: 1 });
-
-    await page.locator('.actions').getByRole('button', { name: MESSAGES.admin.actions.rebootConfirm }).click();
-    await page.getByRole('dialog').getByRole('button', { name: MESSAGES.admin.actions.rebootConfirm }).click();
-    await expect(admin.info).toContainText(MESSAGES.admin.info.reboot_sent);
-    expect((await mock.adminStatus()).reboots).toBe(1);
-    expect(CREDENTIALS.user).toBe('demo');
 });
