@@ -10,8 +10,20 @@ import { isRecord, toWireString } from './guards';
 
 /** Replies to admin messages are expected within this delay… */
 export const ADMIN_REPLY_TIMEOUT_MS = 5_000;
-/** …except `update_check`, which runs a synchronous `apt-get update`. */
+/** …except `update_check`, which runs a synchronous `apt-get update`… */
 export const UPDATE_CHECK_TIMEOUT_MS = 125_000;
+/** …and the actions calaos_server itself gives longer than 4 s (its delay plus margin). */
+export const SYSTEM_RESTART_TIMEOUT_MS = 35_000;
+export const LOGS_QUERY_TIMEOUT_MS = 12_000;
+export const TIME_SET_TIMEOUT_MS = 40_000;
+/** The upload of up to 4 MiB, then the validation and the copy of the current files. */
+export const CONFIG_RESTORE_TIMEOUT_MS = 35_000;
+/** `networkctl` can take up to 30 s; calaos_server waits 35 s. */
+export const NETWORK_CHANGE_TIMEOUT_MS = 40_000;
+/** Start and stop answer once systemd has run them. */
+export const SERVICE_ACTION_TIMEOUT_MS = 20_000;
+/** Enable and disable also wait on the daemon's `reset-failed`; the relay waits 35 s. */
+export const SERVICE_BOOT_TIMEOUT_MS = 40_000;
 /** `admin_unavailable`: retry every 5 s for 2 min, then every 60 s. */
 export const UNAVAILABLE_FAST_RETRY_MS = 5_000;
 export const UNAVAILABLE_FAST_WINDOW_MS = 120_000;
@@ -53,6 +65,8 @@ export const ADMIN_ERROR_CODES = [
     'bad_code',
     'code_expired',
     'console_limit',
+    'network_pending',
+    'service_unavailable',
     'login_failed',
     'internal',
 ] as const;
@@ -91,6 +105,23 @@ export interface AdminError {
     attemptsLeft: number | null;
     /** With `approver_limit` and `console_limit`. */
     max: number | null;
+    /** With `network_pending`: the change already waiting, and its seconds left. */
+    changeId: string;
+    expiresIn: number | null;
+    /** With the `internal` of a partly applied `time_set`: the steps done, the one that failed. */
+    applied: string[];
+    failed: string;
+    /** Same case: true once the timezone changed, whatever failed after it. */
+    restartRequired: boolean;
+    /**
+     * `"outcome": "unknown"`: calaos_server gave up waiting for the daemon,
+     * which may still have acted. Never resend; read the state again.
+     */
+    outcomeUnknown: boolean;
+    /** With the `internal` of a failed `config_restore`: the `backups/` folder of the replaced files. */
+    previous: string;
+    /** Same case: calaos_server restarts anyway, because a file was replaced. */
+    restarting: boolean;
 }
 
 export const ADMIN_ACTIONS = [
@@ -111,6 +142,25 @@ export const ADMIN_ACTIONS = [
     'code_request',
     'code_verify',
     'console_open',
+    'services_list',
+    'services_restart',
+    'services_start',
+    'services_stop',
+    'services_enable',
+    'services_disable',
+    'logs_sources',
+    'logs_query',
+    'time_get',
+    'time_zones',
+    'time_set',
+    'network_state',
+    'network_apply',
+    'network_confirm',
+    'network_revert',
+    'config_list',
+    'config_set',
+    'config_backup',
+    'config_restore',
 ] as const;
 
 export type AdminAction = (typeof ADMIN_ACTIONS)[number];
@@ -144,7 +194,12 @@ export interface UpgradeJob {
 }
 
 /** What a push code protects (`code_request`'s `code_action`). */
-export type CodeAction = 'admin_password' | 'approver_enroll' | 'approver_remove' | 'console_open';
+export type CodeAction =
+    | 'admin_password'
+    | 'approver_enroll'
+    | 'approver_remove'
+    | 'console_open'
+    | 'network_config';
 
 /** An enrolled phone, from `approver_list`. Dates are RFC 3339, '' when unknown. */
 export interface Approver {
@@ -156,6 +211,8 @@ export interface Approver {
     registeredAt: string;
     /** '' once the token left `push_tokens` (30 days without the app): no codes reach it. */
     lastSeen: string;
+    /** The phone sent a push key: its codes travel encrypted and show in the app. */
+    secure: boolean;
 }
 
 /** A phone that registered for push, from `approver_candidates`. */
@@ -166,6 +223,7 @@ export interface ApproverCandidate {
     registeredAt: string;
     lastSeen: string;
     approver: boolean;
+    secure: boolean;
 }
 
 /** A code on its way to a phone. */
@@ -186,6 +244,34 @@ export interface UpdateEntry {
     name: string;
     version: string;
     currentVersion: string;
+}
+
+/** The reply delay of one `admin` action, a little over calaos_server's own. */
+export function adminReplyTimeoutMs(action: AdminAction): number {
+    switch (action) {
+        case 'update_check':
+            return UPDATE_CHECK_TIMEOUT_MS;
+        case 'system_restart':
+            return SYSTEM_RESTART_TIMEOUT_MS;
+        case 'logs_query':
+            return LOGS_QUERY_TIMEOUT_MS;
+        case 'time_set':
+            return TIME_SET_TIMEOUT_MS;
+        case 'config_restore':
+            return CONFIG_RESTORE_TIMEOUT_MS;
+        case 'services_start':
+        case 'services_stop':
+            return SERVICE_ACTION_TIMEOUT_MS;
+        case 'services_enable':
+        case 'services_disable':
+            return SERVICE_BOOT_TIMEOUT_MS;
+        case 'network_apply':
+        case 'network_confirm':
+        case 'network_revert':
+            return NETWORK_CHANGE_TIMEOUT_MS;
+        default:
+            return ADMIN_REPLY_TIMEOUT_MS;
+    }
 }
 
 // ---------------------------------------------------------------- encoders ---
@@ -248,7 +334,7 @@ export function encodeChangeCredentials(
 
 // ---------------------------------------------------------------- decoders ---
 
-function toNumberOrNull(value: unknown): number | null {
+export function toNumberOrNull(value: unknown): number | null {
     if (value === undefined || value === null || value === '') return null;
     const n = Number(value);
     return Number.isFinite(n) ? n : null;
@@ -258,7 +344,7 @@ function toNumber(value: unknown, fallback = 0): number {
     return toNumberOrNull(value) ?? fallback;
 }
 
-function toBool(value: unknown): boolean {
+export function toBool(value: unknown): boolean {
     return value === true || value === 'true';
 }
 
@@ -274,6 +360,7 @@ export function isAdminFailure(data: unknown): boolean {
 /** Reads the shared error payload; an unlisted code becomes `unknown`. */
 export function toAdminError(data: unknown): AdminError {
     const record = isRecord(data) ? data : {};
+    const applied = toWireString(record.applied);
     return {
         code: isAdminErrorCode(record.error) ? record.error : 'unknown',
         msg: toWireString(record.msg),
@@ -283,12 +370,28 @@ export function toAdminError(data: unknown): AdminError {
         apiAllowedHosts: toWireString(record.api_allowed_hosts),
         attemptsLeft: toNumberOrNull(record.attempts_left),
         max: toNumberOrNull(record.max),
+        changeId: toWireString(record.change_id),
+        expiresIn: toNumberOrNull(record.expires_in),
+        applied: applied === '' ? [] : applied.split(','),
+        failed: toWireString(record.failed),
+        restartRequired: toBool(record.restart_required),
+        outcomeUnknown: record.outcome === 'unknown',
+        previous: toWireString(record.previous),
+        restarting: toBool(record.restarting),
     };
 }
 
-export function clientAdminError(
-    code: 'timeout' | 'disconnected' | 'household_refused' | 'busy',
-): AdminError {
+/**
+ * The errors a phase-3 panel shows on its own: an action newer than the
+ * daemon in memory, and a write calaos_server stopped waiting for. Neither
+ * says anything about the rest of the Admin page.
+ */
+export function isPanelError(error: AdminError): boolean {
+    return error.code === 'daemon_too_old' || error.outcomeUnknown;
+}
+
+/** An error with no detail field, for a refusal the client knows before asking. */
+export function bareAdminError(code: AdminFailureCode): AdminError {
     return {
         code,
         msg: '',
@@ -298,7 +401,21 @@ export function clientAdminError(
         apiAllowedHosts: '',
         attemptsLeft: null,
         max: null,
+        changeId: '',
+        expiresIn: null,
+        applied: [],
+        failed: '',
+        restartRequired: false,
+        outcomeUnknown: false,
+        previous: '',
+        restarting: false,
     };
+}
+
+export function clientAdminError(
+    code: 'timeout' | 'disconnected' | 'household_refused' | 'busy',
+): AdminError {
+    return bareAdminError(code);
 }
 
 const UPGRADE_STATUSES = ['idle', 'upgrading', 'done', 'error'] as const;
@@ -367,6 +484,7 @@ export function toApprovers(raw: unknown): Approver[] {
         platform: toWireString(r.platform),
         registeredAt: toWireString(r.registered_at),
         lastSeen: toWireString(r.last_seen),
+        secure: toBool(r.secure),
     }));
 }
 
@@ -379,6 +497,7 @@ export function toApproverCandidates(raw: unknown): ApproverCandidate[] {
         registeredAt: toWireString(r.registered_at),
         lastSeen: toWireString(r.last_seen),
         approver: toBool(r.approver),
+        secure: toBool(r.secure),
     }));
 }
 

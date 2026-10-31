@@ -6,8 +6,9 @@
 
 import { describe, expect, it } from 'vitest';
 import { createI18n } from 'vue-i18n';
-import en from './en.json';
-import fr from './fr.json';
+import { messages } from './messages';
+
+const { en, fr } = messages;
 
 /** JSON leaves are always strings here; anything else is a shape bug. */
 type Catalog = { [key: string]: Catalog | string };

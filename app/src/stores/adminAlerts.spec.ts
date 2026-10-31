@@ -144,12 +144,15 @@ describe('admin alerts', () => {
         expect(alerts.alerts).toEqual([]);
     });
 
-    it('re-reads the log on a live approver alert only', () => {
+    it('re-reads the log on a live approver or network rollback alert only', () => {
         const alerts = store();
         alerts.handleEvent('upgrade_progress');
         alerts.handleEvent('admin_set');
+        alerts.handleEvent('network_pending');
         expect(sent).toEqual([]);
         alerts.handleEvent('approver_removed');
         expect(sent).toHaveLength(1);
+        alerts.handleEvent('network_rolled_back');
+        expect(sent).toHaveLength(2);
     });
 });

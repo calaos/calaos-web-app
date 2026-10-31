@@ -1,0 +1,94 @@
+{
+    "title": "Services",
+    "hint": "Les programmes qui composent la box. Démarrez-les ou arrêtez-les ici, et choisissez ceux qui démarrent avec la box.",
+    "entryHint": "Voir les programmes qui composent la box, les démarrer ou les arrêter.",
+    "state": {
+        "active": "En marche",
+        "inactive": "Arrêté",
+        "failed": "En échec",
+        "activating": "Démarrage",
+        "deactivating": "Arrêt",
+        "reloading": "Rechargement",
+        "not-found": "Non installé",
+        "unknown": "Inconnu",
+        "masked": "Masqué (SSH)"
+    },
+    "name": {
+        "calaos-server": "Serveur Calaos",
+        "calaos-home": "Calaos Home (écran tactile)",
+        "mosquitto": "Mosquitto (MQTT)",
+        "zigbee2mqtt": "Zigbee2MQTT",
+        "influxdb": "InfluxDB",
+        "grafana": "Grafana",
+        "hue2mqtt": "hue2mqtt",
+        "envoy": "Envoy",
+        "olad": "OLA (DMX)",
+        "ntp": "Synchronisation de l’heure",
+        "calaos-container": "calaos-container",
+        "haproxy": "haproxy",
+        "networkd": "Réseau",
+        "ssh": "SSH"
+    },
+    "runningSince": "{state} depuis {when}",
+    "restart": "Redémarrer",
+    "start": "Démarrer",
+    "stop": "Arrêter",
+    "statusOnly": "État seulement",
+    "startAtBoot": "Démarrer avec la box",
+    "startAtBootOf": "Démarrer avec la box : {name}",
+    "timeLink": "Marche/arrêt : Heure",
+    "busy": {
+        "restart": "Redémarrage…",
+        "start": "Démarrage…",
+        "stop": "Arrêt…",
+        "enable": "Activation…",
+        "disable": "Désactivation…"
+    },
+    "loading": "Lecture des services…",
+    "loadFailed": "La liste des services n’a pas pu être lue.",
+    "retry": "Réessayer",
+    "confirmTitle": "Redémarrer {name} ?",
+    "confirmHint": "Il s’arrête quelques secondes puis redémarre. Ce qui en dépend attend pendant ce temps.",
+    "restartWarning": {
+        "calaos-server": "Cette page perd sa connexion une trentaine de secondes. Elle se reconnecte d’elle-même.",
+        "haproxy": "Cette page perd sa connexion quelques secondes. Elle se reconnecte d’elle-même.",
+        "calaos-container": "Cette page perd sa connexion quelques secondes. Les fonctions d’administration sont indisponibles une dizaine de secondes."
+    },
+    "stopTitle": "Arrêter {name} ?",
+    "stopHint": "Il redémarre au prochain démarrage de la box ou à la prochaine mise à jour. Pour le garder arrêté, désactivez « Démarrer avec la box ».",
+    "disableTitle": "Arrêter {name} maintenant et à chaque démarrage ?",
+    "disableConfirm": "Arrêter et désactiver",
+    "consequence": {
+        "calaos-home": "L’écran tactile devient noir.",
+        "mosquitto": "Les appareils Zigbee, Hue, Enphase et MQTT cessent de répondre.",
+        "zigbee2mqtt": "Les appareils Zigbee cessent de répondre.",
+        "influxdb": "L’historique n’est plus enregistré, et Grafana n’affiche plus rien de nouveau.",
+        "grafana": "Les graphiques ne sont plus disponibles. L’historique continue d’être enregistré.",
+        "hue2mqtt": "Les lampes Hue cessent de répondre.",
+        "envoy": "Les mesures solaires Enphase ne sont plus mises à jour.",
+        "olad": "Les éclairages DMX cessent de répondre."
+    },
+    "startNote": "Il ne redémarrera pas après un redémarrage de la box ou une mise à jour. Activez « Démarrer avec la box » pour le garder.",
+    "reconnecting": "Reconnexion…",
+    "selfRestarting": "{name} redémarre. Cette page se reconnecte d’elle-même, puis vérifie qu’il est revenu.",
+    "upgrading": "Une mise à jour est en cours : les commandes attendent qu’elle se termine.",
+    "result": {
+        "done": {
+            "restart": "Redémarré.",
+            "start": "Démarré.",
+            "stop": "Arrêté.",
+            "enable": "Démarré, et il démarre désormais avec la box.",
+            "disable": "Arrêté, et il ne démarre plus avec la box."
+        },
+        "failed": {
+            "restart": "Il n’a pas redémarré. Ses logs disent pourquoi.",
+            "start": "Il n’a pas démarré. Ses logs disent pourquoi.",
+            "stop": "Il ne s’est pas arrêté proprement. Ses logs disent pourquoi.",
+            "enable": "Il n’a pas démarré. Ses logs disent pourquoi.",
+            "disable": "Il ne s’est pas arrêté proprement. Ses logs disent pourquoi."
+        },
+        "not_found": "Ce service n’est pas installé sur la box.",
+        "timeout": "Aucune confirmation après {seconds} secondes. Vérifiez son état ci-dessus.",
+        "upgrade_in_progress": "Une mise à jour est en cours. Réessayez une fois qu’elle est terminée."
+    }
+}

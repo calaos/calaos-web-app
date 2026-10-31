@@ -19,7 +19,7 @@ import {
     UNAVAILABLE_FAST_RETRY_MS,
     UNAVAILABLE_FAST_WINDOW_MS,
     UNAVAILABLE_SLOW_RETRY_MS,
-    UPDATE_CHECK_TIMEOUT_MS,
+    adminReplyTimeoutMs,
     clientAdminError,
     encodeAdminAction,
     encodeAdminSet,
@@ -690,10 +690,9 @@ export const useAdminStore = defineStore('admin', () => {
         busy.value = action;
         notice.value = null;
         info.value = null;
-        const timeout = action === 'update_check' ? UPDATE_CHECK_TIMEOUT_MS : ADMIN_REPLY_TIMEOUT_MS;
         const outcome = await request(
             (id) => encodeAdminAction(action, session.value, id, params),
-            timeout,
+            adminReplyTimeoutMs(action),
         );
         busy.value = null;
         if (!outcome.ok) {
@@ -716,11 +715,14 @@ export const useAdminStore = defineStore('admin', () => {
      * One relayed action for another store (approvers): gate errors are
      * applied here, every other error is returned for the caller to show.
      * `hold` marks the page busy for the duration, as a button press does.
+     * `local` picks the gate errors the caller handles in its own panel: an
+     * action newer than the daemon must not block the rest of the page.
      */
     async function relay(
         action: AdminAction,
         params: Record<string, unknown> | undefined,
         hold: boolean,
+        local: (error: AdminError) => boolean = () => false,
     ): Promise<Outcome> {
         if (hold) {
             if (busy.value !== null) return { ok: false, error: BUSY };
@@ -729,10 +731,10 @@ export const useAdminStore = defineStore('admin', () => {
         }
         const outcome = await request(
             (id) => encodeAdminAction(action, session.value, id, params),
-            ADMIN_REPLY_TIMEOUT_MS,
+            adminReplyTimeoutMs(action),
         );
         if (hold) busy.value = null;
-        if (!outcome.ok) applyGateError(outcome.error);
+        if (!outcome.ok && !local(outcome.error)) applyGateError(outcome.error);
         return outcome;
     }
 
@@ -786,9 +788,12 @@ export const useAdminStore = defineStore('admin', () => {
         if (data !== null) info.value = 'reboot_sent';
     }
 
-    async function regenerateMcp(): Promise<void> {
+    /** true once the box has a new token; `get_mcp_info` is how it is read. */
+    async function regenerateMcp(): Promise<boolean> {
         const data = await run('mcp_regenerate');
-        if (data !== null) info.value = 'mcp_regenerated';
+        if (data === null) return false;
+        info.value = 'mcp_regenerated';
+        return true;
     }
 
     // -------------------------------------------------------------- events ---

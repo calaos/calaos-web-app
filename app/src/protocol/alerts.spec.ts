@@ -61,4 +61,20 @@ describe('approver alerts in the event log', () => {
         expect(toAdminAlerts({ error: 'history is disabled' })).toEqual([]);
         expect(toAdminAlerts(null)).toEqual([]);
     });
+
+    it('reads a network rollback and its interface, unquoted', () => {
+        expect(
+            toAdminAlerts({
+                events: [
+                    pushEvent('n1', 'Network change rolled back on your Calaos box: eth0'),
+                    pushEvent('n2', 'Network change rolled back on your Calaos box: ?'),
+                    pushEvent('n3', 'Network change rolled back on your Calaos box: eth0 and more'),
+                    pushEvent('n4', 'Network change rolled back on your Calaos box: '),
+                ],
+            }).map(({ id, kind, deviceName }) => ({ id, kind, deviceName })),
+        ).toEqual([
+            { id: 'n1', kind: 'network_rolled_back', deviceName: 'eth0' },
+            { id: 'n2', kind: 'network_rolled_back', deviceName: '?' },
+        ]);
+    });
 });

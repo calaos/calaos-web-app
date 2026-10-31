@@ -21,6 +21,7 @@ import { wsUrl } from '../protocol/server-url';
 import { encodeGetHome } from '../protocol/messages';
 import { useAdminStore } from '../stores/admin';
 import { useAdminAlertsStore } from '../stores/adminAlerts';
+import { useAdminNetworkStore } from '../stores/adminNetwork';
 import { useApproversStore } from '../stores/approvers';
 import { useAudioStore } from '../stores/audio';
 import { useAuthStore } from '../stores/auth';
@@ -58,6 +59,7 @@ export function createCalaosService(
     const admin = useAdminStore();
     const approvers = useApproversStore();
     const adminAlerts = useAdminAlertsStore();
+    const adminNetwork = useAdminNetworkStore();
 
     const sendFrame = (frame: string): boolean => socket.send(frame);
     auth.attachTransport(sendFrame);
@@ -100,6 +102,7 @@ export function createCalaosService(
                     // After the house: the admin session is kept across a
                     // reconnect and `update_status` resumes an upgrade.
                     admin.handleLoggedIn();
+                    adminNetwork.handleLoggedIn();
                     // Approver alerts are shown to everyone, at sign-in.
                     adminAlerts.refresh();
                 }
@@ -113,6 +116,7 @@ export function createCalaosService(
                 admin.handleEvent(msg);
                 approvers.handleEvent(msg.type);
                 adminAlerts.handleEvent(msg.type);
+                adminNetwork.handleEvent(msg);
                 break;
 
             case 'eventlog':

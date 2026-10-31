@@ -318,3 +318,27 @@ describe('admin console route', () => {
         expect(router.currentRoute.value.meta.detail).toBe(true);
     });
 });
+
+describe.each([
+    ['/admin/logs', 'adminLogs'],
+    ['/admin/network', 'adminNetwork'],
+    ['/admin/services', 'adminServices'],
+    ['/admin/settings', 'adminSettings'],
+])('admin route %s', (path, name) => {
+    it('without an unlocked admin session, goes to the Admin tab instead', async () => {
+        signedIn();
+        await router.push(path);
+        expect(router.currentRoute.value.name).toBe('admin');
+    });
+
+    it('with one, opens as a detail route', async () => {
+        signedIn();
+        const admin = useAdminStore();
+        admin.gate = 'unlocked';
+        admin.session = 'a'.repeat(64);
+        router.getRoutes().find((r) => r.name === name)!.components!.default = { render: () => null };
+        await router.push(path);
+        expect(router.currentRoute.value.name).toBe(name);
+        expect(router.currentRoute.value.meta.detail).toBe(true);
+    });
+});

@@ -1397,7 +1397,7 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
             expect(reply.result.map((c) => c.device_name)).toEqual(['Pixel 8', 'iPhone', 'iPhone']);
             for (const candidate of reply.result) {
                 expect(Object.keys(candidate).sort()).toEqual(
-                    ['approver', 'device_name', 'last_seen', 'platform', 'registered_at', 'token_id'],
+                    ['approver', 'device_name', 'last_seen', 'platform', 'registered_at', 'secure', 'token_id'],
                 );
                 expect(candidate.approver).toBe(false);
             }

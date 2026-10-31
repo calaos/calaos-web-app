@@ -7,7 +7,7 @@ import { useAdminAlertsStore } from './adminAlerts';
 import { useApproversStore } from './approvers';
 
 const SESSION = 'b'.repeat(64);
-const PIXEL = { tokenId: '0c1d2e3f4a5b6c7d', deviceName: 'Pixel 8', platform: 'android', registeredAt: '', lastSeen: '', approver: false };
+const PIXEL = { tokenId: '0c1d2e3f4a5b6c7d', deviceName: 'Pixel 8', platform: 'android', registeredAt: '', lastSeen: '', approver: false, secure: false };
 const IPHONE = { ...PIXEL, tokenId: 'a1b2c3d4e5f60718', deviceName: 'iPhone', platform: 'ios' };
 const ENROLLED = { id: '1111111111111111', device_name: 'Pixel 8', token_id: PIXEL.tokenId, created_at: '2026-10-01T00:00:00Z' };
 
@@ -221,6 +221,7 @@ describe('removal', () => {
             platform: 'android',
             registeredAt: '',
             lastSeen: '',
+            secure: false,
         });
         expect(last().data.params).toEqual({
             code_action: 'approver_remove',

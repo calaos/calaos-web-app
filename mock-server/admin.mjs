@@ -16,6 +16,11 @@
 // the event log (`eventlog`) the way calaos_server stores them.
 
 import { randomBytes, randomUUID } from 'node:crypto';
+import { createConfig } from './admin-config.mjs';
+import { createLogs } from './admin-logs.mjs';
+import { createNetwork, networkBinding } from './admin-network.mjs';
+import { createServices } from './admin-services.mjs';
+import { createTime } from './admin-time.mjs';
 
 export const ADMIN_SCENARIOS = [
     'unavailable',
@@ -43,9 +48,30 @@ const ACTIONS = [
     'code_request',
     'code_verify',
     'console_open',
+    'services_list',
+    'services_restart',
+    'services_start',
+    'services_stop',
+    'services_enable',
+    'services_disable',
+    'logs_sources',
+    'logs_query',
+    'time_get',
+    'time_zones',
+    'time_set',
+    'network_state',
+    'network_apply',
+    'network_confirm',
+    'network_revert',
+    'config_list',
+    'config_set',
+    'config_backup',
+    'config_restore',
 ];
 
-const CODE_ACTIONS = ['console_open', 'admin_password', 'approver_enroll', 'approver_remove'];
+const CODE_ACTIONS = ['console_open', 'admin_password', 'approver_enroll', 'approver_remove', 'network_config'];
+/** The phase-3 features, each in its own module; `/control {op:'admin', <name>: {...}}` patches one. */
+const FEATURES = ['services', 'logs', 'time', 'config', 'network'];
 const APPROVER_MAX = 2;
 const CODE_FAILURES_MAX = 5;
 const HEX16 = /^[0-9a-f]{16}$/;
@@ -55,6 +81,7 @@ const PUSH_NOTIFICATION_EVENT = '22';
 const ALERT_PREFIXES = {
     approver_set: 'New approver phone on your Calaos box: ',
     approver_removed: 'Approver phone removed from your Calaos box: ',
+    network_rolled_back: 'Network change rolled back on your Calaos box: ',
 };
 
 const SESSION_SECONDS = 900;
@@ -152,19 +179,22 @@ function iso(ms) {
 function defaultPushTokens(now) {
     const day = 86_400_000;
     return [
-        { token_id: '0c1d2e3f4a5b6c7d', device_name: 'Pixel 8', platform: 'android', registered_at: iso(now - 90 * day), last_seen: iso(now - 10 * 60_000) },
-        { token_id: 'a1b2c3d4e5f60718', device_name: 'iPhone', platform: 'ios', registered_at: iso(now - 200 * day), last_seen: iso(now - 2 * 3_600_000) },
-        { token_id: '9f8e7d6c5b4a3921', device_name: 'iPhone', platform: 'ios', registered_at: iso(now - 30 * day), last_seen: iso(now - 3 * day) },
+        { token_id: '0c1d2e3f4a5b6c7d', device_name: 'Pixel 8', platform: 'android', registered_at: iso(now - 90 * day), last_seen: iso(now - 10 * 60_000), secure: true },
+        { token_id: 'a1b2c3d4e5f60718', device_name: 'iPhone', platform: 'ios', registered_at: iso(now - 200 * day), last_seen: iso(now - 2 * 3_600_000), secure: false },
+        { token_id: '9f8e7d6c5b4a3921', device_name: 'iPhone', platform: 'ios', registered_at: iso(now - 30 * day), last_seen: iso(now - 3 * day), secure: false },
     ];
 }
 
 export function createAdmin({ hub, send, broadcast, withMsgId }) {
     let state;
     let timer = null;
+    /** Built once the helpers they share exist; see below. */
+    let features;
 
     function reset() {
         if (timer !== null) clearTimeout(timer);
         timer = null;
+        if (features !== undefined) for (const name of FEATURES) features[name].reset();
         state = {
             set: false,
             password: '',
@@ -172,6 +202,8 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             sessions: new Map(),
             apiAllowedHosts: '',
             scenario: null,
+            /** Actions answered `daemon_too_old`, as from a daemon in memory older than their route. */
+            tooOld: [],
             /** Timestamps of recent unlock failures (rate limiter). */
             failures: [],
             updates: structuredClone(DEFAULT_UPDATES),
@@ -186,6 +218,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             reboots: 0,
             restarts: 0,
             mcpRegenerations: 0,
+            mcpToken: randomBytes(32).toString('hex'),
             pushTokens: defaultPushTokens(Date.now()),
             /** <Approver>, oldest first. */
             approvers: [],
@@ -384,6 +417,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 platform: entry?.platform ?? '',
                 registered_at: entry?.registered_at ?? '',
                 last_seen: entry?.last_seen ?? '',
+                secure: entry?.secure === true,
             };
         });
     }
@@ -481,6 +515,10 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         } else if (action === 'approver_remove') {
             if (!HEX16.test(String(raw.approver_id))) return failure('invalid_request', 'approver_id missing');
             bound = { approver_id: raw.approver_id };
+        } else if (action === 'network_config') {
+            const checked = networkBinding(raw, failure);
+            if (checked.error !== undefined) return checked.error;
+            bound = checked.bound;
         }
         if (params.approver_id !== undefined && !HEX16.test(String(params.approver_id))) {
             return failure('invalid_request', 'invalid approver_id');
@@ -589,9 +627,16 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         return { success: 'true', result: { approver_id: removed.id } };
     }
 
-    /** What calaos_server does with a daemon alert: a persistent event, then `admin_event`. */
+    /**
+     * What calaos_server does with a daemon alert: a persistent event, then
+     * `admin_event`. A network rollback names its interface, unquoted, and
+     * the live event carries it in `data.intf`.
+     */
     function raiseAlert(type, deviceName, at = Date.now()) {
+        const network = type === 'network_rolled_back';
+        const intf = /^[a-zA-Z0-9_.-]{1,15}$/.test(String(deviceName)) && deviceName !== 'lo' ? deviceName : '?';
         const name = String(deviceName).replace(/["«»“”„‟″‶＂]/g, "'") || '?';
+        const subject = network ? intf : `"${name}"`;
         state.events.push({
             id: randomUUID(),
             event_type: PUSH_NOTIFICATION_EVENT,
@@ -599,9 +644,10 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             io_state: '',
             pic_uid: '',
             created_at: sqliteTime(at),
-            event_raw: { message: `${ALERT_PREFIXES[type]}"${name}"`, pic_uid: '' },
+            event_raw: { message: `${ALERT_PREFIXES[type]}${subject}`, pic_uid: '' },
         });
-        event(type);
+        if (network) event(type, { intf: deviceName });
+        else event(type);
     }
 
     /** IO history rows, as the log holds for every IO with `log_history`. */
@@ -635,6 +681,46 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             per_page: perPage,
             events: newest.slice(page * perPage, (page + 1) * perPage),
         });
+    }
+
+    // ----------------------------------------------------------- features ---
+
+    features = {
+        services: createServices({ hub, failure, running }),
+        logs: createLogs({ failure }),
+        time: createTime({ failure }),
+        config: createConfig({ failure, hub, running }),
+        network: createNetwork({
+            hub,
+            failure,
+            event,
+            running,
+            useCode,
+            proofFormatError,
+            rolledBack: (intf) => raiseAlert('network_rolled_back', intf),
+        }),
+    };
+
+    /** `config_backup` over HTTP: the same guards as the WS action, then a download. */
+    function httpConfigBackup(body) {
+        const scenario = scenarioError();
+        let refusal = null;
+        if (scenario !== null) refusal = scenario;
+        else if (!state.set) refusal = failure('admin_not_set', 'Admin password not set', { api_allowed_hosts: state.apiAllowedHosts });
+        else if (!sessionValid(body.admin_session)) refusal = failure('bad_session', 'Admin session required');
+        return features.config.httpBackup(refusal);
+    }
+
+    /** `get_mcp_info` over HTTP: open while no admin is set, then a session in the body. */
+    function httpMcpInfo(body) {
+        const scenario = scenarioError();
+        if (scenario !== null) return scenario;
+        if (state.set && !sessionValid(body.admin_session)) return failure('bad_session', 'Admin session required');
+        return {
+            url_path: '/mcp',
+            token: state.mcpToken,
+            hint: 'Use token as Bearer in Authorization header. Append /mcp to your Calaos HTTPS base URL.',
+        };
     }
 
     // ----------------------------------------------------------- messages ---
@@ -740,6 +826,11 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         const scenario = scenarioError();
         if (scenario !== null) return respond(scenario);
         if (!ACTIONS.includes(action)) return respond(failure('not_allowed', 'unknown action'));
+        if (action === 'config_restore') {
+            // calaos_server validates the files before it even asks the daemon about the session.
+            const refused = features.config.restoreRefusal(data.params);
+            if (refused !== null) return respond(failure('invalid_request', refused));
+        }
         if (!state.set) {
             return respond(failure('admin_not_set', 'Admin password not set', {
                 api_allowed_hosts: state.apiAllowedHosts,
@@ -760,6 +851,14 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             return respond(failure('bad_session', 'Admin session required'));
         }
         const params = typeof data.params === 'object' && data.params !== null ? data.params : {};
+        if (state.tooOld.includes(action)) return respond(failure('daemon_too_old', 'admin daemon too old for this route'));
+
+        for (const name of FEATURES) {
+            // undefined: not this feature's action; null: the socket is gone, no answer.
+            const payload = features[name].handle(action, data.admin_session, params);
+            if (payload === null) return;
+            if (payload !== undefined) return respond(payload);
+        }
 
         switch (action) {
             case 'approver_list':
@@ -835,6 +934,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 return ok({ hostname: 'calaos-mock', uptime: 4242, cpu_usage: 3.5, mem_usage: 41.2 });
             case 'mcp_regenerate':
                 state.mcpRegenerations += 1;
+                state.mcpToken = randomBytes(32).toString('hex');
                 return ok({});
         }
     }
@@ -937,7 +1037,13 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 };
             });
         }
+        for (const name of FEATURES) {
+            if (typeof patch[name] !== 'object' || patch[name] === null) continue;
+            const problem = features[name].configure(patch[name]);
+            if (problem !== null) return { ok: false, error: problem };
+        }
         if (Number.isInteger(patch.noiseEvents)) addNoise(patch.noiseEvents);
+        if (Array.isArray(patch.tooOld)) state.tooOld = patch.tooOld.map(String);
         if (patch.codeTtlMs !== undefined) state.codeTtlMs = Number(patch.codeTtlMs);
         if (patch.codeIntervalMs !== undefined) state.codeIntervalMs = Number(patch.codeIntervalMs);
         if (patch.expireCodes) for (const code of state.codes.values()) code.expiresAt = 0;
@@ -962,6 +1068,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             reboots: state.reboots,
             restarts: state.restarts,
             mcpRegenerations: state.mcpRegenerations,
+            mcpToken: state.mcpToken,
             upgradeMs: state.upgradeMs,
             dropAtPercent: state.dropAtPercent,
             failAtPercent: state.failAtPercent,
@@ -970,6 +1077,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             pushed: state.pushed,
             events: state.events.length,
             eventlogReads: state.eventlogReads,
+            ...Object.fromEntries(FEATURES.map((name) => [name, features[name].status()])),
         };
     }
 
@@ -990,5 +1098,5 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         return null;
     }
 
-    return { reset, handleFrame, configure, status, event, takeConsoleGrant };
+    return { reset, handleFrame, configure, status, event, takeConsoleGrant, httpConfigBackup, httpMcpInfo };
 }

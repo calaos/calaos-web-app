@@ -86,7 +86,7 @@ export function startServer(options = {}) {
     function send(ws, frame) {
         const raw = JSON.stringify(frame);
         const write = () => {
-            if (ws.readyState === ws.OPEN) ws.send(raw);
+            if (ws.readyState === ws.OPEN && !ws.hung) ws.send(raw);
         };
         if (hub.latencyMs > 0) setTimeout(write, hub.latencyMs);
         else write();
@@ -100,6 +100,12 @@ export function startServer(options = {}) {
     hub.state = createState({ broadcast });
     hub.admin = createAdmin({ hub, send, broadcast, withMsgId });
     hub.console = createConsole({ hub, log });
+
+    /** Every open socket stays open but hears nothing more: a box gone to another address. */
+    hub.hangClients = () => {
+        for (const ws of hub.clients) ws.hung = true;
+        return hub.clients.size;
+    };
 
     hub.dropClients = () => {
         const n = hub.clients.size;
@@ -130,6 +136,7 @@ export function startServer(options = {}) {
             // Recorded before any handling so /control {op:'log'} sees every
             // frame in arrival order, parseable or not.
             hub.log.push({ seq: hub.log.length, at: Date.now(), clientId, raw, frame });
+            if (ws.hung) return;
             handleFrame(ws, clientId, frame);
         });
 
@@ -363,7 +370,9 @@ export function startServer(options = {}) {
 
     /**
      * `POST /api` with a JSON body — the calaos HTTP API. The mock only
-     * implements `{action:'get_cover', id, ...}` (JsonApiHandlerHttp::
+     * implements `config_backup` (a file download, admin.mjs), `get_mcp_info`
+     * (admin.mjs) and
+     * `{action:'get_cover', id, ...}` (JsonApiHandlerHttp::
      * processGetCover): credentials ride in the body, failures answer the
      * upstream `{success:'false', error_str}` shapes, success returns the
      * cover as base64 with contenttype image/jpeg.
@@ -389,9 +398,21 @@ export function startServer(options = {}) {
             return;
         }
 
+        if (body.action === 'config_backup') {
+            const answer = hub.admin.httpConfigBackup(body);
+            res.writeHead(200, answer.headers);
+            res.end(JSON.stringify(answer.body));
+            return;
+        }
+
+        if (body.action === 'get_mcp_info') {
+            json(hub.admin.httpMcpInfo(body));
+            return;
+        }
+
         if (body.action !== 'get_cover') {
             res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
-            res.end('mock /api POST only implements action=get_cover');
+            res.end('mock /api POST only implements action=get_cover, config_backup and get_mcp_info');
             return;
         }
 

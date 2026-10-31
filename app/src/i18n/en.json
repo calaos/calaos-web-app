@@ -10,7 +10,8 @@
         "submitting": "Signing in…",
         "error": "Username or password is incorrect.",
         "offline": "No connection to Calaos",
-        "offlineHint": "Sign in becomes available as soon as the server answers."
+        "offlineHint": "Sign in becomes available as soon as the server answers.",
+        "restoredHousehold": "The restored configuration has its own sign-in: use the household password of the backup."
     },
     "home": {
         "title": "Rooms",
@@ -199,6 +200,26 @@
     },
     "admin": {
         "title": "Administration",
+        "pages": {
+            "label": "Box pages",
+            "trail": "You are here"
+        },
+        "mcp": {
+            "title": "MCP access",
+            "hint": "What an AI assistant needs to reach the box. It sends the token as a Bearer token in the Authorization header.",
+            "url": "Address",
+            "token": "Token",
+            "show": "Show",
+            "hide": "Hide",
+            "copy": "Copy",
+            "copied": "Copied",
+            "copyFailed": "Copying did not work: show the token and select it by hand.",
+            "hidden": "Token hidden",
+            "loading": "Reading the MCP access…",
+            "loadFailed": "The MCP access could not be read.",
+            "retry": "Try again",
+            "renewed": "New token. Assistants need this one from now on."
+        },
         "probing": "Checking the box…",
         "unlock": {
             "title": "Admin password",
@@ -308,7 +329,7 @@
             "password_changed": "Admin password changed.",
             "session_invalidated": "The admin password was just changed. Enter the new one.",
             "already_set": "Someone just set the admin password. Enter it to continue.",
-            "mcp_regenerated": "New MCP token generated. Read it from the Calaos installer.",
+            "mcp_regenerated": "New MCP token generated. It is shown under MCP access.",
             "reboot_sent": "Restarting the box… the app reconnects on its own.",
             "code_locked": "Too many wrong codes. Enter the admin password again."
         },
@@ -321,7 +342,7 @@
             "bad_session": "Your admin session has ended. Enter the admin password again.",
             "password_too_short": "The password must have at least {min} characters.",
             "https_required": "Use https:// to administer the box.",
-            "daemon_too_old": "Administration is being activated. Try again in a moment.",
+            "daemon_too_old": "The box’s administration service is older than this feature. Install the box’s updates (Updates section); if this stays, restart the box.",
             "daemon_unreachable": "The box is not answering. Try again in a moment.",
             "admin_unavailable": "Administration unavailable: calaos-container cannot be reached (only on Calaos OS).",
             "upgrade_in_progress": "An update is already in progress.",
@@ -342,8 +363,10 @@
             "timeout": "The box did not answer. calaos-server may be too old: update the box once with its usual update (the button on the touch screen, or calaos-os upgrade).",
             "disconnected": "Connection lost before the box answered. Try again once it is back.",
             "unknown": "Unexpected answer from the box. {msg}",
-            "household_refused": "Your sign-in password could not be changed. Sign out and back in, then try again.",
+            "household_refused": "The box refused your sign-in details. Sign out and back in, then try again.",
             "console_limit": "{max} consoles are already open on the box, the most it allows. Close one first.",
+            "network_pending": "A network change is already waiting to be confirmed. Confirm or revert it first.",
+            "service_unavailable": "This service is not available on this box.",
             "login_failed": "The box refused your sign-in. Sign in again."
         },
         "approvers": {
@@ -354,7 +377,7 @@
             "added": "Added on {date}",
             "registered": "Connected to the box since {date}",
             "lastSeen": "Last active {when}",
-            "gone": "No longer receives codes: open the Calaos app on this phone to reconnect it.",
+            "gone": "No longer receives codes: the box forgets a phone after 30 days without a connection. Open the Calaos app on this phone to reconnect it.",
             "stale": "Open the Calaos app on this phone soon: after 30 days without a connection, it stops receiving codes.",
             "reference": "Ref. {suffix}",
             "add": "Add a phone",
@@ -367,6 +390,11 @@
             "retry": "Try again",
             "enrolled": "Approver phone added.",
             "removed": "Approver phone removed.",
+            "secure": {
+                "on": "Code shown in the app",
+                "off": "Code in the notification",
+                "hint": "Update the Calaos app on this phone and open it: codes will then appear in the app, not in the notification."
+            },
             "platform": {
                 "ios": "iPhone or iPad",
                 "android": "Android",
@@ -422,6 +450,10 @@
             "console": {
                 "title": "Open the console",
                 "hint": "Enter the code received on {phone} to open a root shell on the box."
+            },
+            "network": {
+                "title": "Confirm the network change",
+                "hint": "Enter the code received on {phone} to apply the new network settings."
             }
         },
         "alerts": {

@@ -86,7 +86,10 @@ test('a fresh box: household password first, then the admin password, then unloc
         'admin_set',
         'admin_unlock',
         'admin', // update_status after unlock
+        'admin', // network_state, for a change waiting to be kept
         'admin', // approver_list
+        'admin', // time_get, for the Box time card
+        'admin', // time_zones
     ]);
 });
 
@@ -354,7 +357,7 @@ test('the box actions: restart asks first, the MCP token too, and the password n
     await mock.admin({ password: ADMIN_PASSWORD });
     const admin = await openUnlocked(page);
 
-    await page.getByRole('button', { name: MESSAGES.admin.actions.rebootConfirm }).first().click();
+    await page.locator('.actions').getByRole('button', { name: MESSAGES.admin.actions.rebootConfirm }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toContainText(MESSAGES.admin.actions.rebootConfirmTitle);
     await dialog.getByRole('button', { name: MESSAGES.dialog.cancel }).click();
@@ -378,7 +381,7 @@ test('the box actions: restart asks first, the MCP token too, and the password n
     await expect(page.getByRole('dialog')).toHaveCount(0);
     expect(await mock.adminStatus()).toMatchObject({ sessions: 1 });
 
-    await page.getByRole('button', { name: MESSAGES.admin.actions.rebootConfirm }).first().click();
+    await page.locator('.actions').getByRole('button', { name: MESSAGES.admin.actions.rebootConfirm }).click();
     await page.getByRole('dialog').getByRole('button', { name: MESSAGES.admin.actions.rebootConfirm }).click();
     await expect(admin.info).toContainText(MESSAGES.admin.info.reboot_sent);
     expect((await mock.adminStatus()).reboots).toBe(1);

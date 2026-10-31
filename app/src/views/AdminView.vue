@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // The Admin tab. One screen at a time, chosen by the store's gate: a notice
-// to wait on, a password to type, or — unlocked — the updates panel and the
-// box's three actions, with the approver phones between them. The gate
+// to wait on, a password to type, or — unlocked — the hub: updates, the ways
+// to the box's own pages, the approver phones, the box's actions, MCP access
+// and the time. The gate
 // screens borrow the login panel so that "enter the admin password" reads as
 // the same gesture as signing in.
 
@@ -15,9 +16,12 @@ import { useAdminText } from '../composables/useAdminText';
 import AdminActions from '../components/admin/AdminActions.vue';
 import AdminButton from '../components/admin/AdminButton.vue';
 import AdminNotice from '../components/admin/AdminNotice.vue';
+import AdminPages from '../components/admin/AdminPages.vue';
 import AdminPasswordForm from '../components/admin/AdminPasswordForm.vue';
 import ApproversPanel from '../components/admin/ApproversPanel.vue';
 import HouseholdPasswordForm from '../components/admin/HouseholdPasswordForm.vue';
+import McpCard from '../components/admin/McpCard.vue';
+import TimeCard from '../components/admin/TimeCard.vue';
 import UpdatesPanel from '../components/admin/UpdatesPanel.vue';
 
 const { t } = useI18n();
@@ -30,6 +34,7 @@ onUnmounted(() => admin.deactivate());
 
 const actions = ref<InstanceType<typeof AdminActions> | null>(null);
 const phones = ref<InstanceType<typeof ApproversPanel> | null>(null);
+const time = ref<InstanceType<typeof TimeCard> | null>(null);
 const route = useRoute();
 const router = useRouter();
 
@@ -41,6 +46,15 @@ watch(
         if (panel === null || route.query.add !== 'phone') return;
         void router.replace({ name: 'admin' });
         panel.openAdd();
+    },
+    { flush: 'post' },
+);
+
+// The services page leads here for what only the Time card can change.
+watch(
+    time,
+    (card) => {
+        if (card !== null && route.hash === '#time') (card.$el as HTMLElement).scrollIntoView();
     },
     { flush: 'post' },
 );
@@ -84,8 +98,16 @@ function changeHousehold(user: string, password: string): void {
                 </button>
             </p>
             <UpdatesPanel @reboot="actions?.askReboot()" />
+
+            <AdminPages />
+
             <ApproversPanel ref="phones" />
+
             <AdminActions ref="actions" @add-phone="phones?.openAdd()" />
+
+            <McpCard />
+
+            <TimeCard ref="time" />
         </div>
 
         <!-- ---- the gate ----------------------------------------------- -->

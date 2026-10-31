@@ -62,10 +62,19 @@ const props = withDefaults(
         cancelLabel?: string;
         /** Greys the primary button; Enter is refused too. */
         confirmDisabled?: boolean;
+        /** For an action that takes something away: the filament and the confirm button turn red. */
+        danger?: boolean;
         /** 35rem instead of 22rem, for a body that is a view rather than a form. */
         wide?: boolean;
     }>(),
-    { eyebrow: '', confirmLabel: undefined, cancelLabel: undefined, confirmDisabled: false, wide: false },
+    {
+        eyebrow: '',
+        confirmLabel: undefined,
+        cancelLabel: undefined,
+        confirmDisabled: false,
+        danger: false,
+        wide: false,
+    },
 );
 
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
@@ -177,7 +186,7 @@ watch(
             <div
                 ref="panel"
                 class="base-dialog__panel fade-in-up"
-                :class="{ 'base-dialog__panel--wide': wide }"
+                :class="{ 'base-dialog__panel--wide': wide, 'base-dialog__panel--danger': danger }"
                 role="dialog"
                 aria-modal="true"
                 :aria-labelledby="titleId"
@@ -209,7 +218,8 @@ watch(
                         <button
                             v-if="confirmLabel !== undefined"
                             type="submit"
-                            class="base-dialog__button base-dialog__button--primary pressable"
+                            class="base-dialog__button pressable"
+                            :class="danger ? 'base-dialog__button--danger' : 'base-dialog__button--primary'"
                             :disabled="confirmDisabled"
                         >
                             {{ confirmLabel }}
@@ -364,6 +374,32 @@ watch(
     background-color: rgba(255, 255, 255, 0.08);
     color: var(--c-text-muted);
     box-shadow: none;
+    cursor: not-allowed;
+}
+
+.base-dialog__panel--danger::before {
+    background-image: linear-gradient(
+        90deg,
+        transparent,
+        var(--c-danger) 30%,
+        var(--c-danger) 70%,
+        transparent
+    );
+    box-shadow: 0 0 12px color-mix(in srgb, var(--c-danger) 45%, transparent);
+}
+
+.base-dialog__button--danger {
+    border: 1px solid color-mix(in srgb, var(--c-danger) 50%, transparent);
+    background-color: color-mix(in srgb, var(--c-danger) 14%, transparent);
+    color: var(--c-danger-text);
+}
+
+.base-dialog__button--danger:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--c-danger) 24%, transparent);
+}
+
+.base-dialog__button--danger:disabled {
+    color: var(--c-text-muted);
     cursor: not-allowed;
 }
 

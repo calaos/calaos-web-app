@@ -32,9 +32,12 @@
     /* Small error text on a dialog surface: #e05656 is under 4.5:1 there. */
     --c-danger-text: #f07070;
     --c-success: #4caf7d;
+    --c-success-border: rgba(76, 175, 125, 0.35);
     /* Degraded-but-recovering (connection banner) — deliberately NOT the
        accent: cyan means "working" everywhere else in this app. */
     --c-warn: #e0a356;
+    --c-warn-border: rgba(224, 163, 86, 0.35);
+    --c-warn-bg: rgba(52, 38, 20, 0.6);
 
     /* App chrome. The 48px bar and its #3c3c3c→#111 gradient are carried over
        verbatim from the old app (src/styles/main.css) — it is the single most
@@ -66,6 +69,8 @@
     /* Interaction */
     --press-scale: 0.94;
     --press-duration: 120ms;
+    --duration-fade: 200ms;
+    --duration-slide: 220ms;
 
     /* Typography. One family (Ubuntu, the Calaos face); the type treatment is
        the CONTRAST between a tight wordmark and wide, uppercase utility

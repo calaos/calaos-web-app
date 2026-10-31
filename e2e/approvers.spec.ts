@@ -61,6 +61,9 @@ test('first phone: pick it among look-alikes, type the code it received, and it 
     await expect(choices.nth(1)).toContainText(fill(t.approvers.reference, { suffix: '0718' }));
     await expect(choices.nth(2)).toContainText(fill(t.approvers.reference, { suffix: '3921' }));
     await expect(choices.nth(0)).not.toContainText('Ref.');
+    await expect(choices.nth(0)).toContainText(t.approvers.secure.on);
+    await expect(choices.nth(1)).toContainText(t.approvers.secure.off);
+    await expect(choices.nth(1)).toContainText(t.approvers.secure.hint);
     await expect(choices.nth(1)).toContainText(t.approvers.platform.ios);
     await expect(choices.nth(1)).toContainText('Last active 2 hours ago');
     await expect(choices.nth(2)).toContainText('Last active 3 days ago');
@@ -236,7 +239,11 @@ test('a dead main phone: the code goes to the spare, and the other phone is offe
         approvers: [{ token_id: 'dddddddddddddddd', device_name: 'Old phone' }, MOCK_PHONES.pixel.tokenId],
     });
     await openUnlocked(page);
-    await expect(section(page).locator('.approvers__row').first()).toContainText(t.approvers.gone);
+    const gone = section(page).locator('.approvers__row').first();
+    await expect(gone).toContainText(t.approvers.gone);
+    // Forgotten by the box: no code reaches it at all, an app update would not help.
+    await expect(gone.locator('.approvers__badge')).toHaveCount(0);
+    await expect(gone).not.toContainText(t.approvers.secure.hint);
 
     await page.getByRole('button', { name: t.actions.change }).click();
     const dialog = page.getByRole('dialog');
