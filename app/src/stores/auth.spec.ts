@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useAuthStore } from './auth';
 import { useAdminStore } from './admin';
+import { useAdminAlertsStore } from './adminAlerts';
 import { useHomeStore } from './home';
 import { toHomeData } from '../protocol/guards';
 
@@ -390,5 +391,39 @@ describe('admin unlock vs the household session', () => {
 
         expect(admin.gate).toBe('unlocked');
         expect(admin.session).not.toBeNull();
+    });
+
+    it('a successful credential rotation keeps the unlock', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const admin = unlock();
+
+        store.rotateCredentials('raoul', 'n3w');
+        store.handleLoginResult(true);
+
+        expect(admin.gate).toBe('unlocked');
+        expect(admin.session).not.toBeNull();
+    });
+
+    it('a stray login failure while authed keeps the unlock', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const admin = unlock();
+
+        store.handleLoginResult(false);
+
+        expect(store.state).toBe('authed');
+        expect(admin.gate).toBe('unlocked');
+        expect(admin.session).not.toBeNull();
+    });
+
+    it('a refused sign-in resets the admin alerts', () => {
+        const store = makeStore();
+        const reset = vi.spyOn(useAdminAlertsStore(), 'reset');
+
+        store.signIn('demo', 'wrong');
+        store.handleLoginResult(false);
+
+        expect(reset).toHaveBeenCalledOnce();
     });
 });

@@ -28,6 +28,12 @@ function goBack(): void {
     // history entry to go back to, and the old app's $window.history.back()
     // left the user on whatever page preceded the app. Walking one path
     // segment up is always defined.
+    // A route can name its parent when the path does not (the console is
+    // entered from System, not from the hub).
+    if (route.meta.parent) {
+        void router.push({ name: route.meta.parent });
+        return;
+    }
     const parent = route.path.slice(0, route.path.lastIndexOf('/')) || '/home';
     void router.push(parent);
 }

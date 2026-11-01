@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
@@ -7,6 +7,7 @@ import NavBar from './NavBar.vue';
 import en from '../../i18n/en.json';
 import { createAppRouter } from '../../router';
 import { toHomeData } from '../../protocol/guards';
+import { useAdminStore } from '../../stores/admin';
 import { useAuthStore } from '../../stores/auth';
 import { useHomeStore } from '../../stores/home';
 import type { Router } from 'vue-router';
@@ -71,6 +72,19 @@ describe('NavBar', () => {
         await flushPromises();
 
         expect(router.currentRoute.value.path).toBe('/security');
+    });
+
+    it('leaves the console for System, not the admin hub', async () => {
+        const admin = useAdminStore();
+        admin.gate = 'unlocked';
+        admin.session = 'a'.repeat(64);
+        const wrapper = await mountNavBar('/admin/console');
+
+        await button(wrapper, en.chrome.back).trigger('click');
+        await flushPromises();
+
+        // SystemView is a lazy chunk: the navigation settles after a dynamic import.
+        await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/system'));
     });
 
     it('signs out when the sign-out button is pressed', async () => {
