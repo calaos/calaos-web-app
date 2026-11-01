@@ -379,7 +379,7 @@ test('the hub is only tiles, in order, and a locked sub-page sends back to it', 
 
     for (const sub of ['updates', 'mcp', 'security', 'system']) {
         await page.evaluate((hash) => (location.hash = hash), `#/admin/${sub}`);
-        await expect(page).toHaveURL(/#\/admin$/);
+        await expect(page).toHaveURL(new RegExp(`#/admin\\?redirect=/admin/${sub}$`));
         await expect(admin.heading).toHaveText(MESSAGES.admin.unlock.title);
     }
 
