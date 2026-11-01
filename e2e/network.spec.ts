@@ -255,6 +255,16 @@ test('a reload during the trial finds the countdown again after unlocking', asyn
     await expect(page.getByRole('status').filter({ hasText: fill(net.done.confirmed, { intf: 'eth0' }) })).toBeVisible();
 });
 
+test('the hub entry says a change is waiting, for someone who reopens at the new address', async ({ page, mock }) => {
+    await network(mock, { pending: { intf: 'eth0', ageMs: 30_000 } });
+    await page.goto('/');
+    await loginAs(page);
+    await unlock(page);
+
+    await expect(page).toHaveURL(/#\/admin$/);
+    await expect(page.locator('[data-page="network"]')).toContainText(fill(net.entry.pending, { intf: 'eth0', time: '@' }).split('@')[0]);
+});
+
 test('a wrong code is said in the code entry, and the right one still applies', async ({ page, mock }) => {
     await openNetwork(page);
     await proposeStatic(page);

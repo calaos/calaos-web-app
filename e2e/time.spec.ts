@@ -63,6 +63,21 @@ test('a synchronised box: in step, NTP on, no way to set it from this device', a
     await expect(card(page).getByLabel(T.timezone, { exact: true })).toHaveValue('Europe/Paris');
 });
 
+test('a refused admin password keeps the sub-page to come back to', async ({ page }) => {
+    await page.goto('/#/admin/time');
+    await loginAs(page, undefined, /#\/admin(\?|$)/);
+    const admin = adminScreen(page);
+
+    await admin.adminPassword.fill('nope');
+    await admin.submit.click();
+    await expect(admin.error).toHaveText(MESSAGES.admin.error.bad_password);
+    await expect(page).toHaveURL(/#\/admin\?redirect=(%2F|\/)admin(%2F|\/)time$/);
+
+    await admin.adminPassword.fill(ADMIN_PASSWORD);
+    await admin.submit.click();
+    await expect(page).toHaveURL(/#\/admin\/time$/);
+});
+
 test('warns past 5 s of drift, and sets the time from this device once confirmed', async ({ page, mock }) => {
     await configure(mock, { time: { offsetMs: 40_000, ntp: false, synchronized: false } });
     await openAdmin(page);

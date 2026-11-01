@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createMemoryHistory } from 'vue-router';
 import { createAppRouter, startNavigationIntents } from './index';
@@ -385,11 +386,20 @@ describe('returning to the page a reload interrupted', () => {
         await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('adminTime'));
     });
 
-    it('a failed unlock keeps the hub', async () => {
+    it('a refused unlock keeps the hub and its memo, a later good one finishes the trip', async () => {
         await signInFrom('/admin/time');
         await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('admin'));
-        await Promise.resolve();
+
+        // A refusal leaves the gate locked; a gate without a session is no unlock either.
+        const admin = useAdminStore();
+        admin.gate = 'locked';
+        admin.gate = 'unlocked';
+        await flushPromises();
         expect(router.currentRoute.value.name).toBe('admin');
+        expect(router.currentRoute.value.query.redirect).toBe('/admin/time');
+
+        admin.session = 'a'.repeat(64);
+        await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('adminTime'));
     });
 
     it.each([
@@ -401,8 +411,15 @@ describe('returning to the page a reload interrupted', () => {
         '/no/such/page',
         'admin/time',
         '',
+        '/%2F%2Fevil.example',
+        '/%5Cevil.example',
     ])('refuses %j as a destination', async (target) => {
         await signInFrom(target);
+        await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('home'));
+    });
+
+    it('refuses a repeated redirect parameter', async () => {
+        await signInFrom(['/audio', '/audio']);
         await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('home'));
     });
 
@@ -413,8 +430,7 @@ describe('returning to the page a reload interrupted', () => {
         const admin = useAdminStore();
         admin.gate = 'unlocked';
         admin.session = 'a'.repeat(64);
-        await Promise.resolve();
-        await Promise.resolve();
+        await flushPromises();
         expect(router.currentRoute.value.name).toBe('admin');
     });
 

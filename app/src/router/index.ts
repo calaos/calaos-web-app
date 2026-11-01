@@ -37,6 +37,13 @@ function adminOnly(to: RouteLocationNormalized) {
     return useAdminStore().isUnlocked ? true : { name: 'admin', query: { redirect: to.fullPath } };
 }
 
+/** /home is the default landing and needs no memo; any other page is remembered. */
+function loginFor(here: { name?: unknown; fullPath: string }) {
+    return here.name === 'home'
+        ? { name: 'login' }
+        : { name: 'login', query: { redirect: here.fullPath } };
+}
+
 /**
  * The `redirect` query is user-controlled: only a path that resolves to a
  * real in-app route is followed, never an absolute URL or a protocol-relative
@@ -47,7 +54,7 @@ function safeRedirect(router: Router, raw: unknown, onlyAdmin = false): string |
     const target = router.resolve(raw);
     const name = target.name;
     if (typeof name !== 'string' || name === 'login') return null;
-    if (onlyAdmin && !target.path.startsWith('/admin/')) return null;
+    if (onlyAdmin && !(name.startsWith('admin') && name !== 'admin')) return null;
     return target.fullPath;
 }
 
@@ -69,7 +76,7 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 component: LoginView,
             },
             {
-                // Eager, like LoginView: /home is where every sign-in lands
+                // Eager, like LoginView: /home is where a sign-in lands by default
                 // and where the footer's Home tab always goes, so a lazy
                 // chunk would only add a blank frame to the app's busiest
                 // route. Same for the room it opens.
@@ -182,11 +189,8 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
         const auth = useAuthStore();
 
         if (to.meta.requiresAuth && !auth.isAuthed) {
-            // Remember where the visitor was headed (a reload lands here too);
-            // /home is the default landing and needs no memo.
-            return to.name === 'home'
-                ? { name: 'login' }
-                : { name: 'login', query: { redirect: to.fullPath } };
+            // Remember where the visitor was headed (a reload lands here too).
+            return loginFor(to);
         }
 
         // The mirror of the rule above: a signed-in user who types /#/login
@@ -233,7 +237,7 @@ function inBounds(rawIndex: string, count: number): boolean {
  * would make stores↔router a cycle and break store unit tests), so everything
  * it wants from navigation is expressed as state and performed here.
  *
- * Two watchers:
+ * Three watchers:
  *  1. `pendingNavigation` — the intent raised by an interactive sign-in
  *    (→ /home, once the house data has landed) and by signOut() (→ /login).
  *  2. a rejected re-login mid-session. `resumeSession()` fires on every
@@ -243,8 +247,10 @@ function inBounds(rawIndex: string, count: number): boolean {
  *    that is no longer valid must not leave the user staring at stale rooms
  *    whose controls silently do nothing. LoginView renders the error on
  *    arrival because `state` is still 'failed'.
+ *  3. the admin unlock, which finishes a trip to an admin sub-page that the
+ *    password gate interrupted.
  *
- * Returns one handle stopping both; main.ts ignores it (app lifetime), tests
+ * Returns one handle stopping all; main.ts ignores it (app lifetime), tests
  * stop it.
  */
 export function startNavigationIntents(router: Router): WatchStopHandle {
@@ -271,12 +277,7 @@ export function startNavigationIntents(router: Router): WatchStopHandle {
             // already on /login is the ordinary wrong-password case, and
             // pushing the route they are on would be a no-op navigation.
             if (router.currentRoute.value.meta.requiresAuth !== true) return;
-            const here = router.currentRoute.value;
-            void router.push(
-                here.name === 'home'
-                    ? { name: 'login' }
-                    : { name: 'login', query: { redirect: here.fullPath } },
-            );
+            void router.push(loginFor(router.currentRoute.value));
         },
     );
 

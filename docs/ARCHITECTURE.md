@@ -158,7 +158,7 @@ Default proxy target is the mock server (`http://localhost:5454`), so `npm run d
 
 ## Router
 
-`createWebHashHistory` (deep-link reloads must work on dumb static servers — calaos_server and static-web-server have no SPA fallback). Routes: `/login`, `/home`, `/home/:roomId(\d+)`, `/audio`, `/audio/:playerId`, `/security`, `/security/:cameraId(\d+)`, `/admin` (lazy chunk), `/admin/console` (lazy, detail; xterm.js in its own chunk, imported by the view; without an unlocked admin session → `/admin`); all but login `meta.requiresAuth`. Guard: unauthenticated → `/login`; out-of-bounds index params → redirect to parent list. NavBar back button on the three detail routes (`meta.detail`).
+`createWebHashHistory` (deep-link reloads must work on dumb static servers — calaos_server and static-web-server have no SPA fallback). Routes: `/login`, `/home`, `/home/:roomId(\d+)`, `/audio`, `/audio/:playerId`, `/security`, `/security/:cameraId(\d+)`, `/admin` (lazy chunk), `/admin/console` (lazy, detail; xterm.js in its own chunk, imported by the view; without an unlocked admin session → `/admin`); all but login `meta.requiresAuth`. Guard: unauthenticated → `/login` (the page asked for rides in `?redirect=`, validated as an in-app path, and a sign-in goes back to it; a locked admin sub-page falls back to `/admin?redirect=…` and the unlock returns to it); out-of-bounds index params → redirect to parent list. NavBar back button on the three detail routes (`meta.detail`).
 
 ## Styling / icons / fonts (light refresh)
 
