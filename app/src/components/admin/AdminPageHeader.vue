@@ -41,7 +41,7 @@ const { t } = useI18n();
     padding: 0;
     list-style: none;
     font-size: 0.875rem;
-    color: var(--c-text-muted);
+    color: var(--c-text);
 }
 
 .page-head__here {
@@ -79,7 +79,7 @@ const { t } = useI18n();
 
 .page-head__hint {
     margin-block-start: var(--space-2);
-    color: var(--c-text-muted);
+    color: var(--c-text);
     font-size: 0.9375rem;
     line-height: 1.45;
     max-inline-size: 52ch;

@@ -101,8 +101,8 @@ onBeforeUnmount(() => {
 
 <template>
     <section class="mcp" :aria-label="t('admin.mcp.title')">
-        <ul class="mcp__list">
-            <li v-if="mcp.info === null && mcp.error !== null" class="mcp__row">
+        <ul class="mcp__list admin-list">
+            <li v-if="mcp.info === null && mcp.error !== null" class="mcp__row admin-card">
                 <div class="mcp__text">
                     <span class="mcp__name">{{ t('admin.mcp.loadFailed') }}</span>
                     <span class="mcp__problem">{{ problem }}</span>
@@ -112,12 +112,12 @@ onBeforeUnmount(() => {
                 </AdminButton>
             </li>
 
-            <li v-else-if="mcp.info === null" class="mcp__row">
+            <li v-else-if="mcp.info === null" class="mcp__row admin-card">
                 <span class="mcp__muted" role="status">{{ t('admin.mcp.loading') }}</span>
             </li>
 
             <template v-else>
-                <li class="mcp__row" data-field="url">
+                <li class="mcp__row admin-card" data-field="url">
                     <div class="mcp__text">
                         <span class="mcp__name">{{ t('admin.mcp.url') }}</span>
                         <code class="mcp__value">{{ url }}</code>
@@ -129,7 +129,7 @@ onBeforeUnmount(() => {
                     </div>
                 </li>
 
-                <li class="mcp__row" :class="{ 'mcp__row--fresh': fresh }" data-field="token">
+                <li class="mcp__row admin-card" :class="{ 'mcp__row--fresh': fresh }" data-field="token">
                     <div class="mcp__text">
                         <span class="mcp__name">{{ t('admin.mcp.token') }}</span>
                         <code v-if="revealed" class="mcp__value mcp__token">{{ mcp.info.token }}</code>
@@ -147,7 +147,7 @@ onBeforeUnmount(() => {
                 </li>
             </template>
 
-            <li class="mcp__row" data-field="regenerate">
+            <li class="mcp__row admin-card" data-field="regenerate">
                 <div class="mcp__text">
                     <span class="mcp__name">{{ t('admin.actions.mcp') }}</span>
                     <span class="mcp__hint">{{ t('admin.actions.mcpHint') }}</span>
@@ -180,17 +180,11 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.mcp__list {
-    border-block-start: 1px solid var(--c-border);
-}
-
 .mcp__row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-4);
-    padding: var(--space-4) var(--space-2);
-    border-block-end: 1px solid var(--c-border);
 }
 
 /* A new token: the accent filament, long enough to be seen, then gone. */

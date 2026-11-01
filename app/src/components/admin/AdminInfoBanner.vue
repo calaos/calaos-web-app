@@ -27,7 +27,7 @@ const admin = useAdminStore();
     justify-content: space-between;
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    border: 1px solid rgba(76, 175, 125, 0.35);
+    border: 1px solid var(--c-success-border);
     border-radius: var(--radius-md);
     background-color: rgba(76, 175, 125, 0.1);
     color: var(--c-success);

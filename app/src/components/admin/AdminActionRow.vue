@@ -9,7 +9,7 @@ defineProps<{
 </script>
 
 <template>
-    <li class="action-row">
+    <li class="action-row admin-card">
         <div class="action-row__text">
             <span class="action-row__name">{{ name }}</span>
             <span class="action-row__hint">{{ hint }}</span>
@@ -24,8 +24,6 @@ defineProps<{
     align-items: center;
     justify-content: space-between;
     gap: var(--space-4);
-    padding: var(--space-4) var(--space-2);
-    border-block-end: 1px solid var(--c-border);
 }
 
 .action-row__text {

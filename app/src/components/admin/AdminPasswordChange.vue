@@ -90,7 +90,7 @@ async function submitCode(code: string): Promise<void> {
 
 <template>
     <section class="password" :aria-label="t('admin.actions.password')">
-        <ul class="password__list">
+        <ul class="password__list admin-list">
             <AdminActionRow
                 :name="t('admin.actions.password')"
                 :hint="noApprover ? t('admin.actions.passwordNeedsApprover') : t('admin.actions.passwordHint')"
@@ -142,10 +142,6 @@ async function submitCode(code: string): Promise<void> {
 </template>
 
 <style scoped>
-.password__list {
-    border-block-start: 1px solid var(--c-border);
-}
-
 .password__error {
     margin-block-start: var(--space-3);
     padding-inline: var(--space-2);
@@ -154,7 +150,7 @@ async function submitCode(code: string): Promise<void> {
 }
 
 .password__hint {
-    color: var(--c-text-muted);
+    color: var(--c-text);
     font-size: 0.9375rem;
     line-height: 1.45;
 }

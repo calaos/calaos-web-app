@@ -142,8 +142,8 @@ async function submitCode(code: string): Promise<void> {
             </button>
         </p>
 
-        <ul class="approvers__list">
-            <li v-if="approvers.listError !== null" class="approvers__row">
+        <ul class="approvers__list admin-list">
+            <li v-if="approvers.listError !== null" class="approvers__row admin-card">
                 <div class="approvers__text">
                     <span class="approvers__name">{{ t('admin.approvers.loadFailed') }}</span>
                     <span class="approvers__meta">{{ errorText(approvers.listError) }}</span>
@@ -153,14 +153,14 @@ async function submitCode(code: string): Promise<void> {
                 </AdminButton>
             </li>
 
-            <li v-else-if="approvers.approvers !== null && list.length === 0" class="approvers__row approvers__row--empty">
+            <li v-else-if="approvers.approvers !== null && list.length === 0" class="approvers__row admin-card approvers__row--empty">
                 <div class="approvers__text">
                     <span class="approvers__name">{{ t('admin.approvers.none') }}</span>
                     <span class="approvers__meta">{{ t('admin.approvers.noneHint') }}</span>
                 </div>
             </li>
 
-            <li v-for="approver in list" :key="approver.id" class="approvers__row">
+            <li v-for="approver in list" :key="approver.id" class="approvers__row admin-card">
                 <component :is="iconFor(approver.platform)" class="approvers__icon" aria-hidden="true" />
                 <div class="approvers__text">
                     <span class="approvers__name">
@@ -329,13 +329,13 @@ async function submitCode(code: string): Promise<void> {
     font-weight: 500;
     letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
-    color: var(--c-text-muted);
+    color: var(--c-text);
 }
 
 .approvers__intro {
     margin-block-start: var(--space-2);
     padding-inline: var(--space-2);
-    color: var(--c-text-muted);
+    color: var(--c-text);
     font-size: 0.875rem;
     line-height: 1.45;
     max-inline-size: 34rem;
@@ -368,15 +368,12 @@ async function submitCode(code: string): Promise<void> {
 
 .approvers__list {
     margin-block-start: var(--space-3);
-    border-block-start: 1px solid var(--c-border);
 }
 
 .approvers__row {
     display: flex;
     align-items: center;
     gap: var(--space-4);
-    padding: var(--space-4) var(--space-2);
-    border-block-end: 1px solid var(--c-border);
 }
 
 .approvers__row > .approvers__text {

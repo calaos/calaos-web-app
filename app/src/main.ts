@@ -5,6 +5,7 @@ import '@fontsource/ubuntu/500.css';
 import '@fontsource/ubuntu/700.css';
 import './styles/theme.css';
 import './styles/base.css';
+import './styles/admin.css';
 import './styles/animations.css';
 import { i18n } from './i18n';
 import { createAppRouter, startNavigationIntents } from './router';

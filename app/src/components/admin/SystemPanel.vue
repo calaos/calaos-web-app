@@ -31,7 +31,7 @@ onMounted(() => {
 
 <template>
     <section class="system" :aria-label="t('admin.system.title')">
-        <ul class="system__list">
+        <ul class="system__list admin-list">
             <AdminActionRow
                 :name="t('admin.actions.console')"
                 :hint="noApprover ? t('admin.actions.consoleNeedsApprover') : t('admin.actions.consoleHint')"
@@ -51,10 +51,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.system__list {
-    border-block-start: 1px solid var(--c-border);
-}
-
 .system__error {
     margin-block-start: var(--space-3);
     padding-inline: var(--space-2);

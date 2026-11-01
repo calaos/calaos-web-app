@@ -313,8 +313,8 @@ onBeforeUnmount(() => {
             <p v-else class="time__loading">{{ t('admin.time.loading') }}</p>
         </div>
 
-        <ul v-if="box !== null" class="time__list">
-            <li class="time__row">
+        <ul v-if="box !== null" class="time__list admin-list">
+            <li class="time__row admin-card">
                 <label class="time__text" for="time-zone">
                     <span class="time__name">{{ t('admin.time.timezone') }}</span>
                     <span id="time-zone-hint" class="time__hint">{{ t('admin.time.timezoneHint') }}</span>
@@ -354,7 +354,7 @@ onBeforeUnmount(() => {
                 </div>
             </li>
 
-            <li class="time__row">
+            <li class="time__row admin-card">
                 <div class="time__text">
                     <span class="time__name">{{ t('admin.time.ntp') }}</span>
                     <span class="time__hint">{{ t('admin.time.ntpHint') }}</span>
@@ -373,7 +373,7 @@ onBeforeUnmount(() => {
                 </AdminButton>
             </li>
 
-            <li class="time__row time__row--manual">
+            <li class="time__row admin-card time__row--manual">
                 <label class="time__text" for="time-manual">
                     <span class="time__name">{{ t('admin.time.manualTitle') }}</span>
                     <span id="time-manual-hint" class="time__hint">
@@ -407,7 +407,7 @@ onBeforeUnmount(() => {
                 </div>
             </li>
 
-            <li v-if="!box.synchronized" class="time__row">
+            <li v-if="!box.synchronized" class="time__row admin-card">
                 <div class="time__text">
                     <span class="time__name">{{ t('admin.time.setFromDevice') }}</span>
                     <span class="time__hint">{{ t('admin.time.setFromDeviceHint') }}</span>
@@ -598,13 +598,12 @@ onBeforeUnmount(() => {
 }
 
 .time__loading {
-    color: var(--c-text-muted);
+    color: var(--c-text);
     font-size: 0.875rem;
 }
 
 .time__list {
     margin-block-start: var(--space-2);
-    border-block-start: 1px solid var(--c-border);
 }
 
 .time__row {
@@ -612,8 +611,6 @@ onBeforeUnmount(() => {
     align-items: center;
     justify-content: space-between;
     gap: var(--space-4);
-    padding: var(--space-4) var(--space-2);
-    border-block-end: 1px solid var(--c-border);
 }
 
 .time__text {
