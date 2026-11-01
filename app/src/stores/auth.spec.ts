@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useAuthStore } from './auth';
+import { useAdminStore } from './admin';
+import { useAdminAlertsStore } from './adminAlerts';
 import { useHomeStore } from './home';
 import { toHomeData } from '../protocol/guards';
 
@@ -335,5 +337,93 @@ describe('rotateCredentials — re-login after change_cred', () => {
         store.state = 'authed';
         store.handleLoginResult(false);
         expect(store.isAuthed).toBe(true);
+    });
+});
+
+describe('admin unlock vs the household session', () => {
+    function unlock(): ReturnType<typeof useAdminStore> {
+        const admin = useAdminStore();
+        admin.gate = 'unlocked';
+        admin.session = 'a'.repeat(64);
+        return admin;
+    }
+
+    it('a refused interactive sign-in drops the admin unlock', () => {
+        const store = makeStore();
+        const admin = unlock();
+
+        store.signIn('demo', 'wrong');
+        store.handleLoginResult(false);
+
+        expect(admin.gate).toBe('idle');
+        expect(admin.session).toBeNull();
+    });
+
+    it('a refused re-login after a reconnect drops the admin unlock', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const admin = unlock();
+
+        store.resumeSession();
+        store.handleLoginResult(false);
+
+        expect(admin.gate).toBe('idle');
+    });
+
+    it('a refused credential rotation drops the admin unlock', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const admin = unlock();
+
+        store.rotateCredentials('raoul', 'n3w');
+        store.handleLoginResult(false);
+
+        expect(admin.gate).toBe('idle');
+    });
+
+    it('a successful re-login after a reconnect keeps a valid unlock', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const admin = unlock();
+
+        store.resumeSession();
+        store.handleLoginResult(true);
+
+        expect(admin.gate).toBe('unlocked');
+        expect(admin.session).not.toBeNull();
+    });
+
+    it('a successful credential rotation keeps the unlock', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const admin = unlock();
+
+        store.rotateCredentials('raoul', 'n3w');
+        store.handleLoginResult(true);
+
+        expect(admin.gate).toBe('unlocked');
+        expect(admin.session).not.toBeNull();
+    });
+
+    it('a stray login failure while authed keeps the unlock', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const admin = unlock();
+
+        store.handleLoginResult(false);
+
+        expect(store.state).toBe('authed');
+        expect(admin.gate).toBe('unlocked');
+        expect(admin.session).not.toBeNull();
+    });
+
+    it('a refused sign-in resets the admin alerts', () => {
+        const store = makeStore();
+        const reset = vi.spyOn(useAdminAlertsStore(), 'reset');
+
+        store.signIn('demo', 'wrong');
+        store.handleLoginResult(false);
+
+        expect(reset).toHaveBeenCalledOnce();
     });
 });
