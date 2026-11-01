@@ -385,6 +385,8 @@ test('the hub is only tiles, in order, and a locked sub-page sends back to it', 
 
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
+    await expect(page).toHaveURL(/#\/admin\/system$/);
+    await page.evaluate(() => (location.hash = '#/admin'));
     await expect(page.locator('[data-page]')).toHaveCount(9);
     const titles = MESSAGES.admin;
     await expect(page.locator('.pages__name')).toHaveText([
