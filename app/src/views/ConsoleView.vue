@@ -226,7 +226,7 @@ watch(
 );
 
 function backToAdmin(): void {
-    void router.push({ name: 'admin' });
+    void router.push({ name: 'adminSystem' });
 }
 
 function addPhone(): void {
