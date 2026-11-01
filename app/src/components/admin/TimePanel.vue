@@ -289,7 +289,7 @@ onBeforeUnmount(() => {
 
 <template>
     <section class="time" :aria-label="t('admin.time.title')">
-        <div v-if="box !== null || loadText === ''" class="time__face" :class="`time__face--${driftLevel}`">
+        <div v-if="box !== null || loadText === ''" class="time__face admin-card" :class="`time__face--${driftLevel}`">
             <template v-if="box !== null">
                 <p class="time__clock" data-testid="box-clock">
                     <time :datetime="box.now">{{ clockText }}</time>
@@ -454,7 +454,7 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <div v-if="failureText !== '' || loadText !== ''" class="time__error fade-in" role="alert">
+        <div v-if="failureText !== '' || loadText !== ''" class="time__error admin-card admin-card--error fade-in" role="alert">
             <p v-if="partialText !== ''" class="time__partial">{{ partialText }}</p>
             <p>{{ failureText || loadText }}</p>
         </div>
@@ -510,9 +510,8 @@ onBeforeUnmount(() => {
     display: grid;
     gap: var(--space-1);
     margin-block-start: var(--space-2);
-    padding: var(--space-4) var(--space-4) var(--space-4) calc(var(--space-4) + 2px);
+    padding: var(--space-4);
     border-inline-start: 2px solid var(--c-border-strong);
-    background-image: linear-gradient(90deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 70%);
 }
 
 .time__face--warn {
@@ -521,7 +520,6 @@ onBeforeUnmount(() => {
 
 .time__face--strong {
     border-inline-start-color: var(--c-danger);
-    background-image: linear-gradient(90deg, rgba(224, 86, 86, 0.12), rgba(224, 86, 86, 0) 75%);
 }
 
 .time__clock {
@@ -727,8 +725,6 @@ onBeforeUnmount(() => {
     display: grid;
     gap: var(--space-1);
     margin-block-start: var(--space-3);
-    padding-inline: var(--space-2);
-    color: var(--c-danger-text);
     font-size: 0.875rem;
     line-height: 1.4;
 }

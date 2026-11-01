@@ -362,7 +362,7 @@ async function confirmRestore(): Promise<void> {
             <p v-if="loading && config.options === null" class="config__status" role="status">
                 {{ t('admin.config.loading') }}
             </p>
-            <div v-else-if="config.options === null" class="config__status config__status--error" role="alert">
+            <div v-else-if="config.options === null" class="config__status config__status--error admin-card admin-card--error" role="alert">
                 <span>{{ t('admin.config.loadFailed') }} {{ loadError }}</span>
                 <AdminButton variant="quiet" :disabled="busy" @click="load">{{ t('admin.config.retry') }}</AdminButton>
             </div>
@@ -561,7 +561,6 @@ async function confirmRestore(): Promise<void> {
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
-    color: var(--c-danger-text);
 }
 
 .config__group-title {

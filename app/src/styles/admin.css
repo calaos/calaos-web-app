@@ -14,3 +14,13 @@
     border-radius: var(--radius-md);
     background-color: var(--c-surface);
 }
+
+/* Failure message: danger-text only clears 4.5:1 on a surface, never on the background. */
+.admin-card--error {
+    border-color: var(--c-danger);
+    color: var(--c-danger-text);
+}
+
+.admin-list {
+    grid-template-columns: minmax(0, 1fr);
+}

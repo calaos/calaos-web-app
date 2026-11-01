@@ -163,8 +163,8 @@ onBeforeUnmount(() => {
             </li>
         </ul>
 
-        <p v-if="copyFailed" class="mcp__error fade-in" role="alert">{{ t('admin.mcp.copyFailed') }}</p>
-        <p v-if="failure !== ''" class="mcp__error fade-in" role="alert">{{ failure }}</p>
+        <p v-if="copyFailed" class="mcp__error admin-card admin-card--error fade-in" role="alert">{{ t('admin.mcp.copyFailed') }}</p>
+        <p v-if="failure !== ''" class="mcp__error admin-card admin-card--error fade-in" role="alert">{{ failure }}</p>
 
         <BaseDialog
             :open="confirming"
@@ -195,12 +195,12 @@ onBeforeUnmount(() => {
 @keyframes mcp-fresh {
     0%,
     60% {
-        background-color: color-mix(in srgb, var(--c-accent) 14%, transparent);
+        background-color: color-mix(in srgb, var(--c-accent) 14%, var(--c-surface));
         box-shadow: inset 3px 0 0 var(--c-accent);
     }
 
     100% {
-        background-color: transparent;
+        background-color: var(--c-surface);
         box-shadow: inset 3px 0 0 transparent;
     }
 }
@@ -258,7 +258,6 @@ onBeforeUnmount(() => {
 
 .mcp__error {
     margin-block-start: var(--space-3);
-    padding-inline: var(--space-2);
 }
 
 .mcp__buttons {

@@ -46,15 +46,13 @@ onMounted(() => {
             </AdminActionRow>
         </ul>
 
-        <p v-if="failure !== ''" class="system__error fade-in" role="alert">{{ failure }}</p>
+        <p v-if="failure !== ''" class="system__error admin-card admin-card--error fade-in" role="alert">{{ failure }}</p>
     </section>
 </template>
 
 <style scoped>
 .system__error {
     margin-block-start: var(--space-3);
-    padding-inline: var(--space-2);
-    color: var(--c-danger-text);
     font-size: 0.875rem;
 }
 </style>

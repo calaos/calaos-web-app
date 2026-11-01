@@ -101,7 +101,7 @@ async function submitCode(code: string): Promise<void> {
             </AdminActionRow>
         </ul>
 
-        <p v-if="failure !== '' && !changing" class="password__error fade-in" role="alert">{{ failure }}</p>
+        <p v-if="failure !== '' && !changing" class="password__error admin-card admin-card--error fade-in" role="alert">{{ failure }}</p>
 
         <!-- The form has its own submit and cancel; the dialog only lends
              its frame (and Escape). -->
@@ -144,8 +144,6 @@ async function submitCode(code: string): Promise<void> {
 <style scoped>
 .password__error {
     margin-block-start: var(--space-3);
-    padding-inline: var(--space-2);
-    color: var(--c-danger-text);
     font-size: 0.875rem;
 }
 

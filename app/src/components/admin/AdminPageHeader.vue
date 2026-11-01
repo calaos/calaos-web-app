@@ -55,8 +55,8 @@ const { t } = useI18n();
 }
 
 .page-head__up {
-    color: var(--c-accent);
-    text-decoration: none;
+    color: var(--c-text);
+    text-decoration: underline;
     border-radius: var(--radius-sm);
 }
 

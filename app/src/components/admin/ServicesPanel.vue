@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The box's services as the same hairline list as the box actions, each with
+// The box's services as the same list of cards as the box actions, each with
 // a status light and the verbs the daemon offers for that row. What takes
 // something away asks first, then the row follows the action until the list
 // shows its outcome; restarting what carries this page's connection says so
@@ -311,7 +311,7 @@ function confirm(): void {
     padding: var(--space-3) var(--space-4);
     border: 1px solid color-mix(in srgb, var(--c-accent) 35%, transparent);
     border-radius: var(--radius-md);
-    background-color: color-mix(in srgb, var(--c-accent) 8%, transparent);
+    background-color: color-mix(in srgb, var(--c-accent) 8%, var(--c-surface));
     color: var(--c-accent);
     font-size: 0.9375rem;
     line-height: 1.45;
@@ -319,7 +319,7 @@ function confirm(): void {
 
 .services__banner--warn {
     border-color: color-mix(in srgb, var(--c-warn) 35%, transparent);
-    background-color: color-mix(in srgb, var(--c-warn) 8%, transparent);
+    background-color: color-mix(in srgb, var(--c-warn) 8%, var(--c-surface));
     color: var(--c-warn);
 }
 

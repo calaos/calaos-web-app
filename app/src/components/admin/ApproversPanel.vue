@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The phones that receive admin codes, as the same hairline list as the box
+// The phones that receive admin codes, as the same list of cards as the box
 // actions. Adding and removing run in one dialog that ends on the code
 // entry; the dialog title stays the job ("Add a phone"), the body says which
 // code is awaited.
@@ -195,7 +195,7 @@ async function submitCode(code: string): Promise<void> {
         </ul>
 
         <div v-if="approvers.approvers !== null" class="approvers__footer">
-            <p v-if="full" class="approvers__meta">{{ t('admin.approvers.max') }}</p>
+            <p v-if="full" class="approvers__meta approvers__meta--full">{{ t('admin.approvers.max') }}</p>
             <AdminButton v-else variant="quiet" :disabled="busy" @click="openAdd">
                 {{ t('admin.approvers.add') }}
             </AdminButton>
@@ -348,9 +348,9 @@ async function submitCode(code: string): Promise<void> {
     gap: var(--space-3);
     margin-block-start: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    border: 1px solid rgba(76, 175, 125, 0.35);
+    border: 1px solid var(--c-success-border);
     border-radius: var(--radius-md);
-    background-color: rgba(76, 175, 125, 0.1);
+    background-color: color-mix(in srgb, var(--c-success) 10%, var(--c-surface));
     color: var(--c-success);
     font-size: 0.9375rem;
 }
@@ -429,6 +429,10 @@ async function submitCode(code: string): Promise<void> {
 
 .approvers__badge--plain {
     color: var(--c-warn);
+}
+
+.approvers__meta--full {
+    color: var(--c-text);
 }
 
 .approvers__meta--warn {

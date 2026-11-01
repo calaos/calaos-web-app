@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// One action of the box, as a line of a hairline list: what it does on the
+// One action of the box, as a card of a list: what it does on the
 // left, its button in the slot.
 
 defineProps<{

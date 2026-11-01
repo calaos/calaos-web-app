@@ -29,7 +29,7 @@ const admin = useAdminStore();
     padding: var(--space-3) var(--space-4);
     border: 1px solid var(--c-success-border);
     border-radius: var(--radius-md);
-    background-color: rgba(76, 175, 125, 0.1);
+    background-color: color-mix(in srgb, var(--c-success) 10%, var(--c-surface));
     color: var(--c-success);
     font-size: 0.9375rem;
     line-height: 1.4;

@@ -170,7 +170,7 @@ onBeforeUnmount(() => {
                 </button>
             </p>
 
-            <p v-if="refusal !== null" class="network__refusal fade-in" role="alert">{{ errorText(refusal) }}</p>
+            <p v-if="refusal !== null" class="network__refusal admin-card admin-card--error fade-in" role="alert">{{ errorText(refusal) }}</p>
 
             <NetworkPending v-if="trial" />
 
@@ -197,7 +197,6 @@ onBeforeUnmount(() => {
                     v-for="intf in interfaces"
                     :key="intf.name"
                     class="network__intf admin-card"
-                    :class="{ 'network__intf--editing': editing === intf.name }"
                 >
                     <div class="network__intf-head">
                         <div class="network__intf-name">
@@ -341,8 +340,8 @@ onBeforeUnmount(() => {
 }
 
 .network__outcome--ok {
-    border-color: rgba(76, 175, 125, 0.35);
-    background-color: rgba(76, 175, 125, 0.1);
+    border-color: var(--c-success-border);
+    background-color: color-mix(in srgb, var(--c-success) 10%, var(--c-surface));
     color: var(--c-success);
 }
 
@@ -365,7 +364,6 @@ onBeforeUnmount(() => {
 
 .network__refusal,
 .network__dialog-hint--error {
-    color: var(--c-danger-text);
     font-size: 0.9375rem;
     line-height: 1.45;
 }
