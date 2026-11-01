@@ -64,13 +64,15 @@ const { src, error, loaded, onLoad, onError, retry } = useCameraPoll(() =>
 <template>
     <div class="camera-frame" :class="`camera-frame--${variant}`">
         <div class="camera-frame__well">
+            <!-- No `decoding="async"`: the src changes every frame, and Chromium
+                 then paints the picture empty until the new one is decoded
+                 (e2e/camera-flicker.spec.ts). -->
             <img
                 v-if="src !== ''"
                 class="camera-frame__picture"
                 :class="{ 'camera-frame__picture--blank': !loaded || error }"
                 :src="src"
                 :alt="t('camera.snapshot', { name: camera.name })"
-                decoding="async"
                 @load="onLoad"
                 @error="onError"
             />
