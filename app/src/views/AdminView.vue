@@ -246,7 +246,7 @@ function changeHousehold(user: string, password: string): void {
     font-weight: 500;
     letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
-    color: var(--c-text-muted);
+    color: var(--c-text);
 }
 
 .admin__heading {
@@ -259,7 +259,7 @@ function changeHousehold(user: string, password: string): void {
 
 .admin__hint {
     margin-block-start: var(--space-3);
-    color: var(--c-text-muted);
+    color: var(--c-text);
     font-size: 0.9375rem;
     line-height: 1.45;
 }
@@ -274,7 +274,7 @@ function changeHousehold(user: string, password: string): void {
     background-color: rgba(52, 38, 20, 0.6);
     font-size: 0.875rem;
     line-height: 1.4;
-    color: var(--c-text-muted);
+    color: var(--c-text);
     overflow-wrap: anywhere;
 }
 

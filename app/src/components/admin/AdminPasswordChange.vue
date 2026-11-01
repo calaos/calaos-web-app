@@ -90,7 +90,7 @@ async function submitCode(code: string): Promise<void> {
 
 <template>
     <section class="password" :aria-label="t('admin.actions.password')">
-        <ul class="password__list">
+        <ul class="password__list admin-list">
             <AdminActionRow
                 :name="t('admin.actions.password')"
                 :hint="noApprover ? t('admin.actions.passwordNeedsApprover') : t('admin.actions.passwordHint')"
@@ -101,7 +101,7 @@ async function submitCode(code: string): Promise<void> {
             </AdminActionRow>
         </ul>
 
-        <p v-if="failure !== '' && !changing" class="password__error fade-in" role="alert">{{ failure }}</p>
+        <p v-if="failure !== '' && !changing" class="password__error admin-card admin-card--error fade-in" role="alert">{{ failure }}</p>
 
         <!-- The form has its own submit and cancel; the dialog only lends
              its frame (and Escape). -->
@@ -142,19 +142,13 @@ async function submitCode(code: string): Promise<void> {
 </template>
 
 <style scoped>
-.password__list {
-    border-block-start: 1px solid var(--c-border);
-}
-
 .password__error {
     margin-block-start: var(--space-3);
-    padding-inline: var(--space-2);
-    color: var(--c-danger-text);
     font-size: 0.875rem;
 }
 
 .password__hint {
-    color: var(--c-text-muted);
+    color: var(--c-text);
     font-size: 0.9375rem;
     line-height: 1.45;
 }

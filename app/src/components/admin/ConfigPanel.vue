@@ -304,8 +304,8 @@ async function confirmRestore(): Promise<void> {
             </template>
         </div>
 
-        <ul class="config__list">
-            <li class="config__row">
+        <ul class="config__list admin-list">
+            <li class="config__row admin-card">
                 <div class="config__text">
                     <span class="config__name">{{ t('admin.config.backup') }}</span>
                     <span class="config__hint">{{ t('admin.config.backupHint') }}</span>
@@ -328,7 +328,7 @@ async function confirmRestore(): Promise<void> {
                 <UnrestorableNote v-if="unrestorable.length > 0" :files="unrestorable" :safety="false" />
                 <UnrestorableNote v-else-if="safetyUnrestorable.length > 0" :files="safetyUnrestorable" :safety="true" />
             </li>
-            <li class="config__row">
+            <li class="config__row admin-card">
                 <div class="config__text">
                     <span class="config__name">{{ t('admin.config.restore') }}</span>
                     <span class="config__hint">{{ t('admin.config.restoreHint') }}</span>
@@ -362,7 +362,7 @@ async function confirmRestore(): Promise<void> {
             <p v-if="loading && config.options === null" class="config__status" role="status">
                 {{ t('admin.config.loading') }}
             </p>
-            <div v-else-if="config.options === null" class="config__status config__status--error" role="alert">
+            <div v-else-if="config.options === null" class="config__status config__status--error admin-card admin-card--error" role="alert">
                 <span>{{ t('admin.config.loadFailed') }} {{ loadError }}</span>
                 <AdminButton variant="quiet" :disabled="busy" @click="load">{{ t('admin.config.retry') }}</AdminButton>
             </div>
@@ -374,7 +374,7 @@ async function confirmRestore(): Promise<void> {
                 :aria-labelledby="`config-group-${entry.group}`"
             >
                 <h3 :id="`config-group-${entry.group}`" class="config__group-title">{{ groupLabel(entry.group) }}</h3>
-                <ul class="config__group-list">
+                <ul class="config__group-list admin-list">
                     <ConfigRow
                         v-for="option in entry.options"
                         :key="option.key"
@@ -500,7 +500,6 @@ async function confirmRestore(): Promise<void> {
 
 .config__list {
     margin-block-end: var(--space-8);
-    border-block-start: 1px solid var(--c-border);
 }
 
 .config__row {
@@ -509,8 +508,6 @@ async function confirmRestore(): Promise<void> {
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3) var(--space-4);
-    padding: var(--space-4) var(--space-2);
-    border-block-end: 1px solid var(--c-border);
 }
 
 .config__text {
@@ -554,17 +551,18 @@ async function confirmRestore(): Promise<void> {
 
 .config__status {
     padding-inline: var(--space-2);
-    color: var(--c-text-muted);
+    color: var(--c-text);
     font-size: 0.9375rem;
 }
 
 .config__status--error {
+    padding-inline: var(--space-4);
+    color: var(--c-danger-text);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
-    color: var(--c-danger-text);
 }
 
 .config__group-title {

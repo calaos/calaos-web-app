@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The box's services as the same hairline list as the box actions, each with
+// The box's services as the same list of cards as the box actions, each with
 // a status light and the verbs the daemon offers for that row. What takes
 // something away asks first, then the row follows the action until the list
 // shows its outcome; restarting what carries this page's connection says so
@@ -202,8 +202,8 @@ function confirm(): void {
             {{ t('admin.services.upgrading') }}
         </p>
 
-        <ul class="services__list">
-            <li v-if="services.error !== null && services.services === null" class="services__row">
+        <ul class="services__list admin-list">
+            <li v-if="services.error !== null && services.services === null" class="services__row admin-card">
                 <div class="services__text">
                     <span class="services__name">{{ t('admin.services.loadFailed') }}</span>
                     <span class="services__meta">{{ errorText(services.error) }}</span>
@@ -211,14 +211,14 @@ function confirm(): void {
                 <AdminButton variant="quiet" @click="services.load()">{{ t('admin.services.retry') }}</AdminButton>
             </li>
 
-            <li v-else-if="services.services === null" class="services__row">
+            <li v-else-if="services.services === null" class="services__row admin-card">
                 <span class="services__meta">{{ t('admin.services.loading') }}</span>
             </li>
 
             <li
                 v-for="entry in list"
                 :key="entry.id"
-                class="services__row"
+                class="services__row admin-card"
                 :class="{ 'services__row--busy': isTracked(entry) }"
                 :data-service="entry.id"
             >
@@ -311,7 +311,7 @@ function confirm(): void {
     padding: var(--space-3) var(--space-4);
     border: 1px solid color-mix(in srgb, var(--c-accent) 35%, transparent);
     border-radius: var(--radius-md);
-    background-color: color-mix(in srgb, var(--c-accent) 8%, transparent);
+    background-color: color-mix(in srgb, var(--c-accent) 8%, var(--c-surface));
     color: var(--c-accent);
     font-size: 0.9375rem;
     line-height: 1.45;
@@ -319,21 +319,18 @@ function confirm(): void {
 
 .services__banner--warn {
     border-color: color-mix(in srgb, var(--c-warn) 35%, transparent);
-    background-color: color-mix(in srgb, var(--c-warn) 8%, transparent);
+    background-color: color-mix(in srgb, var(--c-warn) 8%, var(--c-surface));
     color: var(--c-warn);
 }
 
 .services__list {
     margin-block-start: var(--space-3);
-    border-block-start: 1px solid var(--c-border);
 }
 
 .services__row {
     display: flex;
     align-items: center;
     gap: var(--space-4);
-    padding: var(--space-3) var(--space-2);
-    border-block-end: 1px solid var(--c-border);
 }
 
 .services__text {

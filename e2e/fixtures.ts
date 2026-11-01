@@ -502,3 +502,19 @@ export async function recordNavigation(page: Page): Promise<() => Promise<string
             () => (window as unknown as { __calaosNavLog?: string[] }).__calaosNavLog ?? [],
         );
 }
+
+/**
+ * Waits for the entry animations (fade-ins, not the 6 s `mcp-fresh` or looping ones) to finish,
+ * so the final screenshot of a test shows the text, not its fade.
+ */
+export async function settled(page: Page): Promise<void> {
+    await page.evaluate(async () => {
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await Promise.all(
+            document
+                .getAnimations()
+                .filter((a) => Number(a.effect?.getComputedTiming().endTime ?? 0) < 2_000)
+                .map((a) => a.finished),
+        );
+    });
+}

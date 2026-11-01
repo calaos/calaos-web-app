@@ -72,7 +72,7 @@ function choiceLabel(choice: string): string {
 </script>
 
 <template>
-    <li class="config-row" :class="{ 'config-row--stacked': editor !== 'bool' && editor !== 'select' && editor !== 'secret' }">
+    <li class="config-row admin-card" :class="{ 'config-row--stacked': editor !== 'bool' && editor !== 'select' && editor !== 'secret' }">
         <div class="config-row__text">
             <span :id="nameId" class="config-row__name">{{ option.key }}</span>
             <span :id="hintId" class="config-row__hint">
@@ -179,8 +179,6 @@ function choiceLabel(choice: string): string {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--space-2) var(--space-4);
-    padding: var(--space-4) var(--space-2);
-    border-block-end: 1px solid var(--c-border);
 }
 
 .config-row--stacked {
