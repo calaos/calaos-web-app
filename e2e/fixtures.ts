@@ -398,6 +398,10 @@ export function adminScreen(page: Page): {
     submit: Locator;
     /** The refusal under the password form. */
     error: Locator;
+    /** A tile of the hub. */
+    tile: (id: string) => Locator;
+    /** The signal that the hub is up, unlocked. */
+    hub: Locator;
     updates: Locator;
     updatesHeadline: Locator;
     progress: Locator;
@@ -410,6 +414,8 @@ export function adminScreen(page: Page): {
         confirmPassword: page.locator('.admin-password input[type="password"]').nth(1),
         submit: page.locator('.admin-password__submit'),
         error: page.locator('.admin-password__error'),
+        tile: (id) => page.locator(`[data-page="${id}"]`),
+        hub: page.locator('[data-page="updates"]'),
         updates: page.locator('.updates'),
         updatesHeadline: page.locator('.updates__headline'),
         progress: page.getByRole('progressbar'),

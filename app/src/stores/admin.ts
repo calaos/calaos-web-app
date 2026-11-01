@@ -875,10 +875,18 @@ export const useAdminStore = defineStore('admin', () => {
         }
     }
 
-    function deactivate(): void {
+    /**
+     * A page that watches the box like the tab does has gone. What it leaves
+     * behind stays: a message for the hub, a read to replay after the unlock.
+     */
+    function suspend(): void {
         active = false;
         retryTimer = clearTimer(retryTimer);
         unavailableSince = null;
+    }
+
+    function deactivate(): void {
+        suspend();
         replay = null;
         notice.value = null;
         info.value = null;
@@ -959,6 +967,7 @@ export const useAdminStore = defineStore('admin', () => {
         reboot,
         regenerateMcp,
         activate,
+        suspend,
         deactivate,
         dismissInfo,
         dismissNotice,

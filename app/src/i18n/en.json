@@ -206,6 +206,7 @@
         },
         "mcp": {
             "title": "MCP access",
+            "entryHint": "The address and token for an AI assistant.",
             "hint": "What an AI assistant needs to reach the box. It sends the token as a Bearer token in the Authorization header.",
             "url": "Address",
             "token": "Token",
@@ -276,6 +277,7 @@
         },
         "updates": {
             "title": "Updates",
+            "entryHint": "Check for and install the box's updates.",
             "unknown": "Updates not checked yet",
             "unknownHint": "Checking contacts the Calaos servers and can take up to a minute.",
             "upToDate": "Your box is up to date",
@@ -302,8 +304,17 @@
             "versions": "{from} → {to}",
             "progress": "Update progress"
         },
+        "security": {
+            "title": "Security",
+            "hint": "The phones that approve sensitive actions, and the admin password.",
+            "entryHint": "Approver phones and the admin password."
+        },
+        "system": {
+            "title": "System",
+            "hint": "Open a shell on the box, or restart it.",
+            "entryHint": "Console and restart."
+        },
         "actions": {
-            "title": "Box",
             "password": "Admin password",
             "passwordHint": "Change the password that protects this page.",
             "change": "Change",

@@ -28,7 +28,10 @@ async function openUnlocked(page: Page): Promise<void> {
     await admin.tab.click();
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
-    await expect(admin.updates).toBeVisible();
+    await expect(admin.hub).toBeVisible();
+    await admin.tile('security').click();
+    await expect(page).toHaveURL(/#\/admin\/security$/);
+    await expect(section(page)).toBeVisible();
 }
 
 function section(page: Page) {
@@ -169,7 +172,9 @@ test('password change: request a code, type it, and the new password is in', asy
 
     await expect(admin.info).toContainText(t.info.password_changed);
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(admin.updates).toBeVisible();
+    // The session swapped for a new one under the page: it stays open.
+    await expect(page).toHaveURL(/#\/admin\/security$/);
+    await expect(section(page)).toBeVisible();
     expect(await mock.adminStatus()).toMatchObject({ sessions: 1 });
 });
 

@@ -4,7 +4,7 @@
 // entry; the dialog title stays the job ("Add a phone"), the body says which
 // code is awaited.
 
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import IconAndroid from '~icons/mdi/android';
 import IconApple from '~icons/mdi/apple';
@@ -103,7 +103,10 @@ function openRemove(approver: Approver): void {
     if (list.value.length === 1) approvers.refuseLast();
 }
 
-defineExpose({ openAdd });
+watch(
+    () => approvers.addAsked,
+    () => openAdd(),
+);
 
 /** Escape during a check would hide a write that still lands. */
 function close(): void {

@@ -257,5 +257,5 @@ test('the page says where it is and leads back to the Admin hub', async ({ page 
     await expect(trail.locator('[aria-current="page"]')).toHaveText(services.title);
     await trail.getByRole('link', { name: MESSAGES.admin.title }).click();
     await expect(page).toHaveURL(/#\/admin$/);
-    await expect(adminScreen(page).updates).toBeVisible();
+    await expect(adminScreen(page).hub).toBeVisible();
 });

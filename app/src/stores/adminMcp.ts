@@ -84,6 +84,11 @@ export const useAdminMcpStore = defineStore('adminMcp', () => {
         }
     }
 
+    /** The action is the admin store's; showing the new token is this one's. */
+    async function regenerate(fetchImpl: typeof fetch = fetch): Promise<void> {
+        if (await admin.regenerateMcp()) await load(true, fetchImpl);
+    }
+
     function reset(): void {
         generation += 1;
         cardUp = false;
@@ -92,5 +97,5 @@ export const useAdminMcpStore = defineStore('adminMcp', () => {
         loading.value = false;
     }
 
-    return { info, error, loading, renewed, load, reset };
+    return { info, error, loading, renewed, load, regenerate, reset };
 });

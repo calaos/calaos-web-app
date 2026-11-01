@@ -37,7 +37,7 @@ async function openAdmin(page: Page): Promise<void> {
     await admin.tab.click();
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
-    await expect(admin.updates).toBeVisible();
+    await expect(admin.hub).toBeVisible();
     await page.locator('[data-page="time"]').click();
     await expect(page).toHaveURL(/#\/admin\/time$/);
     await expect(card(page).locator('.time__clock')).toBeVisible();
@@ -183,7 +183,7 @@ async function unlockOnly(page: Page): Promise<void> {
     await admin.tab.click();
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
-    await expect(admin.updates).toBeVisible();
+    await expect(admin.hub).toBeVisible();
 }
 
 test('an older daemon: the page says to update the box, and the Admin page stays unlocked', async ({ page, mock }) => {
@@ -233,7 +233,7 @@ test('calaos_server stops waiting on a change that did not take: the page says n
 test('the entry opens the page at its own URL: back returns to the hub, a reload comes back to the page after login and unlock', async ({ page }) => {
     await openAdmin(page);
     await page.goBack();
-    await expect(adminScreen(page).updates).toBeVisible();
+    await expect(adminScreen(page).hub).toBeVisible();
     // The page left the hub.
     await expect(card(page)).toHaveCount(0);
     await page.goForward();
