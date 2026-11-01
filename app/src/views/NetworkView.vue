@@ -362,8 +362,7 @@ onBeforeUnmount(() => {
     outline-offset: 2px;
 }
 
-.network__refusal,
-.network__dialog-hint--error {
+.network__refusal {
     font-size: 0.9375rem;
     line-height: 1.45;
 }
@@ -481,6 +480,10 @@ onBeforeUnmount(() => {
     color: var(--c-text-muted);
     font-size: 0.9375rem;
     line-height: 1.45;
+}
+
+.network__dialog-hint--error {
+    color: var(--c-danger-text);
 }
 
 @media (max-width: 479px) {

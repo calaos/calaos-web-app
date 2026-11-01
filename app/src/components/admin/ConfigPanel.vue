@@ -556,6 +556,8 @@ async function confirmRestore(): Promise<void> {
 }
 
 .config__status--error {
+    padding-inline: var(--space-4);
+    color: var(--c-danger-text);
     display: flex;
     flex-wrap: wrap;
     align-items: center;

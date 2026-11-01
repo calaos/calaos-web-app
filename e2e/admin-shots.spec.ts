@@ -5,23 +5,11 @@
 // scrolls, at the bottom.
 
 import type { Page } from '@playwright/test';
-import { MESSAGES, MOCK_PHONES, adminScreen, expect, loginAs, test } from './fixtures';
+import { MESSAGES, MOCK_PHONES, adminScreen, expect, loginAs, settled, test } from './fixtures';
 import type { ControlOp } from './fixtures';
 import net from '../app/src/i18n/admin/network.en.json';
 
 const ADMIN_PASSWORD = 'correct horse battery';
-
-/** Waits for the entry animations (fade-ins, not the 6 s `mcp-fresh` or looping ones) to finish. */
-async function settled(page: Page): Promise<void> {
-    await page.evaluate(() =>
-        Promise.all(
-            document
-                .getAnimations()
-                .filter((a) => Number(a.effect?.getComputedTiming().endTime ?? 0) < 2_000)
-                .map((a) => a.finished),
-        ),
-    );
-}
 
 async function unlock(page: Page): Promise<void> {
     const admin = adminScreen(page);

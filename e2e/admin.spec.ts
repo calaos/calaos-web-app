@@ -18,6 +18,7 @@ import {
     MESSAGES,
     adminScreen,
     appChrome,
+    settled,
     expect,
     loginAs,
     test,
@@ -357,6 +358,7 @@ test.describe('other blocked states', () => {
         await admin.tab.click();
         await expect(admin.heading).toHaveText(MESSAGES.admin.notice.https);
         await expect(page.locator('.admin__https')).toHaveAttribute('href', /^https:\/\/localhost\/.*#\/admin$/);
+        await settled(page);
     });
 
     test('daemon_too_old shows activation in progress', async ({ page, mock }) => {
@@ -366,6 +368,7 @@ test.describe('other blocked states', () => {
         const admin = adminScreen(page);
         await admin.tab.click();
         await expect(admin.heading).toHaveText(MESSAGES.admin.notice.activating);
+        await settled(page);
     });
 });
 
