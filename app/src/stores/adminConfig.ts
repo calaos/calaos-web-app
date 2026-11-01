@@ -15,7 +15,7 @@ import {
     toConfigRestoreResult,
     toConfigSetResult,
 } from '../protocol/admin-config';
-import type { ConfigBackup, ConfigOption, ConfigRestoreResult, ConfigSetResult } from '../protocol/admin-config';
+import type { ConfigBackup, ConfigOption, ConfigRestoreResult, ConfigSetResult, UnrestorableFile } from '../protocol/admin-config';
 import { bareAdminError, isAdminFailure, isPanelError, toAdminError } from '../protocol/admin';
 import type { AdminError } from '../protocol/admin';
 import { buildBackupZip } from '../protocol/backup-zip';
@@ -27,6 +27,7 @@ import { useConnectionStore } from './connection';
 export interface BackupFile {
     filename: string;
     blob: Blob;
+    unrestorable: UnrestorableFile[];
 }
 
 /** The restart a restore causes, followed across the reconnection. */
@@ -55,6 +56,12 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
      * back long after the "slow" banner was closed.
      */
     const householdChanged = ref(false);
+    /**
+     * Files the safety copy of the last restore could not cover. Like
+     * `householdChanged` it outlives the panel, which a changed household
+     * login unmounts: the sign-in page tells it.
+     */
+    const safetyUnrestorable = ref<UnrestorableFile[]>([]);
 
     /** Connection and household re-login: only then has the restarted server read the restored files. */
     const online = computed(() => connection.isOpen && auth.isAuthed);
@@ -77,6 +84,8 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
             return;
         }
         if (!restoreDropped) return;
+        // The sign-in page already told it; the panel after a re-login starts clean.
+        if (householdChanged.value) safetyUnrestorable.value = [];
         householdChanged.value = false;
         if (!restoreAwaiting) return;
         restoreAwaiting = false;
@@ -153,7 +162,7 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
             // Reported below, like a document in an unknown format.
         }
         if (doc === null) return bareAdminError('internal');
-        return { filename: backupZipName(doc.hostname, doc.createdAt), blob: buildBackupZip(doc) };
+        return { filename: backupZipName(doc.hostname, doc.createdAt), blob: buildBackupZip(doc), unrestorable: doc.unrestorable };
     }
 
     /** Validates `files` on the box and counts what would change. Nothing is written. */
@@ -170,8 +179,13 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
      * Replaces the files and follows the restart. A lost answer may be that
      * restart at work: it is followed too, but without claiming a success.
      */
-    async function restore(files: Record<string, string>, householdChanges: boolean): Promise<AdminError | null> {
+    async function restore(
+        files: Record<string, string>,
+        householdChanges: boolean,
+        safety: UnrestorableFile[] = [],
+    ): Promise<AdminError | null> {
         const sentAt = Date.now();
+        safetyUnrestorable.value = safety;
         const outcome = await admin.relay('config_restore', configRestoreParams(files, false), true, isPanelError);
         if (outcome.ok) {
             followRestart(toConfigRestoreResult(outcome.data.result)?.previous ?? null, householdChanges, false);
@@ -210,6 +224,10 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
         restoreFollowUp.value = null;
     }
 
+    function clearSafetyUnrestorable(): void {
+        safetyUnrestorable.value = [];
+    }
+
     function dismissRestart(): void {
         restartRequired.value = false;
     }
@@ -226,11 +244,13 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
         restartRequired,
         restoreFollowUp,
         householdChanged,
+        safetyUnrestorable,
         load,
         set,
         downloadBackup,
         previewRestore,
         restore,
+        clearSafetyUnrestorable,
         dismissRestart,
         dismissRestore,
         reset,

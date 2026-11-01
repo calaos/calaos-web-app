@@ -878,6 +878,35 @@ describe('review fixes', () => {
         expect(sent.some((f) => f.data.action === 'system_reboot' && f.data.admin_session === 'b'.repeat(64))).toBe(false);
     });
 
+    it('keeps a pending replay and the message across pages, unlike leaving the tab', async () => {
+        const admin = await unlocked();
+        void admin.checkUpdates();
+        fail(admin, 'bad_session');
+        await flush();
+        admin.info = 'reboot_sent';
+        admin.suspend();
+        expect(admin.info).toBe('reboot_sent');
+        admin.activate();
+        statusOk(admin);
+        await flush();
+        void admin.unlock('x');
+        answer(admin, { success: 'true', admin_session: 'b'.repeat(64), expires_in: '900' });
+        await flush();
+        expect(sent.some((f) => f.data.action === 'update_check' && f.data.admin_session === 'b'.repeat(64))).toBe(true);
+    });
+
+    it('stops watching the box on suspend, and resumes on the next page', async () => {
+        const admin = store();
+        admin.activate();
+        fail(admin, 'admin_unavailable');
+        await flush();
+        admin.suspend();
+        vi.advanceTimersByTime(60_000);
+        expect(sent).toHaveLength(1);
+        admin.activate();
+        expect(sent).toHaveLength(2);
+    });
+
     it('forgets a replay when the tab is left, or when the unlock comes late', async () => {
         const admin = await unlocked();
         void admin.checkUpdates();

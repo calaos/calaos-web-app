@@ -1,28 +1,22 @@
 <script setup lang="ts">
 // The Admin tab. One screen at a time, chosen by the store's gate: a notice
-// to wait on, a password to type, or — unlocked — the hub: updates, the ways
-// to the box's own pages, the approver phones, the box's actions, MCP access
-// and the time. The gate
-// screens borrow the login panel so that "enter the admin password" reads as
-// the same gesture as signing in.
+// to wait on, a password to type, or — unlocked — the hub, a tile per page of
+// the box. The gate screens borrow the login panel so that "enter the admin
+// password" reads as the same gesture as signing in.
 
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { ADMIN_PASSWORD_MIN_LENGTH } from '../protocol/admin';
 import { useAdminStore } from '../stores/admin';
 import { useAuthStore } from '../stores/auth';
 import { useAdminText } from '../composables/useAdminText';
-import AdminActions from '../components/admin/AdminActions.vue';
 import AdminButton from '../components/admin/AdminButton.vue';
+import AdminInfoBanner from '../components/admin/AdminInfoBanner.vue';
 import AdminNotice from '../components/admin/AdminNotice.vue';
 import AdminPages from '../components/admin/AdminPages.vue';
 import AdminPasswordForm from '../components/admin/AdminPasswordForm.vue';
-import ApproversPanel from '../components/admin/ApproversPanel.vue';
 import HouseholdPasswordForm from '../components/admin/HouseholdPasswordForm.vue';
-import McpCard from '../components/admin/McpCard.vue';
-import TimeCard from '../components/admin/TimeCard.vue';
-import UpdatesPanel from '../components/admin/UpdatesPanel.vue';
 
 const { t } = useI18n();
 const admin = useAdminStore();
@@ -32,31 +26,18 @@ const { errorText } = useAdminText();
 onMounted(() => admin.activate());
 onUnmounted(() => admin.deactivate());
 
-const actions = ref<InstanceType<typeof AdminActions> | null>(null);
-const phones = ref<InstanceType<typeof ApproversPanel> | null>(null);
-const time = ref<InstanceType<typeof TimeCard> | null>(null);
 const route = useRoute();
 const router = useRouter();
 
 // The console sends here to enrol a first phone (`?add=phone`), possibly
-// through the unlock screen first.
+// through the unlock screen first: the phones are on the security page.
+const addingPhone = computed(() => route.query.add === 'phone');
 watch(
-    phones,
-    (panel) => {
-        if (panel === null || route.query.add !== 'phone') return;
-        void router.replace({ name: 'admin' });
-        panel.openAdd();
+    () => admin.isUnlocked && addingPhone.value,
+    (go) => {
+        if (go) void router.replace({ name: 'adminSecurity', query: { add: 'phone' } });
     },
-    { flush: 'post' },
-);
-
-// The services page leads here for what only the Time card can change.
-watch(
-    time,
-    (card) => {
-        if (card !== null && route.hash === '#time') (card.$el as HTMLElement).scrollIntoView();
-    },
-    { flush: 'post' },
+    { immediate: true },
 );
 
 const formError = computed(() =>
@@ -69,8 +50,6 @@ const minLength = computed(() => admin.notice?.minLength ?? ADMIN_PASSWORD_MIN_L
 const httpsUrl = computed(
     () => `https://${window.location.hostname}${window.location.pathname}#/admin`,
 );
-
-const infoText = computed(() => (admin.info === null ? '' : t(`admin.info.${admin.info}`)));
 
 function unlock(password: string): void {
     void admin.unlock(password);
@@ -91,23 +70,8 @@ function changeHousehold(user: string, password: string): void {
 
         <!-- ---- unlocked ------------------------------------------------ -->
         <div v-if="admin.gate === 'unlocked'" class="admin__page fade-in">
-            <p v-if="infoText !== ''" class="admin__info fade-in" role="status">
-                <span>{{ infoText }}</span>
-                <button type="button" class="admin__dismiss" @click="admin.dismissInfo()">
-                    {{ t('admin.dismiss') }}
-                </button>
-            </p>
-            <UpdatesPanel @reboot="actions?.askReboot()" />
-
-            <AdminPages />
-
-            <ApproversPanel ref="phones" />
-
-            <AdminActions ref="actions" @add-phone="phones?.openAdd()" />
-
-            <McpCard />
-
-            <TimeCard ref="time" />
+            <AdminInfoBanner />
+            <AdminPages v-if="!addingPhone" />
         </div>
 
         <!-- ---- the gate ----------------------------------------------- -->
@@ -125,9 +89,7 @@ function changeHousehold(user: string, password: string): void {
                     <h2 class="admin__heading">{{ t('admin.unlock.title') }}</h2>
                     <p class="admin__hint">{{ t('admin.unlock.hint') }}</p>
                 </header>
-                <p v-if="infoText !== ''" class="admin__info admin__info--gate fade-in" role="status">
-                    {{ infoText }}
-                </p>
+                <AdminInfoBanner class="admin__info--gate" :dismissible="false" />
                 <AdminPasswordForm
                     class="fade-in-up"
                     mode="unlock"
@@ -249,33 +211,8 @@ function changeHousehold(user: string, password: string): void {
     margin-inline: auto;
 }
 
-.admin__info {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    border: 1px solid rgba(76, 175, 125, 0.35);
-    border-radius: var(--radius-md);
-    background-color: rgba(76, 175, 125, 0.1);
-    color: var(--c-success);
-    font-size: 0.9375rem;
-    line-height: 1.4;
-}
-
 .admin__info--gate {
     margin-block-end: var(--space-4);
-}
-
-.admin__dismiss {
-    flex: none;
-    padding: var(--space-1) var(--space-3);
-    border: 1px solid currentColor;
-    border-radius: var(--radius-sm);
-    background: none;
-    color: inherit;
-    font-size: 0.8125rem;
-    cursor: pointer;
 }
 
 /* ---- the gate: LoginView's panel ------------------------------------ */
@@ -309,7 +246,7 @@ function changeHousehold(user: string, password: string): void {
     font-weight: 500;
     letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
-    color: var(--c-text-muted);
+    color: var(--c-text);
 }
 
 .admin__heading {
@@ -322,7 +259,7 @@ function changeHousehold(user: string, password: string): void {
 
 .admin__hint {
     margin-block-start: var(--space-3);
-    color: var(--c-text-muted);
+    color: var(--c-text);
     font-size: 0.9375rem;
     line-height: 1.45;
 }
@@ -337,7 +274,7 @@ function changeHousehold(user: string, password: string): void {
     background-color: rgba(52, 38, 20, 0.6);
     font-size: 0.875rem;
     line-height: 1.4;
-    color: var(--c-text-muted);
+    color: var(--c-text);
     overflow-wrap: anywhere;
 }
 

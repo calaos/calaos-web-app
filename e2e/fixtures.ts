@@ -398,6 +398,10 @@ export function adminScreen(page: Page): {
     submit: Locator;
     /** The refusal under the password form. */
     error: Locator;
+    /** A tile of the hub. */
+    tile: (id: string) => Locator;
+    /** The signal that the hub is up, unlocked. */
+    hub: Locator;
     updates: Locator;
     updatesHeadline: Locator;
     progress: Locator;
@@ -410,6 +414,8 @@ export function adminScreen(page: Page): {
         confirmPassword: page.locator('.admin-password input[type="password"]').nth(1),
         submit: page.locator('.admin-password__submit'),
         error: page.locator('.admin-password__error'),
+        tile: (id) => page.locator(`[data-page="${id}"]`),
+        hub: page.locator('[data-page="updates"]'),
         updates: page.locator('.updates'),
         updatesHeadline: page.locator('.updates__headline'),
         progress: page.getByRole('progressbar'),
@@ -429,7 +435,7 @@ export function appChrome(page: Page): { navBar: Locator; footerNav: Locator } {
 
 /** Matches the home route and nothing below it (`/#/home/3` is a room). */
 export const HOME_URL = /#\/home$/;
-export const LOGIN_URL = /#\/login$/;
+export const LOGIN_URL = /#\/login(\?|$)/;
 
 /**
  * Fills the form, submits, and waits for the house.
@@ -441,6 +447,7 @@ export const LOGIN_URL = /#\/login$/;
 export async function loginAs(
     page: Page,
     credentials: { user: string; pass: string } = CREDENTIALS,
+    landing: RegExp = HOME_URL,
 ): Promise<number> {
     const form = loginForm(page);
     await form.username.fill(credentials.user);
@@ -452,7 +459,7 @@ export async function loginAs(
 
     const startedAt = Date.now();
     await form.submit.click();
-    await page.waitForURL(HOME_URL);
+    await page.waitForURL(landing);
     return Date.now() - startedAt;
 }
 
@@ -494,4 +501,20 @@ export async function recordNavigation(page: Page): Promise<() => Promise<string
         page.evaluate(
             () => (window as unknown as { __calaosNavLog?: string[] }).__calaosNavLog ?? [],
         );
+}
+
+/**
+ * Waits for the entry animations (fade-ins, not the 6 s `mcp-fresh` or looping ones) to finish,
+ * so the final screenshot of a test shows the text, not its fade.
+ */
+export async function settled(page: Page): Promise<void> {
+    await page.evaluate(async () => {
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await Promise.all(
+            document
+                .getAnimations()
+                .filter((a) => Number(a.effect?.getComputedTiming().endTime ?? 0) < 2_000)
+                .map((a) => a.finished),
+        );
+    });
 }

@@ -119,7 +119,7 @@ describe('ServicesPanel', () => {
         for (const id of ['calaos-home', 'hue2mqtt', 'ssh', 'ntp']) {
             expect(row(wrapper, id).find('[role="switch"]').exists()).toBe(false);
         }
-        expect(row(wrapper, 'ntp').find('.stub-link').text()).toBe('On/off: Time');
+        expect(row(wrapper, 'ntp').find('.stub-link').text()).toBe('On/off: Date and time');
         expect(labels(wrapper, 'ntp')).toEqual(['Restart']);
     });
 

@@ -102,4 +102,12 @@ test('the admin gate renders in French', async ({ page, mock }) => {
     await page.locator('.footer-nav__tab').last().click();
     await expect(page.locator('.admin__heading')).toHaveText(fr.admin.unlock.title);
     await expect(page.locator('.admin-password__submit')).toHaveText(fr.admin.unlock.submit);
+
+    await page.locator('.admin-password input[type="password"]').first().fill('correct horse battery');
+    await page.locator('.admin-password__submit').click();
+    await expect(page.locator('[data-page="system"]')).toContainText(fr.admin.system.title);
+    await page.locator('[data-page="system"]').click();
+    await expect(page).toHaveURL(/#\/admin\/system$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(fr.admin.system.title);
+    await expect(page.locator('.system')).toContainText(fr.admin.actions.reboot);
 });

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// The phones that receive admin codes, as the same hairline list as the box
+// The phones that receive admin codes, as the same list of cards as the box
 // actions. Adding and removing run in one dialog that ends on the code
 // entry; the dialog title stays the job ("Add a phone"), the body says which
 // code is awaited.
 
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import IconAndroid from '~icons/mdi/android';
 import IconApple from '~icons/mdi/apple';
@@ -103,7 +103,10 @@ function openRemove(approver: Approver): void {
     if (list.value.length === 1) approvers.refuseLast();
 }
 
-defineExpose({ openAdd });
+watch(
+    () => approvers.addAsked,
+    () => openAdd(),
+);
 
 /** Escape during a check would hide a write that still lands. */
 function close(): void {
@@ -139,8 +142,8 @@ async function submitCode(code: string): Promise<void> {
             </button>
         </p>
 
-        <ul class="approvers__list">
-            <li v-if="approvers.listError !== null" class="approvers__row">
+        <ul class="approvers__list admin-list">
+            <li v-if="approvers.listError !== null" class="approvers__row admin-card">
                 <div class="approvers__text">
                     <span class="approvers__name">{{ t('admin.approvers.loadFailed') }}</span>
                     <span class="approvers__meta">{{ errorText(approvers.listError) }}</span>
@@ -150,14 +153,14 @@ async function submitCode(code: string): Promise<void> {
                 </AdminButton>
             </li>
 
-            <li v-else-if="approvers.approvers !== null && list.length === 0" class="approvers__row approvers__row--empty">
+            <li v-else-if="approvers.approvers !== null && list.length === 0" class="approvers__row admin-card approvers__row--empty">
                 <div class="approvers__text">
                     <span class="approvers__name">{{ t('admin.approvers.none') }}</span>
                     <span class="approvers__meta">{{ t('admin.approvers.noneHint') }}</span>
                 </div>
             </li>
 
-            <li v-for="approver in list" :key="approver.id" class="approvers__row">
+            <li v-for="approver in list" :key="approver.id" class="approvers__row admin-card">
                 <component :is="iconFor(approver.platform)" class="approvers__icon" aria-hidden="true" />
                 <div class="approvers__text">
                     <span class="approvers__name">
@@ -192,7 +195,7 @@ async function submitCode(code: string): Promise<void> {
         </ul>
 
         <div v-if="approvers.approvers !== null" class="approvers__footer">
-            <p v-if="full" class="approvers__meta">{{ t('admin.approvers.max') }}</p>
+            <p v-if="full" class="approvers__meta approvers__meta--full">{{ t('admin.approvers.max') }}</p>
             <AdminButton v-else variant="quiet" :disabled="busy" @click="openAdd">
                 {{ t('admin.approvers.add') }}
             </AdminButton>
@@ -326,13 +329,13 @@ async function submitCode(code: string): Promise<void> {
     font-weight: 500;
     letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
-    color: var(--c-text-muted);
+    color: var(--c-text);
 }
 
 .approvers__intro {
     margin-block-start: var(--space-2);
     padding-inline: var(--space-2);
-    color: var(--c-text-muted);
+    color: var(--c-text);
     font-size: 0.875rem;
     line-height: 1.45;
     max-inline-size: 34rem;
@@ -345,9 +348,9 @@ async function submitCode(code: string): Promise<void> {
     gap: var(--space-3);
     margin-block-start: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    border: 1px solid rgba(76, 175, 125, 0.35);
+    border: 1px solid var(--c-success-border);
     border-radius: var(--radius-md);
-    background-color: rgba(76, 175, 125, 0.1);
+    background-color: color-mix(in srgb, var(--c-success) 10%, var(--c-surface));
     color: var(--c-success);
     font-size: 0.9375rem;
 }
@@ -365,15 +368,12 @@ async function submitCode(code: string): Promise<void> {
 
 .approvers__list {
     margin-block-start: var(--space-3);
-    border-block-start: 1px solid var(--c-border);
 }
 
 .approvers__row {
     display: flex;
     align-items: center;
     gap: var(--space-4);
-    padding: var(--space-4) var(--space-2);
-    border-block-end: 1px solid var(--c-border);
 }
 
 .approvers__row > .approvers__text {
@@ -429,6 +429,10 @@ async function submitCode(code: string): Promise<void> {
 
 .approvers__badge--plain {
     color: var(--c-warn);
+}
+
+.approvers__meta--full {
+    color: var(--c-text);
 }
 
 .approvers__meta--warn {

@@ -170,7 +170,7 @@ onBeforeUnmount(() => {
                 </button>
             </p>
 
-            <p v-if="refusal !== null" class="network__refusal fade-in" role="alert">{{ errorText(refusal) }}</p>
+            <p v-if="refusal !== null" class="network__refusal admin-card admin-card--error fade-in" role="alert">{{ errorText(refusal) }}</p>
 
             <NetworkPending v-if="trial" />
 
@@ -192,12 +192,11 @@ onBeforeUnmount(() => {
 
             <p v-else-if="interfaces.length === 0" class="network__empty">{{ t('admin.network.empty') }}</p>
 
-            <ul v-else class="network__list">
+            <ul v-else class="network__list admin-list">
                 <li
                     v-for="intf in interfaces"
                     :key="intf.name"
-                    class="network__intf"
-                    :class="{ 'network__intf--editing': editing === intf.name }"
+                    class="network__intf admin-card"
                 >
                     <div class="network__intf-head">
                         <div class="network__intf-name">
@@ -341,8 +340,8 @@ onBeforeUnmount(() => {
 }
 
 .network__outcome--ok {
-    border-color: rgba(76, 175, 125, 0.35);
-    background-color: rgba(76, 175, 125, 0.1);
+    border-color: var(--c-success-border);
+    background-color: color-mix(in srgb, var(--c-success) 10%, var(--c-surface));
     color: var(--c-success);
 }
 
@@ -363,32 +362,13 @@ onBeforeUnmount(() => {
     outline-offset: 2px;
 }
 
-.network__refusal,
-.network__dialog-hint--error {
-    color: var(--c-danger-text);
+.network__refusal {
     font-size: 0.9375rem;
     line-height: 1.45;
 }
 
 .network__empty {
-    color: var(--c-text-muted);
-}
-
-/* The interfaces as a hairline list, like the box's actions: the countdown
-   panel above is the only raised surface on the page. */
-.network__list {
-    border-block-start: 1px solid var(--c-border);
-}
-
-.network__intf {
-    padding: var(--space-4) var(--space-2);
-    border-block-end: 1px solid var(--c-border);
-}
-
-.network__intf--editing {
-    padding-inline: var(--space-4);
-    border-radius: var(--radius-md);
-    background-color: rgba(255, 255, 255, 0.03);
+    color: var(--c-text);
 }
 
 .network__intf-head {
@@ -500,6 +480,10 @@ onBeforeUnmount(() => {
     color: var(--c-text-muted);
     font-size: 0.9375rem;
     line-height: 1.45;
+}
+
+.network__dialog-hint--error {
+    color: var(--c-danger-text);
 }
 
 @media (max-width: 479px) {

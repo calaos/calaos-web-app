@@ -44,6 +44,17 @@
     "backupConfirmTitle": "Télécharger une sauvegarde ?",
     "backupConfirm": "Télécharger",
     "backupDownloading": "Préparation…",
+    "unrestorableIntro": "La sauvegarde est enregistrée, mais la box refuserait de restaurer ces fichiers tels quels :",
+    "unrestorableSafety": "La copie de sécurité est enregistrée, mais la box refuserait de restaurer ces fichiers à partir d'elle :",
+    "unrestorableSeparator": " : ",
+    "unrestorableCause": {
+        "not_loaded": "le serveur ne l'a pas chargé au démarrage (corrompu ou illisible) ; la sauvegarde en garde les octets tels quels",
+        "missing": "il est absent de la box",
+        "unreadable": "il est illisible sur la box",
+        "empty": "il est vide sur la box",
+        "refused": "son contenu ne passe pas les contrôles d'une restauration (trop gros, XML invalide, mauvaise racine ou format plus récent)",
+        "unknown": "la box signale un problème sur ce fichier"
+    },
     "backupDone": "Sauvegarde enregistrée sous {name}.",
     "restore": "Restaurer une sauvegarde",
     "restoreHint": "Un zip de sauvegarde, son fichier JSON, ou io.xml et rules.xml. Rien ne change avant votre confirmation.",

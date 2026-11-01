@@ -155,11 +155,11 @@ test('turning off a failed service ends with the unit `inactive`', async ({ page
     await expect(row(page, 'zigbee2mqtt').locator('.services__light--failed')).toHaveCount(0);
 });
 
-test('the time service leads to the Time card for its on/off', async ({ page }) => {
+test('the time service leads to the Date and time page for its on/off', async ({ page }) => {
     await openUnlocked(page);
     await expect(bootSwitch(page, 'ntp')).toHaveCount(0);
     await row(page, 'ntp').getByRole('link', { name: services.timeLink }).click();
-    await expect(page).toHaveURL(/#\/admin#time$/);
+    await expect(page).toHaveURL(/#\/admin\/time$/);
     await expect(page.locator('.time')).toBeInViewport();
 });
 
@@ -257,5 +257,5 @@ test('the page says where it is and leads back to the Admin hub', async ({ page 
     await expect(trail.locator('[aria-current="page"]')).toHaveText(services.title);
     await trail.getByRole('link', { name: MESSAGES.admin.title }).click();
     await expect(page).toHaveURL(/#\/admin$/);
-    await expect(adminScreen(page).updates).toBeVisible();
+    await expect(adminScreen(page).hub).toBeVisible();
 });

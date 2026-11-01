@@ -51,7 +51,7 @@ async function unlock(page: Page): Promise<void> {
     await admin.tab.click();
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
-    await expect(admin.updates).toBeVisible();
+    await expect(admin.hub).toBeVisible();
 }
 
 async function openNetwork(page: Page, url = '/'): Promise<void> {
@@ -184,7 +184,7 @@ test('not kept in time: the box rolls back, and the banner says so', async ({ pa
 
     // Stored by the box: the next sign-in shows it again until it is acknowledged.
     await page.reload();
-    await loginAs(page);
+    await loginAs(page, undefined, /#\/admin(\?|$)/);
     await expect(banner).toContainText(fill(net.alert.title, { intf: 'eth0' }));
     await banner.getByRole('button', { name: t.alerts.dismiss }).click();
     await expect(banner).toHaveCount(0);
@@ -241,18 +241,28 @@ test('a reload during the trial finds the countdown again after unlocking', asyn
 
     // Sign-in and admin session lived in memory: both are asked again.
     await page.reload();
-    await loginAs(page);
-    await unlock(page);
+    await loginAs(page, undefined, /#\/admin(\?|$)/);
+    await adminScreen(page).adminPassword.fill(ADMIN_PASSWORD);
+    await adminScreen(page).submit.click();
 
-    const entry = page.locator('[data-page="network"]');
-    await expect(entry).toContainText(fill(net.entry.pending, { intf: 'eth0', time: '@' }).split('@')[0]);
-    await entry.click();
+    // The unlock brings the page back by itself.
+    await expect(page).toHaveURL(/#\/admin\/network$/);
     await expect(panel(page)).toContainText(fill(net.pending.title, { intf: 'eth0' }));
     // The box's own count, not a fresh 2:00 from the reload.
     const boxLeft = (await networkStatus(mock)).pending?.expires_in ?? 0;
     expect(Math.abs((await secondsShown(page)) - boxLeft)).toBeLessThanOrEqual(2);
     await panel(page).getByRole('button', { name: net.pending.confirm }).click();
     await expect(page.getByRole('status').filter({ hasText: fill(net.done.confirmed, { intf: 'eth0' }) })).toBeVisible();
+});
+
+test('the hub entry says a change is waiting, for someone who reopens at the new address', async ({ page, mock }) => {
+    await network(mock, { pending: { intf: 'eth0', ageMs: 30_000 } });
+    await page.goto('/');
+    await loginAs(page);
+    await unlock(page);
+
+    await expect(page).toHaveURL(/#\/admin$/);
+    await expect(page.locator('[data-page="network"]')).toContainText(fill(net.entry.pending, { intf: 'eth0', time: '@' }).split('@')[0]);
 });
 
 test('a wrong code is said in the code entry, and the right one still applies', async ({ page, mock }) => {
@@ -301,7 +311,7 @@ test('an older daemon: the network row says so, and the Admin page stays unlocke
     await expect(entry).toContainText(t.error.daemon_too_old);
     // Nothing flips the page to "being activated" and back.
     await page.waitForTimeout(7_000);
-    await expect(adminScreen(page).updates).toBeVisible();
+    await expect(adminScreen(page).hub).toBeVisible();
     await expect(adminScreen(page).adminPassword).toHaveCount(0);
     expect((await mock.adminActions()).filter((action) => action === 'network_state')).toHaveLength(1);
 });
