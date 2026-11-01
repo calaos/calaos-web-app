@@ -435,7 +435,7 @@ export function appChrome(page: Page): { navBar: Locator; footerNav: Locator } {
 
 /** Matches the home route and nothing below it (`/#/home/3` is a room). */
 export const HOME_URL = /#\/home$/;
-export const LOGIN_URL = /#\/login$/;
+export const LOGIN_URL = /#\/login(\?|$)/;
 
 /**
  * Fills the form, submits, and waits for the house.
@@ -447,6 +447,7 @@ export const LOGIN_URL = /#\/login$/;
 export async function loginAs(
     page: Page,
     credentials: { user: string; pass: string } = CREDENTIALS,
+    landing: RegExp = HOME_URL,
 ): Promise<number> {
     const form = loginForm(page);
     await form.username.fill(credentials.user);
@@ -458,7 +459,7 @@ export async function loginAs(
 
     const startedAt = Date.now();
     await form.submit.click();
-    await page.waitForURL(HOME_URL);
+    await page.waitForURL(landing);
     return Date.now() - startedAt;
 }
 

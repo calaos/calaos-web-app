@@ -555,7 +555,7 @@ test('a changed household login sends the page to sign-in, which says why', asyn
 
 test('after a changed household login, the restored password signs in', async ({ page }) => {
     await restoreChangingHousehold(page);
-    await loginAs(page, { user: 'demo', pass: 'from-the-backup' });
+    await loginAs(page, { user: 'demo', pass: 'from-the-backup' }, /#\/admin\/settings$/);
     await expect(page).not.toHaveURL(LOGIN_URL);
     await expect(loginForm(page).submit).toHaveCount(0);
 });

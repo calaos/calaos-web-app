@@ -3,7 +3,7 @@
 // above an hour, the time zone and its restart offer, a partial failure.
 
 import T from '../app/src/i18n/admin/time.en.json';
-import { MESSAGES, adminScreen, expect, loginAs, test } from './fixtures';
+import { HOME_URL, MESSAGES, adminScreen, expect, loginAs, test } from './fixtures';
 import type { MockControl } from './fixtures';
 import type { Page } from '@playwright/test';
 
@@ -61,6 +61,21 @@ test('a synchronised box: in step, NTP on, no way to set it from this device', a
     await expect(card(page).getByRole('button', { name: T.setFromDevice })).toHaveCount(0);
     await expect(card(page).getByRole('button', { name: T.useNtp })).toHaveCount(0);
     await expect(card(page).getByLabel(T.timezone, { exact: true })).toHaveValue('Europe/Paris');
+});
+
+test('a refused admin password keeps the sub-page to come back to', async ({ page }) => {
+    await page.goto('/#/admin/time');
+    await loginAs(page, undefined, /#\/admin(\?|$)/);
+    const admin = adminScreen(page);
+
+    await admin.adminPassword.fill('nope');
+    await admin.submit.click();
+    await expect(admin.error).toHaveText(MESSAGES.admin.error.bad_password);
+    await expect(page).toHaveURL(/#\/admin\?redirect=(%2F|\/)admin(%2F|\/)time$/);
+
+    await admin.adminPassword.fill(ADMIN_PASSWORD);
+    await admin.submit.click();
+    await expect(page).toHaveURL(/#\/admin\/time$/);
 });
 
 test('warns past 5 s of drift, and sets the time from this device once confirmed', async ({ page, mock }) => {
@@ -215,7 +230,7 @@ test('calaos_server stops waiting on a change that did not take: the page says n
     expect((await mock.adminActions()).filter((action) => action === 'time_set')).toHaveLength(1);
 });
 
-test('the entry opens the page at its own URL: back returns to the hub, a reload asks to log in again', async ({ page }) => {
+test('the entry opens the page at its own URL: back returns to the hub, a reload comes back to the page after login and unlock', async ({ page }) => {
     await openAdmin(page);
     await page.goBack();
     await expect(adminScreen(page).hub).toBeVisible();
@@ -224,9 +239,21 @@ test('the entry opens the page at its own URL: back returns to the hub, a reload
     await page.goForward();
     await expect(card(page).locator('.time__clock')).toBeVisible();
     await page.reload();
-    // Nothing survives a reload: the app asks for the login again.
+    // Nothing survives a reload: the login and the admin password are asked again, then the page is back.
     await expect(page).toHaveURL(/#\/login/);
     await expect(card(page)).toHaveCount(0);
+    await loginAs(page, undefined, /#\/admin(\?|$)/);
+    const admin = adminScreen(page);
+    await admin.adminPassword.fill(ADMIN_PASSWORD);
+    await admin.submit.click();
+    await expect(page).toHaveURL(/#\/admin\/time$/);
+    await expect(card(page).locator('.time__clock')).toBeVisible();
+});
+
+test('a login URL naming another site is not followed', async ({ page }) => {
+    await page.goto('/#/login?redirect=' + encodeURIComponent('https://evil.example/'));
+    await loginAs(page);
+    await expect(page).toHaveURL(HOME_URL);
 });
 
 const manualInput = (page: Page) => card(page).getByLabel(T.manualTitle, { exact: true });

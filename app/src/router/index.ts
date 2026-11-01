@@ -11,7 +11,7 @@
 import { watch } from 'vue';
 import { createRouter, createWebHashHistory } from 'vue-router';
 import type { WatchStopHandle } from 'vue';
-import type { Router, RouterHistory } from 'vue-router';
+import type { RouteLocationNormalized, Router, RouterHistory } from 'vue-router';
 import { useAdminStore } from '../stores/admin';
 import { useAuthStore } from '../stores/auth';
 import { useHomeStore } from '../stores/home';
@@ -32,6 +32,32 @@ declare module 'vue-router' {
     }
 }
 
+/** Locked admin session: the hub asks for the password, then returns to `to`. */
+function adminOnly(to: RouteLocationNormalized) {
+    return useAdminStore().isUnlocked ? true : { name: 'admin', query: { redirect: to.fullPath } };
+}
+
+/** /home is the default landing and needs no memo; any other page is remembered. */
+function loginFor(here: { name?: unknown; fullPath: string }) {
+    return here.name === 'home'
+        ? { name: 'login' }
+        : { name: 'login', query: { redirect: here.fullPath } };
+}
+
+/**
+ * The `redirect` query is user-controlled: only a path that resolves to a
+ * real in-app route is followed, never an absolute URL or a protocol-relative
+ * one. `onlyAdmin` restricts the unlock return to admin sub-pages.
+ */
+function safeRedirect(router: Router, raw: unknown, onlyAdmin = false): string | null {
+    if (typeof raw !== 'string' || !/^\/(?![/\\])/.test(raw)) return null;
+    const target = router.resolve(raw);
+    const name = target.name;
+    if (typeof name !== 'string' || name === 'login') return null;
+    if (onlyAdmin && !(name.startsWith('admin') && name !== 'admin')) return null;
+    return target.fullPath;
+}
+
 /**
  * Builds a fresh router. `history` is injectable so unit tests can drive a
  * memory history (same pattern as CalaosSocket's injectable WebSocket).
@@ -50,7 +76,7 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 component: LoginView,
             },
             {
-                // Eager, like LoginView: /home is where every sign-in lands
+                // Eager, like LoginView: /home is where a sign-in lands by default
                 // and where the footer's Home tab always goes, so a lazy
                 // chunk would only add a blank frame to the app's busiest
                 // route. Same for the room it opens.
@@ -117,70 +143,70 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 name: 'adminConsole',
                 component: () => import('../views/ConsoleView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/logs',
                 name: 'adminLogs',
                 component: () => import('../views/LogsView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/network',
                 name: 'adminNetwork',
                 component: () => import('../views/NetworkView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/services',
                 name: 'adminServices',
                 component: () => import('../views/ServicesView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/time',
                 name: 'adminTime',
                 component: () => import('../views/TimeView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/updates',
                 name: 'adminUpdates',
                 component: () => import('../views/UpdatesView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/mcp',
                 name: 'adminMcp',
                 component: () => import('../views/McpView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/security',
                 name: 'adminSecurity',
                 component: () => import('../views/SecurityView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/system',
                 name: 'adminSystem',
                 component: () => import('../views/SystemView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             {
                 path: '/admin/settings',
                 name: 'adminSettings',
                 component: () => import('../views/SettingsView.vue'),
                 meta: { requiresAuth: true, detail: true },
-                beforeEnter: () => (useAdminStore().isUnlocked ? true : { name: 'admin' }),
+                beforeEnter: adminOnly,
             },
             // Unknown hash → home, where the auth guard takes over.
             { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
@@ -191,7 +217,8 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
         const auth = useAuthStore();
 
         if (to.meta.requiresAuth && !auth.isAuthed) {
-            return { name: 'login' };
+            // Remember where the visitor was headed (a reload lands here too).
+            return loginFor(to);
         }
 
         // The mirror of the rule above: a signed-in user who types /#/login
@@ -238,7 +265,7 @@ function inBounds(rawIndex: string, count: number): boolean {
  * would make stores↔router a cycle and break store unit tests), so everything
  * it wants from navigation is expressed as state and performed here.
  *
- * Two watchers:
+ * Three watchers:
  *  1. `pendingNavigation` — the intent raised by an interactive sign-in
  *    (→ /home, once the house data has landed) and by signOut() (→ /login).
  *  2. a rejected re-login mid-session. `resumeSession()` fires on every
@@ -248,8 +275,10 @@ function inBounds(rawIndex: string, count: number): boolean {
  *    that is no longer valid must not leave the user staring at stale rooms
  *    whose controls silently do nothing. LoginView renders the error on
  *    arrival because `state` is still 'failed'.
+ *  3. the admin unlock, which finishes a trip to an admin sub-page that the
+ *    password gate interrupted.
  *
- * Returns one handle stopping both; main.ts ignores it (app lifetime), tests
+ * Returns one handle stopping all; main.ts ignores it (app lifetime), tests
  * stop it.
  */
 export function startNavigationIntents(router: Router): WatchStopHandle {
@@ -259,7 +288,11 @@ export function startNavigationIntents(router: Router): WatchStopHandle {
         () => auth.pendingNavigation,
         (intent) => {
             if (intent === null) return;
-            void router.push({ name: intent });
+            const back =
+                intent === 'home'
+                    ? safeRedirect(router, router.currentRoute.value.query.redirect)
+                    : null;
+            void router.push(back ?? { name: intent });
             auth.consumeNavigation();
         },
     );
@@ -272,12 +305,26 @@ export function startNavigationIntents(router: Router): WatchStopHandle {
             // already on /login is the ordinary wrong-password case, and
             // pushing the route they are on would be a no-op navigation.
             if (router.currentRoute.value.meta.requiresAuth !== true) return;
-            void router.push({ name: 'login' });
+            void router.push(loginFor(router.currentRoute.value));
+        },
+    );
+
+    // An admin sub-page reached with a locked session lands on the hub's
+    // password gate; once unlocked, finish the trip.
+    const admin = useAdminStore();
+    const stopUnlock = watch(
+        () => admin.isUnlocked,
+        (unlocked) => {
+            const route = router.currentRoute.value;
+            if (!unlocked || route.name !== 'admin') return;
+            const back = safeRedirect(router, route.query.redirect, true);
+            if (back !== null) void router.push(back);
         },
     );
 
     return () => {
         stopIntents();
         stopRejections();
+        stopUnlock();
     };
 }
