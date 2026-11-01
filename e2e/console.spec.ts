@@ -31,11 +31,13 @@ async function openAdmin(page: Page): Promise<void> {
     await admin.tab.click();
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
-    await expect(admin.updates).toBeVisible();
+    await expect(admin.hub).toBeVisible();
 }
 
 async function openConsole(page: Page): Promise<void> {
-    await page.locator('.actions__row', { hasText: t.actions.console }).getByRole('button', { name: t.actions.consoleOpen }).click();
+    await adminScreen(page).tile('system').click();
+    await expect(page).toHaveURL(/#\/admin\/system$/);
+    await page.locator('.action-row', { hasText: t.actions.console }).getByRole('button', { name: t.actions.consoleOpen }).click();
     await expect(page).toHaveURL(/#\/admin\/console$/);
 }
 
@@ -131,8 +133,8 @@ test('no approver phone: no code is asked for, the enrolment is one tap away', a
     expect((await mock.adminStatus()).pushed).toEqual([]);
 
     await page.getByRole('button', { name: t.approvers.add }).click();
-    await expect(page).toHaveURL(/#\/admin$/);
-    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page).toHaveURL(/#\/admin\/security$/);
+    await expect(page.getByRole('dialog')).toContainText(t.approvers.pick.hint);
 });
 
 test('a refused upgrade over http asks for https', async ({ page, mock }) => {

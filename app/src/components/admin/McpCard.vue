@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The MCP endpoint and its token, for setting up an AI assistant. The token
-// is masked until asked for, and forgotten when the card goes.
+// is masked until asked for, and forgotten when the card goes. A new one
+// cannot be undone: it asks once.
 
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -8,6 +9,7 @@ import { mcpUrl } from '../../protocol/admin-mcp';
 import { useAdminStore } from '../../stores/admin';
 import { useAdminMcpStore } from '../../stores/adminMcp';
 import { useAdminText } from '../../composables/useAdminText';
+import BaseDialog from '../ui/BaseDialog.vue';
 import AdminButton from './AdminButton.vue';
 
 const COPIED_MS = 2_000;
@@ -24,11 +26,15 @@ const revealed = ref(false);
 const copied = ref<'url' | 'token' | null>(null);
 const copyFailed = ref(false);
 const fresh = ref(false);
+const confirming = ref(false);
 let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 let freshTimer: ReturnType<typeof setTimeout> | undefined;
 
 const url = computed(() => (mcp.info === null ? '' : mcpUrl(window.location.origin, mcp.info.urlPath)));
 const problem = computed(() => (mcp.error === null ? '' : errorText(mcp.error)));
+const failure = computed(() =>
+    admin.notice !== null && admin.noticeSource === 'box' ? errorText(admin.notice) : '',
+);
 
 watch(
     () => mcp.renewed,
@@ -77,6 +83,11 @@ async function copy(what: 'url' | 'token'): Promise<void> {
     if (done) copiedTimer = setTimeout(() => (copied.value = null), COPIED_MS);
 }
 
+function regenerate(): void {
+    confirming.value = false;
+    void mcp.regenerate();
+}
+
 onMounted(() => {
     if (admin.isUnlocked) void mcp.load();
 });
@@ -89,10 +100,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <section class="mcp" aria-labelledby="mcp-title">
-        <p id="mcp-title" class="mcp__eyebrow">{{ t('admin.mcp.title') }}</p>
-        <p class="mcp__intro">{{ t('admin.mcp.hint') }}</p>
-
+    <section class="mcp" :aria-label="t('admin.mcp.title')">
         <ul class="mcp__list">
             <li v-if="mcp.info === null && mcp.error !== null" class="mcp__row">
                 <div class="mcp__text">
@@ -138,33 +146,41 @@ onBeforeUnmount(() => {
                     </div>
                 </li>
             </template>
+
+            <li class="mcp__row" data-field="regenerate">
+                <div class="mcp__text">
+                    <span class="mcp__name">{{ t('admin.actions.mcp') }}</span>
+                    <span class="mcp__hint">{{ t('admin.actions.mcpHint') }}</span>
+                </div>
+                <AdminButton
+                    variant="quiet"
+                    :disabled="admin.busy !== null"
+                    :busy="admin.busy === 'mcp_regenerate'"
+                    @click="confirming = true"
+                >
+                    {{ t('admin.actions.regenerate') }}
+                </AdminButton>
+            </li>
         </ul>
 
         <p v-if="copyFailed" class="mcp__error fade-in" role="alert">{{ t('admin.mcp.copyFailed') }}</p>
+        <p v-if="failure !== ''" class="mcp__error fade-in" role="alert">{{ failure }}</p>
+
+        <BaseDialog
+            :open="confirming"
+            :title="t('admin.actions.mcpConfirmTitle')"
+            :confirm-label="t('admin.actions.mcpConfirm')"
+            :cancel-label="t('dialog.cancel')"
+            @confirm="regenerate"
+            @cancel="confirming = false"
+        >
+            <p class="mcp__dialog-hint">{{ t('admin.actions.mcpConfirmHint') }}</p>
+        </BaseDialog>
     </section>
 </template>
 
 <style scoped>
-.mcp__eyebrow {
-    padding-inline: var(--space-2);
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
-    color: var(--c-text-muted);
-}
-
-.mcp__intro {
-    margin-block-start: var(--space-2);
-    padding-inline: var(--space-2);
-    color: var(--c-text-muted);
-    font-size: 0.875rem;
-    line-height: 1.45;
-    max-inline-size: 34rem;
-}
-
 .mcp__list {
-    margin-block-start: var(--space-2);
     border-block-start: 1px solid var(--c-border);
 }
 
@@ -223,9 +239,20 @@ onBeforeUnmount(() => {
     font-size: 0.875rem;
 }
 
-.mcp__muted {
+.mcp__muted,
+.mcp__hint {
     color: var(--c-text-muted);
     font-size: 0.875rem;
+}
+
+.mcp__hint {
+    line-height: 1.4;
+}
+
+.mcp__dialog-hint {
+    color: var(--c-text-muted);
+    font-size: 0.9375rem;
+    line-height: 1.45;
 }
 
 .mcp__problem,

@@ -67,6 +67,18 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
+describe('asking to add a phone', () => {
+    it('raises a signal the phones list can follow, once per request', () => {
+        const approvers = useApproversStore();
+        const before = approvers.addAsked;
+        approvers.requestAdd();
+        const first = approvers.addAsked;
+        expect(first).not.toBe(before);
+        approvers.requestAdd();
+        expect(approvers.addAsked).not.toBe(first);
+    });
+});
+
 describe('enrolment', () => {
     it('the first phone needs no approval: its own code, then the list again', async () => {
         const approvers = await unlocked([]);

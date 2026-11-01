@@ -6,43 +6,14 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAdminStore } from '../../stores/admin';
 import { useAdminText } from '../../composables/useAdminText';
+import { useUpdatesPhase } from '../../composables/useUpdatesPhase';
 import AdminButton from './AdminButton.vue';
-
-/** "Restart the box" after a run that needs it; the confirmation lives in AdminActions. */
-const emit = defineEmits<{ reboot: [] }>();
+import RebootButton from './RebootButton.vue';
 
 const { t } = useI18n();
 const admin = useAdminStore();
 const { errorText } = useAdminText();
-
-type Phase = 'unknown' | 'upToDate' | 'available' | 'upgrading' | 'done' | 'doneReboot' | 'failed';
-
-const phase = computed<Phase>(() => {
-    if (admin.isUpgrading) return 'upgrading';
-    // A job that ended during this visit, or recently, is news; an older one
-    // is history and the panel starts afresh.
-    const job = admin.recentJob;
-    if (admin.updates === null && job !== null) {
-        if (job.status === 'error') return 'failed';
-        if (job.rebootRequired) return 'doneReboot';
-        return 'done';
-    }
-    if (admin.updates === null) return 'unknown';
-    return admin.updates.length === 0 ? 'upToDate' : 'available';
-});
-
-const percent = computed(() => Math.round(admin.progress?.totalPercent ?? 0));
-
-const headline = computed(() => {
-    switch (phase.value) {
-        case 'available':
-            return t('admin.updates.available', { count: admin.updates?.length ?? 0 }, admin.updates?.length ?? 0);
-        case 'upgrading':
-            return t('admin.updates.upgrading', { percent: percent.value });
-        default:
-            return t(`admin.updates.${phase.value}`);
-    }
-});
+const { phase, percent, headline } = useUpdatesPhase();
 
 const hint = computed(() => {
     switch (phase.value) {
@@ -78,8 +49,9 @@ const packageLine = computed(() => {
     return p.message;
 });
 
+// 'box': the restart this page offers after a run reports here too.
 const failure = computed(() =>
-    admin.notice !== null && admin.noticeSource === 'updates' ? errorText(admin.notice) : '',
+    admin.notice !== null && admin.noticeSource !== 'gate' ? errorText(admin.notice) : '',
 );
 const checking = computed(() => admin.busy === 'update_check');
 const starting = computed(() => admin.busy === 'update_upgrade_all');
@@ -87,8 +59,7 @@ const otherBusy = computed(() => admin.busy !== null && !checking.value && !star
 </script>
 
 <template>
-    <section class="updates" :class="`updates--${phase}`" aria-labelledby="updates-title">
-        <p id="updates-title" class="updates__eyebrow">{{ t('admin.updates.title') }}</p>
+    <section class="updates" :class="`updates--${phase}`" :aria-label="t('admin.updates.title')">
         <h2 class="updates__headline" aria-live="polite">{{ headline }}</h2>
         <p class="updates__hint">{{ hint }}</p>
         <p v-if="packageLine !== ''" class="updates__package">{{ packageLine }}</p>
@@ -117,15 +88,12 @@ const otherBusy = computed(() => admin.busy !== null && !checking.value && !star
         <p v-if="failure !== ''" class="updates__error fade-in" role="alert">{{ failure }}</p>
 
         <div v-if="phase !== 'upgrading'" class="updates__actions">
-            <AdminButton
+            <RebootButton
                 v-if="phase === 'doneReboot'"
                 variant="primary"
-                :busy="admin.busy === 'system_reboot'"
+                :label="t('admin.actions.reboot')"
                 :disabled="otherBusy || checking"
-                @click="emit('reboot')"
-            >
-                {{ t('admin.actions.reboot') }}
-            </AdminButton>
+            />
             <AdminButton
                 v-if="phase === 'available'"
                 variant="primary"
@@ -160,16 +128,7 @@ const otherBusy = computed(() => admin.busy !== null && !checking.value && !star
     overflow: hidden;
 }
 
-.updates__eyebrow {
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
-    color: var(--c-text-muted);
-}
-
 .updates__headline {
-    margin-block-start: var(--space-2);
     font-size: clamp(1.375rem, 4vw, 1.75rem);
     font-weight: 400;
     letter-spacing: var(--tracking-tight);
@@ -271,7 +230,8 @@ const otherBusy = computed(() => admin.busy !== null && !checking.value && !star
         padding: var(--space-4);
     }
 
-    .updates__actions > * {
+    /* :deep because RebootButton has two roots, so it takes no scope id. */
+    .updates__actions :deep(.admin-button) {
         flex: 1 1 100%;
     }
 }

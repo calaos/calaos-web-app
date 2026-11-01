@@ -11,6 +11,31 @@ import { useAdminStore } from '../stores/admin';
 import { useAuthStore } from '../stores/auth';
 import { createAppRouter } from '../router';
 import type { VueWrapper } from '@vue/test-utils';
+import type { Router } from 'vue-router';
+
+const JOB = {
+    id: '3f9c',
+    kind: 'upgrade_all',
+    package: '',
+    status: 'running',
+    error: '',
+    rebootRequired: false,
+    daemonRestart: false,
+    startedAt: '',
+    finishedAt: '',
+};
+
+const PROGRESS = {
+    status: 'upgrading' as const,
+    totalPercent: 0,
+    currentPkg: '',
+    currentStep: 'install',
+    pkgIndex: 1,
+    pkgCount: 2,
+    message: '',
+    error: '',
+    packageNames: [],
+};
 
 function mountView(locale: 'en' | 'fr' = 'en'): VueWrapper {
     return mount(AdminView, {
@@ -122,102 +147,138 @@ describe('AdminView bootstrap screen', () => {
     });
 });
 
-describe('UpdatesPanel errors', () => {
-    it.each([
-        ['en', en.admin.error.package_held],
-        ['fr', fr.admin.error.package_held],
-    ] as const)('says a held package will not be updated (%s)', async (locale, sentence) => {
+describe('AdminView hub', () => {
+    function unlocked(): ReturnType<typeof useAdminStore> {
         const admin = useAdminStore();
         admin.gate = 'unlocked';
         admin.session = 'a'.repeat(64);
+        return admin;
+    }
+
+    const tile = (wrapper: VueWrapper, id: string) => wrapper.find(`[data-page="${id}"]`);
+
+    it('is nothing but its tiles, in the order of the brief', async () => {
+        unlocked();
+        const wrapper = mountView();
+        await flushPromises();
+        expect(wrapper.findAll('[data-page]').map((node) => node.attributes('data-page'))).toEqual([
+            'updates',
+            'network',
+            'services',
+            'logs',
+            'time',
+            'mcp',
+            'security',
+            'system',
+            'settings',
+        ]);
+        expect(wrapper.find('.updates').exists()).toBe(false);
+        expect(wrapper.find('.mcp').exists()).toBe(false);
+        expect(wrapper.find('.approvers').exists()).toBe(false);
+    });
+
+    it('keeps a message left by a sub-page until it is dismissed', async () => {
+        unlocked().info = 'reboot_sent';
+        const wrapper = mountView();
+        await flushPromises();
+        expect(wrapper.find('.admin__info').text()).toContain(en.admin.info.reboot_sent);
+        await wrapper.find('.admin__dismiss').trigger('click');
+        expect(wrapper.find('.admin__info').exists()).toBe(false);
+    });
+
+    it('invites to look for updates before anything is known', async () => {
+        unlocked();
+        const wrapper = mountView();
+        await flushPromises();
+        const updates = tile(wrapper, 'updates');
+        expect(updates.text()).toContain(en.admin.updates.entryHint);
+        expect(updates.classes()).not.toContain('pages__tile--warn');
+    });
+
+    it('says the box is up to date, quietly', async () => {
+        unlocked().updates = [];
+        const wrapper = mountView();
+        await flushPromises();
+        const updates = tile(wrapper, 'updates');
+        expect(updates.text()).toContain(en.admin.updates.upToDate);
+        expect(updates.classes()).not.toContain('pages__tile--warn');
+    });
+
+    it('flags the updates that wait', async () => {
+        unlocked().updates = [{ name: 'calaos-server', current: '1', available: '2' }] as never;
+        const wrapper = mountView();
+        await flushPromises();
+        const updates = tile(wrapper, 'updates');
+        expect(updates.text()).toContain('1 update available');
+        expect(updates.classes()).toContain('pages__tile--warn');
+    });
+
+    it('follows a run in progress', async () => {
+        const admin = unlocked();
+        admin.job = { ...JOB, status: 'running' };
+        admin.progress = { ...PROGRESS, totalPercent: 40 };
+        const wrapper = mountView();
+        await flushPromises();
+        const updates = tile(wrapper, 'updates');
+        expect(updates.text()).toContain(en.admin.updates.upgrading.replace('{percent}', '40'));
+        expect(updates.classes()).toContain('pages__tile--warn');
+    });
+
+    it('flags a failed run', async () => {
+        unlocked().job = { ...JOB, status: 'error', finishedAt: new Date().toISOString() };
+        const wrapper = mountView();
+        await flushPromises();
+        const updates = tile(wrapper, 'updates');
+        expect(updates.text()).toContain(en.admin.updates.failed);
+        expect(updates.classes()).toContain('pages__tile--warn');
+    });
+
+    it('tells a refused status read on the tile', async () => {
+        const admin = unlocked();
         admin.notice = toAdminError({ error: 'package_held', msg: 'calaos-server is held' });
         admin.noticeSource = 'updates';
-        const wrapper = mountView(locale);
+        const wrapper = mountView();
         await flushPromises();
-        expect(wrapper.find('.updates__error').text()).toBe(sentence);
+        const updates = tile(wrapper, 'updates');
+        expect(updates.text()).toContain(en.admin.error.package_held);
+        expect(updates.classes()).toContain('pages__tile--warn');
     });
 });
 
-describe('UpdatesPanel while an upgrade runs', () => {
-    function upgrading(currentPkg: string): void {
+describe('AdminView with ?add=phone', () => {
+    async function mountAt(unlockedBox: boolean): Promise<{ wrapper: VueWrapper; router: Router }> {
+        const router = createAppRouter(createMemoryHistory());
+        // The hub is the view under test: the security page would need the whole store.
+        router.getRoutes().find((r) => r.name === 'adminSecurity')!.components!.default = { render: () => null };
         const admin = useAdminStore();
-        admin.gate = 'unlocked';
-        admin.session = 'a'.repeat(64);
-        admin.job = {
-            id: '3f9c',
-            kind: 'upgrade_all',
-            package: '',
-            status: 'running',
-            error: '',
-            rebootRequired: false,
-            daemonRestart: false,
-            startedAt: '',
-            finishedAt: '',
-        };
-        admin.progress = {
-            status: 'upgrading',
-            totalPercent: 40,
-            currentPkg,
-            currentStep: 'install',
-            pkgIndex: 2,
-            pkgCount: 3,
-            message: '',
-            error: '',
-            packageNames: [],
-        };
+        admin.gate = unlockedBox ? 'unlocked' : 'locked';
+        admin.session = unlockedBox ? 'a'.repeat(64) : null;
+        await router.push({ name: 'admin', query: { add: 'phone' } });
+        const wrapper = mount(AdminView, {
+            global: {
+                plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } }), router],
+                stubs: { Teleport: true },
+            },
+        });
+        await flushPromises();
+        return { wrapper, router };
     }
 
-    it('names the package from the full view', async () => {
-        upgrading('calaos-server');
-        const wrapper = mountView();
-        await flushPromises();
-        expect(wrapper.find('.updates__package').text()).toBe('calaos-server (2 of 3)');
+    it('goes straight to the security page, query kept, when unlocked', async () => {
+        const { router } = await mountAt(true);
+        expect(router.currentRoute.value.name).toBe('adminSecurity');
+        expect(router.currentRoute.value.query.add).toBe('phone');
     });
 
-    it('counts packages without naming them in the household view', async () => {
-        upgrading('');
-        const wrapper = mountView();
-        await flushPromises();
-        expect(wrapper.find('.updates__package').text()).toBe('Package 2 of 3');
-    });
-});
-
-describe('UpdatesPanel after a failed run', () => {
-    function failed(error: string): void {
+    it('waits for the unlock', async () => {
+        const { wrapper, router } = await mountAt(false);
+        expect(router.currentRoute.value.name).toBe('admin');
+        expect(wrapper.find('.admin-password').exists()).toBe(true);
         const admin = useAdminStore();
-        admin.gate = 'unlocked';
         admin.session = 'a'.repeat(64);
-        admin.job = {
-            id: '3f9c',
-            kind: 'upgrade_all',
-            package: '',
-            status: 'error',
-            error,
-            rebootRequired: false,
-            daemonRestart: false,
-            startedAt: '',
-            finishedAt: new Date().toISOString(),
-        };
-    }
-
-    it('gives the daemon reason from the full view', async () => {
-        failed('apt-get returned 100');
-        const wrapper = mountView();
+        admin.gate = 'unlocked';
         await flushPromises();
-        expect(wrapper.find('.updates__hint').text()).toBe('Reason: apt-get returned 100');
-    });
-
-    it('does not echo the generic household error as a reason', async () => {
-        failed('upgrade failed');
-        const wrapper = mountView();
-        await flushPromises();
-        expect(wrapper.find('.updates__hint').text()).toBe(en.admin.updates.failedHint);
-    });
-
-    it('says an interrupted run was interrupted', async () => {
-        failed('interrupted');
-        const wrapper = mountView('fr');
-        await flushPromises();
-        expect(wrapper.find('.updates__hint').text()).toBe(fr.admin.updates.failedInterrupted);
+        expect(router.currentRoute.value.name).toBe('adminSecurity');
+        expect(router.currentRoute.value.query.add).toBe('phone');
     });
 });

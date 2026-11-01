@@ -32,7 +32,7 @@ async function openLogs(page: Page): Promise<void> {
     await admin.tab.click();
     await admin.adminPassword.fill(ADMIN_PASSWORD);
     await admin.submit.click();
-    await expect(admin.updates).toBeVisible();
+    await expect(admin.hub).toBeVisible();
     await page.locator('[data-page="logs"]').click();
     await expect(page).toHaveURL(/#\/admin\/logs$/);
     // Narrow screens fold the filters away; wide ones show them beside the journal.

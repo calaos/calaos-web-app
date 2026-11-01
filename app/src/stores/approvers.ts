@@ -88,6 +88,8 @@ export const useApproversStore = defineStore('approvers', () => {
     const challenge = ref<Challenge | null>(null);
     const working = ref<ApproverWork>(null);
     const done = ref<ApproverDone>(null);
+    /** Bumped to open the panel's "add a phone" dialog from another component. */
+    const addAsked = ref(0);
 
     let context: FlowContext = { firstEnrolment: false };
     /** The verified console code, until the console page takes it. */
@@ -470,6 +472,10 @@ export const useApproversStore = defineStore('approvers', () => {
         if (admin.isUnlocked) void load();
     }
 
+    function requestAdd(): void {
+        addAsked.value += 1;
+    }
+
     function reset(): void {
         cancel();
         listSeq += 1;
@@ -487,6 +493,7 @@ export const useApproversStore = defineStore('approvers', () => {
         challenge,
         working,
         done,
+        addAsked,
         alternative,
         load,
         loadCandidates,
@@ -502,6 +509,7 @@ export const useApproversStore = defineStore('approvers', () => {
         sendToOther,
         cancel,
         dismissDone,
+        requestAdd,
         handleEvent,
         reset,
     };
