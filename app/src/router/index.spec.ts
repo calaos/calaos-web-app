@@ -335,6 +335,7 @@ describe.each([
         signedIn();
         await router.push(path);
         expect(router.currentRoute.value.name).toBe('admin');
+        expect(router.currentRoute.value.query.redirect).toBe(path);
     });
 
     it('with one, opens as a detail route', async () => {
