@@ -910,7 +910,7 @@ export const useAdminStore = defineStore('admin', () => {
         try {
             send(encodeAdminAction('admin_logout', session.value, `admin-${nextMsgId}`));
         } catch {
-            // Closed or throwing socket: the token then ages out on the daemon.
+            // send() answers false on a closed socket: the revocation is then lost, and the token ages out on the daemon.
         }
     }
 
