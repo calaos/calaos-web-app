@@ -29,6 +29,8 @@ declare module 'vue-router' {
         requiresAuth?: boolean;
         /** Detail route: NavBar shows the back button (old `canGoBack()`). */
         detail?: boolean;
+        /** Route name the NavBar back arrow goes to, instead of the path parent. */
+        parent?: string;
     }
 }
 
@@ -142,7 +144,7 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 path: '/admin/console',
                 name: 'adminConsole',
                 component: () => import('../views/ConsoleView.vue'),
-                meta: { requiresAuth: true, detail: true },
+                meta: { requiresAuth: true, detail: true, parent: 'adminSystem' },
                 beforeEnter: adminOnly,
             },
             {

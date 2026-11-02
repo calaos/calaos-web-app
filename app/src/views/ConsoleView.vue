@@ -225,8 +225,8 @@ watch(
     },
 );
 
-function backToAdmin(): void {
-    void router.push({ name: 'admin' });
+function backToSystem(): void {
+    void router.push({ name: 'adminSystem' });
 }
 
 function addPhone(): void {
@@ -269,12 +269,12 @@ onBeforeUnmount(() => {
                 :title="t('admin.console.noApprover.title')"
                 :hint="t('admin.console.noApprover.hint')"
             >
-                <AdminButton variant="quiet" @click="backToAdmin">{{ t('admin.console.back') }}</AdminButton>
+                <AdminButton variant="quiet" @click="backToSystem">{{ t('admin.console.back') }}</AdminButton>
                 <AdminButton @click="addPhone">{{ t('admin.approvers.add') }}</AdminButton>
             </AdminNotice>
 
             <AdminNotice v-else-if="challenge === null" tone="warn" :title="t('admin.console.refusedTitle')" :hint="flowError">
-                <AdminButton variant="quiet" @click="backToAdmin">{{ t('admin.console.back') }}</AdminButton>
+                <AdminButton variant="quiet" @click="backToSystem">{{ t('admin.console.back') }}</AdminButton>
                 <AdminButton @click="start">{{ t('admin.console.again') }}</AdminButton>
             </AdminNotice>
 
@@ -287,7 +287,7 @@ onBeforeUnmount(() => {
                 @submit="approvers.submit"
                 @resend="approvers.resend()"
                 @other="approvers.sendToOther()"
-                @cancel="backToAdmin"
+                @cancel="backToSystem"
             />
         </div>
 
@@ -318,7 +318,7 @@ onBeforeUnmount(() => {
             >
                 <p class="console__end-text">{{ endText }}</p>
                 <div class="console__end-actions">
-                    <AdminButton variant="quiet" @click="backToAdmin">{{ t('admin.console.back') }}</AdminButton>
+                    <AdminButton variant="quiet" @click="backToSystem">{{ t('admin.console.back') }}</AdminButton>
                     <AdminButton v-if="end?.kind === 'handshake' && overHttp" :href="httpsUrl">
                         {{ t('admin.notice.httpsOpen') }}
                     </AdminButton>
