@@ -796,6 +796,29 @@ describe('reset', () => {
         expect(sent).toHaveLength(1);
     });
 
+    it('ends the token of an unlock answered after sign-out, and keeps none', async () => {
+        const admin = store();
+        admin.activate();
+        fail(admin, 'admin_unavailable');
+        await flush();
+        const unlocking = admin.unlock('pw');
+        const unlockFrame = last();
+        admin.reset();
+        await unlocking;
+        sent = [];
+        admin.handleReply(
+            decodeServerMessage({
+                msg: 'admin',
+                msg_id: unlockFrame.msg_id,
+                data: { success: 'true', admin_session: SESSION, expires_in: 900 },
+            }) as AdminReplyMessage,
+        );
+        expect(sent).toEqual([
+            { msg: 'admin', msg_id: expect.any(String), data: { action: 'admin_logout', admin_session: SESSION } },
+        ]);
+        expect(admin.session).toBeNull();
+    });
+
     it('sends nothing when no session is held', () => {
         const admin = store();
         admin.reset();
