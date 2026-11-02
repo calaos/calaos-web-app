@@ -4,6 +4,7 @@ import { createCalaosService, getCalaosService, resetCalaosService } from './cal
 import { CalaosSocket } from '../protocol/socket';
 import { useAudioStore } from '../stores/audio';
 import { useAuthStore } from '../stores/auth';
+import { useCameraTokenStore } from '../stores/cameraToken';
 import { useConnectionStore } from '../stores/connection';
 import { useHomeStore } from '../stores/home';
 import type { CalaosService } from './calaos';
@@ -258,6 +259,76 @@ describe('reconnect', () => {
 
         auth.signIn('demo', 'demo');
         expect(socketBefore.sent.at(-1)).toBe(LOGIN_FRAME);
+    });
+});
+
+describe('camera capture token', () => {
+    const TOKEN = 'e'.repeat(64);
+
+    function tokenRequests(): { msg_id: string }[] {
+        return sent()
+            .map((frame) => JSON.parse(frame) as { msg: string; msg_id: string })
+            .filter((frame) => frame.msg === 'camera_token');
+    }
+
+    function grant(): void {
+        const request = tokenRequests().at(-1);
+        if (request === undefined) throw new Error('no camera_token request');
+        FakeWebSocket.last.fireMessage(
+            JSON.stringify({ msg: 'camera_token', msg_id: request.msg_id, data: { token: TOKEN, expires_in: '120' } }),
+        );
+    }
+
+    /** A camera on screen, a session logged in, a token granted. */
+    function watching(): void {
+        startAndOpen();
+        useCameraTokenStore().acquire();
+        signInAndLoad();
+        grant();
+    }
+
+    it('asks for a token once logged in with a camera on screen', () => {
+        watching();
+
+        expect(tokenRequests()).toHaveLength(1);
+        expect(useCameraTokenStore().token).toBe(TOKEN);
+    });
+
+    it('asks for no token while no camera is on screen', () => {
+        startAndOpen();
+        signInAndLoad();
+
+        expect(tokenRequests()).toHaveLength(0);
+    });
+
+    it('drops the token with the socket, and asks again after the re-login', () => {
+        watching();
+
+        FakeWebSocket.last.fireClose();
+        expect(useCameraTokenStore().token).toBe('');
+
+        vi.advanceTimersByTime(1000);
+        FakeWebSocket.last.fireOpen();
+        FakeWebSocket.last.fireMessage(LOGIN_OK);
+        expect(tokenRequests()).toHaveLength(1);
+        grant();
+        expect(useCameraTokenStore().token).toBe(TOKEN);
+    });
+
+    it('drops the token when the household password changes', () => {
+        watching();
+
+        FakeWebSocket.last.fireMessage('{"msg":"settings","data":{"action":"change_cred","success":"true"}}');
+
+        expect(useCameraTokenStore().token).toBe('');
+    });
+
+    it('keeps the token when a password change is refused', () => {
+        watching();
+
+        FakeWebSocket.last.fireMessage('{"msg":"settings","data":{"action":"change_cred","success":"false"}}');
+
+        expect(useCameraTokenStore().token).toBe(TOKEN);
     });
 });
 

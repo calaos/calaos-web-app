@@ -10,9 +10,8 @@
 // download and a re-encode per request, where the URL costs it nothing.
 //
 // Credentials ride in the JSON body, not the query string (that is what the
-// endpoint takes; camera snapshots differ — see services/camera-url.ts). They
-// are an argument, never an import, so this module holds no state and
-// `cn_user`/`cn_pass` stay confined to the two files that must know them.
+// endpoint takes). They are an argument, never an import, so this module
+// holds no state.
 
 /** Plain credentials; the auth store's `user`/`pass`, passed by the caller. */
 export interface CoverCredentials {

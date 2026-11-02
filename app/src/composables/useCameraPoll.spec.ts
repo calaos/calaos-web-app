@@ -381,3 +381,71 @@ describe('useCameraPoll — a reactive URL', () => {
         expect(waitForNextRequest()).toBe(BACKOFF_MIN_MS);
     });
 });
+
+describe('useCameraPoll — the capture token', () => {
+    const OLD = 'a'.repeat(64);
+    const NEW = 'b'.repeat(64);
+
+    function withToken(initial: string) {
+        const token = ref(initial);
+        const poll = scope.run(() =>
+            useCameraPoll(
+                () => (token.value === '' ? '' : `/api?camera_token=${token.value}&id=camera_1`),
+                () => 'camera_1',
+            ),
+        ) as CameraPoll;
+        return { token, poll };
+    }
+
+    it('keeps the picture on screen when the token is renewed', async () => {
+        const { token, poll } = withToken(OLD);
+        poll.onLoad();
+        const shown = poll.src.value;
+
+        token.value = NEW;
+        await nextTick();
+
+        // No new request, no blank: the frame on screen is still valid.
+        expect(poll.loaded.value).toBe(true);
+        expect(poll.src.value).toBe(shown);
+
+        vi.advanceTimersByTime(FRAME_INTERVAL_MS);
+        expect(poll.src.value).toContain(`camera_token=${NEW}&`);
+        expect(poll.loaded.value).toBe(true);
+    });
+
+    it('asks for nothing while there is no token', () => {
+        const { poll } = withToken('');
+
+        expect(poll.src.value).toBe('');
+        vi.advanceTimersByTime(60_000);
+        expect(poll.src.value).toBe('');
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('stops, picture off, the moment the token goes away', async () => {
+        const { token, poll } = withToken(OLD);
+        poll.onLoad();
+
+        token.value = '';
+        await nextTick();
+
+        expect(poll.src.value).toBe('');
+        expect(poll.loaded.value).toBe(false);
+        expect(vi.getTimerCount()).toBe(0);
+        // An event from the img that was just taken off schedules nothing.
+        poll.onLoad();
+        poll.onError();
+        expect(vi.getTimerCount()).toBe(0);
+        expect(poll.src.value).toBe('');
+    });
+
+    it('starts at once when a token arrives', async () => {
+        const { token, poll } = withToken('');
+
+        token.value = NEW;
+        await nextTick();
+
+        expect(poll.src.value).toBe(`/api?camera_token=${NEW}&id=camera_1&t=${Date.now()}`);
+    });
+});

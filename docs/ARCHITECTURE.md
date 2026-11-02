@@ -50,7 +50,7 @@ app/
     │   ├── socket.ts      # CalaosSocket: reconnect/backoff/timeout, typed emitter, injectable WebSocket
     │   └── server-url.ts  # wsUrl()
     ├── stores/{connection,auth,home}.ts
-    ├── services/{calaos.ts,camera-url.ts}   # camera-url.ts = ONLY place credentials touch a URL
+    ├── services/{calaos.ts,camera-url.ts}   # camera-url.ts = ONLY place a snapshot URL is built (capture token, never the password)
     ├── composables/{useCameraPoll.ts,useIo.ts}
     ├── router/index.ts    # hash history + requiresAuth guard
     ├── i18n/{index.ts,en.json,fr.json}
@@ -170,7 +170,9 @@ Default proxy target is the mock server (`http://localhost:5454`), so `npm run d
 
 ## Camera polling (`useCameraPoll.ts`)
 
-`<img>`-based, no canvas: `src = cameraSnapshotUrl(id) + '&t=' + Date.now()`; on load schedule next after 250 ms (old code: 10 ms + Angular digest storm); on error exponential backoff 1→10 s, after 3 consecutive errors expose `error:true` → broken-camera placeholder with retry. Pause on `document.hidden`, stop on unmount. Snapshot URL shape (server constraint, credentials in query string — isolated in `camera-url.ts`): `/api?cn_user=..&cn_pass=..&action=camera&type=get_picture&id=..`.
+`<img>`-based, no canvas: `src = cameraSnapshotUrl(id, token) + '&t=' + Date.now()`; on load schedule next after 250 ms (old code: 10 ms + Angular digest storm); on error exponential backoff 1→10 s, after 3 consecutive errors expose `error:true` → broken-camera placeholder with retry. Pause on `document.hidden`, stop on unmount. Snapshot URL shape (server constraint, isolated in `camera-url.ts`): `/api?action=camera&type=get_picture&camera_token=..&id=..`.
+
+The URL never carries the household password: it carries a capture token (calaos_base `docs/08_http_api.md`, "jeton de capture") from `stores/cameraToken.ts`. The store asks `{"msg":"camera_token"}` only while a camera is on screen and the session is authed, shares one token between every frame, and renews it 30 s before expiry (halfway for short lifetimes). It drops the token when the socket goes down, on a successful `change_cred`, and synchronously when the session stops being authed (sign-out, refused re-login), so no request can go out without credentials. With no token the URL is `''` and the poll holds: no request at all. A renewal changes the URL but not the picture identity, so the frame on screen stays until the next one decodes. No fallback to `cn_pass` for a server without `camera_token`: such a server shows no pictures.
 
 ## i18n
 
@@ -181,7 +183,7 @@ vue-i18n (composition, `legacy:false`). Locale: `navigator.language.startsWith('
 Plain Node ≥18 ESM, single dep `ws`, one HTTP server on PORT (default 5454):
 
 1. **WS `/api`**: `login` (valid creds `demo`/`demo`, env-overridable), `get_home` from `fixtures/home.json` (covers ALL 14 gui_types with realistic states — `shutter_smart:"up 100"`, dimmer `"set 50"`, rgb `"#ff2200"`, empty var_string — unsorted `hits`, one `visible:"false"` IO, one `rw:"false"` IO, 2 cameras, 1 audio player), `set_state` applies naive transitions then **broadcasts `io_changed`** to all clients.
-2. **HTTP `/api?action=camera&type=get_picture&id=..`**: validates creds, returns `fixtures/camera.png`, 403 on bad creds.
+2. **HTTP `/api?action=camera&type=get_picture&id=..`**: with `camera_token` (even empty), the token alone decides: issued by WS `camera_token` to an authed session, valid 120 s (`/control {op:'camera_token', ttl}`), 4 per session, revoked when its socket closes and on a successful `change_cred`; a bad one is a 400. Without it, `cn_user`/`cn_pass` as before, 403 on bad creds. Returns `fixtures/camera.png`.
 3. **HTTP POST `/control`** (test API): `{op:'push_io',id,state}` · `{op:'drop'}` (kill sockets) · `{op:'scenario',name}` (`login_fail_once`|`silent_login`|`reject_all_logins`|`reset`) · `{op:'latency',ms}` · `{op:'log'}` (every received frame — E2E asserts exact `set_state` frames) · `{op:'admin',…}` / `{op:'admin_status'}` / `{op:'console',…}` / `{op:'credentials',user,pass}` (below) · `{op:'reset'}`.
 4. **Admin** (`admin.mjs`): `admin_unlock` / `admin_set` / `admin` / `admin_event` and `settings`/`change_cred`, per the contract in calaos_base `docs/08_http_api.md` "Administration" — session tokens, the `bad_session` / `admin_not_set` / `household_password_required` rules, a 5-failures-per-minute limiter, and a timer-driven upgrade (`upgrade_progress` events in 10 % steps over `upgradeMs`, `dropAtPercent` cuts every socket once like calaos-server restarting itself, `failAtPercent` ends in error). `{op:'admin', scenario}` answers every admin message with one contract error (`unavailable`, `daemon_too_old`, `https_required`, `daemon_unreachable`) or, for `old_server`, never answers at all.
    Approvers and push codes follow calaos-container `docs/API.md` (one pending code per session, `codeIntervalMs` between two, 5 wrong codes end the session, `approver_last`, two approvers at most). A code "pushed" to a phone is recorded in `admin_status.pushed`, which is how E2E reads it; `{op:'admin', approvers:[token_id or {token_id, device_name}…], pushTokens, codeTtlMs, codeIntervalMs, expireCodes, alerts, noiseEvents}` seeds the state; a code for a phone whose token is not in `pushTokens` is made but never pushed, and `noiseEvents` buries the alerts under IO history. Approver alerts land in `eventlog` as calaos_server stores them (push-notification event, fixed English prefix, quoted name).
