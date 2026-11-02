@@ -33,12 +33,13 @@
 // anchor is invalid, unfocusable-in-the-right-order markup. The tile still
 // recovers on its own — the chain never stops.
 
+import { onScopeDispose } from 'vue';
 import { useI18n } from 'vue-i18n';
 import IconCctv from '~icons/mdi/cctv';
 import IconCctvOff from '~icons/mdi/cctv-off';
 import { useCameraPoll } from '../../composables/useCameraPoll';
 import { cameraSnapshotUrl } from '../../services/camera-url';
-import { useAuthStore } from '../../stores/auth';
+import { useCameraTokenStore } from '../../stores/cameraToken';
 import type { CameraItem } from '../../protocol/types';
 
 const props = withDefaults(
@@ -51,13 +52,16 @@ const props = withDefaults(
 );
 
 const { t } = useI18n();
-const auth = useAuthStore();
+const tokens = useCameraTokenStore();
+tokens.acquire();
+onScopeDispose(() => tokens.release());
 
-// A getter, not a value: the credentials live in the store and the camera can
-// change under the component (/security/0 → /security/1 reuses the view), and
-// the poll restarts itself when the URL it is given changes.
-const { src, error, loaded, onLoad, onError, retry } = useCameraPoll(() =>
-    cameraSnapshotUrl(props.camera.id, { user: auth.user, pass: auth.pass }),
+// Getters, not values: the token is renewed under the component, and the camera
+// can change too (/security/0 → /security/1 reuses the view). Only the latter
+// takes the picture off screen.
+const { src, error, loaded, onLoad, onError, retry } = useCameraPoll(
+    () => cameraSnapshotUrl(props.camera.id, tokens.token),
+    () => props.camera.id,
 );
 </script>
 

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     decodeServerMessage,
     encodeAudioQuery,
+    encodeCameraToken,
     encodeGetHome,
     encodeGetState,
     encodeLogin,
@@ -476,4 +477,58 @@ describe('decodeServerMessage — audio events', () => {
             ).toEqual({ kind: 'io_changed', id: 'audio_1', state });
         },
     );
+});
+
+describe('camera_token', () => {
+    const TOKEN = '0123456789abcdef'.repeat(4);
+
+    it('asks with a msg_id only', () => {
+        expect(encodeCameraToken('camera_token:1')).toBe('{"msg":"camera_token","msg_id":"camera_token:1"}');
+    });
+
+    it('decodes a granted token and its lifetime', () => {
+        expect(
+            decodeServerMessage({
+                msg: 'camera_token',
+                msg_id: '7',
+                data: { token: TOKEN, expires_in: '120' },
+            }),
+        ).toEqual({ kind: 'camera_token', msgId: '7', token: TOKEN, expiresIn: 120, error: '' });
+    });
+
+    it('decodes a refusal', () => {
+        expect(
+            decodeServerMessage({ msg: 'camera_token', msg_id: '7', data: { error: 'camera token unavailable' } }),
+        ).toEqual({
+            kind: 'camera_token',
+            msgId: '7',
+            token: '',
+            expiresIn: null,
+            error: 'camera token unavailable',
+        });
+    });
+
+    it('refuses anything but 64 lowercase hex as a token, since it lands in a URL', () => {
+        for (const token of [TOKEN.toUpperCase(), `${TOKEN}0`, TOKEN.slice(1), `${TOKEN.slice(1)}&`, 42]) {
+            const msg = decodeServerMessage({ msg: 'camera_token', msg_id: '7', data: { token, expires_in: '120' } });
+            expect(msg).toMatchObject({ kind: 'camera_token', token: '' });
+        }
+    });
+
+    it('carries no lifetime it cannot use', () => {
+        for (const expires_in of ['', '0', '-5', 'soon', undefined]) {
+            const msg = decodeServerMessage({ msg: 'camera_token', msg_id: '7', data: { token: TOKEN, expires_in } });
+            expect(msg).toMatchObject({ kind: 'camera_token', expiresIn: null });
+        }
+    });
+
+    it('never throws on a malformed answer', () => {
+        expect(decodeServerMessage({ msg: 'camera_token', data: 'nope' })).toEqual({
+            kind: 'camera_token',
+            msgId: '',
+            token: '',
+            expiresIn: null,
+            error: '',
+        });
+    });
 });
