@@ -161,6 +161,7 @@ export const ADMIN_ACTIONS = [
     'config_set',
     'config_backup',
     'config_restore',
+    'admin_logout',
 ] as const;
 
 export type AdminAction = (typeof ADMIN_ACTIONS)[number];
