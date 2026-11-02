@@ -782,6 +782,44 @@ describe('reset', () => {
         expect(admin.gate).toBe('idle');
         expect(admin.session).toBeNull();
     });
+
+    it('ends the session on the daemon once, with the token, without waiting', () => {
+        const admin = store();
+        admin.session = SESSION;
+        admin.gate = 'unlocked';
+        admin.reset();
+        expect(sent).toEqual([
+            { msg: 'admin', msg_id: 'admin-1', data: { action: 'admin_logout', admin_session: SESSION } },
+        ]);
+        expect(admin.session).toBeNull();
+        admin.reset();
+        expect(sent).toHaveLength(1);
+    });
+
+    it('sends nothing when no session is held', () => {
+        const admin = store();
+        admin.reset();
+        expect(sent).toEqual([]);
+    });
+
+    it('still wipes locally when the socket is down or throws', () => {
+        const admin = store();
+        admin.session = SESSION;
+        admin.gate = 'unlocked';
+        online = false;
+        admin.reset();
+        expect(admin.session).toBeNull();
+        expect(admin.gate).toBe('idle');
+
+        admin.session = SESSION;
+        admin.gate = 'unlocked';
+        admin.attachTransport(() => {
+            throw new Error('socket closed');
+        });
+        admin.reset();
+        expect(admin.session).toBeNull();
+        expect(admin.gate).toBe('idle');
+    });
 });
 
 describe('review fixes', () => {

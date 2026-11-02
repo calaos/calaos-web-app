@@ -900,8 +900,23 @@ export const useAdminStore = defineStore('admin', () => {
         notice.value = null;
     }
 
+    /**
+     * Ends the session on the daemon without waiting: the socket may already
+     * be gone, and the local wipe must not depend on the answer.
+     */
+    function revokeSession(): void {
+        if (session.value === null) return;
+        nextMsgId += 1;
+        try {
+            send(encodeAdminAction('admin_logout', session.value, `admin-${nextMsgId}`));
+        } catch {
+            // send() answers false on a closed socket: the revocation is then lost, and the token ages out on the daemon.
+        }
+    }
+
     /** Sign-out: nothing of the session or the box may outlive the account. */
     function reset(): void {
+        revokeSession();
         handleTransportLost();
         sessionTimer = clearTimer(sessionTimer);
         rebootHintTimer = clearTimer(rebootHintTimer);
