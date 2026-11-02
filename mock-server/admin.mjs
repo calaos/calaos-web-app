@@ -956,6 +956,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             hub.pass = data.new_pw;
             // Upstream drops `loggedin`: the client must log in again.
             ws.authed = false;
+            hub.cameraTokens.revokeAll();
         }
         send(ws, { msg: 'settings', data: { action: 'change_cred', success: ok ? 'true' : 'false' } });
     }

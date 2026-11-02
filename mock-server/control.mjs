@@ -41,8 +41,10 @@
 //                               its status (open, connections, received)
 //   {op:'credentials', user, pass}
 //                               the household account the mock accepts
+//   {op:'camera_token', ttl?}   the lifetime of the next capture tokens, in
+//                               seconds; answers it and how many were issued
 //   {op:'reset'}                reload fixtures, clear log, scenario, latency,
-//                               admin state and credentials
+//                               admin state, credentials and capture tokens
 
 export const SCENARIOS = ['login_fail_once', 'silent_login', 'reject_all_logins', 'reset'];
 
@@ -57,6 +59,7 @@ const KNOWN_OPS = [
     'admin_status',
     'console',
     'credentials',
+    'camera_token',
     'reset',
 ];
 
@@ -157,6 +160,17 @@ export function applyControlOp(hub, body) {
             return { status: 200, body: { ok: true, op, user } };
         }
 
+        case 'camera_token': {
+            const { ttl } = body;
+            if (ttl !== undefined) {
+                if (!Number.isInteger(ttl) || ttl <= 0) {
+                    return { status: 400, body: { ok: false, error: 'camera_token requires ttl > 0 (seconds)' } };
+                }
+                hub.cameraTokens.ttlS = ttl;
+            }
+            return { status: 200, body: { ok: true, op, ttl: hub.cameraTokens.ttlS, issued: hub.cameraTokens.issued } };
+        }
+
         case 'reset': {
             hub.state.reset();
             hub.admin.reset();
@@ -166,6 +180,7 @@ export function applyControlOp(hub, body) {
             hub.log.length = 0;
             hub.scenario = { name: null, consumed: false };
             hub.latencyMs = 0;
+            hub.cameraTokens.reset();
             return { status: 200, body: { ok: true, op } };
         }
 

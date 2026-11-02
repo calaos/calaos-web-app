@@ -1271,6 +1271,100 @@ describe('camera snapshot endpoint', () => {
     });
 });
 
+describe('camera capture token', () => {
+    const isToken = (f) => f.msg === 'camera_token';
+
+    async function askToken(client, msgId = 'cam:1') {
+        client.send({ msg: 'camera_token', msg_id: msgId });
+        return client.waitFor(isToken);
+    }
+
+    function tokenUrl(token, id = 'camera_1') {
+        return `${server.url}/api?action=camera&type=get_picture&camera_token=${encodeURIComponent(token)}&id=${id}`;
+    }
+
+    it('hands a logged-in session a 64-hex token, echoing msg_id', async () => {
+        const { client } = await login();
+        const reply = await askToken(client, 'cam:7');
+
+        expect(reply.msg_id).toBe('cam:7');
+        expect(reply.data.token).toMatch(/^[0-9a-f]{64}$/);
+        expect(reply.data.expires_in).toBe('120');
+    });
+
+    it('refuses a session that is not logged in', async () => {
+        const client = createClient();
+        await client.opened;
+
+        expect((await askToken(client)).data).toEqual({ error: 'camera token unavailable' });
+    });
+
+    it('opens a snapshot with the token alone, as often as asked', async () => {
+        const { client } = await login();
+        const { token } = (await askToken(client)).data;
+
+        for (let i = 0; i < 3; i += 1) {
+            const res = await fetch(tokenUrl(token));
+            expect(res.status).toBe(200);
+            expect(res.headers.get('cache-control')).toBe('no-store');
+        }
+    });
+
+    it('400s on a token it never issued, even next to valid credentials', async () => {
+        expect((await fetch(tokenUrl('f'.repeat(64)))).status).toBe(400);
+        // Present means token-only: cn_pass is not a fallback.
+        const res = await fetch(`${cameraUrl('camera_1')}&camera_token=`);
+        expect(res.status).toBe(400);
+    });
+
+    it('revokes the tokens of a session when its socket closes', async () => {
+        const { client } = await login();
+        const { token } = (await askToken(client)).data;
+
+        client.ws.close();
+        await client.closed;
+        await sleep(20);
+
+        expect((await fetch(tokenUrl(token))).status).toBe(400);
+    });
+
+    it('revokes every token on a change_cred', async () => {
+        const { client } = await login();
+        const other = (await login()).client;
+        const { token } = (await askToken(other)).data;
+
+        client.send({
+            msg: 'settings',
+            data: { action: 'change_cred', old_user: 'demo', old_pw: 'demo', new_user: 'demo', new_pw: 'other' },
+        });
+        expect((await client.waitFor((f) => f.msg === 'settings')).data.success).toBe('true');
+
+        expect((await fetch(tokenUrl(token))).status).toBe(400);
+    });
+
+    it('evicts the oldest of a session past four tokens', async () => {
+        const { client } = await login();
+        const tokens = [];
+        for (let i = 0; i < 5; i += 1) tokens.push((await askToken(client, `cam:${i}`)).data.token);
+
+        expect((await fetch(tokenUrl(tokens[0]))).status).toBe(400);
+        for (const token of tokens.slice(1)) expect((await fetch(tokenUrl(token))).status).toBe(200);
+    });
+
+    it('lets a test shorten the lifetime, and expires on time', async () => {
+        expect((await control({ op: 'camera_token', ttl: 1 })).body).toMatchObject({ ttl: 1, issued: 0 });
+        const { client } = await login();
+        const reply = await askToken(client);
+        expect(reply.data.expires_in).toBe('1');
+        expect((await control({ op: 'camera_token' })).body).toMatchObject({ ttl: 1, issued: 1 });
+
+        await sleep(1100);
+
+        expect((await fetch(tokenUrl(reply.data.token))).status).toBe(400);
+        expect((await control({ op: 'camera_token', ttl: 0 })).status).toBe(400);
+    });
+});
+
 describe('http routing', () => {
     it('404s unknown paths', async () => {
         expect((await fetch(`${server.url}/nope`)).status).toBe(404);
