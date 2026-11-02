@@ -94,7 +94,7 @@ describe('close codes', () => {
     });
 
     it('a reason from the server decides, whatever the clock says', () => {
-        for (const kind of ['closed', 'exited', 'expired', 'idle', 'not_connected', 'shutdown', 'admin_set', 'admin_reset', 'bad_code'] as const) {
+        for (const kind of ['closed', 'exited', 'expired', 'idle', 'not_connected', 'shutdown', 'admin_set', 'admin_reset', 'bad_code', 'credentials_changed'] as const) {
             expect(classifyClose({ ...base, reason: kind })).toEqual({ kind });
         }
         expect(classifyClose({ ...base, reason: 'idle', openFor: 3600 })).toEqual({ kind: 'idle' });
@@ -106,6 +106,11 @@ describe('close codes', () => {
         expect(classifyClose({ ...base, reason: 'console closed', idleFor: 899 })).toEqual({ kind: 'idle' });
         expect(classifyClose({ ...base, reason: 'whatever' })).toEqual({ kind: 'server' });
         expect(classifyClose({ ...base, reason: 'Idle' })).toEqual({ kind: 'server' });
+    });
+
+    it('credentials_changed is a whole end, even as a 1001 with no clock hint', () => {
+        expect(classifyClose({ ...base, code: 1001, reason: 'credentials_changed' })).toEqual({ kind: 'credentials_changed' });
+        expect(endsAdminSession({ kind: 'credentials_changed' })).toBe(false);
     });
 
     it('only the three admin reasons end the admin session', () => {

@@ -269,7 +269,10 @@ export const useAdminStore = defineStore('admin', () => {
         if (entry === undefined) {
             // An unlock answered after sign-out (or after its timeout): nobody
             // will use this token, so end it rather than let it live its 900 s.
-            const orphan = isAdminFailure(msg.data) ? undefined : (msg.data as { admin_session?: unknown } | null)?.admin_session;
+            const orphan =
+                msg.msg !== 'admin_unlock' || isAdminFailure(msg.data)
+                    ? undefined
+                    : (msg.data as { admin_session?: unknown } | null)?.admin_session;
             if (typeof orphan === 'string' && orphan !== session.value) revokeSession(orphan);
             console.debug('calaos admin: reply with no pending request, ignored:', msg.msgId);
             return;

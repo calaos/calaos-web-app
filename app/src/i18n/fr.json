@@ -507,6 +507,7 @@
                 "admin_set": "Le mot de passe admin a été changé, la console a donc été fermée. Saisissez le nouveau mot de passe pour en ouvrir une autre.",
                 "admin_reset": "Le mot de passe admin a été réinitialisé en SSH, la console a donc été fermée. Saisissez le mot de passe admin pour en ouvrir une autre.",
                 "bad_code": "Cinq codes faux ont été saisis, la console a donc été fermée. Saisissez le mot de passe admin pour en ouvrir une autre.",
+                "credentials_changed": "Les identifiants de la maison ont été modifiés, la console a donc été fermée. Reconnectez-vous avec les nouveaux identifiants, puis ouvrez-en une autre.",
                 "server": "La box a mis fin à la console : le mot de passe admin a été changé ou réinitialisé, trop de codes faux ont été saisis, la box s’arrête, ou son côté de la console a été perdu.",
                 "expired": "La console a atteint sa limite de {minutes} min.",
                 "idle": "La console s’est fermée après {minutes} min sans saisie.",

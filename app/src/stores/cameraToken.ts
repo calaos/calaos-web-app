@@ -109,8 +109,8 @@ export const useCameraTokenStore = defineStore('cameraToken', () => {
         pending = null;
         replyTimer = clear(replyTimer);
         if (msg.token === '' || msg.expiresIn === null) {
-            // Only trace of a server without camera_token support; msg.error is
-            // server text, never the token.
+            // Server without camera_token support, or any other failed answer:
+            // msg.error is server text, never the token.
             console.warn('calaos camera: no capture token', msg.error);
             retryLater();
             return;
