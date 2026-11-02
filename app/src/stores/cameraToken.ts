@@ -22,6 +22,11 @@ import { useAuthStore } from './auth';
 const MSG_ID_PREFIX = 'camera_token:';
 /** Renew this long before expiry, so a slow round trip still lands in time. */
 export const RENEW_MARGIN_S = 30;
+/**
+ * Bounds of a server-given lifetime. The floor is low on purpose: the camera
+ * e2e specs use a 2 s ttl and a higher one would break their renewal timing.
+ * The real server issues 120 s.
+ */
 export const MIN_LIFETIME_S = 1;
 export const MAX_LIFETIME_S = 3600;
 /** A request with no answer by then is given up and retried. */
@@ -104,6 +109,8 @@ export const useCameraTokenStore = defineStore('cameraToken', () => {
         pending = null;
         replyTimer = clear(replyTimer);
         if (msg.token === '' || msg.expiresIn === null) {
+            // Only trace of a server without camera_token support; msg.error is
+            // server text, never the token.
             console.warn('calaos camera: no capture token', msg.error);
             retryLater();
             return;
