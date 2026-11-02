@@ -137,6 +137,7 @@ export const useAuthStore = defineStore('auth', () => {
             state.value = success ? 'authed' : 'failed';
             if (!success) {
                 interactive = false;
+                pass.value = '';
                 dropAdminSession();
             }
             return;
@@ -159,6 +160,8 @@ export const useAuthStore = defineStore('auth', () => {
         // protocol one.
         state.value = 'failed';
         interactive = false;
+        // Only a refusal clears it: a dropped socket must still re-login.
+        pass.value = '';
         dropAdminSession();
     }
 
