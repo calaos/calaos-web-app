@@ -271,6 +271,19 @@ describe('cameraToken — end of the session', () => {
         expect(vi.getTimerCount()).toBe(0);
     });
 
+    it('hides a held token whenever the session is not authed, with no help from the watcher', () => {
+        const tokens = store();
+        tokens.acquire();
+        reply();
+        expect(tokens.token).toBe(TOKEN_A);
+
+        // Disposing the store stops its sync watcher, leaving the computed's own guard alone.
+        tokens.$dispose();
+        useAuthStore().state = 'idle';
+
+        expect(tokens.token).toBe('');
+    });
+
     it('exposes nothing after sign-out', () => {
         store().acquire();
         reply();
