@@ -109,6 +109,38 @@ describe('auth machine', () => {
         expect(store.isAuthed).toBe(false);
     });
 
+    it('forgets the refused password but keeps the user for the login focus', () => {
+        const store = makeStore();
+        store.signIn('demo', 'wrong');
+
+        store.handleLoginResult(false);
+
+        expect(store.pass).toBe('');
+        expect(store.user).toBe('demo');
+        expect(store.hasCredentials).toBe(false);
+    });
+
+    it('forgets the new password when a rotation is refused', () => {
+        const store = makeStore();
+        completeSignIn(store);
+
+        store.rotateCredentials('raoul', 'n3w');
+        store.handleLoginResult(false);
+
+        expect(store.pass).toBe('');
+        expect(store.user).toBe('raoul');
+    });
+
+    it('keeps the password through a network drop and a successful reconnect', () => {
+        const store = makeStore();
+        completeSignIn(store);
+
+        expect(store.resumeSession()).toBe(true);
+        store.handleLoginResult(true);
+
+        expect(store.pass).toBe('s3cret');
+    });
+
     it('retrying after a rejection leaves the failed state and sends again', () => {
         const store = makeStore();
         store.signIn('demo', 'wrong');
