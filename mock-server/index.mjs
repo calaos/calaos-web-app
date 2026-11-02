@@ -170,14 +170,11 @@ export function startServer(options = {}) {
                 return;
 
             case 'camera_token': {
-                // Upstream answers an unauthenticated session with the error
-                // shape rather than ignoring it.
-                let data = { error: 'camera token unavailable' };
-                if (ws.authed) {
-                    const { token, expiresIn } = hub.cameraTokens.issue(ws);
-                    data = { token, expires_in: String(expiresIn) };
-                }
-                send(ws, withMsgId({ msg: 'camera_token', data }, msgId));
+                // Upstream only handles camera_token for a logged-in session and
+                // stays silent otherwise; clients rely on their own reply timeout.
+                if (!ws.authed) return;
+                const { token, expiresIn } = hub.cameraTokens.issue(ws);
+                send(ws, withMsgId({ msg: 'camera_token', data: { token, expires_in: String(expiresIn) } }, msgId));
                 return;
             }
 

@@ -22,6 +22,8 @@ import { useAuthStore } from './auth';
 const MSG_ID_PREFIX = 'camera_token:';
 /** Renew this long before expiry, so a slow round trip still lands in time. */
 export const RENEW_MARGIN_S = 30;
+export const MIN_LIFETIME_S = 30;
+export const MAX_LIFETIME_S = 3600;
 /** A request with no answer by then is given up and retried. */
 export const REPLY_TIMEOUT_MS = 5000;
 export const RETRY_MIN_MS = 1000;
@@ -107,7 +109,9 @@ export const useCameraTokenStore = defineStore('cameraToken', () => {
             return;
         }
 
-        const lifetimeMs = msg.expiresIn * 1000;
+        // A hostile or buggy server must not overflow setTimeout (2^31 ms) or
+        // make us renew at round-trip speed.
+        const lifetimeMs = Math.min(Math.max(msg.expiresIn, MIN_LIFETIME_S), MAX_LIFETIME_S) * 1000;
         current.value = msg.token;
         expiresAt = Date.now() + lifetimeMs;
         retryMs = RETRY_MIN_MS;

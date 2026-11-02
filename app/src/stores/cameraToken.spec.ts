@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useAuthStore } from './auth';
 import {
+    MAX_LIFETIME_S,
+    MIN_LIFETIME_S,
     RENEW_MARGIN_S,
     REPLY_TIMEOUT_MS,
     RETRY_MAX_MS,
@@ -132,6 +134,34 @@ describe('cameraToken — renewal', () => {
         expect(sent).toHaveLength(1);
         vi.advanceTimersByTime(1);
         expect(sent).toHaveLength(2);
+    });
+
+    it('raises an absurdly short lifetime to the minimum', () => {
+        store().acquire();
+        reply({ expiresIn: 0.001 });
+
+        vi.advanceTimersByTime((MIN_LIFETIME_S * 1000) / 2 - 1);
+        expect(sent).toHaveLength(1);
+        vi.advanceTimersByTime(1);
+        expect(sent).toHaveLength(2);
+    });
+
+    it('caps an absurdly long lifetime instead of overflowing setTimeout', () => {
+        store().acquire();
+        reply({ expiresIn: 1e12 });
+
+        vi.advanceTimersByTime(MAX_LIFETIME_S * 1000 - RENEW_MARGIN_S * 1000 - 1);
+        expect(sent).toHaveLength(1);
+        expect(store().token).toBe(TOKEN_A);
+        vi.advanceTimersByTime(1);
+        expect(sent).toHaveLength(2);
+    });
+
+    it('takes a reply without a lifetime for a refusal', () => {
+        store().acquire();
+        reply({ expiresIn: null });
+
+        expect(store().token).toBe('');
     });
 
     it('drops the token at expiry if no renewal made it', () => {

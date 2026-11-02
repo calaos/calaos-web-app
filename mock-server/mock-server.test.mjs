@@ -1292,11 +1292,13 @@ describe('camera capture token', () => {
         expect(reply.data.expires_in).toBe('120');
     });
 
-    it('refuses a session that is not logged in', async () => {
+    it('stays silent for a session that is not logged in, like upstream', async () => {
         const client = createClient();
         await client.opened;
 
-        expect((await askToken(client)).data).toEqual({ error: 'camera token unavailable' });
+        client.send({ msg: 'camera_token', msg_id: 'cam:1' });
+        await sleep(150);
+        expect(client.frames.filter(isToken)).toEqual([]);
     });
 
     it('opens a snapshot with the token alone, as often as asked', async () => {
