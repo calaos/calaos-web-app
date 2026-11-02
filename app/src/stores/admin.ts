@@ -236,10 +236,14 @@ export const useAdminStore = defineStore('admin', () => {
 
     // ----------------------------------------------------------- requests ---
 
+    function freshMsgId(): string {
+        nextMsgId += 1;
+        return `admin-${nextMsgId}`;
+    }
+
     /** Sends one frame built around a fresh msg_id and awaits its reply. */
     function request(build: (msgId: string) => string, timeoutMs: number): Promise<Outcome> {
-        nextMsgId += 1;
-        const msgId = `admin-${nextMsgId}`;
+        const msgId = freshMsgId();
         return new Promise((resolve) => {
             if (!send(build(msgId))) {
                 resolve({ ok: false, error: clientAdminError('disconnected') });
@@ -263,6 +267,10 @@ export const useAdminStore = defineStore('admin', () => {
         adminSpoken = true;
         const entry = pending.get(msg.msgId);
         if (entry === undefined) {
+            // An unlock answered after sign-out (or after its timeout): nobody
+            // will use this token, so end it rather than let it live its 900 s.
+            const orphan = isAdminFailure(msg.data) ? undefined : (msg.data as { admin_session?: unknown } | null)?.admin_session;
+            if (typeof orphan === 'string' && orphan !== session.value) revokeSession(orphan);
             console.debug('calaos admin: reply with no pending request, ignored:', msg.msgId);
             return;
         }
@@ -904,13 +912,13 @@ export const useAdminStore = defineStore('admin', () => {
      * Ends the session on the daemon without waiting: the socket may already
      * be gone, and the local wipe must not depend on the answer.
      */
-    function revokeSession(): void {
-        if (session.value === null) return;
-        nextMsgId += 1;
+    function revokeSession(token: string | null = session.value): void {
+        if (token === null) return;
+        // send() answers false on a closed socket: the revocation is then lost and the token ages out on the daemon.
         try {
-            send(encodeAdminAction('admin_logout', session.value, `admin-${nextMsgId}`));
+            send(encodeAdminAction('admin_logout', token, freshMsgId()));
         } catch {
-            // send() answers false on a closed socket: the revocation is then lost, and the token ages out on the daemon.
+            // a throwing transport lands here
         }
     }
 
