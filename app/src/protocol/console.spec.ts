@@ -108,14 +108,9 @@ describe('close codes', () => {
         expect(classifyClose({ ...base, reason: 'Idle' })).toEqual({ kind: 'server' });
     });
 
-    it('credentials_changed is a whole end, even as a 1001 with no clock hint', () => {
-        expect(classifyClose({ ...base, code: 1001, reason: 'credentials_changed' })).toEqual({ kind: 'credentials_changed' });
-        expect(endsAdminSession({ kind: 'credentials_changed' })).toBe(false);
-    });
-
     it('only the three admin reasons end the admin session', () => {
-        expect(['admin_set', 'admin_reset', 'bad_code', 'expired', 'idle', 'shutdown', 'closed'].map((kind) => endsAdminSession({ kind } as ConsoleEnd))).toEqual([
-            true, true, true, false, false, false, false,
+        expect(['admin_set', 'admin_reset', 'bad_code', 'expired', 'idle', 'shutdown', 'closed', 'credentials_changed'].map((kind) => endsAdminSession({ kind } as ConsoleEnd))).toEqual([
+            true, true, true, false, false, false, false, false,
         ]);
     });
 
@@ -139,6 +134,7 @@ describe('close codes', () => {
 
 class FakeSocket {
     static last: FakeSocket;
+    static count = 0;
     readyState = 0;
     binaryType = 'blob';
     sent: (string | Uint8Array)[] = [];
@@ -152,6 +148,7 @@ class FakeSocket {
         public protocol: string,
     ) {
         FakeSocket.last = this;
+        FakeSocket.count += 1;
     }
 
     send(data: string | Uint8Array): void {
@@ -251,5 +248,15 @@ describe('ConsoleConnection', () => {
         ws.onopen?.();
         expect(ws.sent).toEqual([]);
         expect(events.end).toEqual([{ kind: 'handshake' }]);
+    });
+
+    it('credentials_changed ends the console with no new socket', () => {
+        FakeSocket.count = 0;
+        const { ws, events } = connect();
+        ws.open();
+        ws.message(READY);
+        ws.end(1001, 'credentials_changed');
+        expect(events.end).toEqual([{ kind: 'credentials_changed' }]);
+        expect(FakeSocket.count).toBe(1);
     });
 });

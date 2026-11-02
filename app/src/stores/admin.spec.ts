@@ -860,6 +860,7 @@ describe('reset', () => {
         expect(sent).toEqual([
             { msg: 'admin', msg_id: expect.any(String), data: { action: 'admin_logout', admin_session: SESSION } },
         ]);
+        expect(admin.session).toBeNull();
     });
 
     it('does not reuse a msg_id after reset, so a late reply of account A never answers account B', async () => {
@@ -877,6 +878,7 @@ describe('reset', () => {
         const unlockingB = admin.unlock('pw');
         const frameB = last();
         expect(frameB.msg_id).not.toBe(frameA.msg_id);
+        sent = [];
         admin.handleReply(
             decodeServerMessage({
                 msg: 'admin_unlock',
@@ -884,10 +886,20 @@ describe('reset', () => {
                 data: { success: 'true', admin_session: SESSION, expires_in: 900 },
             }) as AdminReplyMessage,
         );
+        expect(sent).toEqual([
+            { msg: 'admin', msg_id: expect.any(String), data: { action: 'admin_logout', admin_session: SESSION } },
+        ]);
         expect(admin.session).toBeNull();
         expect(admin.busy).toBe('unlock');
-        admin.reset();
-        await unlockingB;
+        admin.handleReply(
+            decodeServerMessage({
+                msg: 'admin_unlock',
+                msg_id: frameB.msg_id,
+                data: { success: 'true', admin_session: 'session-of-b', expires_in: 900 },
+            }) as AdminReplyMessage,
+        );
+        expect(await unlockingB).toBe(true);
+        expect(admin.session).toBe('session-of-b');
     });
 
     it('sends nothing when no session is held', () => {
