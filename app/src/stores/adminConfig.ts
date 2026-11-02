@@ -152,7 +152,7 @@ export const useAdminConfigStore = defineStore('adminConfig', () => {
                 // Not JSON either: an older server's text answer.
             }
             const failure = isAdminFailure(payload) ? toAdminError(payload) : bareAdminError('unknown');
-            if (failure.code === 'bad_session') admin.dropSession(null);
+            if (failure.code === 'bad_session' && admin.session === session) admin.dropSession(null);
             return failure;
         }
         let doc: ConfigBackup | null = null;

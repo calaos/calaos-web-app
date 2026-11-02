@@ -39,6 +39,7 @@ const ACTIONS = [
     'system_reboot',
     'system_restart',
     'system_info',
+    'admin_logout',
     'mcp_regenerate',
     'approver_list',
     'approver_candidates',
@@ -846,6 +847,15 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 return respond(failure('bad_session', 'Admin session required'));
             }
             return ok({ progress: state.progress, job: state.job });
+        }
+        if (action === 'admin_logout') {
+            // Like the daemon: a missing token is refused, a dead or expired one answers 200 ended:false.
+            if (!wellFormedSession(data.admin_session)) {
+                return respond(failure('bad_session', 'Admin session required'));
+            }
+            const live = sessionValid(data.admin_session);
+            state.sessions.delete(data.admin_session);
+            return ok({ ended: live });
         }
         if (!sessionValid(data.admin_session)) {
             return respond(failure('bad_session', 'Admin session required'));
