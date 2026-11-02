@@ -95,7 +95,9 @@ const endText = computed(() => {
     }
 });
 
-const loginRefused = computed(() => end.value?.kind === 'refused' && end.value.error.code === 'login_failed');
+const loginRefused = computed(
+    () => end.value?.kind === 'credentials_changed' || (end.value?.kind === 'refused' && end.value.error.code === 'login_failed'),
+);
 
 function stopTicker(): void {
     if (ticker !== null) clearInterval(ticker);

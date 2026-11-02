@@ -243,6 +243,17 @@ test('admin_set: the end is explained and a new console asks for the admin passw
     await expect(adminScreen(page).adminPassword).toBeVisible();
 });
 
+test('credentials_changed: the message, a sign-in button, and no reconnection', async ({ page, mock }) => {
+    await openedConsole(page, mock);
+    expect((await mock.console()).connections).toHaveLength(1);
+    await mock.console({ close: 1001, reason: 'credentials_changed' });
+    await expect(page.getByRole('alert')).toContainText(t.console.end.credentials_changed);
+    await expect(page.getByRole('button', { name: t.console.signIn })).toBeVisible();
+    await expect(page.getByRole('button', { name: t.console.again })).toHaveCount(0);
+    await page.waitForTimeout(1500);
+    expect((await mock.console()).connections).toHaveLength(1);
+});
+
 test('an unknown close reason keeps the generic message', async ({ page, mock }) => {
     await openedConsole(page, mock);
     await mock.console({ close: 1001, reason: 'from_the_future' });

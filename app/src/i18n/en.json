@@ -507,6 +507,7 @@
                 "admin_set": "The admin password was changed, so the console was closed. Enter the new password to open another.",
                 "admin_reset": "The admin password was reset over SSH, so the console was closed. Enter the admin password to open another.",
                 "bad_code": "Five wrong codes were typed, so the console was closed. Enter the admin password to open another.",
+                "credentials_changed": "The household login was changed, so the console was closed. Sign in again with the new credentials, then open another.",
                 "server": "The box ended the console: the admin password was changed or reset, too many wrong codes were typed, the box is stopping, or its side of the console was lost.",
                 "expired": "The console reached its {minutes} min limit.",
                 "idle": "The console closed after {minutes} min without typing.",
