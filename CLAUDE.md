@@ -24,7 +24,7 @@ Web frontend for the Calaos home automation server: Vue 3 + TypeScript + Vite, P
 
 ## npm scripts
 
-`dev` / `build` / `preview` (Vite), `mock`, `lint` (eslint, repo-wide, must stay clean), `typecheck` (vue-tsc), `test:unit` (Vitest), `test:e2e` (Playwright; starts mock + build/preview + the `/app/`-prefix sim itself, needs `npx playwright install chromium` once). Node >= 20.19.
+`dev` / `build` / `preview` (Vite), `mock`, `lint` (eslint, repo-wide, must stay clean), `typecheck` (vue-tsc), `test:unit` (Vitest), `test:e2e` (Playwright; starts mock + build/preview + the `/app/`-prefix sim itself, needs `npx playwright install chromium` once). Node >= 22.
 
 ## Known gaps
 
