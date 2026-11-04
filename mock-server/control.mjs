@@ -24,7 +24,7 @@
 //                               failAtPercent, rebootRequired, clearSessions,
 //                               pushTokens, approvers (token_ids), codeTtlMs,
 //                               codeIntervalMs, expireCodes, alerts,
-//                               noiseEvents; and one object per phase-3
+//                               noiseEvents, eventSamples; and one object per phase-3
 //                               feature: services {restartMs, fail, state,
 //                               dropOnSelfRestart}, logs {live,
 //                               rateLimitNext, failNext, truncateNext}, time {offsetMs,

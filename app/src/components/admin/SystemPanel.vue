@@ -8,7 +8,7 @@ import { useAdminStore } from '../../stores/admin';
 import { useApproversStore } from '../../stores/approvers';
 import { useAdminText } from '../../composables/useAdminText';
 import AdminActionRow from './AdminActionRow.vue';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 import RebootButton from './RebootButton.vue';
 
 const { t } = useI18n();
@@ -36,9 +36,9 @@ onMounted(() => {
                 :name="t('admin.actions.console')"
                 :hint="noApprover ? t('admin.actions.consoleNeedsApprover') : t('admin.actions.consoleHint')"
             >
-                <AdminButton variant="quiet" :disabled="busy" @click="router.push({ name: 'adminConsole' })">
+                <AppButton variant="quiet" :disabled="busy" @click="router.push({ name: 'adminConsole' })">
                     {{ t('admin.actions.consoleOpen') }}
-                </AdminButton>
+                </AppButton>
             </AdminActionRow>
 
             <AdminActionRow :name="t('admin.actions.reboot')" :hint="t('admin.actions.rebootHint')">

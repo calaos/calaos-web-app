@@ -90,6 +90,8 @@ export interface AdminPatch {
     tooOld?: string[];
     /** Adds this many IO history rows to the event log, newer than what is there. */
     noiseEvents?: number;
+    /** Adds one event of each kind (IO change, push with and without a picture, unknown type). */
+    eventSamples?: boolean;
     /** A code's lifetime (60 s) and the wait between two codes (10 s). */
     codeTtlMs?: number;
     codeIntervalMs?: number;
@@ -155,6 +157,8 @@ export interface AdminStatus {
     pushed: PushedCode[];
     /** `eventlog` requests answered so far. */
     eventlogReads: number;
+    /** `event_picture` requests answered so far. */
+    eventPictureReads: number;
 }
 
 /**

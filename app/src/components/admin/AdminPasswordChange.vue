@@ -10,7 +10,7 @@ import { useAdminStore } from '../../stores/admin';
 import { useApproversStore } from '../../stores/approvers';
 import { useAdminText } from '../../composables/useAdminText';
 import AdminActionRow from './AdminActionRow.vue';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 import AdminPasswordForm from './AdminPasswordForm.vue';
 import CodeEntry from './CodeEntry.vue';
 
@@ -95,9 +95,9 @@ async function submitCode(code: string): Promise<void> {
                 :name="t('admin.actions.password')"
                 :hint="noApprover ? t('admin.actions.passwordNeedsApprover') : t('admin.actions.passwordHint')"
             >
-                <AdminButton variant="quiet" :disabled="admin.busy !== null" @click="openChange">
+                <AppButton variant="quiet" :disabled="admin.busy !== null" @click="openChange">
                     {{ t('admin.actions.change') }}
-                </AdminButton>
+                </AppButton>
             </AdminActionRow>
         </ul>
 
@@ -119,8 +119,8 @@ async function submitCode(code: string): Promise<void> {
             <template v-if="noApprover && passwordChallenge === null">
                 <p class="password__hint">{{ t('admin.actions.passwordNeedsApprover') }}</p>
                 <div class="password__buttons">
-                    <AdminButton variant="quiet" @click="closeChange">{{ t('dialog.cancel') }}</AdminButton>
-                    <AdminButton @click="addPhone">{{ t('admin.approvers.add') }}</AdminButton>
+                    <AppButton variant="quiet" @click="closeChange">{{ t('dialog.cancel') }}</AppButton>
+                    <AppButton @click="addPhone">{{ t('admin.approvers.add') }}</AppButton>
                 </div>
             </template>
             <p v-else-if="passwordChallenge === null" class="password__hint password__hint--form">

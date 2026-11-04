@@ -7,7 +7,7 @@ import { computed, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { ConfigOption } from '../../protocol/admin-config';
 import { configEditor, isOn, selectChoices } from './configEditors';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 import AdminSwitch from './AdminSwitch.vue';
 
 const props = defineProps<{
@@ -116,7 +116,7 @@ function choiceLabel(choice: string): string {
                 <span class="config-row__secret" :class="{ 'config-row__secret--set': option.set }">
                     {{ option.set ? t('admin.config.secretSet') : t('admin.config.secretUnset') }}
                 </span>
-                <AdminButton
+                <AppButton
                     variant="quiet"
                     :busy="saving"
                     :disabled="disabled"
@@ -124,7 +124,7 @@ function choiceLabel(choice: string): string {
                     @click="emit('secret')"
                 >
                     {{ t('admin.config.secretChange') }}
-                </AdminButton>
+                </AppButton>
             </template>
 
             <form v-else class="config-row__form" @submit.prevent="submit">
@@ -145,7 +145,7 @@ function choiceLabel(choice: string): string {
                         spellcheck="false"
                     />
                 </div>
-                <AdminButton
+                <AppButton
                     type="submit"
                     variant="quiet"
                     :busy="saving"
@@ -153,7 +153,7 @@ function choiceLabel(choice: string): string {
                     :disabled="disabled || !dirty"
                 >
                     {{ t('admin.config.save') }}
-                </AdminButton>
+                </AppButton>
             </form>
         </div>
 

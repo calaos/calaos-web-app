@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useAuthStore } from './auth';
 import { useAdminStore } from './admin';
 import { useAdminAlertsStore } from './adminAlerts';
+import { useEventsStore } from './events';
 import { useHomeStore } from './home';
 import { toHomeData } from '../protocol/guards';
 
@@ -537,5 +538,64 @@ describe('admin unlock vs the household session', () => {
         store.handleLoginResult(false);
 
         expect(reset).toHaveBeenCalledOnce();
+    });
+});
+
+describe('events log vs the household session', () => {
+    function withEvents(): ReturnType<typeof useEventsStore> {
+        const events = useEventsStore();
+        events.events = [
+            { id: 'e1', eventType: '3', ioId: '', ioState: '', picUid: '', at: 0, raw: {} },
+        ];
+        return events;
+    }
+
+    it('keeps the log when the same user signs in again', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const events = withEvents();
+        store.signIn('demo', 's3cret');
+        expect(events.events).toHaveLength(1);
+    });
+
+    it('forgets the log when another user signs in', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const events = withEvents();
+        store.signIn('other', 'x');
+        expect(events.events).toEqual([]);
+    });
+
+    it('keeps the log when the admin session is dropped: it is not an admin page', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const events = withEvents();
+        useAdminStore().reset();
+        expect(events.events).toHaveLength(1);
+    });
+
+    it('forgets the log when a rotated password is refused', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const events = withEvents();
+        store.rotateCredentials('demo', 'new');
+        store.handleLoginResult(false);
+        expect(events.events).toEqual([]);
+    });
+
+    it('forgets the log on sign-out', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const events = withEvents();
+        store.signOut();
+        expect(events.events).toEqual([]);
+    });
+
+    it('forgets the log when the login is refused', () => {
+        const store = makeStore();
+        store.signIn('demo', 'wrong');
+        const events = withEvents();
+        store.handleLoginResult(false);
+        expect(events.events).toEqual([]);
     });
 });

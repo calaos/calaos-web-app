@@ -11,7 +11,7 @@ import { ADMIN_PASSWORD_MIN_LENGTH } from '../protocol/admin';
 import { useAdminStore } from '../stores/admin';
 import { useAuthStore } from '../stores/auth';
 import { useAdminText } from '../composables/useAdminText';
-import AdminButton from '../components/admin/AdminButton.vue';
+import AppButton from '../components/ui/AppButton.vue';
 import AdminInfoBanner from '../components/admin/AdminInfoBanner.vue';
 import AdminNotice from '../components/admin/AdminNotice.vue';
 import AdminPages from '../components/admin/AdminPages.vue';
@@ -179,9 +179,9 @@ function changeHousehold(user: string, password: string): void {
                 :title="t('admin.notice.https')"
                 :hint="t('admin.notice.httpsHint')"
             >
-                <AdminButton class="admin__https" variant="primary" :href="httpsUrl">
+                <AppButton class="admin__https" variant="primary" :href="httpsUrl">
                     {{ t('admin.notice.httpsOpen') }}
-                </AdminButton>
+                </AppButton>
             </AdminNotice>
         </div>
     </div>

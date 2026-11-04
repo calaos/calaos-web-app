@@ -7,7 +7,7 @@ import { useI18n } from 'vue-i18n';
 import { useAdminStore } from '../../stores/admin';
 import { useAdminText } from '../../composables/useAdminText';
 import { useUpdatesPhase } from '../../composables/useUpdatesPhase';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 import RebootButton from './RebootButton.vue';
 
 const { t } = useI18n();
@@ -94,7 +94,7 @@ const otherBusy = computed(() => admin.busy !== null && !checking.value && !star
                 :label="t('admin.actions.reboot')"
                 :disabled="otherBusy || checking"
             />
-            <AdminButton
+            <AppButton
                 v-if="phase === 'available'"
                 variant="primary"
                 :busy="starting"
@@ -103,8 +103,8 @@ const otherBusy = computed(() => admin.busy !== null && !checking.value && !star
                 @click="admin.upgradeAll()"
             >
                 {{ t('admin.updates.upgrade') }}
-            </AdminButton>
-            <AdminButton
+            </AppButton>
+            <AppButton
                 :variant="phase === 'available' || phase === 'doneReboot' ? 'quiet' : 'primary'"
                 :busy="checking"
                 :busy-label="t('admin.updates.checking')"
@@ -112,7 +112,7 @@ const otherBusy = computed(() => admin.busy !== null && !checking.value && !star
                 @click="admin.checkUpdates()"
             >
                 {{ t('admin.updates.check') }}
-            </AdminButton>
+            </AppButton>
         </div>
     </section>
 </template>

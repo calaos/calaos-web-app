@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n';
 import { CODE_LENGTH, CODE_LIFETIME_S } from '../../protocol/admin';
 import type { ApproverWork, Challenge } from '../../stores/approvers';
 import { useAdminText } from '../../composables/useAdminText';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 import DeviceName from './DeviceName.vue';
 
 const props = withDefaults(
@@ -161,10 +161,10 @@ watch(
         </div>
 
         <div class="code-entry__actions">
-            <AdminButton variant="quiet" :disabled="busy" @click="emit('cancel')">
+            <AppButton variant="quiet" :disabled="busy" @click="emit('cancel')">
                 {{ t('dialog.cancel') }}
-            </AdminButton>
-            <AdminButton
+            </AppButton>
+            <AppButton
                 type="submit"
                 class="code-entry__submit"
                 :disabled="!canSubmit"
@@ -172,7 +172,7 @@ watch(
                 :busy-label="t('admin.code.checking')"
             >
                 {{ t('admin.code.submit') }}
-            </AdminButton>
+            </AppButton>
         </div>
 
         <p class="code-entry__resend">

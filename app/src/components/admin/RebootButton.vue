@@ -6,7 +6,7 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAdminStore } from '../../stores/admin';
 import BaseDialog from '../ui/BaseDialog.vue';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 
 withDefaults(
     defineProps<{
@@ -29,14 +29,14 @@ function confirm(): void {
 </script>
 
 <template>
-    <AdminButton
+    <AppButton
         :variant="variant"
         :disabled="disabled"
         :busy="admin.busy === 'system_reboot'"
         @click="asking = true"
     >
         {{ label }}
-    </AdminButton>
+    </AppButton>
 
     <BaseDialog
         :open="asking"

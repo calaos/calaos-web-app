@@ -183,6 +183,12 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 beforeEnter: adminOnly,
             },
             {
+                path: '/events',
+                name: 'events',
+                component: () => import('../views/EventsView.vue'),
+                meta: { requiresAuth: true, detail: true, parent: 'home' },
+            },
+            {
                 path: '/admin/mcp',
                 name: 'adminMcp',
                 component: () => import('../views/McpView.vue'),

@@ -12,7 +12,7 @@ import { useAdminNetworkStore } from '../../stores/adminNetwork';
 import { useConnectionStore } from '../../stores/connection';
 import { useAdminText } from '../../composables/useAdminText';
 import { useNetworkCountdown } from '../../composables/useNetworkCountdown';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 
 const LOW_SECONDS = 30;
 
@@ -88,29 +88,29 @@ async function act(what: 'confirm' | 'revert'): Promise<void> {
                         <p v-else class="net-pending__hint">{{ t('admin.network.pending.reopenDhcp') }}</p>
                     </div>
                     <div v-if="reopenUrl !== ''" class="net-pending__go">
-                        <AdminButton :href="reopenUrl">{{ t('admin.network.pending.open') }}</AdminButton>
+                        <AppButton :href="reopenUrl">{{ t('admin.network.pending.open') }}</AppButton>
                         <a class="net-pending__url" :href="reopenUrl">{{ reopenUrl }}</a>
                     </div>
                     <p class="net-pending__fallback">{{ t('admin.network.pending.onlyIfAnswers') }}</p>
                     <div class="net-pending__actions net-pending__actions--quiet">
-                        <AdminButton variant="quiet" :busy="busy === 'confirm'" :disabled="!canAct" @click="act('confirm')">
+                        <AppButton variant="quiet" :busy="busy === 'confirm'" :disabled="!canAct" @click="act('confirm')">
                             {{ t('admin.network.pending.confirm') }}
-                        </AdminButton>
-                        <AdminButton variant="quiet" :busy="busy === 'revert'" :disabled="!canAct" @click="act('revert')">
+                        </AppButton>
+                        <AppButton variant="quiet" :busy="busy === 'revert'" :disabled="!canAct" @click="act('revert')">
                             {{ t('admin.network.pending.revert') }}
-                        </AdminButton>
+                        </AppButton>
                     </div>
                 </template>
 
                 <template v-else>
                     <p class="net-pending__hint">{{ t('admin.network.pending.hint') }}</p>
                     <div class="net-pending__actions">
-                        <AdminButton :busy="busy === 'confirm'" :disabled="!canAct" @click="act('confirm')">
+                        <AppButton :busy="busy === 'confirm'" :disabled="!canAct" @click="act('confirm')">
                             {{ t('admin.network.pending.confirm') }}
-                        </AdminButton>
-                        <AdminButton variant="quiet" :busy="busy === 'revert'" :disabled="!canAct" @click="act('revert')">
+                        </AppButton>
+                        <AppButton variant="quiet" :busy="busy === 'revert'" :disabled="!canAct" @click="act('revert')">
                             {{ t('admin.network.pending.revert') }}
-                        </AdminButton>
+                        </AppButton>
                     </div>
                 </template>
 

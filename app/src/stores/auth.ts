@@ -89,6 +89,8 @@ export const useAuthStore = defineStore('auth', () => {
      * socket opens.
      */
     function signIn(nextUser: string, nextPass: string): boolean {
+        // A different account must not inherit the previous one's log.
+        if (user.value !== '' && user.value !== nextUser) useEventsStore().reset();
         user.value = nextUser;
         pass.value = nextPass;
         // Clears a previous 'failed' — retrying after a typo must work.
@@ -139,7 +141,7 @@ export const useAuthStore = defineStore('auth', () => {
             if (!success) {
                 interactive = false;
                 pass.value = '';
-                dropAdminSession();
+                dropSession();
             }
             return;
         }
@@ -163,7 +165,7 @@ export const useAuthStore = defineStore('auth', () => {
         interactive = false;
         // Only a refusal clears it: a dropped socket must still re-login.
         pass.value = '';
-        dropAdminSession();
+        dropSession();
     }
 
     // A refused login ends the household session; the admin unlock must not
@@ -171,6 +173,13 @@ export const useAuthStore = defineStore('auth', () => {
     function dropAdminSession(): void {
         useAdminStore().reset();
         useAdminAlertsStore().reset();
+    }
+
+    // The event log belongs to the household session, not to the admin
+    // unlock: locking admin keeps it, a refused login clears it.
+    function dropSession(): void {
+        dropAdminSession();
+        useEventsStore().reset();
     }
 
     /**

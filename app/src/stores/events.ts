@@ -2,13 +2,20 @@
 // walked back page by page. No filter and no live feed (the log is a plain
 // request/answer); the view calls refresh() to see newer events.
 
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { decodeEventLogDetail, decodeEventLogPage, encodeEventDetail } from '../protocol/eventlog';
 import type { EventLogEvent } from '../protocol/eventlog';
 import { encodeEventLog } from '../protocol/alerts';
 import type { EventLogMessage } from '../protocol/types';
 import type { FrameSender } from './admin';
+import { EventPictureHolder } from '../services/event-picture';
+import type { EventPictureCredentials } from '../services/event-picture';
+
+/** Credentials of the live session, or null when nobody is signed in. */
+export type CredentialsGetter = () => EventPictureCredentials | null;
+
+export type PictureStatus = 'idle' | 'loading' | 'ready' | 'missing';
 
 export const EVENTS_PAGE_SIZE = 50;
 export const EVENTS_MSG_ID_PREFIX = 'events:';
@@ -25,7 +32,12 @@ export const useEventsStore = defineStore('events', () => {
     const detailLoading = ref(false);
     const detailError = ref('');
 
+    const pictureStatus = ref<PictureStatus>('idle');
+    const picture = new EventPictureHolder();
+
     let send: FrameSender = () => false;
+    let getCredentials: CredentialsGetter = () => null;
+    let pictureSeq = 0;
     /** Answers of an older walk (refresh, sign-out) carry an older generation. */
     let generation = 0;
     let nextPage = 0;
@@ -34,6 +46,35 @@ export const useEventsStore = defineStore('events', () => {
 
     function attachTransport(sender: FrameSender): void {
         send = sender;
+    }
+
+    function attachCredentials(getter: CredentialsGetter): void {
+        getCredentials = getter;
+    }
+
+    /**
+     * One request per call, no retry: the box counts a POST made with stale
+     * credentials against the login throttle. Credentials are read here, at
+     * load time, never kept.
+     */
+    async function loadPicture(picUid: string): Promise<void> {
+        const credentials = getCredentials();
+        const seq = ++pictureSeq;
+        if (!credentials || picUid === '') {
+            picture.clear();
+            pictureStatus.value = 'missing';
+            return;
+        }
+        pictureStatus.value = 'loading';
+        await picture.load(picUid, credentials);
+        if (seq !== pictureSeq) return;
+        pictureStatus.value = picture.url === '' ? 'missing' : 'ready';
+    }
+
+    function clearPicture(): void {
+        pictureSeq += 1;
+        picture.clear();
+        pictureStatus.value = 'idle';
     }
 
     function requestPage(page: number): void {
@@ -60,6 +101,7 @@ export const useEventsStore = defineStore('events', () => {
     }
 
     function openDetail(uuid: string): void {
+        clearPicture();
         detailSeq += 1;
         detail.value = null;
         detailError.value = '';
@@ -71,6 +113,7 @@ export const useEventsStore = defineStore('events', () => {
     }
 
     function closeDetail(): void {
+        clearPicture();
         detailSeq += 1;
         detail.value = null;
         detailError.value = '';
@@ -131,6 +174,7 @@ export const useEventsStore = defineStore('events', () => {
 
     /** Sign-out: the next account must not see this one's log. */
     function reset(): void {
+        clearPicture();
         generation += 1;
         detailSeq += 1;
         nextPage = 0;
@@ -151,7 +195,12 @@ export const useEventsStore = defineStore('events', () => {
         detail,
         detailLoading,
         detailError,
+        pictureStatus,
+        pictureUrl: computed(() => picture.url),
         attachTransport,
+        attachCredentials,
+        loadPicture,
+        clearPicture,
         refresh,
         loadMore,
         openDetail,

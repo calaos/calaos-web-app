@@ -203,6 +203,67 @@ describe('sign-in flow', () => {
     });
 });
 
+describe('events store wiring', () => {
+    it('fails a page request in flight when the socket closes', () => {
+        const events = useEventsStore();
+        startAndOpen();
+        signInAndLoad();
+        events.refresh();
+        expect(events.loading).toBe(true);
+
+        FakeWebSocket.last.fireClose();
+
+        expect(events.loading).toBe(false);
+        expect(events.error).toBe('not connected');
+    });
+
+    it('hands the live session credentials to the picture loader, and none before sign-in or after sign-out', async () => {
+        const events = useEventsStore();
+        const fetchMock = vi.fn<typeof fetch>(async () => ({ ok: false }) as unknown as Response);
+        vi.stubGlobal('fetch', fetchMock);
+        try {
+            startAndOpen();
+            await events.loadPicture('p1');
+            expect(fetchMock).not.toHaveBeenCalled();
+            expect(events.pictureStatus).toBe('missing');
+
+            signInAndLoad();
+            await events.loadPicture('p1');
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({
+                cn_user: 'demo',
+                cn_pass: 'demo',
+                pic_uid: 'p1',
+            });
+
+            useAuthStore().signOut();
+            await events.loadPicture('p1');
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(events.pictureStatus).toBe('missing');
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('posts no picture request once a login was refused', async () => {
+        const events = useEventsStore();
+        const fetchMock = vi.fn<typeof fetch>(async () => ({ ok: false }) as unknown as Response);
+        vi.stubGlobal('fetch', fetchMock);
+        try {
+            startAndOpen();
+            useAuthStore().signIn('demo', 'nope');
+            FakeWebSocket.last.fireMessage(LOGIN_KO);
+
+            await events.loadPicture('p1');
+
+            expect(fetchMock).not.toHaveBeenCalled();
+            expect(events.pictureStatus).toBe('missing');
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+});
+
 describe('reconnect', () => {
     it('re-logs in with the retained credentials and does not navigate', () => {
         const auth = useAuthStore();

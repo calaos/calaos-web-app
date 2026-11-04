@@ -145,6 +145,30 @@ describe('routes', () => {
     });
 });
 
+describe('events route', () => {
+    it('is a user page: outside /admin, no admin session, Back goes home', async () => {
+        signedIn();
+        loadHouse();
+
+        await router.push('/events');
+        await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('events'));
+        expect(router.currentRoute.value.path).toBe('/events');
+        expect(router.currentRoute.value.meta).toMatchObject({ requiresAuth: true, detail: true, parent: 'home' });
+    });
+
+    it('still needs the household login', async () => {
+        await router.push('/events');
+        expect(router.currentRoute.value.path).toBe('/login');
+    });
+
+    it('is gone from /admin', async () => {
+        signedIn();
+        await router.push('/admin/events');
+        expect(router.currentRoute.value.name).toBe('home');
+        expect(router.currentRoute.value.path).toBe('/home');
+    });
+});
+
 describe('auth guard', () => {
     it.each([['/home'], ['/home/0'], ['/audio'], ['/audio/1'], ['/security'], ['/security/0']])(
         'redirects %s to /login when not authenticated',

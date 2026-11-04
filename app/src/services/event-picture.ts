@@ -5,6 +5,8 @@
 // is loaded once, so there is no reason to put the password in an URL (haproxy
 // access log, HTTP cache, DOM `src`, "copy image address").
 
+import { ref } from 'vue';
+
 export interface EventPictureCredentials {
     user: string;
     pass: string;
@@ -41,6 +43,10 @@ export async function fetchEventPicture(
             }),
         });
         if (!response.ok) return '';
+        // calaos_server sends JPEG only. An error page or a proxy's HTML must not become a blob, and
+        // an SVG blob would run its script in the app's origin if opened in a tab.
+        const type = (response.headers.get('content-type') ?? '').toLowerCase().split(';')[0].trim();
+        if (type !== 'image/jpeg') return '';
         return createObjectUrl(await response.blob());
     } catch {
         return '';
@@ -52,12 +58,17 @@ export async function fetchEventPicture(
  * superseded load revokes the previous URL, so none outlives its use.
  */
 export class EventPictureHolder {
-    url = '';
+    // Reactive: the view binds to `url`.
+    private readonly current = ref('');
     private seq = 0;
     private readonly options: EventPictureOptions;
 
     constructor(options: EventPictureOptions = {}) {
         this.options = options;
+    }
+
+    get url(): string {
+        return this.current.value;
     }
 
     async load(picUid: string, credentials: EventPictureCredentials): Promise<void> {
@@ -68,7 +79,7 @@ export class EventPictureHolder {
             this.revoke(url);
             return;
         }
-        this.url = url;
+        this.current.value = url;
     }
 
     clear(): void {
@@ -77,8 +88,8 @@ export class EventPictureHolder {
     }
 
     private release(): void {
-        this.revoke(this.url);
-        this.url = '';
+        this.revoke(this.current.value);
+        this.current.value = '';
     }
 
     private revoke(url: string): void {

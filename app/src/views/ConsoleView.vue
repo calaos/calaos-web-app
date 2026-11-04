@@ -14,7 +14,7 @@ import { useAdminStore } from '../stores/admin';
 import { useApproversStore } from '../stores/approvers';
 import { useAuthStore } from '../stores/auth';
 import { useAdminText } from '../composables/useAdminText';
-import AdminButton from '../components/admin/AdminButton.vue';
+import AppButton from '../components/ui/AppButton.vue';
 import AdminNotice from '../components/admin/AdminNotice.vue';
 import CodeEntry from '../components/admin/CodeEntry.vue';
 
@@ -271,13 +271,13 @@ onBeforeUnmount(() => {
                 :title="t('admin.console.noApprover.title')"
                 :hint="t('admin.console.noApprover.hint')"
             >
-                <AdminButton variant="quiet" @click="backToSystem">{{ t('admin.console.back') }}</AdminButton>
-                <AdminButton @click="addPhone">{{ t('admin.approvers.add') }}</AdminButton>
+                <AppButton variant="quiet" @click="backToSystem">{{ t('admin.console.back') }}</AppButton>
+                <AppButton @click="addPhone">{{ t('admin.approvers.add') }}</AppButton>
             </AdminNotice>
 
             <AdminNotice v-else-if="challenge === null" tone="warn" :title="t('admin.console.refusedTitle')" :hint="flowError">
-                <AdminButton variant="quiet" @click="backToSystem">{{ t('admin.console.back') }}</AdminButton>
-                <AdminButton @click="start">{{ t('admin.console.again') }}</AdminButton>
+                <AppButton variant="quiet" @click="backToSystem">{{ t('admin.console.back') }}</AppButton>
+                <AppButton @click="start">{{ t('admin.console.again') }}</AppButton>
             </AdminNotice>
 
             <CodeEntry
@@ -301,9 +301,9 @@ onBeforeUnmount(() => {
                     <span v-else-if="phase === 'open'" :class="{ 'console__status--low': clockLow }">{{ clock }}</span>
                     <span v-else>{{ endTitle }}</span>
                 </p>
-                <AdminButton v-if="phase === 'open'" variant="quiet" @click="closeConsole">
+                <AppButton v-if="phase === 'open'" variant="quiet" @click="closeConsole">
                     {{ t('admin.console.close') }}
-                </AdminButton>
+                </AppButton>
             </header>
             <span
                 class="console__clock"
@@ -320,14 +320,14 @@ onBeforeUnmount(() => {
             >
                 <p class="console__end-text">{{ endText }}</p>
                 <div class="console__end-actions">
-                    <AdminButton variant="quiet" @click="backToSystem">{{ t('admin.console.back') }}</AdminButton>
-                    <AdminButton v-if="end?.kind === 'handshake' && overHttp" :href="httpsUrl">
+                    <AppButton variant="quiet" @click="backToSystem">{{ t('admin.console.back') }}</AppButton>
+                    <AppButton v-if="end?.kind === 'handshake' && overHttp" :href="httpsUrl">
                         {{ t('admin.notice.httpsOpen') }}
-                    </AdminButton>
-                    <AdminButton v-else-if="loginRefused" @click="auth.signOut()">
+                    </AppButton>
+                    <AppButton v-else-if="loginRefused" @click="auth.signOut()">
                         {{ t('admin.console.signIn') }}
-                    </AdminButton>
-                    <AdminButton v-else @click="start">{{ t('admin.console.again') }}</AdminButton>
+                    </AppButton>
+                    <AppButton v-else @click="start">{{ t('admin.console.again') }}</AppButton>
                 </div>
             </div>
 

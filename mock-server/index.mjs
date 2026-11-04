@@ -432,9 +432,20 @@ export function startServer(options = {}) {
             return;
         }
 
+        if (body.action === 'event_picture') {
+            if (hub.admin.eventPicture(String(body.pic_uid ?? ''))) {
+                res.writeHead(200, { 'content-type': 'image/jpeg', 'content-length': String(COVER_JPG.length) });
+                res.end(COVER_JPG);
+            } else {
+                res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+                res.end('Not Found');
+            }
+            return;
+        }
+
         if (body.action !== 'get_cover') {
             res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
-            res.end('mock /api POST only implements action=get_cover, config_backup and get_mcp_info');
+            res.end('mock /api POST only implements action=get_cover, config_backup, event_picture and get_mcp_info');
             return;
         }
 

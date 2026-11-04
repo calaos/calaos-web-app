@@ -72,6 +72,7 @@ export function createCalaosService(
     admin.attachTransport(sendFrame);
     adminAlerts.attachTransport(sendFrame);
     events.attachTransport(sendFrame);
+    events.attachCredentials(() => (auth.state === 'authed' ? { user: auth.user, pass: auth.pass } : null));
     cameraToken.attachTransport(sendFrame);
     admin.attachHousehold({
         credentials: () => ({ user: auth.user, pass: auth.pass }),

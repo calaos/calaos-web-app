@@ -13,7 +13,7 @@ import { useAdminNetworkStore } from '../stores/adminNetwork';
 import { useApproversStore } from '../stores/approvers';
 import { useAdminText } from '../composables/useAdminText';
 import BaseDialog from '../components/ui/BaseDialog.vue';
-import AdminButton from '../components/admin/AdminButton.vue';
+import AppButton from '../components/ui/AppButton.vue';
 import AdminNotice from '../components/admin/AdminNotice.vue';
 import AdminPageHeader from '../components/admin/AdminPageHeader.vue';
 import CodeEntry from '../components/admin/CodeEntry.vue';
@@ -187,7 +187,7 @@ onBeforeUnmount(() => {
                 :title="t('admin.network.title')"
                 :hint="errorText(network.error)"
             >
-                <AdminButton @click="network.load()">{{ t('admin.network.retry') }}</AdminButton>
+                <AppButton @click="network.load()">{{ t('admin.network.retry') }}</AppButton>
             </AdminNotice>
 
             <p v-else-if="interfaces.length === 0" class="network__empty">{{ t('admin.network.empty') }}</p>
@@ -205,7 +205,7 @@ onBeforeUnmount(() => {
                                 {{ stateText(intf) }}
                             </span>
                         </div>
-                        <AdminButton
+                        <AppButton
                             v-if="editing !== intf.name"
                             variant="quiet"
                             :disabled="trial || editing !== null"
@@ -213,7 +213,7 @@ onBeforeUnmount(() => {
                             @click="edit(intf.name)"
                         >
                             {{ t('admin.network.edit') }}
-                        </AdminButton>
+                        </AppButton>
                     </div>
 
                     <dl class="network__facts">
@@ -248,10 +248,10 @@ onBeforeUnmount(() => {
                         <div v-if="noApprover" class="network__needs">
                             <p>{{ t('admin.network.form.needsApprover') }}</p>
                             <div class="network__needs-actions">
-                                <AdminButton variant="quiet" @click="editing = null">
+                                <AppButton variant="quiet" @click="editing = null">
                                     {{ t('admin.network.form.cancel') }}
-                                </AdminButton>
-                                <AdminButton @click="addPhone">{{ t('admin.approvers.add') }}</AdminButton>
+                                </AppButton>
+                                <AppButton @click="addPhone">{{ t('admin.approvers.add') }}</AppButton>
                             </div>
                         </div>
                         <template v-else>
@@ -297,10 +297,10 @@ onBeforeUnmount(() => {
             <template v-else-if="codeError !== ''">
                 <p class="network__dialog-hint network__dialog-hint--error" role="alert">{{ codeError }}</p>
                 <div class="network__needs-actions">
-                    <AdminButton variant="quiet" @click="closeCode">{{ t('dialog.cancel') }}</AdminButton>
-                    <AdminButton v-if="approvers.flowError?.code === 'approver_required'" @click="addPhone">
+                    <AppButton variant="quiet" @click="closeCode">{{ t('dialog.cancel') }}</AppButton>
+                    <AppButton v-if="approvers.flowError?.code === 'approver_required'" @click="addPhone">
                         {{ t('admin.approvers.add') }}
-                    </AdminButton>
+                    </AppButton>
                 </div>
             </template>
             <p v-else class="network__dialog-hint" role="status">{{ t('admin.code.sending') }}</p>
