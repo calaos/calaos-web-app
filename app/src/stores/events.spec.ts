@@ -198,6 +198,43 @@ describe('events store', () => {
         expect(events.detail).toBeNull();
     });
 
+    it('treats a page the purged log no longer has as the end of the list', () => {
+        const events = store();
+        events.refresh();
+        answer(events, page(['a'], 0, 5));
+        events.loadMore();
+        answer(events, { error: 'page is out of range' });
+        expect(events.endReached).toBe(true);
+        expect(events.error).toBe('');
+        events.loadMore();
+        expect(sent).toHaveLength(2);
+    });
+
+    it('ignores a page that was not asked for', () => {
+        const events = store();
+        events.refresh();
+        answer(events, page(['a'], 0, 5));
+        const stale = sent[0].msg_id;
+        answer(events, page(['z'], 0, 5), stale);
+        expect(events.events.map((e) => e.id)).toEqual(['a']);
+        events.loadMore();
+        answer(events, page(['q'], 3, 5), `events:${stale.split(':')[1]}:page:3`);
+        expect(events.loading).toBe(true);
+        answer(events, page(['b'], 1, 5), `events:${stale.split(':')[1]}:page:NaN`);
+        expect(events.loading).toBe(true);
+        expect(events.events.map((e) => e.id)).toEqual(['a']);
+    });
+
+    it('ignores an answer that arrives after reset()', () => {
+        const events = store();
+        events.refresh();
+        const msgId = sent[0].msg_id;
+        events.reset();
+        answer(events, page(['old'], 0, 1), msgId);
+        expect(events.events).toEqual([]);
+        expect(events.loading).toBe(false);
+    });
+
     it('claims only its own msg_id and forgets everything on reset', () => {
         const events = store();
         expect(answer(events, page(['x'], 0, 1), 'admin_alerts:1:0')).toBe(false);

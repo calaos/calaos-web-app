@@ -12,6 +12,8 @@ import type { FrameSender } from './admin';
 
 export const EVENTS_PAGE_SIZE = 50;
 export const EVENTS_MSG_ID_PREFIX = 'events:';
+/** HistLogger.cpp's refusal of a page past the end. */
+const OUT_OF_RANGE = 'page is out of range';
 
 export const useEventsStore = defineStore('events', () => {
     const events = ref<EventLogEvent[]>([]);
@@ -27,6 +29,7 @@ export const useEventsStore = defineStore('events', () => {
     /** Answers of an older walk (refresh, sign-out) carry an older generation. */
     let generation = 0;
     let nextPage = 0;
+    let pendingPage = -1;
     let detailSeq = 0;
 
     function attachTransport(sender: FrameSender): void {
@@ -36,6 +39,7 @@ export const useEventsStore = defineStore('events', () => {
     function requestPage(page: number): void {
         loading.value = true;
         error.value = '';
+        pendingPage = page;
         if (!send(encodeEventLog(`${EVENTS_MSG_ID_PREFIX}${generation}:page:${page}`, page, EVENTS_PAGE_SIZE))) {
             loading.value = false;
             error.value = 'not connected';
@@ -74,14 +78,18 @@ export const useEventsStore = defineStore('events', () => {
     }
 
     function onPage(page: number, msg: EventLogMessage): void {
+        // Only the page asked for, and only while waiting for it.
+        if (!loading.value || page !== pendingPage) return;
         const result = decodeEventLogPage(msg.data);
         loading.value = false;
         if (!result.ok) {
-            error.value = result.error;
+            // The log was purged during the walk: the page we want no longer exists.
+            if (page > 0 && result.error === OUT_OF_RANGE) endReached.value = true;
+            else error.value = result.error;
             return;
         }
-        // The server accepts page == total_page and answers it empty: without
-        // the empty-page test a short log would be asked for again for ever.
+        // nextPage >= totalPages ends a complete walk; the empty-page test covers
+        // a stale total_page (log purged mid-walk), which the server answers empty.
         // The log moves under a walk, so a page can repeat an event: keep one.
         const base = page === 0 ? [] : events.value;
         const known = new Set(base.map((event) => event.id));
