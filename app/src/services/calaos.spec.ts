@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { createCalaosService, getCalaosService, resetCalaosService } from './calaos';
 import { CalaosSocket } from '../protocol/socket';
+import { useAdminAlertsStore } from '../stores/adminAlerts';
 import { useAudioStore } from '../stores/audio';
 import { useAuthStore } from '../stores/auth';
 import { useCameraTokenStore } from '../stores/cameraToken';
 import { useConnectionStore } from '../stores/connection';
+import { useEventsStore } from '../stores/events';
 import { useHomeStore } from '../stores/home';
 import type { CalaosService } from './calaos';
 
@@ -409,6 +411,55 @@ describe('events and set_state', () => {
 
         expect(home.sendSetState('light_1', 'true')).toBe(false);
         expect(home.isPending('light_1')).toBe(false);
+    });
+});
+
+describe('eventlog readers', () => {
+    const TOTAL = { total_page: 1, total_count: 1, page: 0, per_page: 50 };
+    const row = (id: string, message: string): Record<string, unknown> => ({
+        id,
+        event_type: '22',
+        io_id: '',
+        io_state: '',
+        pic_uid: '',
+        created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        event_raw: { message },
+    });
+    const reply = (msgId: string, events: unknown[]): string =>
+        JSON.stringify({ msg: 'eventlog', msg_id: msgId, data: { ...TOTAL, events } });
+
+    it('serves the alerts banner and the events page at once, each its own answer', () => {
+        const events = useEventsStore();
+        startAndOpen();
+        signInAndLoad();
+        events.refresh();
+        // The login's alert walk (generation 1) and our page are both pending.
+        const alert = row('al1', 'New approver phone on your Calaos box: "Pixel"');
+        FakeWebSocket.last.fireMessage(reply('events:1:page:0', [row('e1', 'x'), row('e2', 'y')]));
+        FakeWebSocket.last.fireMessage(reply('admin_alerts:1:0', [alert]));
+
+        expect(events.events.map((e) => e.id)).toEqual(['e1', 'e2']);
+        expect(useAdminAlertsStore().alerts.map((a) => a.id)).toEqual(['al1']);
+    });
+
+    it('does not hand an alerts answer to the events store', () => {
+        const events = useEventsStore();
+        startAndOpen();
+        signInAndLoad();
+        events.refresh();
+        FakeWebSocket.last.fireMessage(reply('admin_alerts:1:0', [row('al1', 'z')]));
+        expect(events.events).toEqual([]);
+        expect(events.loading).toBe(true);
+    });
+
+    it('clears the events on sign-out', () => {
+        const events = useEventsStore();
+        startAndOpen();
+        signInAndLoad();
+        events.refresh();
+        FakeWebSocket.last.fireMessage(reply('events:1:page:0', [row('e1', 'x')]));
+        useAuthStore().signOut();
+        expect(events.events).toEqual([]);
     });
 });
 

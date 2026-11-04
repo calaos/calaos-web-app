@@ -42,7 +42,7 @@ export function encodeEventLog(msgId: string, page: number, perPage: number): st
 }
 
 /** `created_at` is SQLite's CURRENT_TIMESTAMP: UTC, `YYYY-MM-DD HH:MM:SS`. */
-function toTime(value: string): number {
+export function toTime(value: string): number {
     return Date.parse(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/.test(value) ? `${value.replace(' ', 'T')}Z` : value);
 }
 

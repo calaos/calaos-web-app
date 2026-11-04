@@ -27,6 +27,7 @@ import { useAudioStore } from '../stores/audio';
 import { useAuthStore } from '../stores/auth';
 import { useCameraTokenStore } from '../stores/cameraToken';
 import { useConnectionStore } from '../stores/connection';
+import { useEventsStore } from '../stores/events';
 import { useHomeStore } from '../stores/home';
 import type { CalaosSocketListener, SocketStatusInfo } from '../protocol/socket';
 import type { ServerMessage } from '../protocol/types';
@@ -61,6 +62,7 @@ export function createCalaosService(
     const approvers = useApproversStore();
     const adminAlerts = useAdminAlertsStore();
     const adminNetwork = useAdminNetworkStore();
+    const events = useEventsStore();
     const cameraToken = useCameraTokenStore();
 
     const sendFrame = (frame: string): boolean => socket.send(frame);
@@ -69,6 +71,7 @@ export function createCalaosService(
     audio.attachTransport(sendFrame);
     admin.attachTransport(sendFrame);
     adminAlerts.attachTransport(sendFrame);
+    events.attachTransport(sendFrame);
     cameraToken.attachTransport(sendFrame);
     admin.attachHousehold({
         credentials: () => ({ user: auth.user, pass: auth.pass }),
@@ -88,6 +91,7 @@ export function createCalaosService(
             admin.handleTransportLost();
             // The server revokes a capture token with the session that got it.
             cameraToken.invalidate();
+            events.handleTransportLost();
         }
     };
 
@@ -128,7 +132,8 @@ export function createCalaosService(
                 break;
 
             case 'eventlog':
-                adminAlerts.handleEventLog(msg);
+                // Several readers share the type; each recognises its own msg_id prefix.
+                if (!adminAlerts.handleEventLog(msg)) events.handleEventLog(msg);
                 break;
 
             case 'change_cred':
