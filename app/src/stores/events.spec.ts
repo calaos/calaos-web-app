@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { EVENTS_PAGE_SIZE, useEventsStore } from './events';
 
@@ -243,5 +243,92 @@ describe('events store', () => {
         events.reset();
         expect(events.events).toEqual([]);
         expect(events.endReached).toBe(false);
+    });
+});
+
+describe('events store picture', () => {
+    function imageFetch(ok = true) {
+        return vi.fn(
+            async () =>
+                ({
+                    ok,
+                    headers: new Headers({ 'content-type': 'image/jpeg' }),
+                    blob: async () => new Blob(['x']),
+                }) as unknown as Response,
+        );
+    }
+    let fetchMock: ReturnType<typeof imageFetch>;
+    let created: number;
+    let revoked: string[];
+
+    beforeEach(() => {
+        created = 0;
+        revoked = [];
+        fetchMock = imageFetch();
+        vi.stubGlobal('fetch', fetchMock);
+        URL.createObjectURL = () => `blob:${++created}`;
+        URL.revokeObjectURL = (url: string) => void revoked.push(url);
+        return () => vi.unstubAllGlobals();
+    });
+
+    function authed() {
+        const events = store();
+        events.attachCredentials(() => ({ user: 'u', pass: 'p' }));
+        return events;
+    }
+
+    it('loads the picture once and exposes it reactively', async () => {
+        const events = authed();
+        const pending = events.loadPicture('pic');
+        expect(events.pictureStatus).toBe('loading');
+        await pending;
+        expect(events.pictureStatus).toBe('ready');
+        expect(events.pictureUrl).toBe('blob:1');
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('loads nothing when no session is authed', async () => {
+        const events = store();
+        events.attachCredentials(() => null);
+        await events.loadPicture('pic');
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(events.pictureStatus).toBe('missing');
+    });
+
+    it('does not retry a failed load', async () => {
+        fetchMock = imageFetch(false);
+        vi.stubGlobal('fetch', fetchMock);
+        const events = authed();
+        await events.loadPicture('pic');
+        expect(events.pictureStatus).toBe('missing');
+        expect(events.pictureUrl).toBe('');
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('revokes the blob when the detail closes', async () => {
+        const events = authed();
+        await events.loadPicture('pic');
+        events.closeDetail();
+        expect(events.pictureUrl).toBe('');
+        expect(events.pictureStatus).toBe('idle');
+        expect(revoked).toEqual(['blob:1']);
+    });
+
+    it('revokes the blob on reset()', async () => {
+        const events = authed();
+        await events.loadPicture('pic');
+        events.reset();
+        expect(events.pictureUrl).toBe('');
+        expect(revoked).toEqual(['blob:1']);
+    });
+
+    it('drops a load that closes before it answers', async () => {
+        const events = authed();
+        const pending = events.loadPicture('pic');
+        events.closeDetail();
+        await pending;
+        expect(events.pictureStatus).toBe('idle');
+        expect(events.pictureUrl).toBe('');
+        expect(revoked).toEqual(['blob:1']);
     });
 });

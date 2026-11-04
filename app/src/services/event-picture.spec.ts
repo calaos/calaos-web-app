@@ -1,10 +1,18 @@
+import { computed } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
 import { EventPictureHolder, fetchEventPicture } from './event-picture';
 
 const SESSION = { user: 'demo', pass: 'sécret&#' };
 
-function blobFetch(ok = true) {
-    return vi.fn(async () => ({ ok, blob: async () => new Blob(['x']) }) as unknown as Response);
+function blobFetch(ok = true, contentType = 'image/jpeg') {
+    return vi.fn(
+        async () =>
+            ({
+                ok,
+                headers: new Headers({ 'content-type': contentType }),
+                blob: async () => new Blob(['x']),
+            }) as unknown as Response,
+    );
 }
 
 function seams(fetchImpl: typeof fetch) {
@@ -42,7 +50,32 @@ describe('fetchEventPicture', () => {
     });
 });
 
+describe('fetchEventPicture content type', () => {
+    it('makes no blob out of a reply that is not an image', async () => {
+        for (const type of ['text/html; charset=utf-8', 'application/json', '']) {
+            const s = seams(blobFetch(true, type) as unknown as typeof fetch);
+            expect(await fetchEventPicture('p', SESSION, s)).toBe('');
+            expect(s.createObjectUrl).not.toHaveBeenCalled();
+        }
+    });
+
+    it('accepts image/ types case-insensitively', async () => {
+        const s = seams(blobFetch(true, 'Image/PNG') as unknown as typeof fetch);
+        expect(await fetchEventPicture('p', SESSION, s)).toBe('blob:1');
+    });
+});
+
 describe('EventPictureHolder', () => {
+    it('exposes a reactive url', async () => {
+        const holder = new EventPictureHolder(seams(blobFetch() as unknown as typeof fetch));
+        const seen = computed(() => holder.url);
+        expect(seen.value).toBe('');
+        await holder.load('a', SESSION);
+        expect(seen.value).toBe('blob:1');
+        holder.clear();
+        expect(seen.value).toBe('');
+    });
+
     it('revokes the previous URL when another picture loads, and on clear', async () => {
         const s = seams(blobFetch() as unknown as typeof fetch);
         const holder = new EventPictureHolder(s);

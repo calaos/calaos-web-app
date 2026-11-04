@@ -89,6 +89,8 @@ export const useAuthStore = defineStore('auth', () => {
      * socket opens.
      */
     function signIn(nextUser: string, nextPass: string): boolean {
+        // A different account must not inherit the previous one's log.
+        if (user.value !== '' && user.value !== nextUser) useEventsStore().reset();
         user.value = nextUser;
         pass.value = nextPass;
         // Clears a previous 'failed' — retrying after a typo must work.
@@ -171,6 +173,7 @@ export const useAuthStore = defineStore('auth', () => {
     function dropAdminSession(): void {
         useAdminStore().reset();
         useAdminAlertsStore().reset();
+        useEventsStore().reset();
     }
 
     /**

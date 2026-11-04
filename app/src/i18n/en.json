@@ -517,5 +517,38 @@
                 "load_failed": "The console could not be loaded. Check the connection, reload the page and try again."
             }
         }
+    },
+    "events": {
+        "title": "Events",
+        "hint": "What happened in the house, newest first.",
+        "entryHint": "History of what happened in the house",
+        "today": "Today",
+        "refresh": "Refresh",
+        "more": "Load more",
+        "loading": "Loading…",
+        "empty": "No events yet.",
+        "back": "Back to the list",
+        "type": {
+            "io": "Appliance change",
+            "push": "Push notification",
+            "unknown": "Unknown event"
+        },
+        "action": {
+            "on": "On",
+            "off": "Off",
+            "tempChanged": "Temperature changed",
+            "opened": "Opened",
+            "closed": "Closed",
+            "started": "Started"
+        },
+        "error": {
+            "offline": "Not connected to Calaos. Try again once the connection is back.",
+            "generic": "The events could not be loaded."
+        },
+        "picture": {
+            "alt": "Picture attached to the event",
+            "loading": "Loading the picture…",
+            "missing": "The picture is no longer available."
+        }
     }
 }

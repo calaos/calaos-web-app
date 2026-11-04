@@ -6,7 +6,7 @@
 
 import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { ADMIN_PASSWORD_MIN_LENGTH } from '../protocol/admin';
 import { useAdminStore } from '../stores/admin';
 import { useAuthStore } from '../stores/auth';
@@ -98,6 +98,9 @@ function changeHousehold(user: string, password: string): void {
                     :refused="refused"
                     @submit="unlock"
                 />
+                <RouterLink class="admin__events-link" :to="{ name: 'events' }" data-testid="events-link">
+                    {{ t('events.title') }}
+                </RouterLink>
             </template>
 
             <template v-else-if="admin.gate === 'bootstrap'">
@@ -255,6 +258,13 @@ function changeHousehold(user: string, password: string): void {
     font-weight: 400;
     letter-spacing: var(--tracking-tight);
     line-height: 1.15;
+}
+
+.admin__events-link {
+    justify-self: center;
+    margin-block-start: var(--space-4);
+    color: var(--c-accent);
+    font-size: 0.9375rem;
 }
 
 .admin__hint {

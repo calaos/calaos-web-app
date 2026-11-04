@@ -517,5 +517,38 @@
                 "load_failed": "La console n’a pas pu être chargée. Vérifiez la connexion, rechargez la page et réessayez."
             }
         }
+    },
+    "events": {
+        "title": "Événements",
+        "hint": "Ce qui s'est passé dans la maison, du plus récent au plus ancien.",
+        "entryHint": "Historique de ce qui s'est passé dans la maison",
+        "today": "Aujourd'hui",
+        "refresh": "Actualiser",
+        "more": "Charger plus",
+        "loading": "Chargement…",
+        "empty": "Aucun événement pour le moment.",
+        "back": "Retour à la liste",
+        "type": {
+            "io": "Changement d'appareil",
+            "push": "Notification push",
+            "unknown": "Événement inconnu"
+        },
+        "action": {
+            "on": "Allumé",
+            "off": "Éteint",
+            "tempChanged": "Température modifiée",
+            "opened": "Ouvert",
+            "closed": "Fermé",
+            "started": "Démarré"
+        },
+        "error": {
+            "offline": "Pas de connexion à Calaos. Réessayez quand elle sera revenue.",
+            "generic": "Les événements n'ont pas pu être chargés."
+        },
+        "picture": {
+            "alt": "Image jointe à l'événement",
+            "loading": "Chargement de l'image…",
+            "missing": "L'image n'est plus disponible."
+        }
     }
 }

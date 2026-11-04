@@ -167,6 +167,7 @@ describe('AdminView hub', () => {
             'services',
             'logs',
             'time',
+            'events',
             'mcp',
             'security',
             'system',

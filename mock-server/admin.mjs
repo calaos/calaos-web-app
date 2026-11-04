@@ -236,6 +236,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             /** The event log's persistent events, oldest first. */
             events: [],
             eventlogReads: 0,
+            eventPictureReads: 0,
         };
     }
     reset();
@@ -666,6 +667,31 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         }
     }
 
+    /** One of each kind the Events page tells apart, the unknown one newest; 'pic-ok' has a picture, 'pic-gone' does not. */
+    function addEventSamples() {
+        const row = (id, type, ioId, ioState, picUid, raw) => ({
+            id,
+            event_type: type,
+            io_id: ioId,
+            io_state: ioState,
+            pic_uid: picUid,
+            created_at: sqliteTime(Date.now()),
+            event_raw: raw,
+        });
+        state.events.push(
+            row('sample-push-ok', '22', '', '', 'pic-ok', { message: 'Motion at the front door', pic_uid: 'pic-ok' }),
+            row('sample-light', '3', 'light_1', 'true', '', { type: '3', data: { id: 'light_1', state: 'true' } }),
+            row('sample-push-gone', '22', '', '', 'pic-gone', { message: 'Doorbell', pic_uid: 'pic-gone' }),
+            row('sample-unknown', '99', '', '', '', { type: '99' }),
+        );
+    }
+
+    /** What `POST /api event_picture` answers: the cover for 'pic-ok', else null (404). */
+    function eventPicture(picUid) {
+        state.eventPictureReads += 1;
+        return picUid === 'pic-ok';
+    }
+
     function handleEventLog(ws, frame) {
         state.eventlogReads += 1;
         const data = frame.data ?? {};
@@ -673,6 +699,10 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         const page = data.page === undefined || data.page === '' ? 0 : Number(data.page);
         if (!Number.isInteger(perPage) || perPage <= 0) {
             return reply(ws, 'eventlog', frame.msg_id, { error: 'per_page is out of range' });
+        }
+        if (typeof data.uuid === 'string') {
+            const found = state.events.find((entry) => entry.id === data.uuid);
+            return reply(ws, 'eventlog', frame.msg_id, found ?? { error: 'event not found' });
         }
         const newest = [...state.events].reverse();
         reply(ws, 'eventlog', frame.msg_id, {
@@ -1054,6 +1084,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             if (problem !== null) return { ok: false, error: problem };
         }
         if (Number.isInteger(patch.noiseEvents)) addNoise(patch.noiseEvents);
+        if (patch.eventSamples) addEventSamples();
         if (Array.isArray(patch.tooOld)) state.tooOld = patch.tooOld.map(String);
         if (patch.codeTtlMs !== undefined) state.codeTtlMs = Number(patch.codeTtlMs);
         if (patch.codeIntervalMs !== undefined) state.codeIntervalMs = Number(patch.codeIntervalMs);
@@ -1088,6 +1119,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             pushed: state.pushed,
             events: state.events.length,
             eventlogReads: state.eventlogReads,
+            eventPictureReads: state.eventPictureReads,
             ...Object.fromEntries(FEATURES.map((name) => [name, features[name].status()])),
         };
     }
@@ -1109,5 +1141,5 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         return null;
     }
 
-    return { reset, handleFrame, configure, status, event, takeConsoleGrant, httpConfigBackup, httpMcpInfo };
+    return { reset, handleFrame, configure, status, event, takeConsoleGrant, httpConfigBackup, httpMcpInfo, eventPicture };
 }
