@@ -43,8 +43,10 @@ export async function fetchEventPicture(
             }),
         });
         if (!response.ok) return '';
-        // An error page or a proxy's HTML must not become a blob the view then renders.
-        if (!(response.headers.get('content-type') ?? '').toLowerCase().startsWith('image/')) return '';
+        // calaos_server sends JPEG only. An error page or a proxy's HTML must not become a blob, and
+        // an SVG blob would run its script in the app's origin if opened in a tab.
+        const type = (response.headers.get('content-type') ?? '').toLowerCase().split(';')[0].trim();
+        if (type !== 'image/jpeg') return '';
         return createObjectUrl(await response.blob());
     } catch {
         return '';

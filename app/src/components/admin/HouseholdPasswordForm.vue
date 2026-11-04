@@ -5,7 +5,7 @@
 
 import { computed, ref, useId } from 'vue';
 import { useI18n } from 'vue-i18n';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 import AdminField from './AdminField.vue';
 
 const props = withDefaults(
@@ -74,7 +74,7 @@ function submit(): void {
             :disabled="busy"
         />
 
-        <AdminButton
+        <AppButton
             type="submit"
             class="household-form__submit"
             block
@@ -83,7 +83,7 @@ function submit(): void {
             :busy-label="t('admin.household.submitting')"
         >
             {{ t('admin.household.submit') }}
-        </AdminButton>
+        </AppButton>
 
         <p :id="errorId" class="household-form__error" role="alert">
             <span v-if="shownError !== ''" class="fade-in">{{ shownError }}</span>

@@ -18,7 +18,7 @@ import { LOG_ROWS_MAX, useAdminLogsStore } from '../stores/adminLogs';
 import type { LogFilter } from '../stores/adminLogs';
 import { useAdminStore } from '../stores/admin';
 import { useAdminText } from '../composables/useAdminText';
-import AdminButton from '../components/admin/AdminButton.vue';
+import AppButton from '../components/ui/AppButton.vue';
 import AdminPageHeader from '../components/admin/AdminPageHeader.vue';
 import LogRow from '../components/admin/LogRow.vue';
 
@@ -316,15 +316,15 @@ onBeforeUnmount(() => {
                         <span class="logs__follow-dot" aria-hidden="true" />
                         {{ t('admin.logs.follow') }}
                     </button>
-                    <AdminButton
+                    <AppButton
                         v-if="logs.canLoadOlder && (logs.hasEntries || logs.incomplete)"
                         variant="quiet"
                         :busy="loadingOlder"
                         @click="loadOlder"
                     >
                         {{ t('admin.logs.loadOlder') }}
-                    </AdminButton>
-                    <AdminButton
+                    </AppButton>
+                    <AppButton
                         class="logs__download"
                         variant="quiet"
                         :disabled="!logs.hasEntries"
@@ -333,7 +333,7 @@ onBeforeUnmount(() => {
                     >
                         <IconDownload aria-hidden="true" class="logs__icon" />
                         <span class="logs__download-label">{{ t('admin.logs.download') }}</span>
-                    </AdminButton>
+                    </AppButton>
                 </div>
                 <button
                     type="button"

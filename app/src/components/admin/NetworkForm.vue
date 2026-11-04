@@ -12,7 +12,7 @@ import {
     isSearchDomain,
 } from '../../protocol/admin-network';
 import type { NetInterface, NetworkChange } from '../../protocol/admin-network';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 import AdminField from './AdminField.vue';
 
 const props = defineProps<{ intf: NetInterface; disabled?: boolean }>();
@@ -157,8 +157,8 @@ function submit(): void {
         </p>
 
         <div class="net-form__actions">
-            <AdminButton variant="quiet" @click="emit('cancel')">{{ t('admin.network.form.cancel') }}</AdminButton>
-            <AdminButton type="submit" :disabled="disabled">{{ t('admin.network.form.apply') }}</AdminButton>
+            <AppButton variant="quiet" @click="emit('cancel')">{{ t('admin.network.form.cancel') }}</AppButton>
+            <AppButton type="submit" :disabled="disabled">{{ t('admin.network.form.apply') }}</AppButton>
         </div>
     </form>
 </template>

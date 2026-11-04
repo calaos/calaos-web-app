@@ -1650,6 +1650,15 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
             expect(Buffer.from(await ok.arrayBuffer()).equals(COVER_JPG)).toBe(true);
             expect((await post('pic-gone')).status).toBe(404);
             expect((await control({ op: 'admin_status' })).body.eventPictureReads).toBe(2);
+
+            // Wrong credentials are refused before the picture is looked up.
+            const wrong = await fetch(`${server.url}/api`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ cn_user: 'demo', cn_pass: 'nope', action: 'event_picture', pic_uid: 'pic-ok' }),
+            });
+            expect(wrong.status).toBe(400);
+            expect((await control({ op: 'admin_status' })).body.eventPictureReads).toBe(2);
         });
 
         it('keeps 10 s between two codes of a session', async () => {

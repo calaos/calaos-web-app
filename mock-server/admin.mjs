@@ -694,6 +694,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             row('sample-push-ok', '22', '', '', 'pic-ok', { message: 'Motion at the front door', pic_uid: 'pic-ok' }),
             row('sample-light', '3', 'output_1', 'true', '', { type: '3', data: { id: 'output_1', state: 'true' } }),
             row('sample-push-gone', '22', '', '', 'pic-gone', { message: 'Doorbell', pic_uid: 'pic-gone' }),
+            row('sample-push-io', '22', 'output_1', 'true', '', { message: 'Hall light left on', pic_uid: '' }),
             row('sample-unknown', '99', '', '', '', { type: '99' }),
         );
     }

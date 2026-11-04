@@ -545,8 +545,8 @@ describe('events log vs the household session', () => {
     function withEvents(): ReturnType<typeof useEventsStore> {
         const events = useEventsStore();
         events.events = [
-            { id: 'e1', eventType: '3', ioId: '', ioState: '', picUid: '', createdAt: '', raw: {} },
-        ] as unknown as typeof events.events;
+            { id: 'e1', eventType: '3', ioId: '', ioState: '', picUid: '', at: 0, raw: {} },
+        ];
         return events;
     }
 

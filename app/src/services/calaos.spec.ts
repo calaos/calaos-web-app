@@ -217,9 +217,9 @@ describe('events store wiring', () => {
         expect(events.error).toBe('not connected');
     });
 
-    it('hands the live session credentials to the picture loader, and none once signed out', async () => {
+    it('hands the live session credentials to the picture loader, and none before sign-in or after sign-out', async () => {
         const events = useEventsStore();
-        const fetchMock = vi.fn(async () => ({ ok: false }) as unknown as Response);
+        const fetchMock = vi.fn<typeof fetch>(async () => ({ ok: false }) as unknown as Response);
         vi.stubGlobal('fetch', fetchMock);
         try {
             startAndOpen();
@@ -230,6 +230,16 @@ describe('events store wiring', () => {
             signInAndLoad();
             await events.loadPicture('p1');
             expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({
+                cn_user: 'demo',
+                cn_pass: 'demo',
+                pic_uid: 'p1',
+            });
+
+            useAuthStore().signOut();
+            await events.loadPicture('p1');
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(events.pictureStatus).toBe('missing');
         } finally {
             vi.unstubAllGlobals();
         }

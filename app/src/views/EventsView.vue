@@ -7,14 +7,15 @@ import { useI18n } from 'vue-i18n';
 import IconLoading from '~icons/mdi/loading';
 import IconPicture from '~icons/mdi/image-off-outline';
 import IconRefresh from '~icons/mdi/refresh';
-import AdminButton from '../components/admin/AdminButton.vue';
+import AppButton from '../components/ui/AppButton.vue';
 import IconPhoto from '~icons/mdi/image-outline';
 import IconPush from '~icons/mdi/bell-outline';
+import IconUnknown from '~icons/mdi/help-circle-outline';
 import { STATE_ICONS } from '../components/io/calaos-icons';
 import { resolveLightStyle } from '../components/io/light-styles';
 import type { EventLogEvent } from '../protocol/eventlog';
 import { describeEvent } from '../services/event-describe';
-import type { EventIcon, EventIoInfo } from '../services/event-describe';
+import type { EventIcon, EventIoInfo, EventKind } from '../services/event-describe';
 import { useEventsStore } from '../stores/events';
 import { useHomeStore } from '../stores/home';
 
@@ -34,19 +35,24 @@ function ioInfo(event: EventLogEvent): EventIoInfo | null {
     return { name: io.name, guiType: io.guiType, ioStyle: io.ioStyle, room: room?.name ?? '' };
 }
 
+// One formatter per locale, not one per row and render.
+const dateFormat = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'short' }));
+const timeFormat = computed(() => new Intl.DateTimeFormat(locale.value, { timeStyle: 'medium', hour12: false }));
+
 function dateOf(at: number): string {
     if (Number.isNaN(at)) return '';
     const date = new Date(at);
     if (date.toDateString() === new Date().toDateString()) return t('events.today');
-    return new Intl.DateTimeFormat(locale.value, { dateStyle: 'short' }).format(date);
+    return dateFormat.value.format(date);
 }
 
 function timeOf(at: number): string {
     if (Number.isNaN(at)) return '';
-    return new Intl.DateTimeFormat(locale.value, { timeStyle: 'medium', hour12: false }).format(new Date(at));
+    return timeFormat.value.format(new Date(at));
 }
 
 interface Row {
+    kind: EventKind;
     id: string;
     title: string;
     room: string;
@@ -80,6 +86,7 @@ function toRow(event: EventLogEvent): Row {
     const summary = describeEvent(event, ioInfo(event));
     return {
         id: event.id,
+        kind: summary.kind,
         title: summary.ioName !== '' ? summary.ioName : t(summary.titleKey),
         room: summary.room,
         action: summary.actionKey === '' ? '' : t(summary.actionKey),
@@ -123,9 +130,9 @@ watch(
             </header>
 
             <section v-if="showingDetail" class="events__detail fade-in" data-testid="event-detail">
-                <AdminButton variant="quiet" data-testid="event-back" @click="events.closeDetail()">
+                <AppButton variant="quiet" data-testid="event-back" @click="events.closeDetail()">
                     {{ t('events.back') }}
-                </AdminButton>
+                </AppButton>
                 <p v-if="events.detailLoading" class="events__state" role="status">
                     <IconLoading class="events__spin" aria-hidden="true" />
                     {{ t('events.loading') }}
@@ -165,10 +172,10 @@ watch(
 
             <section v-show="!showingDetail" class="events__list" data-testid="event-list">
                 <div class="events__bar">
-                    <AdminButton variant="quiet" :busy="events.loading" data-testid="event-refresh" @click="events.refresh()">
+                    <AppButton variant="quiet" :busy="events.loading" data-testid="event-refresh" @click="events.refresh()">
                         <IconRefresh class="events__refresh" aria-hidden="true" />
                         {{ t('events.refresh') }}
-                    </AdminButton>
+                    </AppButton>
                 </div>
 
                 <p v-if="listError !== ''" class="events__state events__state--error" role="alert">{{ listError }}</p>
@@ -182,6 +189,7 @@ watch(
                             <span class="events__item-icon" aria-hidden="true">
                                 <IconPush v-if="row.icon === 'push'" data-testid="event-icon-push" />
                                 <img v-else-if="row.iconSrc !== ''" :src="row.iconSrc" alt="" data-testid="event-icon" />
+                                <IconUnknown v-else-if="row.kind === 'unknown'" data-testid="event-icon-unknown" />
                             </span>
                             <span class="events__item-main">
                                 <span class="events__item-title">{{ row.title }}</span>
@@ -206,9 +214,9 @@ watch(
                 </ul>
 
                 <div v-if="rows.length > 0 && !events.endReached" class="events__more">
-                    <AdminButton variant="quiet" :busy="events.loading" data-testid="event-more" @click="events.loadMore()">
+                    <AppButton variant="quiet" :busy="events.loading" data-testid="event-more" @click="events.loadMore()">
                         {{ t('events.more') }}
-                    </AdminButton>
+                    </AppButton>
                 </div>
             </section>
         </div>
@@ -249,6 +257,16 @@ watch(
 
 .events__more {
     justify-content: center;
+}
+
+@media (max-width: 479px) {
+    .events__bar :deep(.admin-button) {
+        inline-size: 100%;
+    }
+}
+
+.events__detail > :deep(.admin-button) {
+    justify-self: start;
 }
 
 .events__refresh {
@@ -395,7 +413,7 @@ watch(
 
 .events__picture {
     inline-size: 100%;
-    max-block-size: 70vh;
+    max-block-size: 60vh;
     object-fit: contain;
     border-radius: var(--radius-md);
 }
@@ -410,7 +428,7 @@ watch(
 }
 
 .events__state--error {
-    color: var(--c-danger, var(--c-warn));
+    color: var(--c-danger-text, var(--c-danger));
 }
 
 .events__spin {

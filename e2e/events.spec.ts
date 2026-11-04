@@ -24,7 +24,9 @@ async function openEvents(page: Page): Promise<void> {
 const items = (page: Page) => page.getByTestId('event-item');
 
 async function shoot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
-    await page.waitForTimeout(400);
+    // Captures are for review runs only (EVENTS_SHOTS=1); a plain run does not pay for them.
+    if (process.env.EVENTS_SHOTS !== '1') return;
+    await page.evaluate(() => document.fonts.ready);
     await page.screenshot({ path: testInfo.outputPath(`events-${name}.png`), fullPage: true });
 }
 
@@ -32,11 +34,11 @@ test('lists the log newest first and loads the next page', async ({ page }, test
     await openEvents(page);
     await expect(items(page)).toHaveCount(50);
     await expect(items(page).first()).toContainText(E.type.unknown);
-    await expect(items(page).nth(1)).toContainText(E.type.push);
+    await expect(items(page).nth(1)).toContainText('Hall light left on');
     await shoot(page, testInfo, 'list');
 
     await page.getByTestId('event-more').click();
-    await expect(items(page)).toHaveCount(64);
+    await expect(items(page)).toHaveCount(65);
     await expect(page.getByTestId('event-more')).toHaveCount(0);
 });
 
@@ -48,6 +50,12 @@ test('shows the appliance icon, room and action, and a photo indicator, as the m
     await expect(items(page).filter({ hasText: 'Motion at the front door' }).getByTestId('event-has-picture')).toBeVisible();
     await expect(items(page).filter({ hasText: 'Motion at the front door' }).getByTestId('event-icon-push')).toBeVisible();
     await expect(light.getByTestId('event-has-picture')).toHaveCount(0);
+    // A push that names an IO resolves it like any other event.
+    const pushWithIo = items(page).filter({ hasText: 'Hall light left on' });
+    await expect(pushWithIo).toContainText('Plafonnier');
+    await expect(pushWithIo).toContainText('Salon');
+    await expect(pushWithIo.getByTestId('event-icon')).toBeVisible();
+    await expect(items(page).first().getByTestId('event-icon-unknown')).toBeVisible();
     await shoot(page, testInfo, 'parity');
 });
 

@@ -20,7 +20,7 @@ import type { BackupFile } from '../../stores/adminConfig';
 import { useAdminServicesStore } from '../../stores/adminServices';
 import { useAdminText } from '../../composables/useAdminText';
 import { groupOptions } from './configEditors';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 import AdminField from './AdminField.vue';
 import ConfigRestoreDialog from './ConfigRestoreDialog.vue';
 import ConfigRow from './ConfigRow.vue';
@@ -262,9 +262,9 @@ async function confirmRestore(): Promise<void> {
                     {{ followUp?.phase === 'slow' ? t('admin.config.restoreSlow') : t('admin.config.restoreRestarting') }}
                 </template>
             </p>
-            <AdminButton v-if="followUp?.phase === 'slow'" variant="quiet" @click="config.dismissRestore()">
+            <AppButton v-if="followUp?.phase === 'slow'" variant="quiet" @click="config.dismissRestore()">
                 {{ t('admin.config.restoreDismiss') }}
-            </AdminButton>
+            </AppButton>
         </div>
         <div v-else-if="followUp !== null" class="config__restored fade-in" role="status">
             <p class="config__restored-text">
@@ -276,7 +276,7 @@ async function confirmRestore(): Promise<void> {
                 </template>
                 <template v-else>{{ t('admin.config.restoreUnconfirmed') }}</template>
             </p>
-            <AdminButton variant="quiet" @click="config.dismissRestore()">{{ t('admin.config.restoreDismiss') }}</AdminButton>
+            <AppButton variant="quiet" @click="config.dismissRestore()">{{ t('admin.config.restoreDismiss') }}</AppButton>
         </div>
         <div v-else-if="config.restartRequired || restarting" class="config__restart fade-in" role="status">
             <template v-if="restarting">
@@ -289,17 +289,17 @@ async function confirmRestore(): Promise<void> {
                     <span v-if="restartError !== ''" class="config__restart-error" role="alert">{{ restartError }}</span>
                 </div>
                 <div class="config__restart-actions">
-                    <AdminButton
+                    <AppButton
                         variant="primary"
                         :busy="admin.busy === 'services_restart'"
                         :disabled="busy"
                         @click="restartServer"
                     >
                         {{ t('admin.config.restartNow') }}
-                    </AdminButton>
-                    <AdminButton variant="quiet" :disabled="busy" @click="config.dismissRestart()">
+                    </AppButton>
+                    <AppButton variant="quiet" :disabled="busy" @click="config.dismissRestart()">
                         {{ t('admin.config.later') }}
-                    </AdminButton>
+                    </AppButton>
                 </div>
             </template>
         </div>
@@ -310,7 +310,7 @@ async function confirmRestore(): Promise<void> {
                     <span class="config__name">{{ t('admin.config.backup') }}</span>
                     <span class="config__hint">{{ t('admin.config.backupHint') }}</span>
                 </div>
-                <AdminButton
+                <AppButton
                     variant="quiet"
                     :busy="downloading"
                     :busy-label="t('admin.config.backupDownloading')"
@@ -318,7 +318,7 @@ async function confirmRestore(): Promise<void> {
                     @click="confirmingBackup = true"
                 >
                     {{ t('admin.config.backupConfirm') }}
-                </AdminButton>
+                </AppButton>
                 <p v-if="backupError !== ''" class="config__row-note config__row-note--error fade-in" role="alert">
                     {{ backupError }}
                 </p>
@@ -343,7 +343,7 @@ async function confirmRestore(): Promise<void> {
                     aria-hidden="true"
                     @change="pickRestore"
                 />
-                <AdminButton
+                <AppButton
                     variant="quiet"
                     :busy="checkingRestore"
                     :busy-label="t('admin.config.restoreChecking')"
@@ -351,7 +351,7 @@ async function confirmRestore(): Promise<void> {
                     @click="restorePicker?.click()"
                 >
                     {{ t('admin.config.restorePick') }}
-                </AdminButton>
+                </AppButton>
                 <p v-if="restoreError !== ''" class="config__row-note config__row-note--error fade-in" role="alert">
                     {{ restoreError }}
                 </p>
@@ -364,7 +364,7 @@ async function confirmRestore(): Promise<void> {
             </p>
             <div v-else-if="config.options === null" class="config__status config__status--error admin-card admin-card--error" role="alert">
                 <span>{{ t('admin.config.loadFailed') }} {{ loadError }}</span>
-                <AdminButton variant="quiet" :disabled="busy" @click="load">{{ t('admin.config.retry') }}</AdminButton>
+                <AppButton variant="quiet" :disabled="busy" @click="load">{{ t('admin.config.retry') }}</AppButton>
             </div>
 
             <section

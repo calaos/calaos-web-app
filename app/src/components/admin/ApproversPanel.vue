@@ -19,7 +19,7 @@ import { useApproversStore } from '../../stores/approvers';
 import { useAdminDates } from '../../composables/useAdminDates';
 import { useAdminText } from '../../composables/useAdminText';
 import BaseDialog from '../ui/BaseDialog.vue';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 import CodeEntry from './CodeEntry.vue';
 import DeviceName from './DeviceName.vue';
 import { isolateName } from '../../composables/isolateName';
@@ -148,9 +148,9 @@ async function submitCode(code: string): Promise<void> {
                     <span class="approvers__name">{{ t('admin.approvers.loadFailed') }}</span>
                     <span class="approvers__meta">{{ errorText(approvers.listError) }}</span>
                 </div>
-                <AdminButton variant="quiet" :disabled="busy" @click="approvers.load()">
+                <AppButton variant="quiet" :disabled="busy" @click="approvers.load()">
                     {{ t('admin.approvers.retry') }}
-                </AdminButton>
+                </AppButton>
             </li>
 
             <li v-else-if="approvers.approvers !== null && list.length === 0" class="approvers__row admin-card approvers__row--empty">
@@ -188,17 +188,17 @@ async function submitCode(code: string): Promise<void> {
                         {{ t(`admin.approvers.${freshness(approver.lastSeen)}`) }}
                     </span>
                 </div>
-                <AdminButton variant="quiet" :disabled="busy" @click="openRemove(approver)">
+                <AppButton variant="quiet" :disabled="busy" @click="openRemove(approver)">
                     {{ t('admin.approvers.remove') }}
-                </AdminButton>
+                </AppButton>
             </li>
         </ul>
 
         <div v-if="approvers.approvers !== null" class="approvers__footer">
             <p v-if="full" class="approvers__meta approvers__meta--full">{{ t('admin.approvers.max') }}</p>
-            <AdminButton v-else variant="quiet" :disabled="busy" @click="openAdd">
+            <AppButton v-else variant="quiet" :disabled="busy" @click="openAdd">
                 {{ t('admin.approvers.add') }}
-            </AdminButton>
+            </AppButton>
         </div>
 
         <BaseDialog :open="mode !== null" :title="dialogTitle" @cancel="close">
@@ -218,17 +218,17 @@ async function submitCode(code: string): Promise<void> {
                 <p class="approvers__last-title">{{ t('admin.approvers.last.title') }}</p>
                 <p class="approvers__dialog-hint">{{ t('admin.approvers.last.body') }}</p>
                 <p class="approvers__dialog-hint">{{ t('admin.approvers.last.lost') }}</p>
-                <AdminButton class="approvers__dialog-button" block @click="close">
+                <AppButton class="approvers__dialog-button" block @click="close">
                     {{ t('admin.dismiss') }}
-                </AdminButton>
+                </AppButton>
             </div>
 
             <template v-else-if="mode === 'remove'">
                 <p class="approvers__dialog-hint">{{ t('admin.approvers.removeHint') }}</p>
                 <p v-if="flowErrorText !== ''" class="approvers__error" role="alert">{{ flowErrorText }}</p>
                 <div class="approvers__dialog-actions">
-                    <AdminButton variant="quiet" :disabled="busy" @click="close">{{ t('dialog.cancel') }}</AdminButton>
-                    <AdminButton
+                    <AppButton variant="quiet" :disabled="busy" @click="close">{{ t('dialog.cancel') }}</AppButton>
+                    <AppButton
                         variant="danger"
                         :busy="approvers.working === 'sending'"
                         :busy-label="t('admin.code.sending')"
@@ -236,7 +236,7 @@ async function submitCode(code: string): Promise<void> {
                         @click="sendFirstCode"
                     >
                         {{ t('admin.approvers.removeConfirm') }}
-                    </AdminButton>
+                    </AppButton>
                 </div>
             </template>
 
@@ -307,15 +307,15 @@ async function submitCode(code: string): Promise<void> {
                 </p>
                 <p v-if="flowErrorText !== ''" class="approvers__error" role="alert">{{ flowErrorText }}</p>
                 <div class="approvers__dialog-actions">
-                    <AdminButton variant="quiet" :disabled="busy" @click="close">{{ t('dialog.cancel') }}</AdminButton>
-                    <AdminButton
+                    <AppButton variant="quiet" :disabled="busy" @click="close">{{ t('dialog.cancel') }}</AppButton>
+                    <AppButton
                         :busy="approvers.working === 'sending'"
                         :busy-label="t('admin.code.sending')"
                         :disabled="busy || pickedCandidate === undefined"
                         @click="sendFirstCode"
                     >
                         {{ t('admin.approvers.pick.next') }}
-                    </AdminButton>
+                    </AppButton>
                 </div>
             </template>
         </BaseDialog>

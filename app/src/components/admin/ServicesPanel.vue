@@ -16,7 +16,7 @@ import type { ServiceResult } from '../../stores/adminServices';
 import { useAdminDates } from '../../composables/useAdminDates';
 import { useAdminText } from '../../composables/useAdminText';
 import BaseDialog from '../ui/BaseDialog.vue';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 import AdminSwitch from './AdminSwitch.vue';
 
 const REFRESH_MS = 10_000;
@@ -208,7 +208,7 @@ function confirm(): void {
                     <span class="services__name">{{ t('admin.services.loadFailed') }}</span>
                     <span class="services__meta">{{ errorText(services.error) }}</span>
                 </div>
-                <AdminButton variant="quiet" @click="services.load()">{{ t('admin.services.retry') }}</AdminButton>
+                <AppButton variant="quiet" @click="services.load()">{{ t('admin.services.retry') }}</AppButton>
             </li>
 
             <li v-else-if="services.services === null" class="services__row admin-card">
@@ -256,16 +256,16 @@ function confirm(): void {
                         :disabled="blocked || isTracked(entry)"
                         @click="ask(entry, entry.startup === 'enabled' ? 'disable' : 'enable')"
                     />
-                    <AdminButton
+                    <AppButton
                         v-if="isTracked(entry)"
                         variant="quiet"
                         busy
                         :busy-label="busyLabel(entry.id)"
                     >
                         {{ busyLabel(entry.id) }}
-                    </AdminButton>
+                    </AppButton>
                     <template v-else>
-                        <AdminButton
+                        <AppButton
                             v-for="verb in verbsOf(entry)"
                             :key="verb"
                             variant="quiet"
@@ -273,7 +273,7 @@ function confirm(): void {
                             @click="ask(entry, verb)"
                         >
                             {{ t(`admin.services.${verb}`) }}
-                        </AdminButton>
+                        </AppButton>
                     </template>
                     <span v-if="entry.actions.length === 0 && !isOutOfReach(entry)" class="services__tag">
                         {{ t('admin.services.statusOnly') }}

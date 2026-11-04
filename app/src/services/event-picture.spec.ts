@@ -59,8 +59,16 @@ describe('fetchEventPicture content type', () => {
         }
     });
 
-    it('accepts image/ types case-insensitively', async () => {
-        const s = seams(blobFetch(true, 'Image/PNG') as unknown as typeof fetch);
+    it('refuses other image types, SVG first: a blob of it runs scripts in the app origin', async () => {
+        for (const type of ['image/svg+xml', 'image/png', 'image/svg+xml; charset=utf-8']) {
+            const s = seams(blobFetch(true, type) as unknown as typeof fetch);
+            expect(await fetchEventPicture('p', SESSION, s)).toBe('');
+            expect(s.createObjectUrl).not.toHaveBeenCalled();
+        }
+    });
+
+    it('accepts image/jpeg case-insensitively, with parameters', async () => {
+        const s = seams(blobFetch(true, 'Image/JPEG; q=1') as unknown as typeof fetch);
         expect(await fetchEventPicture('p', SESSION, s)).toBe('blob:1');
     });
 });

@@ -10,7 +10,7 @@ import { useAdminStore } from '../../stores/admin';
 import { useAdminMcpStore } from '../../stores/adminMcp';
 import { useAdminText } from '../../composables/useAdminText';
 import BaseDialog from '../ui/BaseDialog.vue';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 
 const COPIED_MS = 2_000;
 const FRESH_MS = 6_000;
@@ -107,9 +107,9 @@ onBeforeUnmount(() => {
                     <span class="mcp__name">{{ t('admin.mcp.loadFailed') }}</span>
                     <span class="mcp__problem">{{ problem }}</span>
                 </div>
-                <AdminButton variant="quiet" :busy="mcp.loading" @click="mcp.load()">
+                <AppButton variant="quiet" :busy="mcp.loading" @click="mcp.load()">
                     {{ t('admin.mcp.retry') }}
-                </AdminButton>
+                </AppButton>
             </li>
 
             <li v-else-if="mcp.info === null" class="mcp__row admin-card">
@@ -123,9 +123,9 @@ onBeforeUnmount(() => {
                         <code class="mcp__value">{{ url }}</code>
                     </div>
                     <div class="mcp__buttons">
-                        <AdminButton variant="quiet" @click="copy('url')">
+                        <AppButton variant="quiet" @click="copy('url')">
                             {{ copied === 'url' ? t('admin.mcp.copied') : t('admin.mcp.copy') }}
-                        </AdminButton>
+                        </AppButton>
                     </div>
                 </li>
 
@@ -137,12 +137,12 @@ onBeforeUnmount(() => {
                         <span v-if="fresh" class="mcp__fresh" role="status">{{ t('admin.mcp.renewed') }}</span>
                     </div>
                     <div class="mcp__buttons">
-                        <AdminButton variant="quiet" :aria-pressed="revealed" @click="revealed = !revealed">
+                        <AppButton variant="quiet" :aria-pressed="revealed" @click="revealed = !revealed">
                             {{ revealed ? t('admin.mcp.hide') : t('admin.mcp.show') }}
-                        </AdminButton>
-                        <AdminButton variant="quiet" @click="copy('token')">
+                        </AppButton>
+                        <AppButton variant="quiet" @click="copy('token')">
                             {{ copied === 'token' ? t('admin.mcp.copied') : t('admin.mcp.copy') }}
-                        </AdminButton>
+                        </AppButton>
                     </div>
                 </li>
             </template>
@@ -152,14 +152,14 @@ onBeforeUnmount(() => {
                     <span class="mcp__name">{{ t('admin.actions.mcp') }}</span>
                     <span class="mcp__hint">{{ t('admin.actions.mcpHint') }}</span>
                 </div>
-                <AdminButton
+                <AppButton
                     variant="quiet"
                     :disabled="admin.busy !== null"
                     :busy="admin.busy === 'mcp_regenerate'"
                     @click="confirming = true"
                 >
                     {{ t('admin.actions.regenerate') }}
-                </AdminButton>
+                </AppButton>
             </li>
         </ul>
 

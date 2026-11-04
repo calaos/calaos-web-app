@@ -6,7 +6,7 @@
 import { computed, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ADMIN_PASSWORD_MIN_LENGTH } from '../../protocol/admin';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 import AdminField from './AdminField.vue';
 
 const props = withDefaults(
@@ -103,7 +103,7 @@ watch([password, confirm], () => {
         />
 
         <div class="admin-password__actions">
-            <AdminButton
+            <AppButton
                 v-if="cancelLabel !== undefined"
                 variant="quiet"
                 class="admin-password__cancel"
@@ -111,8 +111,8 @@ watch([password, confirm], () => {
                 @click="emit('cancel')"
             >
                 {{ cancelLabel }}
-            </AdminButton>
-            <AdminButton
+            </AppButton>
+            <AppButton
                 type="submit"
                 class="admin-password__submit"
                 :class="{ shake: refused }"
@@ -122,7 +122,7 @@ watch([password, confirm], () => {
                 :busy-label="labels.submitting"
             >
                 {{ labels.submit }}
-            </AdminButton>
+            </AppButton>
         </div>
 
         <!-- Height reserved: a button that jumps as you reach for it is a bug. -->

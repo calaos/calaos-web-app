@@ -18,7 +18,7 @@ import { useAdminServicesStore } from '../../stores/adminServices';
 import { useAdminTimeStore } from '../../stores/adminTime';
 import { useAdminText } from '../../composables/useAdminText';
 import BaseDialog from '../ui/BaseDialog.vue';
-import AdminButton from './AdminButton.vue';
+import AppButton from '../ui/AppButton.vue';
 
 /** Below this the two clocks agree, as far as a round trip can tell. */
 const DRIFT_WARN_MS = 5_000;
@@ -339,7 +339,7 @@ onBeforeUnmount(() => {
                     >
                         <option v-for="name in shownZones" :key="name" :value="name">{{ name }}</option>
                     </select>
-                    <AdminButton
+                    <AppButton
                         v-if="zoneChanged"
                         variant="quiet"
                         :disabled="busy"
@@ -347,7 +347,7 @@ onBeforeUnmount(() => {
                         @click="applyZone"
                     >
                         {{ t('admin.time.applyZone') }}
-                    </AdminButton>
+                    </AppButton>
                     <p v-if="noZoneMatch" class="time__hint time__none" role="status" aria-live="polite">
                         {{ t('admin.time.zoneNone') }}
                     </p>
@@ -359,7 +359,7 @@ onBeforeUnmount(() => {
                     <span class="time__name">{{ t('admin.time.ntp') }}</span>
                     <span class="time__hint">{{ t('admin.time.ntpHint') }}</span>
                 </div>
-                <AdminButton
+                <AppButton
                     v-if="!box.ntp"
                     variant="quiet"
                     :disabled="busy"
@@ -367,10 +367,10 @@ onBeforeUnmount(() => {
                     @click="askNtp"
                 >
                     {{ t('admin.time.useNtp') }}
-                </AdminButton>
-                <AdminButton v-else variant="quiet" :disabled="busy" :busy="spinning('stopNtp')" @click="stopNtp">
+                </AppButton>
+                <AppButton v-else variant="quiet" :disabled="busy" :busy="spinning('stopNtp')" @click="stopNtp">
                     {{ t('admin.time.stopNtp') }}
-                </AdminButton>
+                </AppButton>
             </li>
 
             <li class="time__row admin-card time__row--manual">
@@ -396,14 +396,14 @@ onBeforeUnmount(() => {
                         :disabled="busy"
                         @input="onManualInput"
                     />
-                    <AdminButton
+                    <AppButton
                         variant="quiet"
                         :disabled="busy || manual === '' || !manualTouched"
                         :busy="spinning('manual')"
                         @click="askManual"
                     >
                         {{ t('admin.time.manualSet') }}
-                    </AdminButton>
+                    </AppButton>
                 </div>
             </li>
 
@@ -412,9 +412,9 @@ onBeforeUnmount(() => {
                     <span class="time__name">{{ t('admin.time.setFromDevice') }}</span>
                     <span class="time__hint">{{ t('admin.time.setFromDeviceHint') }}</span>
                 </div>
-                <AdminButton variant="quiet" :disabled="busy" :busy="spinning('device')" @click="confirming = 'device'">
+                <AppButton variant="quiet" :disabled="busy" :busy="spinning('device')" @click="confirming = 'device'">
                     {{ t('admin.time.setFromDevice') }}
-                </AdminButton>
+                </AppButton>
             </li>
         </ul>
 
@@ -424,20 +424,20 @@ onBeforeUnmount(() => {
                 {{ selfRestarting ? t('admin.time.serverRestarting') : t('admin.time.restartHint') }}
             </p>
             <div class="time__note-actions">
-                <AdminButton
+                <AppButton
                     v-if="offerServer"
                     :disabled="busy"
                     :busy="admin.busy === 'services_restart'"
                     @click="restart(SELF_SERVICE_ID)"
                 >
                     {{ t('admin.time.restartServer') }}
-                </AdminButton>
-                <AdminButton v-if="offerKiosk" variant="quiet" :disabled="busy" @click="restart(KIOSK_ID)">
+                </AppButton>
+                <AppButton v-if="offerKiosk" variant="quiet" :disabled="busy" @click="restart(KIOSK_ID)">
                     {{ t('admin.time.restartKiosk') }}
-                </AdminButton>
-                <AdminButton variant="quiet" :disabled="busy" @click="time.dismissRestart()">
+                </AppButton>
+                <AppButton variant="quiet" :disabled="busy" @click="time.dismissRestart()">
                     {{ t('admin.time.later') }}
-                </AdminButton>
+                </AppButton>
             </div>
         </div>
 
@@ -445,12 +445,12 @@ onBeforeUnmount(() => {
             <p class="time__note-title">{{ t('admin.time.unconfirmed.title') }}</p>
             <p class="time__note-hint">{{ unconfirmedText }}</p>
             <div class="time__note-actions">
-                <AdminButton v-if="!settled" variant="quiet" :disabled="busy" @click="time.checkAgain()">
+                <AppButton v-if="!settled" variant="quiet" :disabled="busy" @click="time.checkAgain()">
                     {{ t('admin.time.unconfirmed.check') }}
-                </AdminButton>
-                <AdminButton v-else variant="quiet" @click="time.dismissUnconfirmed()">
+                </AppButton>
+                <AppButton v-else variant="quiet" @click="time.dismissUnconfirmed()">
                     {{ t('admin.time.unconfirmed.dismiss') }}
-                </AdminButton>
+                </AppButton>
             </div>
         </div>
 
