@@ -55,6 +55,6 @@ describe('RebootButton', () => {
     it('spins while the restart is being sent', () => {
         useAdminStore().busy = 'system_reboot';
         const wrapper = mountButton();
-        expect(wrapper.find('.admin-button__spinner').exists()).toBe(true);
+        expect(wrapper.find('.app-button__spinner').exists()).toBe(true);
     });
 });

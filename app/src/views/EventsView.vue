@@ -63,6 +63,8 @@ interface Row {
     date: string;
     time: string;
     picUid: string;
+    /** How many identical consecutive events this row stands for. */
+    count: number;
 }
 
 // The same glyph files the room tiles use, so a row looks like its appliance.
@@ -96,10 +98,34 @@ function toRow(event: EventLogEvent): Row {
         date: dateOf(event.at),
         time: timeOf(event.at),
         picUid: event.picUid,
+        count: 1,
     };
 }
 
-const rows = computed(() => events.events.map(toRow));
+// The mobile's rule (EventLogModel::isSameEvent): consecutive, same day, same
+// text, and never a picture, which is its own event. The row keeps the newest
+// event's time and id, so opening it shows that one.
+function sameEvent(a: Row, b: Row): boolean {
+    return (
+        a.picUid === '' &&
+        b.picUid === '' &&
+        a.kind === b.kind &&
+        a.title === b.title &&
+        a.room === b.room &&
+        a.action === b.action &&
+        a.message === b.message &&
+        a.date === b.date
+    );
+}
+
+const rows = computed(() =>
+    events.events.map(toRow).reduce<Row[]>((grouped, row) => {
+        const last = grouped[grouped.length - 1];
+        if (last && sameEvent(last, row)) last.count += 1;
+        else grouped.push(row);
+        return grouped;
+    }, []),
+);
 const detailRow = computed(() => (events.detail ? toRow(events.detail) : null));
 
 // The server's own error texts are never shown: a known key per failure.
@@ -206,6 +232,14 @@ watch(
                                     :aria-label="t('events.hasPicture')"
                                     data-testid="event-has-picture"
                                 />
+                                <span
+                                    v-if="row.count > 1"
+                                    class="events__item-count"
+                                    :aria-label="t('events.times', { count: row.count })"
+                                    data-testid="event-count"
+                                >
+                                    <span aria-hidden="true">{{ row.count }}x</span>
+                                </span>
                                 <span>{{ row.date }}</span>
                                 <span>{{ row.time }}</span>
                             </span>
@@ -260,12 +294,12 @@ watch(
 }
 
 @media (max-width: 479px) {
-    .events__bar :deep(.admin-button) {
+    .events__bar :deep(.app-button) {
         inline-size: 100%;
     }
 }
 
-.events__detail > :deep(.admin-button) {
+.events__detail > :deep(.app-button) {
     justify-self: start;
 }
 
@@ -351,6 +385,15 @@ watch(
     justify-self: end;
     font-size: 1.125rem;
     color: var(--c-accent);
+}
+
+.events__item-count {
+    justify-self: end;
+    padding: 0 var(--space-2);
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--c-accent) 18%, transparent);
+    color: var(--c-accent);
+    font-weight: 700;
 }
 
 .events__item-main {

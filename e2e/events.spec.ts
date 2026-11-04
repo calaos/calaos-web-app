@@ -101,3 +101,15 @@ test('refreshing reads the first page again', async ({ page, mock }) => {
     await expect.poll(async () => (await mock.adminStatus()).eventlogReads).toBeGreaterThan(before);
     await expect(items(page)).toHaveCount(50);
 });
+
+test('folds three identical consecutive events into one "3x" row', async ({ page, mock }, testInfo) => {
+    await mock.reset();
+    await mock.admin({ password: ADMIN_PASSWORD, eventRepeats: true });
+    await openEvents(page);
+    await expect(items(page)).toHaveCount(2);
+    await expect(items(page).first().getByTestId('event-count')).toHaveCount(0);
+    const folded = items(page).nth(1);
+    await expect(folded.getByTestId('event-count')).toHaveText('3x');
+    await expect(folded).toContainText(E.action.on);
+    await shoot(page, testInfo, 'grouped');
+});

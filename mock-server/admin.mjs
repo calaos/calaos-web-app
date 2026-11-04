@@ -699,6 +699,20 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         );
     }
 
+    /** Three identical lights, then the same light the other way (newest): the list folds the first three into one row. */
+    function addEventRepeats() {
+        const light = (id, ioState) => ({
+            id,
+            event_type: '3',
+            io_id: 'output_20',
+            io_state: ioState,
+            pic_uid: '',
+            created_at: sqliteTime(Date.now()),
+            event_raw: { type: '3', type_str: 'io_changed', data: { id: 'output_20', state: ioState } },
+        });
+        state.events.push(light('repeat-1', 'true'), light('repeat-2', 'true'), light('repeat-3', 'true'), light('repeat-4', 'false'));
+    }
+
     /** What `POST /api event_picture` answers: the cover for 'pic-ok', else null (404). */
     function eventPicture(picUid) {
         state.eventPictureReads += 1;
@@ -1098,6 +1112,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         }
         if (Number.isInteger(patch.noiseEvents)) addNoise(patch.noiseEvents);
         if (patch.eventSamples) addEventSamples();
+        if (patch.eventRepeats) addEventRepeats();
         if (Array.isArray(patch.tooOld)) state.tooOld = patch.tooOld.map(String);
         if (patch.codeTtlMs !== undefined) state.codeTtlMs = Number(patch.codeTtlMs);
         if (patch.codeIntervalMs !== undefined) state.codeIntervalMs = Number(patch.codeIntervalMs);

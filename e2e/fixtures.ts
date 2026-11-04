@@ -92,6 +92,8 @@ export interface AdminPatch {
     noiseEvents?: number;
     /** Adds one event of each kind (IO change, push with and without a picture, unknown type). */
     eventSamples?: boolean;
+    /** Adds the same IO change three times in a row, then one different one, all newer than what is there. */
+    eventRepeats?: boolean;
     /** A code's lifetime (60 s) and the wait between two codes (10 s). */
     codeTtlMs?: number;
     codeIntervalMs?: number;

@@ -262,6 +262,27 @@ describe('events store wiring', () => {
             vi.unstubAllGlobals();
         }
     });
+
+    it('posts no picture request once a credential rotation was refused', async () => {
+        const events = useEventsStore();
+        const fetchMock = vi.fn<typeof fetch>(async () => ({ ok: false }) as unknown as Response);
+        vi.stubGlobal('fetch', fetchMock);
+        try {
+            startAndOpen();
+            signInAndLoad();
+            expect(useAuthStore().state).toBe('authed');
+
+            useAuthStore().rotateCredentials('demo', 'rotated');
+            FakeWebSocket.last.fireMessage(LOGIN_KO);
+
+            await events.loadPicture('p1');
+
+            expect(fetchMock).not.toHaveBeenCalled();
+            expect(events.pictureStatus).toBe('missing');
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
 });
 
 describe('reconnect', () => {

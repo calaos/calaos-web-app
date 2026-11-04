@@ -34,27 +34,27 @@ withDefaults(
     <a
         v-if="href !== undefined"
         :href="href"
-        class="admin-button pressable"
-        :class="[`admin-button--${variant}`, { 'admin-button--block': block }]"
+        class="app-button pressable"
+        :class="[`app-button--${variant}`, { 'app-button--block': block }]"
     >
         <span><slot /></span>
     </a>
     <button
         v-else
         :type="type"
-        class="admin-button pressable"
-        :class="[`admin-button--${variant}`, { 'admin-button--block': block }]"
+        class="app-button pressable"
+        :class="[`app-button--${variant}`, { 'app-button--block': block }]"
         :disabled="disabled || busy"
         :aria-busy="busy || undefined"
     >
-        <IconLoading v-if="busy" class="admin-button__spinner" aria-hidden="true" />
+        <IconLoading v-if="busy" class="app-button__spinner" aria-hidden="true" />
         <span v-if="busy && busyLabel !== undefined">{{ busyLabel }}</span>
         <span v-else><slot /></span>
     </button>
 </template>
 
 <style scoped>
-.admin-button {
+.app-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -76,60 +76,60 @@ withDefaults(
         transform var(--press-duration) ease;
 }
 
-.admin-button--block {
+.app-button--block {
     display: flex;
     inline-size: 100%;
 }
 
-.admin-button--primary {
+.app-button--primary {
     border: 0;
     background-color: var(--c-accent);
     color: #04222b;
     box-shadow: 0 0 18px var(--c-accent-glow);
 }
 
-.admin-button--primary:hover:not(:disabled) {
+.app-button--primary:hover:not(:disabled) {
     background-color: #4cc0e2;
 }
 
-.admin-button--quiet {
+.app-button--quiet {
     background-color: transparent;
     border: 1px solid var(--c-border-strong);
     color: var(--c-text);
 }
 
-.admin-button--quiet:hover:not(:disabled) {
+.app-button--quiet:hover:not(:disabled) {
     border-color: var(--c-accent);
     color: var(--c-accent);
 }
 
-.admin-button--danger {
+.app-button--danger {
     background-color: transparent;
     border: 1px solid rgba(224, 86, 86, 0.5);
     color: var(--c-danger);
 }
 
-.admin-button--danger:hover:not(:disabled) {
+.app-button--danger:hover:not(:disabled) {
     background-color: rgba(224, 86, 86, 0.12);
 }
 
-.admin-button:disabled {
+.app-button:disabled {
     cursor: not-allowed;
 }
 
-.admin-button--primary:disabled {
+.app-button--primary:disabled {
     background-color: rgba(255, 255, 255, 0.08);
     color: var(--c-text-muted);
     box-shadow: none;
 }
 
-.admin-button--quiet:disabled,
-.admin-button--danger:disabled {
+.app-button--quiet:disabled,
+.app-button--danger:disabled {
     border-color: var(--c-border);
     color: var(--c-text-muted);
 }
 
-.admin-button__spinner {
+.app-button__spinner {
     font-size: 1.125rem;
     animation: admin-spin 900ms linear infinite;
 }
@@ -141,11 +141,11 @@ withDefaults(
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .admin-button {
+    .app-button {
         transition: none;
     }
 
-    .admin-button__spinner {
+    .app-button__spinner {
         animation: none;
     }
 }

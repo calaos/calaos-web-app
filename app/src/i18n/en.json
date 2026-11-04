@@ -526,6 +526,7 @@
         "refresh": "Refresh",
         "more": "Load more",
         "hasPicture": "A picture is attached",
+        "times": "{count} times",
         "loading": "Loading…",
         "empty": "No events yet.",
         "back": "Back to the list",
