@@ -235,6 +235,7 @@ watch(
                                 <span
                                     v-if="row.count > 1"
                                     class="events__item-count"
+                                    role="img"
                                     :aria-label="t('events.times', { count: row.count })"
                                     data-testid="event-count"
                                 >

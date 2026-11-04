@@ -72,6 +72,7 @@ describe('EventsView', () => {
         expect(rows).toHaveLength(6);
         expect(rows[0].find('[data-testid="event-count"]').text()).toBe('3x');
         expect(rows[0].find('[data-testid="event-count"]').attributes('aria-label')).toBe('3 times');
+        expect(rows[0].find('[data-testid="event-count"]').attributes('role')).toBe('img');
         expect(wrapper.findAll('[data-testid="event-count"]')).toHaveLength(1);
 
         const openDetail = vi.spyOn(events, 'openDetail').mockReturnValue();
