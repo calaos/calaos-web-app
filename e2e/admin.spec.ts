@@ -390,7 +390,7 @@ test('the hub is only tiles, in order, and a locked sub-page sends back to it', 
     await admin.submit.click();
     await expect(page).toHaveURL(/#\/admin\/system$/);
     await page.evaluate(() => (location.hash = '#/admin'));
-    await expect(page.locator('[data-page]')).toHaveCount(10);
+    await expect(page.locator('[data-page]')).toHaveCount(9);
     const titles = MESSAGES.admin;
     await expect(page.locator('.pages__name')).toHaveText([
         titles.updates.title,
@@ -398,7 +398,6 @@ test('the hub is only tiles, in order, and a locked sub-page sends back to it', 
         services.title,
         logs.title,
         time.title,
-        MESSAGES.events.title,
         titles.mcp.title,
         titles.security.title,
         titles.system.title,

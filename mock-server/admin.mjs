@@ -652,17 +652,29 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         else event(type);
     }
 
-    /** IO history rows, as the log holds for every IO with `log_history`. */
+    /** IO history rows over fixture IOs of every kind the page tells apart (light, dimmer, outlet, temp, shutter, scenario). */
     function addNoise(count) {
+        const ios = [
+            ['output_1', ['true', 'false']],
+            ['output_2', ['60', '0']],
+            ['output_20', ['true', 'false']],
+            ['input_1', ['21.5', '22']],
+            ['output_4', ['true', 'false']],
+            ['output_5', ['true', 'true']],
+            ['output_7', ['false', 'true']],
+            ['output_22', ['true', 'false']],
+        ];
         for (let i = 0; i < count; i += 1) {
+            const [ioId, states] = ios[i % ios.length];
+            const ioState = states[Math.floor(i / ios.length) % 2];
             state.events.push({
                 id: randomUUID(),
                 event_type: '3',
-                io_id: 'light_1',
-                io_state: i % 2 === 0 ? 'true' : 'false',
+                io_id: ioId,
+                io_state: ioState,
                 pic_uid: '',
                 created_at: sqliteTime(Date.now()),
-                event_raw: { type: '3', type_str: 'io_changed', data: { id: 'light_1', state: i % 2 === 0 ? 'true' : 'false' } },
+                event_raw: { type: '3', type_str: 'io_changed', data: { id: ioId, state: ioState } },
             });
         }
     }
@@ -680,7 +692,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         });
         state.events.push(
             row('sample-push-ok', '22', '', '', 'pic-ok', { message: 'Motion at the front door', pic_uid: 'pic-ok' }),
-            row('sample-light', '3', 'light_1', 'true', '', { type: '3', data: { id: 'light_1', state: 'true' } }),
+            row('sample-light', '3', 'output_1', 'true', '', { type: '3', data: { id: 'output_1', state: 'true' } }),
             row('sample-push-gone', '22', '', '', 'pic-gone', { message: 'Doorbell', pic_uid: 'pic-gone' }),
             row('sample-unknown', '99', '', '', '', { type: '99' }),
         );

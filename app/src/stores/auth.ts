@@ -141,7 +141,7 @@ export const useAuthStore = defineStore('auth', () => {
             if (!success) {
                 interactive = false;
                 pass.value = '';
-                dropAdminSession();
+                dropSession();
             }
             return;
         }
@@ -165,7 +165,7 @@ export const useAuthStore = defineStore('auth', () => {
         interactive = false;
         // Only a refusal clears it: a dropped socket must still re-login.
         pass.value = '';
-        dropAdminSession();
+        dropSession();
     }
 
     // A refused login ends the household session; the admin unlock must not
@@ -173,6 +173,12 @@ export const useAuthStore = defineStore('auth', () => {
     function dropAdminSession(): void {
         useAdminStore().reset();
         useAdminAlertsStore().reset();
+    }
+
+    // The event log belongs to the household session, not to the admin
+    // unlock: locking admin must leave it alone, a refusal must not.
+    function dropSession(): void {
+        dropAdminSession();
         useEventsStore().reset();
     }
 

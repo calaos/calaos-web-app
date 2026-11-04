@@ -33,6 +33,29 @@ describe('describeEvent', () => {
         expect(describeEvent(event({}), { ...LIGHT, guiType: 'var_int' }).actionKey).toBe('');
     });
 
+    it('computes the action and icon for any event type once the IO resolves (mobile parity)', () => {
+        const push = describeEvent(event({ eventType: '22', ioState: 'true', raw: { message: 'x' } }), LIGHT);
+        expect(push).toMatchObject({ kind: 'push', ioName: 'Lamp', actionKey: 'events.action.on', icon: 'lightOn' });
+        const unknown = describeEvent(event({ eventType: '99', ioState: 'false' }), LIGHT);
+        expect(unknown).toMatchObject({ kind: 'unknown', actionKey: 'events.action.off', icon: 'lightOff' });
+    });
+
+    it('keeps the bell for a push whose IO does not resolve', () => {
+        expect(describeEvent(event({ eventType: '22' }), null).icon).toBe('push');
+    });
+
+    it('treats a binary light as on only for "true", a dimmable one above 0', () => {
+        expect(describeEvent(event({ ioState: '40' }), LIGHT).actionKey).toBe('events.action.off');
+    });
+
+    it('picks the icon by IO type and carries the light style', () => {
+        expect(describeEvent(event({}), { ...LIGHT, guiType: 'temp' })).toMatchObject({ icon: 'temp', actionKey: 'events.action.tempChanged' });
+        expect(describeEvent(event({}), { ...LIGHT, guiType: 'shutter_smart' }).icon).toBe('shutterOn');
+        expect(describeEvent(event({ ioState: 'false' }), { ...LIGHT, guiType: 'shutter' }).icon).toBe('shutterOff');
+        expect(describeEvent(event({}), { ...LIGHT, guiType: 'scenario' }).icon).toBe('scenario');
+        expect(describeEvent(event({}), { ...LIGHT, ioStyle: 'outlet' }).ioStyle).toBe('outlet');
+    });
+
     it('falls back to the generic title when the IO is unknown', () => {
         expect(describeEvent(event({}), null)).toMatchObject({ titleKey: 'events.type.io', ioName: '', actionKey: '' });
     });

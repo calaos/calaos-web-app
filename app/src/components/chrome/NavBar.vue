@@ -12,6 +12,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import IconArrowLeft from '~icons/mdi/arrow-left';
+import IconEvents from '~icons/mdi/bell-outline';
 import IconLogout from '~icons/mdi/logout';
 import IconButton from '../ui/IconButton.vue';
 import { useAuthStore } from '../../stores/auth';
@@ -22,6 +23,7 @@ const router = useRouter();
 const auth = useAuthStore();
 
 const canGoBack = computed(() => route.meta.detail === true);
+const showEvents = computed(() => auth.isAuthed && route.name !== 'events');
 
 function goBack(): void {
     // Not router.back(): a deep link opened straight into /home/3 has no
@@ -50,6 +52,14 @@ function goBack(): void {
         <p class="navbar__wordmark">{{ t('app.name') }}</p>
 
         <div class="navbar__slot navbar__slot--end">
+            <IconButton
+                v-if="showEvents"
+                :label="t('chrome.events')"
+                data-testid="events-entry"
+                @click="router.push({ name: 'events' })"
+            >
+                <IconEvents />
+            </IconButton>
             <IconButton :label="t('chrome.signOut')" @click="auth.signOut()">
                 <IconLogout />
             </IconButton>
@@ -67,7 +77,7 @@ function goBack(): void {
        the back button is mounted. 3.75rem = a 44px button plus its 2×8px
        inset; at 3.5rem the slot was narrower than the button and squeezed it
        back to 40px wide. */
-    grid-template-columns: 3.75rem 1fr 3.75rem;
+    grid-template-columns: minmax(3.75rem, 1fr) auto minmax(3.75rem, 1fr);
     align-items: center;
     block-size: var(--h-navbar);
     /* content-box (overriding the global border-box) so the notch inset is

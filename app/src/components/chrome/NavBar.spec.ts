@@ -51,6 +51,25 @@ describe('NavBar', () => {
         expect(button(wrapper, en.chrome.signOut).exists()).toBe(true);
     });
 
+    it('opens the events page from the bar, and hides the entry once there', async () => {
+        const wrapper = await mountNavBar('/home');
+
+        await button(wrapper, en.chrome.events).trigger('click');
+        await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/events'));
+
+        const onEvents = await mountNavBar('/events');
+        expect(button(onEvents, en.chrome.events).exists()).toBe(false);
+        await button(onEvents, en.chrome.back).trigger('click');
+        await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/home'));
+    });
+
+    it('offers no events entry before sign-in', async () => {
+        useAuthStore().state = 'idle';
+        const wrapper = await mountNavBar('/login');
+
+        expect(button(wrapper, en.chrome.events).exists()).toBe(false);
+    });
+
     it('hides the back button on list routes', async () => {
         const wrapper = await mountNavBar('/home');
 

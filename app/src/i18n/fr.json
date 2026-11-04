@@ -16,6 +16,7 @@
     "home": {
         "title": "Pièces",
         "temperature": "Température",
+        "hasPicture": "Une photo est jointe",
         "empty": "Aucune pièce pour l’instant",
         "emptyHint": "Ce compte n’a aucune pièce configurée sur le serveur."
     },
@@ -186,6 +187,7 @@
     "chrome": {
         "back": "Retour",
         "signOut": "Se déconnecter",
+        "events": "Événements",
         "sections": "Sections",
         "tabs": {
             "home": "Accueil",
@@ -521,7 +523,6 @@
     "events": {
         "title": "Événements",
         "hint": "Ce qui s'est passé dans la maison, du plus récent au plus ancien.",
-        "entryHint": "Historique de ce qui s'est passé dans la maison",
         "today": "Aujourd'hui",
         "refresh": "Actualiser",
         "more": "Charger plus",

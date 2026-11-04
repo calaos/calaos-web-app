@@ -8,10 +8,13 @@ import IconLoading from '~icons/mdi/loading';
 import IconPicture from '~icons/mdi/image-off-outline';
 import IconRefresh from '~icons/mdi/refresh';
 import AdminButton from '../components/admin/AdminButton.vue';
-import AdminPageHeader from '../components/admin/AdminPageHeader.vue';
+import IconPhoto from '~icons/mdi/image-outline';
+import IconPush from '~icons/mdi/bell-outline';
+import { STATE_ICONS } from '../components/io/calaos-icons';
+import { resolveLightStyle } from '../components/io/light-styles';
 import type { EventLogEvent } from '../protocol/eventlog';
 import { describeEvent } from '../services/event-describe';
-import type { EventIoInfo } from '../services/event-describe';
+import type { EventIcon, EventIoInfo } from '../services/event-describe';
 import { useEventsStore } from '../stores/events';
 import { useHomeStore } from '../stores/home';
 
@@ -28,7 +31,7 @@ function ioInfo(event: EventLogEvent): EventIoInfo | null {
     const io = home.getIo(event.ioId);
     if (!io) return null;
     const room = home.rooms.find((candidate) => candidate.ioIds.includes(io.id));
-    return { name: io.name, guiType: io.guiType, room: room?.name ?? '' };
+    return { name: io.name, guiType: io.guiType, ioStyle: io.ioStyle, room: room?.name ?? '' };
 }
 
 function dateOf(at: number): string {
@@ -48,10 +51,29 @@ interface Row {
     title: string;
     room: string;
     action: string;
+    icon: EventIcon;
+    iconSrc: string;
     message: string;
     date: string;
     time: string;
     picUid: string;
+}
+
+// The same glyph files the room tiles use, so a row looks like its appliance.
+function iconSource(icon: EventIcon, ioStyle: string): string {
+    switch (icon) {
+        case 'lightOn':
+            return resolveLightStyle(ioStyle).imageOn;
+        case 'lightOff':
+            return resolveLightStyle(ioStyle).imageOff;
+        case 'temp':
+        case 'shutterOn':
+        case 'shutterOff':
+        case 'scenario':
+            return STATE_ICONS[icon];
+        default:
+            return '';
+    }
 }
 
 function toRow(event: EventLogEvent): Row {
@@ -61,6 +83,8 @@ function toRow(event: EventLogEvent): Row {
         title: summary.ioName !== '' ? summary.ioName : t(summary.titleKey),
         room: summary.room,
         action: summary.actionKey === '' ? '' : t(summary.actionKey),
+        icon: summary.icon,
+        iconSrc: iconSource(summary.icon, summary.ioStyle),
         message: summary.message,
         date: dateOf(event.at),
         time: timeOf(event.at),
@@ -93,7 +117,10 @@ watch(
 <template>
     <div class="events">
         <div class="events__body">
-            <AdminPageHeader :title="t('events.title')" :hint="t('events.hint')" />
+            <header class="events__head fade-in-down">
+                <h1 class="events__heading">{{ t('events.title') }}</h1>
+                <p class="events__hint">{{ t('events.hint') }}</p>
+            </header>
 
             <section v-if="showingDetail" class="events__detail fade-in" data-testid="event-detail">
                 <AdminButton variant="quiet" data-testid="event-back" @click="events.closeDetail()">
@@ -108,12 +135,13 @@ watch(
                 </p>
                 <article v-else-if="detailRow" class="events__card">
                     <h2 class="events__title">{{ detailRow.title }}</h2>
+                    <p v-if="detailRow.room !== '' || detailRow.action !== ''" class="events__action">
+                        {{ [detailRow.room, detailRow.action].filter((part) => part !== '').join(' · ') }}
+                    </p>
                     <p class="events__meta">
                         <span data-testid="event-date">{{ detailRow.date }}</span>
                         <span>{{ detailRow.time }}</span>
-                        <span v-if="detailRow.room !== ''">{{ detailRow.room }}</span>
                     </p>
-                    <p v-if="detailRow.action !== ''" class="events__action">{{ detailRow.action }}</p>
                     <p v-if="detailRow.message !== ''" class="events__message">{{ detailRow.message }}</p>
                     <template v-if="detailRow.picUid !== ''">
                         <p v-if="events.pictureStatus === 'loading'" class="events__state" role="status">
@@ -151,6 +179,10 @@ watch(
                 <ul v-if="rows.length > 0" class="events__items">
                     <li v-for="row in rows" :key="row.id">
                         <button type="button" class="events__item pressable" data-testid="event-item" @click="events.openDetail(row.id)">
+                            <span class="events__item-icon" aria-hidden="true">
+                                <IconPush v-if="row.icon === 'push'" data-testid="event-icon-push" />
+                                <img v-else-if="row.iconSrc !== ''" :src="row.iconSrc" alt="" data-testid="event-icon" />
+                            </span>
                             <span class="events__item-main">
                                 <span class="events__item-title">{{ row.title }}</span>
                                 <span v-if="row.action !== '' || row.room !== ''" class="events__item-sub">
@@ -159,6 +191,13 @@ watch(
                                 <span v-if="row.message !== ''" class="events__item-sub">{{ row.message }}</span>
                             </span>
                             <span class="events__item-when">
+                                <IconPhoto
+                                    v-if="row.picUid !== ''"
+                                    class="events__item-photo"
+                                    role="img"
+                                    :aria-label="t('events.hasPicture')"
+                                    data-testid="event-has-picture"
+                                />
                                 <span>{{ row.date }}</span>
                                 <span>{{ row.time }}</span>
                             </span>
@@ -251,6 +290,53 @@ watch(
 .events__item:focus-visible {
     outline: 2px solid var(--c-accent);
     outline-offset: 2px;
+}
+
+.events__head {
+    display: grid;
+    gap: var(--space-1);
+}
+
+.events__heading {
+    margin: 0;
+    font-size: clamp(1.5rem, 6vw, 1.875rem);
+    font-weight: 400;
+    letter-spacing: var(--tracking-tight);
+}
+
+.events__hint {
+    margin: 0;
+    color: var(--c-text-muted, var(--c-text));
+}
+
+.events__item {
+    align-items: center;
+}
+
+.events__item-icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    color: var(--c-accent);
+    font-size: 1.5rem;
+}
+
+.events__item-icon img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: contain;
+}
+
+.events__item-photo {
+    justify-self: end;
+    font-size: 1.125rem;
+    color: var(--c-accent);
+}
+
+.events__item-main {
+    flex: 1;
 }
 
 .events__item-main,

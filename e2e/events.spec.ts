@@ -1,9 +1,9 @@
-// The Events page, opened from Réglages: the log newest first, 50 per page,
+// The Events page, a user page opened from the top bar (no admin password): the log newest first, 50 per page,
 // a detail per event and its picture (a POST with the household credentials,
 // read once, in the detail only).
 
 import type { Page, TestInfo } from '@playwright/test';
-import { MESSAGES, adminScreen, expect, loginAs, test } from './fixtures';
+import { MESSAGES, expect, loginAs, test } from './fixtures';
 
 const ADMIN_PASSWORD = 'correct horse battery';
 const E = MESSAGES.events;
@@ -16,13 +16,8 @@ test.beforeEach(async ({ mock }) => {
 async function openEvents(page: Page): Promise<void> {
     await page.goto('/');
     await loginAs(page);
-    const admin = adminScreen(page);
-    await admin.tab.click();
-    await admin.adminPassword.fill(ADMIN_PASSWORD);
-    await admin.submit.click();
-    await expect(admin.hub).toBeVisible();
-    await admin.tile('events').click();
-    await expect(page).toHaveURL(/#\/admin\/events$/);
+    await page.getByTestId('events-entry').click();
+    await expect(page).toHaveURL(/#\/events$/);
     await expect(items(page).first()).toBeVisible();
 }
 
@@ -43,6 +38,25 @@ test('lists the log newest first and loads the next page', async ({ page }, test
     await page.getByTestId('event-more').click();
     await expect(items(page)).toHaveCount(64);
     await expect(page.getByTestId('event-more')).toHaveCount(0);
+});
+
+test('shows the appliance icon, room and action, and a photo indicator, as the mobile does', async ({ page }, testInfo) => {
+    await openEvents(page);
+    const light = items(page).filter({ hasText: 'Plafonnier' }).first();
+    await expect(light).toContainText(new RegExp(`Salon · (${E.action.on}|${E.action.off})`));
+    await expect(light.getByTestId('event-icon')).toBeVisible();
+    await expect(items(page).filter({ hasText: 'Motion at the front door' }).getByTestId('event-has-picture')).toBeVisible();
+    await expect(items(page).filter({ hasText: 'Motion at the front door' }).getByTestId('event-icon-push')).toBeVisible();
+    await expect(light.getByTestId('event-has-picture')).toHaveCount(0);
+    await shoot(page, testInfo, 'parity');
+});
+
+test('needs no admin password and Back returns to the home', async ({ page }) => {
+    await openEvents(page);
+    await expect(page.getByTestId('events-entry')).toHaveCount(0);
+    await page.getByRole('button', { name: MESSAGES.chrome.back }).click();
+    await expect(page).toHaveURL(/#\/home$/);
+    await expect(page.getByTestId('events-entry')).toBeVisible();
 });
 
 test('opens an event and shows its picture, requested once', async ({ page, mock }, testInfo) => {

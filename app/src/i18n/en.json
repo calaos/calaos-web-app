@@ -16,6 +16,7 @@
     "home": {
         "title": "Rooms",
         "temperature": "Temperature",
+        "hasPicture": "A picture is attached",
         "empty": "No rooms yet",
         "emptyHint": "This account has no room configured on the server."
     },
@@ -186,6 +187,7 @@
     "chrome": {
         "back": "Back",
         "signOut": "Sign out",
+        "events": "Events",
         "sections": "Sections",
         "tabs": {
             "home": "Home",
@@ -521,7 +523,6 @@
     "events": {
         "title": "Events",
         "hint": "What happened in the house, newest first.",
-        "entryHint": "History of what happened in the house",
         "today": "Today",
         "refresh": "Refresh",
         "more": "Load more",

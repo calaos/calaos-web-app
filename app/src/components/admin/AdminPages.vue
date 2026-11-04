@@ -8,7 +8,6 @@ import type { Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
 import IconChevron from '~icons/mdi/chevron-right';
-import IconEvents from '~icons/mdi/bell-outline';
 import IconLogs from '~icons/mdi/text-box-search-outline';
 import IconMcp from '~icons/mdi/robot-outline';
 import IconNetwork from '~icons/mdi/lan';
@@ -112,15 +111,6 @@ const tiles = computed<Tile[]>(() => {
             icon: IconTime,
             name: t('admin.time.title'),
             hint: t('admin.time.entryHint'),
-            tone: 'muted',
-            disabled: false,
-        },
-        {
-            id: 'events',
-            route: 'events',
-            icon: IconEvents,
-            name: t('events.title'),
-            hint: t('events.entryHint'),
             tone: 'muted',
             disabled: false,
         },

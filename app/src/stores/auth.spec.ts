@@ -566,6 +566,31 @@ describe('events log vs the household session', () => {
         expect(events.events).toEqual([]);
     });
 
+    it('keeps the log when the admin session is dropped: it is not an admin page', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const events = withEvents();
+        useAdminStore().reset();
+        expect(events.events).toHaveLength(1);
+    });
+
+    it('forgets the log when a rotated password is refused', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const events = withEvents();
+        store.rotateCredentials('demo', 'new');
+        store.handleLoginResult(false);
+        expect(events.events).toEqual([]);
+    });
+
+    it('forgets the log on sign-out', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const events = withEvents();
+        store.signOut();
+        expect(events.events).toEqual([]);
+    });
+
     it('forgets the log when the login is refused', () => {
         const store = makeStore();
         store.signIn('demo', 'wrong');
