@@ -893,7 +893,7 @@ onBeforeUnmount(() => {
     }
 
     .logs__follow,
-    .logs__actions :deep(.admin-button) {
+    .logs__actions :deep(.app-button) {
         padding-block: var(--space-2);
         padding-inline: var(--space-3);
     }

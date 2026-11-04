@@ -526,6 +526,7 @@
         "refresh": "Actualiser",
         "more": "Charger plus",
         "hasPicture": "Une photo est jointe",
+        "times": "{count} fois",
         "loading": "Chargement…",
         "empty": "Aucun événement pour le moment.",
         "back": "Retour à la liste",

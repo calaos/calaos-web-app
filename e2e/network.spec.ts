@@ -336,7 +336,7 @@ test('the change moves this page’s own address: the new address comes first, a
         const open = panel(page).getByRole('link', { name: net.pending.open });
         await expect(open).toHaveAttribute('href', `http://192.168.1.20:${port}/#/admin/network`);
         await expect(panel(page)).toContainText(net.pending.onlyIfAnswers);
-        await expect(panel(page).getByRole('button', { name: net.pending.confirm })).toHaveClass(/admin-button--quiet/);
+        await expect(panel(page).getByRole('button', { name: net.pending.confirm })).toHaveClass(/app-button--quiet/);
 
         // The socket stays open and silent, as at an address the box left.
         await panel(page).getByRole('button', { name: net.pending.confirm }).click();

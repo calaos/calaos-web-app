@@ -231,7 +231,7 @@ const otherBusy = computed(() => admin.busy !== null && !checking.value && !star
     }
 
     /* :deep because RebootButton has two roots, so it takes no scope id. */
-    .updates__actions :deep(.admin-button) {
+    .updates__actions :deep(.app-button) {
         flex: 1 1 100%;
     }
 }

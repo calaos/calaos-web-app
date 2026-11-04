@@ -50,6 +50,36 @@ describe('EventsView', () => {
         expect(label).toBe('A picture is attached');
     });
 
+    it('folds identical consecutive events into one row with a count, keeping the newest id', async () => {
+        const { events, wrapper } = await mountView();
+        const at = new Date(2024, 4, 6, 12, 0, 0).getTime();
+        const push = { eventType: '22', raw: { message: 'Hi' } };
+        events.events = [
+            event({ id: 'n1', at, ...push }),
+            event({ id: 'n2', at: at - 1000, ...push }),
+            event({ id: 'n3', at: at - 2000, ...push }),
+            event({ id: 'other', at: at - 3000, eventType: '22', raw: { message: 'Bye' } }),
+            // Same text as the first group but not adjacent to it, and one with a picture.
+            event({ id: 'again', at: at - 4000, ...push }),
+            event({ id: 'pic1', at: at - 5000, picUid: 'p', ...push }),
+            event({ id: 'pic2', at: at - 6000, picUid: 'p', ...push }),
+            // Same text on another day.
+            event({ id: 'old', at: at - 5 * 86400000, ...push }),
+        ];
+        await flushPromises();
+
+        const rows = wrapper.findAll('[data-testid="event-item"]');
+        expect(rows).toHaveLength(6);
+        expect(rows[0].find('[data-testid="event-count"]').text()).toBe('3x');
+        expect(rows[0].find('[data-testid="event-count"]').attributes('aria-label')).toBe('3 times');
+        expect(rows[0].find('[data-testid="event-count"]').attributes('role')).toBe('img');
+        expect(wrapper.findAll('[data-testid="event-count"]')).toHaveLength(1);
+
+        const openDetail = vi.spyOn(events, 'openDetail').mockReturnValue();
+        await rows[0].trigger('click');
+        expect(openDetail).toHaveBeenCalledWith('n1');
+    });
+
     it('says so when the log is empty', async () => {
         const { wrapper } = await mountView();
         expect(wrapper.find('[data-testid="event-empty"]').text()).toBe('No events yet.');
