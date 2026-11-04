@@ -109,6 +109,38 @@ describe('auth machine', () => {
         expect(store.isAuthed).toBe(false);
     });
 
+    it('forgets the refused password but keeps the user for the login focus', () => {
+        const store = makeStore();
+        store.signIn('demo', 'wrong');
+
+        store.handleLoginResult(false);
+
+        expect(store.pass).toBe('');
+        expect(store.user).toBe('demo');
+        expect(store.hasCredentials).toBe(false);
+    });
+
+    it('forgets the new password when a rotation is refused', () => {
+        const store = makeStore();
+        completeSignIn(store);
+
+        store.rotateCredentials('raoul', 'n3w');
+        store.handleLoginResult(false);
+
+        expect(store.pass).toBe('');
+        expect(store.user).toBe('raoul');
+    });
+
+    it('keeps the password through a network drop and a successful reconnect', () => {
+        const store = makeStore();
+        completeSignIn(store);
+
+        expect(store.resumeSession()).toBe(true);
+        store.handleLoginResult(true);
+
+        expect(store.pass).toBe('s3cret');
+    });
+
     it('retrying after a rejection leaves the failed state and sends again', () => {
         const store = makeStore();
         store.signIn('demo', 'wrong');
@@ -347,6 +379,86 @@ describe('admin unlock vs the household session', () => {
         admin.session = 'a'.repeat(64);
         return admin;
     }
+
+    function adminFrames(admin: ReturnType<typeof useAdminStore>): string[] {
+        const frames: string[] = [];
+        admin.attachTransport((frame) => {
+            frames.push(frame);
+            return true;
+        });
+        return frames;
+    }
+
+    const LOGOUT = JSON.stringify({
+        msg: 'admin',
+        msg_id: 'admin-1',
+        data: { action: 'admin_logout', admin_session: 'a'.repeat(64) },
+    });
+
+    it('signOut ends the admin session on the daemon before wiping it', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const admin = unlock();
+        const frames = adminFrames(admin);
+
+        store.signOut();
+
+        expect(frames).toEqual([LOGOUT]);
+        expect(admin.session).toBeNull();
+    });
+
+    it('a refused sign-in ends the admin session on the daemon', () => {
+        const store = makeStore();
+        const admin = unlock();
+        const frames = adminFrames(admin);
+
+        store.signIn('demo', 'wrong');
+        store.handleLoginResult(false);
+
+        expect(frames).toEqual([LOGOUT]);
+        expect(admin.session).toBeNull();
+    });
+
+    it('a refused credential rotation ends the admin session on the daemon', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const admin = unlock();
+        const frames = adminFrames(admin);
+
+        store.rotateCredentials('raoul', 'n3w');
+        store.handleLoginResult(false);
+
+        expect(frames).toEqual([LOGOUT]);
+    });
+
+    it('signOut still clears everything when the admin socket is gone', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const admin = unlock();
+        admin.attachTransport(() => {
+            throw new Error('socket closed');
+        });
+
+        store.signOut();
+
+        expect(admin.session).toBeNull();
+        expect(store.user).toBe('');
+        expect(store.pendingNavigation).toBe('login');
+    });
+
+    it('a kept session sends no logout (re-login, rotation)', () => {
+        const store = makeStore();
+        completeSignIn(store);
+        const admin = unlock();
+        const frames = adminFrames(admin);
+
+        store.resumeSession();
+        store.handleLoginResult(true);
+        store.rotateCredentials('raoul', 'n3w');
+        store.handleLoginResult(true);
+
+        expect(frames).toEqual([]);
+    });
 
     it('a refused interactive sign-in drops the admin unlock', () => {
         const store = makeStore();

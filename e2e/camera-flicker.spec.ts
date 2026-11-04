@@ -146,14 +146,19 @@ for (const [view, hash, pictures] of [
     ['the list of cameras', '/#/security', 2],
     ['a single camera', '/#/security/0', 1],
 ] as const) {
-    test(`${view} never blanks a picture between two frames`, async ({ page }) => {
+    test(`${view} never blanks a picture between two frames`, async ({ page, mock }) => {
+        // 2 s capture tokens, renewed every second: the window below spans
+        // renewals, which must not blank the picture either.
+        await mock.send({ op: 'camera_token', ttl: 2 });
         await page.goto('/');
         await loginAs(page);
 
         const jpegs = await fakeFramesJpeg(page);
         let served = 0;
+        const tokens = new Set<string | null>();
         await page.route(isSnapshotRequest, async (route) => {
             served += 1;
+            tokens.add(new URL(route.request().url()).searchParams.get('camera_token'));
             await route.fulfill({
                 status: 200,
                 contentType: 'image/jpeg',
@@ -169,11 +174,13 @@ for (const [view, hash, pictures] of [
         const spots = await visibleCentres(page);
         expect(spots.length).toBeGreaterThan(0);
         const before = served;
+        tokens.clear();
         const darkest = await presentedLuminance(page, spots);
 
         // The window really contained frame swaps, and frames were presented.
         expect(served - before).toBeGreaterThanOrEqual(4);
         expect(darkest.length).toBeGreaterThan(20);
+        expect(tokens.size).toBeGreaterThanOrEqual(2);
         expect(darkest.filter((luminance) => luminance < BLANK_BELOW)).toEqual([]);
     });
 }

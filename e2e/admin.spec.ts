@@ -494,3 +494,14 @@ test('the password needs an approver: said up front, with the way to add one', a
     await expect(page.getByRole('dialog')).toHaveCount(0);
     expect(await mock.adminStatus()).toMatchObject({ sessions: 1 });
 });
+
+test('signing out ends the admin session on the daemon', async ({ page, mock }) => {
+    await mock.admin({ password: ADMIN_PASSWORD });
+    await openUnlocked(page);
+    expect((await mock.adminStatus()).sessions).toBe(1);
+
+    await appChrome(page).navBar.getByRole('button', { name: MESSAGES.chrome.signOut }).click();
+
+    await expect.poll(async () => (await mock.adminStatus()).sessions).toBe(0);
+    expect((await mock.adminActions()).filter((action) => action === 'admin_logout')).toHaveLength(1);
+});

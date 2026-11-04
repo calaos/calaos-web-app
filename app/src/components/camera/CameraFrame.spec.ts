@@ -7,6 +7,8 @@ import en from '../../i18n/en.json';
 import { ERROR_LIMIT, FRAME_INTERVAL_MS } from '../../composables/useCameraPoll';
 import { cameraSnapshotUrl } from '../../services/camera-url';
 import { useAuthStore } from '../../stores/auth';
+import { useCameraTokenStore } from '../../stores/cameraToken';
+import { CAPTURE_TOKEN as TOKEN, grantCameraToken } from '../../stores/cameraTokenTestHarness';
 import type { VueWrapper } from '@vue/test-utils';
 
 const CAMERA = { id: 'camera_1', name: 'Entrée' };
@@ -49,9 +51,11 @@ beforeEach(() => {
     vi.useFakeTimers();
     setActivePinia(createPinia());
     const auth = useAuthStore();
+    auth.attachTransport(() => true);
     auth.user = SESSION.user;
     auth.pass = SESSION.pass;
     auth.state = 'authed';
+    grantCameraToken();
 });
 
 afterEach(() => {
@@ -60,13 +64,56 @@ afterEach(() => {
 });
 
 describe('CameraFrame — the request', () => {
-    it('asks for its own camera, with the credentials of the live session', () => {
+    it('asks for its own camera with the capture token, never the password', () => {
         const src = mountFrame().get('.camera-frame__picture').attributes('src') ?? '';
 
-        // Built by the one module allowed to know how (services/camera-url.ts)
-        // — asserted through it, so this spec never spells the credential
-        // parameters out itself.
-        expect(src.startsWith(`${cameraSnapshotUrl(CAMERA.id, SESSION)}&t=`)).toBe(true);
+        // Built by the one module allowed to know how (services/camera-url.ts).
+        expect(src.startsWith(`${cameraSnapshotUrl(CAMERA.id, TOKEN)}&t=`)).toBe(true);
+        expect(src).not.toContain(encodeURIComponent(SESSION.pass));
+        expect(src).not.toContain('cn_pass');
+    });
+
+    it('keeps the picture on screen across a token renewal', async () => {
+        mountFrame();
+        await frameArrives();
+        const renewed = 'd'.repeat(64);
+        const tokens = useCameraTokenStore();
+        let msgId = '';
+        tokens.attachTransport((frame) => {
+            msgId = (JSON.parse(frame) as { msg_id: string }).msg_id;
+            return true;
+        });
+
+        // The renewal is due before expiry, while a frame is on screen.
+        vi.advanceTimersByTime(90_000);
+        tokens.handleReply({ kind: 'camera_token', msgId, token: renewed, expiresIn: 120, error: '' });
+        await wrapper.vm.$nextTick();
+
+        expect(msgId).not.toBe('');
+        expect(wrapper.get('.camera-frame__picture').classes()).not.toContain(
+            'camera-frame__picture--blank',
+        );
+        await frameArrives();
+        vi.advanceTimersByTime(FRAME_INTERVAL_MS);
+        await wrapper.vm.$nextTick();
+        expect(wrapper.get('.camera-frame__picture').attributes('src')).toContain(
+            `camera_token=${renewed}&`,
+        );
+    });
+
+    it('asks nothing more once a re-login is refused', async () => {
+        mountFrame();
+        await frameArrives();
+        const auth = useAuthStore();
+
+        // A credential rotation the server refuses: the state leaves 'authed'.
+        auth.rotateCredentials(SESSION.user, 'wrong');
+        auth.handleLoginResult(false);
+        // The next frame was already scheduled by the load above.
+        vi.advanceTimersByTime(60_000);
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('.camera-frame__picture').exists()).toBe(false);
     });
 
     it('carries a cache-buster, so every poll is a real request', async () => {
@@ -173,12 +220,14 @@ describe('CameraFrame — retry', () => {
 
 describe('CameraFrame — lifetime', () => {
     it('stops asking the moment it is unmounted', async () => {
+        // The token's own expiry outlives the frame, by design.
+        const before = vi.getTimerCount();
         mountFrame();
         await frameArrives();
-        expect(vi.getTimerCount()).toBe(1);
+        expect(vi.getTimerCount()).toBeGreaterThan(before);
 
         unmountFrame();
 
-        expect(vi.getTimerCount()).toBe(0);
+        expect(vi.getTimerCount()).toBe(before);
     });
 });

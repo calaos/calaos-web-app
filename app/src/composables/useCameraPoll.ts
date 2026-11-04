@@ -1,4 +1,4 @@
-// useCameraPoll(url) — one camera's snapshot chain.
+// useCameraPoll(url, picture) — one camera's snapshot chain.
 //
 // The old app (src/scripts/camera-directive.js) drew every frame into a
 // canvas and, on each `load`, queued the next request through a 10 ms
@@ -24,6 +24,9 @@
 //    a phone with the tab in the background, has no business pulling four
 //    frames a second over someone's ADSL uplink.
 //  - Stopped when the owning scope goes away (unmount, route leave).
+//  - Held while the URL is '': nothing may be asked without a capture token
+//    (services/camera-url.ts). A new token for the same camera is picked up
+//    by the next request, so a renewal never blanks the picture.
 //
 // The `load`/`error` handlers are returned rather than attached: the element
 // belongs to the component (components/camera/CameraFrame.vue), so it binds
@@ -57,7 +60,15 @@ export interface CameraPoll {
     retry: () => void;
 }
 
-export function useCameraPoll(url: MaybeRefOrGetter<string>): CameraPoll {
+/**
+ * `url` is read afresh for every request; `picture` names what is on screen
+ * (the camera id) and defaults to the URL. Only a change of `picture` drops the
+ * frame on screen.
+ */
+export function useCameraPoll(
+    url: MaybeRefOrGetter<string>,
+    picture: MaybeRefOrGetter<string> = url,
+): CameraPoll {
     const src = ref('');
     const error = ref(false);
     const loaded = ref(false);
@@ -93,9 +104,22 @@ export function useCameraPoll(url: MaybeRefOrGetter<string>): CameraPoll {
      * not). Kept from the old directive, which appended the same timestamp.
      */
     function request(): void {
+        const base = toValue(url);
+        if (base === '') {
+            hold();
+            return;
+        }
         clearTimer();
         inFlight = true;
-        src.value = `${toValue(url)}&t=${Date.now()}`;
+        src.value = `${base}&t=${Date.now()}`;
+    }
+
+    /** No URL to ask: nothing pending, nothing on screen. */
+    function hold(): void {
+        clearTimer();
+        inFlight = false;
+        src.value = '';
+        loaded.value = false;
     }
 
     function schedule(delayMs: number): void {
@@ -110,6 +134,8 @@ export function useCameraPoll(url: MaybeRefOrGetter<string>): CameraPoll {
     }
 
     function onLoad(): void {
+        // A late event from an img the hold already took off screen.
+        if (src.value === '') return;
         inFlight = false;
         loaded.value = true;
         // A frame is a full recovery: the placeholder goes away and the next
@@ -121,6 +147,7 @@ export function useCameraPoll(url: MaybeRefOrGetter<string>): CameraPoll {
     }
 
     function onError(): void {
+        if (src.value === '') return;
         inFlight = false;
         consecutiveErrors += 1;
         if (consecutiveErrors >= ERROR_LIMIT) error.value = true;
@@ -155,14 +182,20 @@ export function useCameraPoll(url: MaybeRefOrGetter<string>): CameraPoll {
     }
 
     // A different camera (the /security/:cameraId param changing without a
-    // remount) or new credentials: the picture on screen belongs to the old
-    // URL, so the chain starts over instead of showing it for up to one
-    // backoff.
+    // remount): the picture on screen belongs to the old one, so the chain
+    // starts over instead of showing it for up to one backoff. A new token
+    // for the same camera changes nothing on screen.
     watch(
-        () => toValue(url),
-        () => {
-            loaded.value = false;
-            restart();
+        () => [toValue(url), toValue(picture)] as const,
+        ([nextUrl, nextPicture], [prevUrl, prevPicture]) => {
+            if (nextPicture !== prevPicture) {
+                loaded.value = false;
+                restart();
+            } else if (nextUrl === '') {
+                hold();
+            } else if (prevUrl === '') {
+                restart();
+            }
         },
     );
 

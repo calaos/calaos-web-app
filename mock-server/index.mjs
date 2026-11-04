@@ -17,6 +17,7 @@ import { pathToFileURL } from 'node:url';
 import { WebSocketServer } from 'ws';
 
 import { createAdmin } from './admin.mjs';
+import { createCameraTokens } from './camera-tokens.mjs';
 import { createConsole } from './console.mjs';
 import { createState } from './state.mjs';
 import { handleControlRequest, readJsonBody } from './control.mjs';
@@ -80,6 +81,7 @@ export function startServer(options = {}) {
         admin: null,
         console: null,
         dropClients: null,
+        cameraTokens: createCameraTokens(),
     };
 
     /** Send one frame, honouring the configured latency. Order is preserved. */
@@ -142,6 +144,7 @@ export function startServer(options = {}) {
 
         ws.on('close', () => {
             hub.clients.delete(ws);
+            hub.cameraTokens.revokeSession(ws);
             log(`ws client #${clientId} disconnected (${hub.clients.size} open)`);
         });
 
@@ -165,6 +168,15 @@ export function startServer(options = {}) {
             case 'login':
                 handleLogin(ws, clientId, frame);
                 return;
+
+            case 'camera_token': {
+                // Upstream only handles camera_token for a logged-in session and
+                // stays silent otherwise; clients rely on their own reply timeout.
+                if (!ws.authed) return;
+                const { token, expiresIn } = hub.cameraTokens.issue(ws);
+                send(ws, withMsgId({ msg: 'camera_token', data: { token, expires_in: String(expiresIn) } }, msgId));
+                return;
+            }
 
             case 'get_home':
                 if (!requireAuth(ws, clientId, 'get_home')) return;
@@ -334,11 +346,21 @@ export function startServer(options = {}) {
 
     // -------------------------------------------------------------- HTTP ---
 
-    /** GET /api?action=camera&type=get_picture&id=..&cn_user=..&cn_pass=.. */
+    /**
+     * GET /api?action=camera&type=get_picture&id=..&camera_token=.., or the
+     * older ..&cn_user=..&cn_pass=.. A `camera_token` parameter, even empty,
+     * is the only credential looked at; a bad one is a 400 and a closed
+     * connection, like upstream.
+     */
     function handleCamera(url, res) {
         const params = url.searchParams;
-        const ok = params.get('cn_user') === hub.user && params.get('cn_pass') === hub.pass;
-        if (!ok) {
+        if (params.has('camera_token')) {
+            if (!hub.cameraTokens.valid(params.get('camera_token'))) {
+                res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8', connection: 'close' });
+                res.end('Bad camera token');
+                return;
+            }
+        } else if (params.get('cn_user') !== hub.user || params.get('cn_pass') !== hub.pass) {
             res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' });
             res.end('Forbidden');
             return;
