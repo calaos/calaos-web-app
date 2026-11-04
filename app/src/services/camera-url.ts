@@ -46,9 +46,15 @@ export interface CameraCredentials {
  * space must not become a different password on the wire.
  */
 export function cameraSnapshotUrl(cameraId: string, credentials: CameraCredentials): string {
-    const user = encodeURIComponent(credentials.user);
-    const pass = encodeURIComponent(credentials.pass);
     const id = encodeURIComponent(cameraId);
 
-    return `/api?cn_user=${user}&cn_pass=${pass}&action=camera&type=get_picture&id=${id}`;
+    return `${credentialedApiUrl(credentials)}&action=camera&type=get_picture&id=${id}`;
+}
+
+/** `/api?cn_user=..&cn_pass=..`, to which a caller appends `&action=..`. */
+export function credentialedApiUrl(credentials: CameraCredentials): string {
+    const user = encodeURIComponent(credentials.user);
+    const pass = encodeURIComponent(credentials.pass);
+
+    return `/api?cn_user=${user}&cn_pass=${pass}`;
 }

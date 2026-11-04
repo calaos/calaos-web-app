@@ -26,6 +26,7 @@ import { defineStore } from 'pinia';
 import { encodeLogin } from '../protocol/messages';
 import { useAdminStore } from './admin';
 import { useAdminAlertsStore } from './adminAlerts';
+import { useEventsStore } from './events';
 import { useAudioStore } from './audio';
 import { useHomeStore } from './home';
 
@@ -190,6 +191,7 @@ export const useAuthStore = defineStore('auth', () => {
         // The admin session belongs to the account that unlocked it.
         useAdminStore().reset();
         useAdminAlertsStore().reset();
+        useEventsStore().reset();
         user.value = '';
         pass.value = '';
         state.value = 'idle';

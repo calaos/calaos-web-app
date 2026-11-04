@@ -26,6 +26,7 @@ import { useApproversStore } from '../stores/approvers';
 import { useAudioStore } from '../stores/audio';
 import { useAuthStore } from '../stores/auth';
 import { useConnectionStore } from '../stores/connection';
+import { useEventsStore } from '../stores/events';
 import { useHomeStore } from '../stores/home';
 import type { CalaosSocketListener, SocketStatusInfo } from '../protocol/socket';
 import type { ServerMessage } from '../protocol/types';
@@ -60,6 +61,7 @@ export function createCalaosService(
     const approvers = useApproversStore();
     const adminAlerts = useAdminAlertsStore();
     const adminNetwork = useAdminNetworkStore();
+    const events = useEventsStore();
 
     const sendFrame = (frame: string): boolean => socket.send(frame);
     auth.attachTransport(sendFrame);
@@ -67,6 +69,7 @@ export function createCalaosService(
     audio.attachTransport(sendFrame);
     admin.attachTransport(sendFrame);
     adminAlerts.attachTransport(sendFrame);
+    events.attachTransport(sendFrame);
     admin.attachHousehold({
         credentials: () => ({ user: auth.user, pass: auth.pass }),
         rotate: (user, pass) => auth.rotateCredentials(user, pass),
@@ -120,7 +123,8 @@ export function createCalaosService(
                 break;
 
             case 'eventlog':
-                adminAlerts.handleEventLog(msg);
+                // Several readers share the type; each recognises its own msg_id prefix.
+                if (!adminAlerts.handleEventLog(msg)) events.handleEventLog(msg);
                 break;
 
             case 'change_cred':
