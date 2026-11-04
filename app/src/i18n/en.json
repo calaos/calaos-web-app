@@ -16,7 +16,6 @@
     "home": {
         "title": "Rooms",
         "temperature": "Temperature",
-        "hasPicture": "A picture is attached",
         "empty": "No rooms yet",
         "emptyHint": "This account has no room configured on the server."
     },
@@ -526,6 +525,7 @@
         "today": "Today",
         "refresh": "Refresh",
         "more": "Load more",
+        "hasPicture": "A picture is attached",
         "loading": "Loading…",
         "empty": "No events yet.",
         "back": "Back to the list",

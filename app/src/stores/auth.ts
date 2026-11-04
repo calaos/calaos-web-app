@@ -176,7 +176,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     // The event log belongs to the household session, not to the admin
-    // unlock: locking admin must leave it alone, a refusal must not.
+    // unlock: locking admin keeps it, a refused login clears it.
     function dropSession(): void {
         dropAdminSession();
         useEventsStore().reset();

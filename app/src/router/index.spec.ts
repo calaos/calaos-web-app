@@ -164,7 +164,8 @@ describe('events route', () => {
     it('is gone from /admin', async () => {
         signedIn();
         await router.push('/admin/events');
-        expect(router.currentRoute.value.name).not.toBe('events');
+        expect(router.currentRoute.value.name).toBe('home');
+        expect(router.currentRoute.value.path).toBe('/home');
     });
 });
 

@@ -16,7 +16,6 @@
     "home": {
         "title": "Pièces",
         "temperature": "Température",
-        "hasPicture": "Une photo est jointe",
         "empty": "Aucune pièce pour l’instant",
         "emptyHint": "Ce compte n’a aucune pièce configurée sur le serveur."
     },
@@ -526,6 +525,7 @@
         "today": "Aujourd'hui",
         "refresh": "Actualiser",
         "more": "Charger plus",
+        "hasPicture": "Une photo est jointe",
         "loading": "Chargement…",
         "empty": "Aucun événement pour le moment.",
         "back": "Retour à la liste",

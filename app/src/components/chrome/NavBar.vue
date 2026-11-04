@@ -74,9 +74,9 @@ function goBack(): void {
     position: relative;
     display: grid;
     /* Equal side slots keep the wordmark optically centred whether or not
-       the back button is mounted. 3.75rem = a 44px button plus its 2×8px
-       inset; at 3.5rem the slot was narrower than the button and squeezed it
-       back to 40px wide. */
+       the back button is mounted. The 3.75rem minimum = a 44px button plus
+       its 2×8px inset (the back slot); at 3.5rem it squeezed the button to
+       40px wide. The end slot may hold two buttons and grows past it. */
     grid-template-columns: minmax(3.75rem, 1fr) auto minmax(3.75rem, 1fr);
     align-items: center;
     block-size: var(--h-navbar);
@@ -98,6 +98,7 @@ function goBack(): void {
 
 .navbar__slot--end {
     justify-content: flex-end;
+    gap: var(--space-2);
 }
 
 .navbar__wordmark {

@@ -40,6 +40,16 @@ describe('EventsView', () => {
         expect(rows[1].find('[data-testid="event-icon-push"]').exists()).toBe(true);
     });
 
+    it('labels the photo indicator with the translated text, not a raw key', async () => {
+        const { events, wrapper } = await mountView();
+        events.events = [event({ id: 'a', picUid: 'p1' })];
+        await flushPromises();
+
+        const label = wrapper.find('[data-testid="event-has-picture"]').attributes('aria-label');
+        expect(label).toBe(en.events.hasPicture);
+        expect(label).toBe('A picture is attached');
+    });
+
     it('says so when the log is empty', async () => {
         const { wrapper } = await mountView();
         expect(wrapper.find('[data-testid="event-empty"]').text()).toBe('No events yet.');
