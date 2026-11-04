@@ -435,6 +435,19 @@ export interface ChangeCredMessage {
     success: boolean;
 }
 
+/**
+ * The answer to `camera_token`: a short-lived capture token for the snapshot
+ * URL. `token` is '' on a refusal, and `error` then says why.
+ */
+export interface CameraTokenMessage {
+    kind: 'camera_token';
+    msgId: string;
+    token: string;
+    /** Lifetime in seconds; null when the reply carried no usable value. */
+    expiresIn: number | null;
+    error: string;
+}
+
 // Typed fallback for malformed or unrecognized frames — decode never throws.
 export interface UnknownMessage {
     kind: 'unknown';
@@ -453,4 +466,5 @@ export type ServerMessage =
     | AdminEventMessage
     | EventLogMessage
     | ChangeCredMessage
+    | CameraTokenMessage
     | UnknownMessage;

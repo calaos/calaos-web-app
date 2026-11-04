@@ -6,7 +6,7 @@ Vue 3 + TypeScript single-page app (built with Vite) that talks to
 calaos_server over its WebSocket JSON API — rooms, lights, shutters,
 scenarios, cameras and audio players.
 
-Requirements: Node.js >= 20.19.
+Requirements: Node.js >= 22.
 
 ## Develop
 

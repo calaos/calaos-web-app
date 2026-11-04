@@ -90,6 +90,31 @@ describe('config store', () => {
         expect(await config.downloadBackup(fetchImpl as typeof fetch)).toMatchObject({ code: 'https_required' });
     });
 
+    it('a late bad_session leaves the session opened since the download started', async () => {
+        await unlocked();
+        const admin = useAdminStore();
+        const config = useAdminConfigStore();
+        let release!: (response: Response) => void;
+        const reply = new Promise<Response>((resolve) => {
+            release = resolve;
+        });
+        const pending = config.downloadBackup((() => reply) as unknown as typeof fetch);
+        const replacement = 'c'.repeat(64);
+        admin.session = replacement;
+        release(new Response('{"success":"false","error":"bad_session","msg":"x"}'));
+        await pending;
+        expect(admin.session).toBe(replacement);
+    });
+
+    it('a bad_session on the session the download started with forgets it', async () => {
+        await unlocked();
+        const admin = useAdminStore();
+        const config = useAdminConfigStore();
+        const fetchImpl = async () => new Response('{"success":"false","error":"bad_session","msg":"x"}');
+        expect(await config.downloadBackup(fetchImpl as typeof fetch)).toMatchObject({ code: 'bad_session' });
+        expect(admin.session).toBeNull();
+    });
+
     it('tells a refused household sign-in apart from a box failure', async () => {
         await unlocked();
         const config = useAdminConfigStore();

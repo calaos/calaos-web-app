@@ -9,6 +9,7 @@ import { createAppRouter } from '../router';
 import { toHomeData } from '../protocol/guards';
 import { cameraSnapshotUrl } from '../services/camera-url';
 import { useAuthStore } from '../stores/auth';
+import { CAPTURE_TOKEN, grantCameraToken } from '../stores/cameraTokenTestHarness';
 import { useHomeStore } from '../stores/home';
 import type { CameraItem } from '../protocol/types';
 import type { Router } from 'vue-router';
@@ -44,6 +45,7 @@ beforeEach(() => {
     auth.user = SESSION.user;
     auth.pass = SESSION.pass;
     auth.state = 'authed';
+    grantCameraToken();
     router = createAppRouter(createMemoryHistory());
 });
 
@@ -68,7 +70,7 @@ describe('CameraView', () => {
         expect(pictures).toHaveLength(1);
         expect(
             (pictures[0].attributes('src') ?? '').startsWith(
-                `${cameraSnapshotUrl('camera_2', SESSION)}&t=`,
+                `${cameraSnapshotUrl('camera_2', CAPTURE_TOKEN)}&t=`,
             ),
         ).toBe(true);
     });
@@ -94,7 +96,7 @@ describe('CameraView', () => {
         expect(wrapper.get('.camera__name').text()).toBe('Jardin');
         expect(
             (wrapper.get('.camera-frame__picture').attributes('src') ?? '').startsWith(
-                `${cameraSnapshotUrl('camera_2', SESSION)}&t=`,
+                `${cameraSnapshotUrl('camera_2', CAPTURE_TOKEN)}&t=`,
             ),
         ).toBe(true);
     });

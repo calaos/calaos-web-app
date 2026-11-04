@@ -38,6 +38,28 @@ const FIRST_CAMERA_URL = /#\/security\/0$/;
 const isSnapshotRequest = (url: URL): boolean =>
     url.pathname === '/api' && url.searchParams.get('action') === 'camera';
 
+/** Every snapshot URL the browser asked for, with the status it got (0 = no answer yet). */
+function snapshotLog(page: Page): { url: URL; status: number }[] {
+    const log: { url: URL; status: number }[] = [];
+    page.on('request', (request) => {
+        const url = new URL(request.url());
+        if (!isSnapshotRequest(url)) return;
+        const entry = { url, status: 0 };
+        log.push(entry);
+        void request
+            .response()
+            .then((response) => {
+                entry.status = response?.status() ?? -1;
+            })
+            .catch(() => {
+                entry.status = -1;
+            });
+    });
+    return log;
+}
+
+const CAPTURE_TOKEN = /^[0-9a-f]{64}$/;
+
 /** Starts counting snapshot requests; the returned reader is the tally. */
 function snapshotCounter(page: Page): () => number {
     let count = 0;
@@ -95,6 +117,63 @@ test('every camera in the house arrives as a live picture', async ({ page }) => 
         expect(natural.width).toBeGreaterThan(0);
         expect(natural.height).toBeGreaterThan(0);
     }
+});
+
+test('a snapshot carries the capture token, never the household password', async ({ page }) => {
+    const snapshots = snapshotLog(page);
+    await page.goto('/');
+    await loginAs(page);
+    await openSecurity(page);
+    // Live means the mock served the picture: it 400s a token it never issued.
+    await expect(liveBadges(page)).toHaveCount(CAMERAS.length);
+
+    expect(snapshots.length).toBeGreaterThan(0);
+    for (const { url } of snapshots) {
+        expect(url.searchParams.get('camera_token')).toMatch(CAPTURE_TOKEN);
+        expect(url.searchParams.has('cn_user')).toBe(false);
+        expect(url.searchParams.has('cn_pass')).toBe(false);
+    }
+});
+
+test('the token is renewed under a live picture, with no request refused', async ({ page, mock }) => {
+    // 2 s tokens are renewed halfway (stores/cameraToken.ts): every second.
+    await mock.send({ op: 'camera_token', ttl: 2 });
+    const snapshots = snapshotLog(page);
+    await page.goto('/');
+    await loginAs(page);
+    await openSecurity(page);
+    await expect(liveBadges(page)).toHaveCount(CAMERAS.length);
+
+    const start = snapshots.length;
+    await page.waitForTimeout(3500);
+    await expect(liveBadges(page)).toHaveCount(CAMERAS.length);
+    await expect(placeholder(page)).toHaveCount(0);
+
+    const window = snapshots.slice(start, -4).filter(({ status }) => status !== 0);
+    const tokens = new Set(window.map(({ url }) => url.searchParams.get('camera_token')));
+    expect(tokens.size).toBeGreaterThanOrEqual(3);
+    expect(window.filter(({ status }) => status !== 200)).toEqual([]);
+});
+
+test('a refused re-login stops every snapshot', async ({ page, mock }) => {
+    const snapshots = snapshotLog(page);
+    await page.goto('/');
+    await loginAs(page);
+    await openSecurity(page);
+    await expect(liveBadges(page)).toHaveCount(CAMERAS.length);
+
+    // The household password changed elsewhere; the reconnect's login with the
+    // stored one is refused.
+    await mock.credentials('demo', 'changed elsewhere');
+    expect(await mock.drop()).toBeGreaterThan(0);
+    await expect.poll(async () => (await mock.loginFrames()).length).toBeGreaterThanOrEqual(2);
+
+    await page.waitForTimeout(500);
+    const settled = snapshots.length;
+    await page.waitForTimeout(1500);
+
+    expect(snapshots.length).toBe(settled);
+    for (const { url } of snapshots) expect(url.searchParams.get('camera_token')).toMatch(CAPTURE_TOKEN);
 });
 
 test('the pictures keep refreshing, one chained request at a time', async ({ page }) => {

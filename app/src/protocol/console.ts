@@ -131,6 +131,8 @@ export type ConsoleEnd =
     | { kind: 'admin_set' }
     | { kind: 'admin_reset' }
     | { kind: 'bad_code' }
+    /** The household login changed: the console is not reopened with the old credentials. */
+    | { kind: 'credentials_changed' }
     | { kind: 'too_big' }
     | { kind: 'lost' }
     /** Closed from this page. */
@@ -149,6 +151,7 @@ const REASON_KINDS = [
     'admin_set',
     'admin_reset',
     'bad_code',
+    'credentials_changed',
 ] as const;
 type ReasonKind = (typeof REASON_KINDS)[number];
 

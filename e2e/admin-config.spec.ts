@@ -555,7 +555,14 @@ test('a changed household login sends the page to sign-in, which says why', asyn
 
 test('after a changed household login, the restored password signs in', async ({ page }) => {
     await restoreChangingHousehold(page);
-    await loginAs(page, { user: 'demo', pass: 'from-the-backup' }, /#\/admin\/settings$/);
+    // The refused login ended the household session, so the admin unlock went
+    // with it: sign-in lands on the hub's password gate, not on the sub-page.
+    await loginAs(page, { user: 'demo', pass: 'from-the-backup' }, /#\/admin$/);
     await expect(page).not.toHaveURL(LOGIN_URL);
     await expect(loginForm(page).submit).toHaveCount(0);
+    const admin = adminScreen(page);
+    await expect(admin.adminPassword).toBeVisible();
+    await admin.adminPassword.fill(ADMIN_PASSWORD);
+    await admin.submit.click();
+    await expect(admin.hub).toBeVisible();
 });

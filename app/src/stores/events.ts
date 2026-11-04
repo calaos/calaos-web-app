@@ -94,9 +94,10 @@ export const useEventsStore = defineStore('events', () => {
     function handleEventLog(msg: EventLogMessage): boolean {
         if (!msg.msgId.startsWith(EVENTS_MSG_ID_PREFIX)) return false;
         const [gen, kind, arg] = msg.msgId.slice(EVENTS_MSG_ID_PREFIX.length).split(':');
-        if (Number(gen) !== generation) return true;
+        // Only pages belong to a walk; a detail is guarded by detailSeq alone, so
+        // a refresh() does not strand a detail already requested.
         if (kind === 'page') {
-            onPage(Number(arg), msg);
+            if (Number(gen) === generation) onPage(Number(arg), msg);
         } else if (kind === 'detail' && Number(arg) === detailSeq) {
             const result = decodeEventLogDetail(msg.data);
             detailLoading.value = false;
@@ -104,6 +105,20 @@ export const useEventsStore = defineStore('events', () => {
             else detailError.value = result.error;
         }
         return true;
+    }
+
+    /** The socket dropped: answers in flight will never come. */
+    function handleTransportLost(): void {
+        if (loading.value) {
+            generation += 1;
+            loading.value = false;
+            error.value = 'not connected';
+        }
+        if (detailLoading.value) {
+            detailSeq += 1;
+            detailLoading.value = false;
+            detailError.value = 'not connected';
+        }
     }
 
     /** Sign-out: the next account must not see this one's log. */
@@ -134,6 +149,7 @@ export const useEventsStore = defineStore('events', () => {
         openDetail,
         closeDetail,
         handleEventLog,
+        handleTransportLost,
         reset,
     };
 });

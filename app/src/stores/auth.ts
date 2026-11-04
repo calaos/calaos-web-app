@@ -136,7 +136,11 @@ export const useAuthStore = defineStore('auth', () => {
         if (rotating) {
             rotating = false;
             state.value = success ? 'authed' : 'failed';
-            if (!success) interactive = false;
+            if (!success) {
+                interactive = false;
+                pass.value = '';
+                dropAdminSession();
+            }
             return;
         }
         if (state.value === 'authed') {
@@ -157,6 +161,16 @@ export const useAuthStore = defineStore('auth', () => {
         // protocol one.
         state.value = 'failed';
         interactive = false;
+        // Only a refusal clears it: a dropped socket must still re-login.
+        pass.value = '';
+        dropAdminSession();
+    }
+
+    // A refused login ends the household session; the admin unlock must not
+    // outlive it. Successful logins and reconnects leave it alone.
+    function dropAdminSession(): void {
+        useAdminStore().reset();
+        useAdminAlertsStore().reset();
     }
 
     /**

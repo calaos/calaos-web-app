@@ -25,6 +25,7 @@ import { useAdminNetworkStore } from '../stores/adminNetwork';
 import { useApproversStore } from '../stores/approvers';
 import { useAudioStore } from '../stores/audio';
 import { useAuthStore } from '../stores/auth';
+import { useCameraTokenStore } from '../stores/cameraToken';
 import { useConnectionStore } from '../stores/connection';
 import { useEventsStore } from '../stores/events';
 import { useHomeStore } from '../stores/home';
@@ -62,6 +63,7 @@ export function createCalaosService(
     const adminAlerts = useAdminAlertsStore();
     const adminNetwork = useAdminNetworkStore();
     const events = useEventsStore();
+    const cameraToken = useCameraTokenStore();
 
     const sendFrame = (frame: string): boolean => socket.send(frame);
     auth.attachTransport(sendFrame);
@@ -70,6 +72,7 @@ export function createCalaosService(
     admin.attachTransport(sendFrame);
     adminAlerts.attachTransport(sendFrame);
     events.attachTransport(sendFrame);
+    cameraToken.attachTransport(sendFrame);
     admin.attachHousehold({
         credentials: () => ({ user: auth.user, pass: auth.pass }),
         rotate: (user, pass) => auth.rotateCredentials(user, pass),
@@ -84,7 +87,12 @@ export function createCalaosService(
         connection.applyStatus(info);
         // An admin reply still awaited on a dead socket would otherwise be
         // reported as "server too old" when its 5 s timer fires.
-        if (info.status !== 'open') admin.handleTransportLost();
+        if (info.status !== 'open') {
+            admin.handleTransportLost();
+            // The server revokes a capture token with the session that got it.
+            cameraToken.invalidate();
+            events.handleTransportLost();
+        }
     };
 
     // Fires for the first connect AND for every reconnect. resumeSession()
@@ -108,6 +116,7 @@ export function createCalaosService(
                     adminNetwork.handleLoggedIn();
                     // Approver alerts are shown to everyone, at sign-in.
                     adminAlerts.refresh();
+                    cameraToken.handleLoggedIn();
                 }
                 break;
 
@@ -128,7 +137,13 @@ export function createCalaosService(
                 break;
 
             case 'change_cred':
+                // A credential change revokes every capture token server-side.
+                if (msg.success) cameraToken.invalidate();
                 admin.handleChangeCredResult(msg);
+                break;
+
+            case 'camera_token':
+                cameraToken.handleReply(msg);
                 break;
 
             case 'get_home':

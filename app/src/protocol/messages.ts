@@ -57,6 +57,15 @@ export function encodeAudioQuery(action: AudioAction, id: string, msgId: string)
     return JSON.stringify({ msg: 'audio', msg_id: msgId, data: { audio_action: action, id } });
 }
 
+/**
+ * Asks the live session for a capture token (calaos_base docs/08_http_api.md,
+ * "jeton de capture"). The msg_id ties the answer to the request, so a reply
+ * to a request made before a reconnect can be told apart and dropped.
+ */
+export function encodeCameraToken(msgId: string): string {
+    return JSON.stringify({ msg: 'camera_token', msg_id: msgId });
+}
+
 // Decode any frame received from the server. Accepts the raw websocket string
 // (or an already-parsed value, for tests). NEVER throws: malformed or
 // unrecognized input returns the typed { kind: 'unknown' } fallback.
@@ -188,6 +197,21 @@ export function decodeServerMessage(raw: unknown): ServerMessage {
                 return { kind: 'unknown', raw: obj };
             }
             return { kind: 'change_cred', success: data.success === 'true' };
+        }
+
+        case 'camera_token': {
+            const data = isRecord(obj.data) ? obj.data : {};
+            const token = toWireString(data.token);
+            const seconds = Number(toWireString(data.expires_in));
+            return {
+                kind: 'camera_token',
+                msgId: toWireString(obj.msg_id),
+                // The server sends 64 lowercase hex characters; anything else
+                // would land verbatim in a URL, so it is not a token.
+                token: /^[0-9a-f]{64}$/.test(token) ? token : '',
+                expiresIn: Number.isFinite(seconds) && seconds > 0 ? seconds : null,
+                error: toWireString(data.error),
+            };
         }
 
         default:

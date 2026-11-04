@@ -9,6 +9,7 @@ import { createAppRouter } from '../router';
 import { toHomeData } from '../protocol/guards';
 import { cameraSnapshotUrl } from '../services/camera-url';
 import { useAuthStore } from '../stores/auth';
+import { CAPTURE_TOKEN, grantCameraToken } from '../stores/cameraTokenTestHarness';
 import { useHomeStore } from '../stores/home';
 import type { CameraItem } from '../protocol/types';
 import type { Router } from 'vue-router';
@@ -49,6 +50,7 @@ beforeEach(() => {
     auth.user = SESSION.user;
     auth.pass = SESSION.pass;
     auth.state = 'authed';
+    grantCameraToken();
     router = createAppRouter(createMemoryHistory());
 });
 
@@ -85,7 +87,7 @@ describe('CameraListView — the grid', () => {
             .map((picture) => picture.attributes('src') ?? '');
         expect(sources).toHaveLength(CAMERAS.length);
         for (const [index, camera] of CAMERAS.entries()) {
-            expect(sources[index].startsWith(`${cameraSnapshotUrl(camera.id, SESSION)}&t=`)).toBe(
+            expect(sources[index].startsWith(`${cameraSnapshotUrl(camera.id, CAPTURE_TOKEN)}&t=`)).toBe(
                 true,
             );
         }

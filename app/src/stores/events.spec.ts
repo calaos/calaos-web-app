@@ -64,10 +64,47 @@ describe('events store', () => {
         events.refresh();
         answer(events, page(['a'], 0, 5));
         events.loadMore();
-        answer(events, page([], 1, 1));
+        answer(events, page([], 1, 5));
         expect(events.endReached).toBe(true);
         events.loadMore();
         expect(sent).toHaveLength(2);
+    });
+
+    it('keeps a detail requested before a refresh and answered after it', () => {
+        const events = store();
+        events.openDetail('u1');
+        const detailId = sent[0].msg_id;
+        events.refresh();
+        answer(events, { ...event('u1') }, detailId);
+        expect(events.detailLoading).toBe(false);
+        expect(events.detail?.id).toBe('u1');
+    });
+
+    it('drops what is in flight when the transport is lost', () => {
+        const events = store();
+        events.refresh();
+        events.openDetail('u1');
+        const [pageId, detailId] = [sent[0].msg_id, sent[1].msg_id];
+        events.handleTransportLost();
+        expect(events.loading).toBe(false);
+        expect(events.error).toBe('not connected');
+        expect(events.detailLoading).toBe(false);
+        expect(events.detailError).toBe('not connected');
+
+        answer(events, page(['a'], 0, 1), pageId);
+        answer(events, event('u1'), detailId);
+        expect(events.events).toEqual([]);
+        expect(events.detail).toBeNull();
+
+        events.loadMore();
+        expect(sent).toHaveLength(3);
+    });
+
+    it('leaves an idle store untouched when the transport is lost', () => {
+        const events = store();
+        events.handleTransportLost();
+        expect(events.error).toBe('');
+        expect(events.detailError).toBe('');
     });
 
     it('does not ask twice while a page is in flight', () => {

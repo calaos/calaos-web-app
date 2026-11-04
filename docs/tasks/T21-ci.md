@@ -6,7 +6,7 @@
 A GitHub Actions workflow running the quality gates on every push/PR — without ever touching `dist/` or the existing publish workflows.
 
 ## Files
-Create: `.github/workflows/test.yml` — Node 20, npm ci, `lint` + `typecheck` + `test:unit` + `test:e2e` (Playwright browsers cached via `actions/cache` on `~/.cache/ms-playwright`).
+Create: `.github/workflows/test.yml` — Node 22, npm ci, `lint` + `typecheck` + `test:unit` + `test:e2e` (Playwright browsers cached via `actions/cache` on `~/.cache/ms-playwright`).
 
 ## Acceptance criteria
 - [ ] Workflow YAML validates (`gh workflow view` after push, or actionlint locally if available); runs on push + pull_request.

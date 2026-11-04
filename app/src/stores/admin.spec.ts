@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { decodeServerMessage } from '../protocol/messages';
 import type { AdminEventMessage, AdminReplyMessage } from '../protocol/types';
+import { ADMIN_REPLY_TIMEOUT_MS } from '../protocol/admin';
 import { useAdminStore } from './admin';
 
 const SESSION = 'a'.repeat(64);
@@ -781,6 +782,149 @@ describe('reset', () => {
         expect(sent).toHaveLength(1);
         expect(admin.gate).toBe('idle');
         expect(admin.session).toBeNull();
+    });
+
+    it('ends the session on the daemon once, with the token, without waiting', () => {
+        const admin = store();
+        admin.session = SESSION;
+        admin.gate = 'unlocked';
+        admin.reset();
+        expect(sent).toEqual([
+            { msg: 'admin', msg_id: 'admin-1', data: { action: 'admin_logout', admin_session: SESSION } },
+        ]);
+        expect(admin.session).toBeNull();
+        admin.reset();
+        expect(sent).toHaveLength(1);
+    });
+
+    it('ends the token of an unlock answered after sign-out, and keeps none', async () => {
+        const admin = store();
+        admin.activate();
+        fail(admin, 'admin_unavailable');
+        await flush();
+        const unlocking = admin.unlock('pw');
+        const unlockFrame = last();
+        admin.reset();
+        await unlocking;
+        sent = [];
+        admin.handleReply(
+            decodeServerMessage({
+                msg: 'admin_unlock',
+                msg_id: unlockFrame.msg_id,
+                data: { success: 'true', admin_session: SESSION, expires_in: 900 },
+            }) as AdminReplyMessage,
+        );
+        expect(sent).toEqual([
+            { msg: 'admin', msg_id: expect.any(String), data: { action: 'admin_logout', admin_session: SESSION } },
+        ]);
+        expect(admin.session).toBeNull();
+    });
+
+    it('does not log out on a late reply of another message that carries admin_session', async () => {
+        const admin = store();
+        admin.activate();
+        fail(admin, 'admin_unavailable');
+        await flush();
+        const unlocking = admin.unlock('pw');
+        const unlockFrame = last();
+        admin.reset();
+        await unlocking;
+        sent = [];
+        admin.handleReply(
+            decodeServerMessage({
+                msg: 'admin',
+                msg_id: unlockFrame.msg_id,
+                data: { success: 'true', admin_session: SESSION, expires_in: 900 },
+            }) as AdminReplyMessage,
+        );
+        expect(sent).toEqual([]);
+    });
+
+    it('ends the token of an unlock answered after its timeout', async () => {
+        const admin = store();
+        admin.activate();
+        fail(admin, 'admin_unavailable');
+        await flush();
+        const unlocking = admin.unlock('pw');
+        const unlockFrame = last();
+        vi.advanceTimersByTime(ADMIN_REPLY_TIMEOUT_MS);
+        expect(await unlocking).toBe(false);
+        sent = [];
+        admin.handleReply(
+            decodeServerMessage({
+                msg: 'admin_unlock',
+                msg_id: unlockFrame.msg_id,
+                data: { success: 'true', admin_session: SESSION, expires_in: 900 },
+            }) as AdminReplyMessage,
+        );
+        expect(sent).toEqual([
+            { msg: 'admin', msg_id: expect.any(String), data: { action: 'admin_logout', admin_session: SESSION } },
+        ]);
+        expect(admin.session).toBeNull();
+    });
+
+    it('does not reuse a msg_id after reset, so a late reply of account A never answers account B', async () => {
+        const admin = store();
+        admin.activate();
+        fail(admin, 'admin_unavailable');
+        await flush();
+        const unlockingA = admin.unlock('pw');
+        const frameA = last();
+        admin.reset();
+        await unlockingA;
+        admin.activate();
+        fail(admin, 'admin_unavailable');
+        await flush();
+        const unlockingB = admin.unlock('pw');
+        const frameB = last();
+        expect(frameB.msg_id).not.toBe(frameA.msg_id);
+        sent = [];
+        admin.handleReply(
+            decodeServerMessage({
+                msg: 'admin_unlock',
+                msg_id: frameA.msg_id,
+                data: { success: 'true', admin_session: SESSION, expires_in: 900 },
+            }) as AdminReplyMessage,
+        );
+        expect(sent).toEqual([
+            { msg: 'admin', msg_id: expect.any(String), data: { action: 'admin_logout', admin_session: SESSION } },
+        ]);
+        expect(admin.session).toBeNull();
+        expect(admin.busy).toBe('unlock');
+        admin.handleReply(
+            decodeServerMessage({
+                msg: 'admin_unlock',
+                msg_id: frameB.msg_id,
+                data: { success: 'true', admin_session: 'session-of-b', expires_in: 900 },
+            }) as AdminReplyMessage,
+        );
+        expect(await unlockingB).toBe(true);
+        expect(admin.session).toBe('session-of-b');
+    });
+
+    it('sends nothing when no session is held', () => {
+        const admin = store();
+        admin.reset();
+        expect(sent).toEqual([]);
+    });
+
+    it('still wipes locally when the socket is down or throws', () => {
+        const admin = store();
+        admin.session = SESSION;
+        admin.gate = 'unlocked';
+        online = false;
+        admin.reset();
+        expect(admin.session).toBeNull();
+        expect(admin.gate).toBe('idle');
+
+        admin.session = SESSION;
+        admin.gate = 'unlocked';
+        admin.attachTransport(() => {
+            throw new Error('socket closed');
+        });
+        admin.reset();
+        expect(admin.session).toBeNull();
+        expect(admin.gate).toBe('idle');
     });
 });
 

@@ -165,6 +165,7 @@ test.describe('changing the setpoint and the mode', () => {
     });
 
     test('more settings: fan and swing apply on tap, humidity is shown', async ({ page, mock }) => {
+        await page.clock.install();
         await openLounge(page);
         await openSettings(page, DEVICES.cool.name);
 
@@ -172,8 +173,13 @@ test.describe('changing the setpoint and the mode', () => {
         const more = page.getByRole('dialog', { name: C.more });
         await expect(more.getByText(copy(C.humidity, '').replace('{value}', '48'))).toBeVisible();
 
+        // The two taps are one burst only if they land inside the debounce
+        // window; real time between two Playwright clicks can exceed it on a
+        // loaded runner, so the page's clock is held until both are in.
+        await page.clock.pauseAt(new Date(Date.now() + 60_000));
         await more.getByRole('radio', { name: C.option.high }).click();
         await more.getByRole('radio', { name: C.swingOption.vertical }).click();
+        await page.clock.runFor(DEBOUNCE_MS);
         // One merged command for both.
         await expect.poll(() => commands(mock, DEVICES.cool.id), { timeout: DEBOUNCE_MS * 10 }).toEqual([
             '{"fan_mode":"high","swing_mode":"vertical"}',
