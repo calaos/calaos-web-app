@@ -85,7 +85,7 @@ export interface AdminPatch {
      * or no reason at all ('silent').
      */
     containerDown?: boolean | 'daemon_too_old' | 'silent';
-    /** The `versions` action is refused `invalid_request`, as by a server that predates it. */
+    /** The `versions` action is refused `not_allowed`, as by a server that predates it. */
     versionsOldServer?: boolean;
     /** The `versions` action answers after this many ms. */
     versionsDelayMs?: number;

@@ -914,7 +914,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             // Household view: answered by calaos_server itself, container down or not.
             const server = { server: VERSIONS_FIXTURE.server };
             const answer = () => {
-                if (state.versionsOldServer) return respond(failure('invalid_request', 'Unknown action'));
+                if (state.versionsOldServer) return respond(failure('not_allowed', 'unknown action'));
                 if (state.containerDown === 'silent') return ok({ ...server, system: null });
                 if (state.containerDown) {
                     const code = state.containerDown === 'daemon_too_old' ? 'daemon_too_old' : 'daemon_unreachable';

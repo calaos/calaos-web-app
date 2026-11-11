@@ -18,7 +18,7 @@ const CLIENT = { name: 'calaos-web-app', version: __APP_VERSION__ };
 
 // Codes that mean the server cannot answer `versions`: an old one ignores the
 // unknown message, so it times out instead of refusing.
-const OLD_SERVER_CODES = ['invalid_request', 'old_server', 'timeout'];
+const OLD_SERVER_CODES = ['invalid_request', 'not_allowed', 'old_server', 'timeout'];
 
 const loading = ref(true);
 const failed = ref(false);

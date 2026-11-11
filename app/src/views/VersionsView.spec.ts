@@ -53,7 +53,7 @@ describe('VersionsView', () => {
         expect(w.find('[data-testid="versions-copy"]').attributes('disabled')).toBeDefined();
     });
 
-    it.each(['invalid_request', 'old_server', 'timeout'])('says to update calaos-server on %s, and still copies', async (code) => {
+    it.each(['invalid_request', 'not_allowed', 'old_server', 'timeout'])('says to update calaos-server on %s, and still copies', async (code) => {
         const writeText = vi.fn().mockResolvedValue(undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         const w = await mountView({ ok: false, error: { code } as never });
