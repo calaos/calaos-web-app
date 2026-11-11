@@ -557,10 +557,8 @@
     "versions": {
         "title": "Versions",
         "hint": "Les versions installées dans la maison. Copiez-les dans un rapport de bug.",
-        "client": "Cette application",
         "server": "Serveur Calaos",
         "container": "Conteneur Calaos",
-        "system": "Système",
         "os": "Calaos OS",
         "debian": "Debian",
         "kernel": "Noyau",
@@ -573,6 +571,8 @@
         "refresh": "Actualiser",
         "unreachable": "Le service d'administration de la box (calaos-container) ne répond pas : les versions du système manquent.",
         "unreachableWhy": "Raison : {error}",
+        "oldServer": "Ce serveur est trop ancien pour donner ses versions : mettez à jour calaos-server.",
+        "daemonTooOld": "Le système de la box est trop ancien pour donner ses versions : mettez à jour calaos-container.",
         "failed": "Les versions n'ont pas pu être lues sur le serveur. Réessayez une fois la connexion rétablie."
     }
 }

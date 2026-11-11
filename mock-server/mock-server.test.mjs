@@ -1744,7 +1744,11 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
 
         await control({ op: 'admin', containerDown: true });
         const down = await ask('admin', { action: 'versions' });
-        expect(down.result).toEqual({ server: '4.8.0', system: null, error: expect.any(String) });
+        expect(down.result).toEqual({ server: '4.8.0', system: null, error: 'daemon_unreachable' });
+
+        await control({ op: 'admin', containerDown: 'daemon_too_old' });
+        const old = await ask('admin', { action: 'versions' });
+        expect(old.result).toEqual({ server: '4.8.0', system: null, error: 'daemon_too_old' });
     });
 
     it('update_status is the household view without a session, the full one with it', async () => {

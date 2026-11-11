@@ -62,7 +62,7 @@ export function formatVersionsText(client: ClientVersion, versions: Versions | n
         lines.push('calaos-server unavailable');
         return lines.join('\n');
     }
-    if (versions.server !== '') lines.push(`calaos-server ${versions.server}`);
+    lines.push(versions.server === '' ? 'calaos-server unavailable' : `calaos-server ${versions.server}`);
     const system = versions.system;
     if (system === null) {
         lines.push(versions.error === '' ? 'calaos-container unreachable' : `calaos-container unreachable (${versions.error})`);

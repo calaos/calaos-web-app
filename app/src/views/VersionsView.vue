@@ -6,6 +6,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import IconLoading from '~icons/mdi/loading';
 import AppButton from '../components/ui/AppButton.vue';
+import { isRecord } from '../protocol/guards';
 import { formatVersionsText, toVersions } from '../protocol/versions';
 import type { Versions } from '../protocol/versions';
 import { useAdminStore } from '../stores/admin';
@@ -15,34 +16,76 @@ const admin = useAdminStore();
 
 const CLIENT = { name: 'calaos-web-app', version: __APP_VERSION__ };
 
+// Codes that mean the server cannot answer `versions`: an old one ignores the
+// unknown message, so it times out instead of refusing.
+const OLD_SERVER_CODES = ['invalid_request', 'old_server', 'timeout'];
+
 const loading = ref(true);
 const failed = ref(false);
+const oldServer = ref(false);
 const versions = ref<Versions | null>(null);
 const copyState = ref<'idle' | 'done' | 'failed'>('idle');
+let lastLoad = 0;
 
 const system = computed(() => versions.value?.system ?? null);
+const daemonTooOld = computed(() => system.value === null && versions.value?.error === 'daemon_too_old');
+const unreachable = computed(
+    () => versions.value !== null && system.value === null && !oldServer.value && !daemonTooOld.value,
+);
 const text = computed(() => formatVersionsText(CLIENT, versions.value, new Date()));
 
 async function load(): Promise<void> {
+    const mine = ++lastLoad;
     loading.value = true;
-    failed.value = false;
+    copyState.value = 'idle';
     const outcome = await admin.readVersions();
-    if (outcome.ok) {
-        versions.value = toVersions(outcome.data.result);
-    } else {
-        versions.value = null;
+    if (mine !== lastLoad) return;
+    failed.value = false;
+    oldServer.value = false;
+    if (!outcome.ok) {
+        if (OLD_SERVER_CODES.includes(outcome.error.code)) {
+            oldServer.value = true;
+            versions.value = { server: '', system: null, error: 'old_server' };
+        } else {
+            failed.value = true;
+            versions.value = null;
+        }
+    } else if (!isRecord(outcome.data.result)) {
         failed.value = true;
+        versions.value = null;
+    } else {
+        versions.value = toVersions(outcome.data.result);
     }
     loading.value = false;
 }
 
+// navigator.clipboard only exists in a secure context, and the app is served over HTTP on the LAN.
+function copyWithSelection(value: string): boolean {
+    const area = document.createElement('textarea');
+    area.value = value;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    try {
+        area.select();
+        return document.execCommand('copy');
+    } catch {
+        return false;
+    } finally {
+        area.remove();
+    }
+}
+
 async function copy(): Promise<void> {
+    let done: boolean;
     try {
         await navigator.clipboard.writeText(text.value);
-        copyState.value = 'done';
+        done = true;
     } catch {
-        copyState.value = 'failed';
+        done = copyWithSelection(text.value);
     }
+    copyState.value = done ? 'done' : 'failed';
 }
 
 onMounted(load);
@@ -64,6 +107,10 @@ onMounted(load);
             <template v-else>
                 <p v-if="failed" class="versions__alert" role="alert" data-testid="versions-failed">
                     {{ t('versions.failed') }}
+                </p>
+
+                <p v-if="oldServer" class="versions__alert" role="alert" data-testid="versions-old-server">
+                    {{ t('versions.oldServer') }}
                 </p>
 
                 <section class="versions__card fade-in" data-testid="versions-client">
@@ -95,14 +142,13 @@ onMounted(load);
                     </dl>
                 </section>
 
-                <p
-                    v-if="versions !== null && system === null"
-                    class="versions__alert"
-                    role="alert"
-                    data-testid="versions-unreachable"
-                >
+                <p v-if="daemonTooOld" class="versions__alert" role="alert" data-testid="versions-daemon-too-old">
+                    {{ t('versions.daemonTooOld') }}
+                </p>
+
+                <p v-if="unreachable" class="versions__alert" role="alert" data-testid="versions-unreachable">
                     {{ t('versions.unreachable') }}
-                    <span v-if="versions.error !== ''" class="versions__why">
+                    <span v-if="versions !== null && versions.error !== ''" class="versions__why">
                         {{ t('versions.unreachableWhy', { error: versions.error }) }}
                     </span>
                 </p>

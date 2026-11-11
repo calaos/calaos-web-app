@@ -557,10 +557,8 @@
     "versions": {
         "title": "Versions",
         "hint": "The versions running in this house. Copy them into a bug report.",
-        "client": "This app",
         "server": "Calaos server",
         "container": "Calaos container",
-        "system": "System",
         "os": "Calaos OS",
         "debian": "Debian",
         "kernel": "Kernel",
@@ -573,6 +571,8 @@
         "refresh": "Refresh",
         "unreachable": "The box's administration service (calaos-container) cannot be reached, so the system versions are missing.",
         "unreachableWhy": "Reason: {error}",
+        "oldServer": "This server is too old to give its versions: update calaos-server.",
+        "daemonTooOld": "The box system is too old to give its versions: update calaos-container.",
         "failed": "The versions could not be read from the server. Try again once the connection is back."
     }
 }

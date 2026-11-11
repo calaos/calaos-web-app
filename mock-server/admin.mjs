@@ -231,6 +231,8 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             failAtPercent: null,
             rebootRequired: false,
             containerDown: false,
+            versionsOldServer: false,
+            versionsDelayMs: 0,
             dropped: false,
             progress: idleProgress(),
             job: null,
@@ -911,10 +913,20 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         if (action === 'versions') {
             // Household view: answered by calaos_server itself, container down or not.
             const server = { server: VERSIONS_FIXTURE.server };
-            if (state.containerDown) {
-                return ok({ ...server, system: null, error: 'calaos-container did not answer' });
+            const answer = () => {
+                if (state.versionsOldServer) return respond(failure('invalid_request', 'Unknown action'));
+                if (state.containerDown === 'silent') return ok({ ...server, system: null });
+                if (state.containerDown) {
+                    const code = state.containerDown === 'daemon_too_old' ? 'daemon_too_old' : 'daemon_unreachable';
+                    return ok({ ...server, system: null, error: code });
+                }
+                return ok({ ...server, system: structuredClone(VERSIONS_FIXTURE.system) });
+            };
+            if (state.versionsDelayMs > 0) {
+                setTimeout(answer, state.versionsDelayMs);
+                return;
             }
-            return ok({ ...server, system: structuredClone(VERSIONS_FIXTURE.system) });
+            return answer();
         }
         if (!state.set) {
             return respond(failure('admin_not_set', 'Admin password not set', {
@@ -1116,7 +1128,11 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         if (patch.upgradeMs !== undefined) state.upgradeMs = Number(patch.upgradeMs);
         if (patch.dropAtPercent !== undefined) state.dropAtPercent = patch.dropAtPercent;
         if (patch.failAtPercent !== undefined) state.failAtPercent = patch.failAtPercent;
-        if (patch.containerDown !== undefined) state.containerDown = Boolean(patch.containerDown);
+        if (patch.containerDown !== undefined) {
+            state.containerDown = ['daemon_too_old', 'silent'].includes(patch.containerDown) ? patch.containerDown : Boolean(patch.containerDown);
+        }
+        if (patch.versionsOldServer !== undefined) state.versionsOldServer = Boolean(patch.versionsOldServer);
+        if (patch.versionsDelayMs !== undefined) state.versionsDelayMs = Math.max(0, Number(patch.versionsDelayMs) || 0);
         if (patch.rebootRequired !== undefined) state.rebootRequired = Boolean(patch.rebootRequired);
         if (patch.clearSessions) state.sessions.clear();
         if (Array.isArray(patch.pushTokens)) state.pushTokens = structuredClone(patch.pushTokens);

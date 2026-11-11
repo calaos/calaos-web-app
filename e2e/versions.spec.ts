@@ -63,7 +63,54 @@ for (const lang of ['en', 'fr'] as const) {
             await expect(page.getByTestId('versions-server')).toHaveText('4.8.0');
             await expect(page.getByTestId('versions-client-value')).not.toBeEmpty();
             await expect(page.getByTestId('versions-package')).toHaveCount(0);
+            await expect(page.getByTestId('versions-unreachable')).toContainText('daemon_unreachable');
             await shoot(page, testInfo, 'container-down');
+        });
+
+        test('asks to update calaos-container when the daemon is too old', async ({ page, mock }, testInfo) => {
+            await mock.admin({ containerDown: 'daemon_too_old' });
+            await open(page);
+            await expect(page.getByTestId('versions-daemon-too-old')).toHaveText(T.daemonTooOld);
+            await expect(page.getByTestId('versions-unreachable')).toHaveCount(0);
+            await expect(page.getByTestId('versions-copy')).toBeEnabled();
+            await shoot(page, testInfo, 'daemon-too-old');
+        });
+
+        test('asks to update calaos-server when the server predates the action', async ({ page, mock }, testInfo) => {
+            await mock.admin({ versionsOldServer: true });
+            await open(page);
+            await expect(page.getByTestId('versions-old-server')).toHaveText(T.oldServer);
+            await expect(page.getByTestId('versions-failed')).toHaveCount(0);
+            await expect(page.getByTestId('versions-copy')).toBeEnabled();
+            await shoot(page, testInfo, 'old-server');
+        });
+
+        test('shows the unreachable state without a reason when system is null and silent', async ({ page, mock }, testInfo) => {
+            await mock.admin({ containerDown: 'silent' });
+            await open(page);
+            await expect(page.getByTestId('versions-unreachable')).toHaveText(T.unreachable);
+            await shoot(page, testInfo, 'no-system');
+        });
+
+        test('shows the loading state while the server answers', async ({ page, mock }, testInfo) => {
+            await mock.admin({ versionsDelayMs: 1500 });
+            await page.goto('/');
+            await loginAs(page);
+            await page.getByTestId('versions-entry').click();
+            await expect(page.getByTestId('versions-loading')).toBeVisible();
+            await shoot(page, testInfo, 'loading');
+            await expect(page.getByTestId('versions-copy')).toBeVisible();
+        });
+
+        test('says the copy failed when the browser refuses it', async ({ page }, testInfo) => {
+            await page.addInitScript(() => {
+                Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+                document.execCommand = () => false;
+            });
+            await open(page);
+            await page.getByTestId('versions-copy').click();
+            await expect(page.getByTestId('versions-copy-state')).toHaveText(T.copyFailed);
+            await shoot(page, testInfo, 'failed');
         });
     });
 }

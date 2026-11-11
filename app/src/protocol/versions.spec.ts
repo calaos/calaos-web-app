@@ -34,13 +34,13 @@ describe('formatVersionsText', () => {
     });
 
     it('keeps the server and the client, then says the container is unreachable', () => {
-        const down = toVersions({ server: '4.8.0', system: null, error: 'no answer' });
+        const down = toVersions({ server: '4.8.0', system: null, error: 'daemon_unreachable' });
         expect(formatVersionsText(client, down, now)).toBe(
             [
                 'Calaos versions (2026-11-11)',
                 'client: calaos-web-app 4.2.0',
                 'calaos-server 4.8.0',
-                'calaos-container unreachable (no answer)',
+                'calaos-container unreachable (daemon_unreachable)',
             ].join('\n'),
         );
     });
@@ -50,6 +50,18 @@ describe('formatVersionsText', () => {
         expect(formatVersionsText(client, down, now)).toMatch(/calaos-container unreachable$/);
         const partial = toVersions({ server: 's', system: { debian: '13' } });
         expect(formatVersionsText(client, partial, now).split('\n').slice(3)).toEqual(['debian 13']);
+    });
+
+    it('writes calaos-server unavailable when the server version is empty', () => {
+        const old = { server: '', system: null, error: 'old_server' };
+        expect(formatVersionsText(client, old, now)).toBe(
+            [
+                'Calaos versions (2026-11-11)',
+                'client: calaos-web-app 4.2.0',
+                'calaos-server unavailable',
+                'calaos-container unreachable (old_server)',
+            ].join('\n'),
+        );
     });
 
     it('still gives the client when the server could not be asked', () => {
