@@ -80,6 +80,15 @@ export interface AdminPatch {
     dropAtPercent?: number | null;
     failAtPercent?: number | null;
     rebootRequired?: boolean;
+    /**
+     * The `versions` action answers system: null: `daemon_unreachable` (true), `daemon_too_old`,
+     * or no reason at all ('silent').
+     */
+    containerDown?: boolean | 'daemon_too_old' | 'silent';
+    /** The `versions` action is refused `not_allowed`, as by a server that predates it. */
+    versionsOldServer?: boolean;
+    /** The `versions` action answers after this many ms. */
+    versionsDelayMs?: number;
     clearSessions?: boolean;
     /**
      * The approver phones, oldest first: a `token_id` of the mock's push tokens

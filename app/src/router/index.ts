@@ -189,6 +189,12 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 meta: { requiresAuth: true, detail: true, parent: 'home' },
             },
             {
+                path: '/versions',
+                name: 'versions',
+                component: () => import('../views/VersionsView.vue'),
+                meta: { requiresAuth: true, detail: true, parent: 'home' },
+            },
+            {
                 path: '/admin/mcp',
                 name: 'adminMcp',
                 component: () => import('../views/McpView.vue'),

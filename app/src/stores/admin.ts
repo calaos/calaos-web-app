@@ -524,6 +524,11 @@ export const useAdminStore = defineStore('admin', () => {
         }
     }
 
+    /** `versions`: household view, no session and no gate; the caller shows the outcome. */
+    function readVersions(): Promise<Outcome> {
+        return request((id) => encodeAdminAction('versions', null, id), ADMIN_REPLY_TIMEOUT_MS);
+    }
+
     /** `update_status` as the probe: fixes the gate and refreshes the upgrade state. */
     async function probe(): Promise<void> {
         retryTimer = clearTimer(retryTimer);
@@ -981,6 +986,7 @@ export const useAdminStore = defineStore('admin', () => {
         handleLoggedIn,
         handleEvent,
         probe,
+        readVersions,
         unlock,
         setPassword,
         changePassword,

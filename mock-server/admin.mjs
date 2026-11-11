@@ -30,8 +30,26 @@ export const ADMIN_SCENARIOS = [
     'daemon_unreachable',
 ];
 
+// Shape of calaos-container's GET /api/v2/system/versions, wrapped by calaos_server.
+const VERSIONS_FIXTURE = {
+    server: '4.8.0',
+    system: {
+        calaos_os: '4.8.0',
+        debian: '13.1',
+        kernel: '6.12.48-rt',
+        container: '1.9.1',
+        packages: [
+            { name: 'calaos-server', version: '4.8.0' },
+            { name: 'calaos-home', version: '4.5.0' },
+            { name: 'calaos-web-app', version: '4.2.0' },
+            { name: 'calaos-container', version: '1.9.1' },
+        ],
+    },
+};
+
 const ACTIONS = [
     'update_status',
+    'versions',
     'update_check',
     'update_available',
     'update_upgrade_all',
@@ -212,6 +230,9 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             dropAtPercent: null,
             failAtPercent: null,
             rebootRequired: false,
+            containerDown: false,
+            versionsOldServer: false,
+            versionsDelayMs: 0,
             dropped: false,
             progress: idleProgress(),
             job: null,
@@ -889,6 +910,24 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             const refused = features.config.restoreRefusal(data.params);
             if (refused !== null) return respond(failure('invalid_request', refused));
         }
+        if (action === 'versions') {
+            // Household view: answered by calaos_server itself, container down or not.
+            const server = { server: VERSIONS_FIXTURE.server };
+            const answer = () => {
+                if (state.versionsOldServer) return respond(failure('not_allowed', 'unknown action'));
+                if (state.containerDown === 'silent') return ok({ ...server, system: null });
+                if (state.containerDown) {
+                    const code = state.containerDown === 'daemon_too_old' ? 'daemon_too_old' : 'daemon_unreachable';
+                    return ok({ ...server, system: null, error: code });
+                }
+                return ok({ ...server, system: structuredClone(VERSIONS_FIXTURE.system) });
+            };
+            if (state.versionsDelayMs > 0) {
+                setTimeout(answer, state.versionsDelayMs);
+                return;
+            }
+            return answer();
+        }
         if (!state.set) {
             return respond(failure('admin_not_set', 'Admin password not set', {
                 api_allowed_hosts: state.apiAllowedHosts,
@@ -1089,6 +1128,11 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
         if (patch.upgradeMs !== undefined) state.upgradeMs = Number(patch.upgradeMs);
         if (patch.dropAtPercent !== undefined) state.dropAtPercent = patch.dropAtPercent;
         if (patch.failAtPercent !== undefined) state.failAtPercent = patch.failAtPercent;
+        if (patch.containerDown !== undefined) {
+            state.containerDown = ['daemon_too_old', 'silent'].includes(patch.containerDown) ? patch.containerDown : Boolean(patch.containerDown);
+        }
+        if (patch.versionsOldServer !== undefined) state.versionsOldServer = Boolean(patch.versionsOldServer);
+        if (patch.versionsDelayMs !== undefined) state.versionsDelayMs = Math.max(0, Number(patch.versionsDelayMs) || 0);
         if (patch.rebootRequired !== undefined) state.rebootRequired = Boolean(patch.rebootRequired);
         if (patch.clearSessions) state.sessions.clear();
         if (Array.isArray(patch.pushTokens)) state.pushTokens = structuredClone(patch.pushTokens);

@@ -21,7 +21,7 @@
 //   {op:'admin', ...patch}      configure the fake daemon (admin.mjs
 //                               `configure`): set, password, apiAllowedHosts,
 //                               scenario, updates, upgradeMs, dropAtPercent,
-//                               failAtPercent, rebootRequired, clearSessions,
+//                               failAtPercent, rebootRequired, containerDown, clearSessions,
 //                               pushTokens, approvers (token_ids), codeTtlMs,
 //                               codeIntervalMs, expireCodes, alerts,
 //                               noiseEvents, eventSamples, eventRepeats; and one object per phase-3

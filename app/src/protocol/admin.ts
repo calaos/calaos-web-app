@@ -126,6 +126,7 @@ export interface AdminError {
 
 export const ADMIN_ACTIONS = [
     'update_status',
+    'versions',
     'update_check',
     'update_available',
     'update_upgrade_all',
