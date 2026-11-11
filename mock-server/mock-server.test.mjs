@@ -1732,6 +1732,21 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
         expect((await ask('admin', { action: 'network_list', admin_session: 'x' })).error).toBe('not_allowed');
     });
 
+    it('versions needs no session and says system: null when the container is down', async () => {
+        await control({ op: 'admin', password: 'correct horse battery' });
+        const { ask } = await adminClient();
+
+        const up = await ask('admin', { action: 'versions' });
+        expect(up.success).toBe('true');
+        expect(up.result.server).toBe('4.8.0');
+        expect(up.result.system).toMatchObject({ calaos_os: '4.8.0', container: '1.9.1' });
+        expect(up.result.system.packages[0]).toEqual({ name: 'calaos-server', version: '4.8.0' });
+
+        await control({ op: 'admin', containerDown: true });
+        const down = await ask('admin', { action: 'versions' });
+        expect(down.result).toEqual({ server: '4.8.0', system: null, error: expect.any(String) });
+    });
+
     it('update_status is the household view without a session, the full one with it', async () => {
         await control({ op: 'admin', password: 'correct horse battery', upgradeMs: 5_000, updates: ['calaos-server'] });
         const { client, ask } = await adminClient();

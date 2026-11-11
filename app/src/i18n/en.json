@@ -187,6 +187,7 @@
         "back": "Back",
         "signOut": "Sign out",
         "events": "Events",
+        "versions": "Versions",
         "sections": "Sections",
         "tabs": {
             "home": "Home",
@@ -552,5 +553,26 @@
             "loading": "Loading the picture…",
             "missing": "The picture is no longer available."
         }
+    },
+    "versions": {
+        "title": "Versions",
+        "hint": "The versions running in this house. Copy them into a bug report.",
+        "client": "This app",
+        "server": "Calaos server",
+        "container": "Calaos container",
+        "system": "System",
+        "os": "Calaos OS",
+        "debian": "Debian",
+        "kernel": "Kernel",
+        "packages": "Packages",
+        "webApp": "Web app",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyFailed": "Copy failed",
+        "loading": "Reading the versions…",
+        "refresh": "Refresh",
+        "unreachable": "The box's administration service (calaos-container) cannot be reached, so the system versions are missing.",
+        "unreachableWhy": "Reason: {error}",
+        "failed": "The versions could not be read from the server. Try again once the connection is back."
     }
 }

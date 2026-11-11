@@ -13,6 +13,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import IconArrowLeft from '~icons/mdi/arrow-left';
 import IconEvents from '~icons/mdi/bell-outline';
+import IconVersions from '~icons/mdi/information-outline';
 import IconLogout from '~icons/mdi/logout';
 import IconButton from '../ui/IconButton.vue';
 import { useAuthStore } from '../../stores/auth';
@@ -24,6 +25,7 @@ const auth = useAuthStore();
 
 const canGoBack = computed(() => route.meta.detail === true);
 const showEvents = computed(() => auth.isAuthed && route.name !== 'events');
+const showVersions = computed(() => auth.isAuthed && route.name !== 'versions');
 
 function goBack(): void {
     // Not router.back(): a deep link opened straight into /home/3 has no
@@ -59,6 +61,14 @@ function goBack(): void {
                 @click="router.push({ name: 'events' })"
             >
                 <IconEvents />
+            </IconButton>
+            <IconButton
+                v-if="showVersions"
+                :label="t('chrome.versions')"
+                data-testid="versions-entry"
+                @click="router.push({ name: 'versions' })"
+            >
+                <IconVersions />
             </IconButton>
             <IconButton :label="t('chrome.signOut')" @click="auth.signOut()">
                 <IconLogout />

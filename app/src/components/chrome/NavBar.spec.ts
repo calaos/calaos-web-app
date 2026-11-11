@@ -63,6 +63,16 @@ describe('NavBar', () => {
         await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/home'));
     });
 
+    it('opens the versions page from the bar, and hides the entry once there', async () => {
+        const wrapper = await mountNavBar('/home');
+
+        await button(wrapper, en.chrome.versions).trigger('click');
+        await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/versions'));
+
+        const onVersions = await mountNavBar('/versions');
+        expect(button(onVersions, en.chrome.versions).exists()).toBe(false);
+    });
+
     it('offers no events entry before sign-in', async () => {
         useAuthStore().state = 'idle';
         const wrapper = await mountNavBar('/login');

@@ -80,6 +80,8 @@ export interface AdminPatch {
     dropAtPercent?: number | null;
     failAtPercent?: number | null;
     rebootRequired?: boolean;
+    /** The `versions` action answers system: null, as when calaos-container is unreachable. */
+    containerDown?: boolean;
     clearSessions?: boolean;
     /**
      * The approver phones, oldest first: a `token_id` of the mock's push tokens

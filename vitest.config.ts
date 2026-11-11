@@ -6,6 +6,7 @@ export default defineConfig({
     // Icons(): component specs import components that import `~icons/mdi/*`,
     // which is a virtual module — without the plugin those imports fail to
     // resolve here even though `vite build` is fine.
+    define: { __APP_VERSION__: JSON.stringify('test') },
     plugins: [vue(), Icons({ compiler: 'vue3' })],
     test: {
         environment: 'happy-dom',

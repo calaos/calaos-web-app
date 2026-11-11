@@ -1,7 +1,28 @@
 import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import Icons from 'unplugin-icons/vite';
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { stripDevServerOrigin } from './dev-proxy-origin';
+
+const PLACEHOLDER_VERSION = '0.0.0-git';
+
+// release.yml writes the CI version into package.json before building; any
+// other build (dev, PR, local) is named by git, and by 'dev' outside a checkout.
+function appVersion(): string {
+    const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { version?: string };
+    if (pkg.version && pkg.version !== PLACEHOLDER_VERSION) return pkg.version;
+    try {
+        const described = execFileSync('git', ['describe', '--tags', '--always', '--dirty'], {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim();
+        if (described !== '') return described;
+    } catch {
+        // not a git checkout, or no git installed
+    }
+    return 'dev';
+}
 
 // Non-VITE env var, deliberately not exposed to the client bundle: the app
 // always talks to same-origin /api and Vite's dev/preview server proxies it
@@ -54,6 +75,7 @@ export default defineConfig(({ mode }) => {
         // absolute — the API really does live at the server root.
         // Regression test: e2e/app-prefix.spec.ts + e2e/calaos-server-sim.mjs.
         base: './',
+        define: { __APP_VERSION__: JSON.stringify(appVersion()) },
         root: 'app',
         envDir: process.cwd(),
         plugins: [vue(), Icons({ compiler: 'vue3' })],

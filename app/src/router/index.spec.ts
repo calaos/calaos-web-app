@@ -169,6 +169,22 @@ describe('events route', () => {
     });
 });
 
+describe('versions route', () => {
+    it('is a household page: no admin session, Back goes home', async () => {
+        signedIn();
+        loadHouse();
+
+        await router.push('/versions');
+        await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('versions'));
+        expect(router.currentRoute.value.meta).toMatchObject({ requiresAuth: true, detail: true, parent: 'home' });
+    });
+
+    it('still needs the household login', async () => {
+        await router.push('/versions');
+        expect(router.currentRoute.value.path).toBe('/login');
+    });
+});
+
 describe('auth guard', () => {
     it.each([['/home'], ['/home/0'], ['/audio'], ['/audio/1'], ['/security'], ['/security/0']])(
         'redirects %s to /login when not authenticated',

@@ -187,6 +187,7 @@
         "back": "Retour",
         "signOut": "Se déconnecter",
         "events": "Événements",
+        "versions": "Versions",
         "sections": "Sections",
         "tabs": {
             "home": "Accueil",
@@ -552,5 +553,26 @@
             "loading": "Chargement de l'image…",
             "missing": "L'image n'est plus disponible."
         }
+    },
+    "versions": {
+        "title": "Versions",
+        "hint": "Les versions installées dans la maison. Copiez-les dans un rapport de bug.",
+        "client": "Cette application",
+        "server": "Serveur Calaos",
+        "container": "Conteneur Calaos",
+        "system": "Système",
+        "os": "Calaos OS",
+        "debian": "Debian",
+        "kernel": "Noyau",
+        "packages": "Paquets",
+        "webApp": "Application web",
+        "copy": "Copier",
+        "copied": "Copié",
+        "copyFailed": "Échec de la copie",
+        "loading": "Lecture des versions…",
+        "refresh": "Actualiser",
+        "unreachable": "Le service d'administration de la box (calaos-container) ne répond pas : les versions du système manquent.",
+        "unreachableWhy": "Raison : {error}",
+        "failed": "Les versions n'ont pas pu être lues sur le serveur. Réessayez une fois la connexion rétablie."
     }
 }
