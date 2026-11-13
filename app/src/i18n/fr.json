@@ -558,7 +558,6 @@
         "title": "Versions",
         "hint": "Les versions installées dans la maison. Copiez-les dans un rapport de bug.",
         "server": "Serveur Calaos",
-        "container": "Conteneur Calaos",
         "os": "Calaos OS",
         "debian": "Debian",
         "kernel": "Noyau",

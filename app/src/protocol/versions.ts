@@ -55,20 +55,23 @@ export interface ClientVersion {
     version: string;
 }
 
-/** The plain text the Copy button puts on the clipboard, for a bug report. */
+/**
+ * The plain text the Copy button puts on the clipboard, for a bug report.
+ * Calaos components come from the package list only; the client and server
+ * lines are a fallback for when that list is missing.
+ */
 export function formatVersionsText(client: ClientVersion, versions: Versions | null, now: Date): string {
-    const lines = [`Calaos versions (${now.toISOString().slice(0, 10)})`, `client: ${client.name} ${client.version}`];
-    if (versions === null) {
-        lines.push('calaos-server unavailable');
-        return lines.join('\n');
+    const lines = [`Calaos versions (${now.toISOString().slice(0, 10)})`];
+    const system = versions?.system ?? null;
+    if (versions === null || system === null || system.packages.length === 0) {
+        lines.push(`client: ${client.name} ${client.version}`);
+        lines.push(versions === null || versions.server === '' ? 'calaos-server unavailable' : `calaos-server ${versions.server}`);
     }
-    lines.push(versions.server === '' ? 'calaos-server unavailable' : `calaos-server ${versions.server}`);
-    const system = versions.system;
-    if (system === null) {
+    if (versions !== null && system === null) {
         lines.push(versions.error === '' ? 'calaos-container unreachable' : `calaos-container unreachable (${versions.error})`);
         return lines.join('\n');
     }
-    if (system.container !== '') lines.push(`calaos-container ${system.container}`);
+    if (system === null) return lines.join('\n');
     const os = [
         system.calaosOs !== '' ? `calaos-os ${system.calaosOs}` : '',
         system.debian !== '' ? `debian ${system.debian}` : '',

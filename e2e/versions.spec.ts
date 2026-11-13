@@ -1,5 +1,5 @@
 // The Versions page, a household page opened from the top bar (no admin password):
-// client, server, container and OS versions, a Copy button, and a state for an
+// client and server (when the package list is missing), the box, a Copy button, and a state for an
 // unreachable calaos-container.
 
 import type { Page, TestInfo } from '@playwright/test';
@@ -34,12 +34,12 @@ for (const lang of ['en', 'fr'] as const) {
         test('lists the client, the server, the box and its packages', async ({ page }, testInfo) => {
             await open(page);
             await expect(page.getByRole('heading', { name: T.title })).toBeVisible();
-            await expect(page.getByTestId('versions-server')).toHaveText('4.8.0');
-            await expect(page.getByTestId('versions-container')).toHaveText('1.9.1');
+            await expect(page.getByTestId('versions-server')).toHaveCount(0);
+            await expect(page.getByTestId('versions-container')).toHaveCount(0);
+            await expect(page.getByTestId('versions-client-value')).toHaveCount(0);
             await expect(page.getByTestId('versions-os')).toHaveText('4.8.0');
             await expect(page.getByTestId('versions-kernel')).toHaveText('6.12.48-rt');
             await expect(page.getByTestId('versions-package')).toHaveCount(4);
-            await expect(page.getByTestId('versions-client-value')).not.toBeEmpty();
             await expect(page.getByTestId('versions-unreachable')).toHaveCount(0);
             await shoot(page, testInfo, 'ok');
         });
@@ -50,8 +50,9 @@ for (const lang of ['en', 'fr'] as const) {
             await page.getByTestId('versions-copy').click();
             await expect(page.getByTestId('versions-copy-state')).toHaveText(T.copied);
             const text = await page.evaluate(() => navigator.clipboard.readText());
-            expect(text).toMatch(/^Calaos versions \(\d{4}-\d{2}-\d{2}\)\nclient: calaos-web-app \S+\ncalaos-server 4\.8\.0\n/);
-            expect(text).toContain('calaos-container 1.9.1\ncalaos-os 4.8.0 · debian 13.1 · kernel 6.12.48-rt\n');
+            expect(text).toMatch(/^Calaos versions \(\d{4}-\d{2}-\d{2}\)\ncalaos-os 4\.8\.0 · debian/);
+            expect(text).not.toContain('client:');
+            expect(text).toContain('calaos-os 4.8.0 · debian 13.1 · kernel 6.12.48-rt\n');
             expect(text).toContain('calaos-home 4.5.0');
             await shoot(page, testInfo, 'copied');
         });
