@@ -558,7 +558,6 @@
         "title": "Versions",
         "hint": "The versions running in this house. Copy them into a bug report.",
         "server": "Calaos server",
-        "container": "Calaos container",
         "os": "Calaos OS",
         "debian": "Debian",
         "kernel": "Kernel",

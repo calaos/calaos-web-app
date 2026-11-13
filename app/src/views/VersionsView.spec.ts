@@ -30,19 +30,39 @@ beforeEach(() => {
 });
 
 describe('VersionsView', () => {
-    it('lists the client, server, container, OS and packages', async () => {
+    it('lists only OS, Debian and kernel on top, and the components in the packages', async () => {
         const w = await mountView({ ok: true, data: { result: { server: '4.8.0', system } } });
-        expect(w.find('[data-testid="versions-client-value"]').text()).toBe('test');
-        expect(w.find('[data-testid="versions-server"]').text()).toBe('4.8.0');
-        expect(w.find('[data-testid="versions-container"]').text()).toBe('1.9.1');
+        expect(w.find('[data-testid="versions-os"]').text()).toBe('4.8.0');
+        expect(w.find('[data-testid="versions-debian"]').text()).toBe('13.1');
+        expect(w.find('[data-testid="versions-client-value"]').exists()).toBe(false);
+        expect(w.find('[data-testid="versions-server"]').exists()).toBe(false);
+        expect(w.find('[data-testid="versions-container"]').exists()).toBe(false);
         expect(w.find('[data-testid="versions-kernel"]').text()).toBe('6.12');
         expect(w.findAll('[data-testid="versions-package"]')).toHaveLength(1);
         expect(w.find('[data-testid="versions-unreachable"]').exists()).toBe(false);
     });
 
+    it('hides the Calaos OS row when it is empty, and the card when nothing is left', async () => {
+        const w = await mountView({ ok: true, data: { result: { server: '4.8.0', system: { ...system, calaos_os: '' } } } });
+        expect(w.find('[data-testid="versions-os"]').exists()).toBe(false);
+        expect(w.find('[data-testid="versions-kernel"]').exists()).toBe(true);
+        const bare = await mountView({
+            ok: true,
+            data: { result: { server: '4.8.0', system: { packages: [{ name: 'calaos-home', version: '4.5.0' }] } } },
+        });
+        expect(bare.find('[data-testid="versions-client"]').exists()).toBe(false);
+    });
+
+    it('falls back to the server and the client when the package list is empty', async () => {
+        const w = await mountView({ ok: true, data: { result: { server: '4.8.0', system: { ...system, packages: [] } } } });
+        expect(w.find('[data-testid="versions-server"]').text()).toBe('4.8.0');
+        expect(w.find('[data-testid="versions-client-value"]').text()).toBe('test');
+    });
+
     it('shows server and client, plus a message, when the container is unreachable', async () => {
         const w = await mountView({ ok: true, data: { result: { server: '4.8.0', system: null, error: 'daemon_unreachable' } } });
         expect(w.find('[data-testid="versions-server"]').text()).toBe('4.8.0');
+        expect(w.find('[data-testid="versions-client-value"]').text()).toBe('test');
         expect(w.find('[data-testid="versions-unreachable"]').text()).toContain('daemon_unreachable');
         expect(w.find('[data-testid="versions-packages"]').exists()).toBe(false);
     });
@@ -134,8 +154,7 @@ describe('VersionsView', () => {
         await w.find('[data-testid="versions-copy"]').trigger('click');
         await flushPromises();
         const text = writeText.mock.calls[0][0] as string;
-        expect(text).toMatch(/^Calaos versions \(\d{4}-\d{2}-\d{2}\)\nclient: calaos-web-app test\ncalaos-server 4\.8\.0\n/);
-        expect(text).toContain('calaos-home 4.5.0');
+        expect(text).toMatch(/^Calaos versions \(\d{4}-\d{2}-\d{2}\)\ncalaos-os 4\.8\.0 · debian 13\.1 · kernel 6\.12\ncalaos-home 4\.5\.0$/);
         expect(w.find('[data-testid="versions-copy-state"]').text()).toBe('Copied');
         vi.unstubAllGlobals();
     });

@@ -23,9 +23,6 @@ describe('formatVersionsText', () => {
         expect(formatVersionsText(client, full, now)).toBe(
             [
                 'Calaos versions (2026-11-11)',
-                'client: calaos-web-app 4.2.0',
-                'calaos-server 4.8.0',
-                'calaos-container 1.9.1',
                 'calaos-os 4.8.0 · debian 13.1 · kernel 6.12.48',
                 'calaos-server 4.8.0',
                 'calaos-home 4.5.0',
@@ -61,6 +58,13 @@ describe('formatVersionsText', () => {
                 'calaos-server unavailable',
                 'calaos-container unreachable (old_server)',
             ].join('\n'),
+        );
+    });
+
+    it('falls back to the client and server lines when the package list is empty', () => {
+        const bare = toVersions({ server: '4.8.0', system: { debian: '13' } });
+        expect(formatVersionsText(client, bare, now)).toBe(
+            ['Calaos versions (2026-11-11)', 'client: calaos-web-app 4.2.0', 'calaos-server 4.8.0', 'debian 13'].join('\n'),
         );
     });
 

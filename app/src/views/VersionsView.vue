@@ -32,6 +32,13 @@ const daemonTooOld = computed(() => system.value === null && versions.value?.err
 const unreachable = computed(
     () => versions.value !== null && system.value === null && !oldServer.value && !daemonTooOld.value,
 );
+// Calaos components live in the package list; without it the top block stands in.
+const showComponents = computed(() => system.value === null || system.value.packages.length === 0);
+const hasTopRows = computed(
+    () =>
+        showComponents.value ||
+        (system.value !== null && (system.value.calaosOs !== '' || system.value.debian !== '' || system.value.kernel !== '')),
+);
 const text = computed(() => formatVersionsText(CLIENT, versions.value, new Date()));
 
 async function load(): Promise<void> {
@@ -113,20 +120,18 @@ onMounted(load);
                     {{ t('versions.oldServer') }}
                 </p>
 
-                <section class="versions__card fade-in" data-testid="versions-client">
+                <section v-if="hasTopRows" class="versions__card fade-in" data-testid="versions-client">
                     <dl class="versions__list">
-                        <div>
-                            <dt>{{ t('versions.webApp') }}</dt>
-                            <dd data-testid="versions-client-value">{{ CLIENT.version }}</dd>
-                        </div>
-                        <div v-if="versions !== null && versions.server !== ''">
-                            <dt>{{ t('versions.server') }}</dt>
-                            <dd data-testid="versions-server">{{ versions.server }}</dd>
-                        </div>
-                        <div v-if="system !== null && system.container !== ''">
-                            <dt>{{ t('versions.container') }}</dt>
-                            <dd data-testid="versions-container">{{ system.container }}</dd>
-                        </div>
+                        <template v-if="showComponents">
+                            <div>
+                                <dt>{{ t('versions.webApp') }}</dt>
+                                <dd data-testid="versions-client-value">{{ CLIENT.version }}</dd>
+                            </div>
+                            <div v-if="versions !== null && versions.server !== ''">
+                                <dt>{{ t('versions.server') }}</dt>
+                                <dd data-testid="versions-server">{{ versions.server }}</dd>
+                            </div>
+                        </template>
                         <div v-if="system !== null && system.calaosOs !== ''">
                             <dt>{{ t('versions.os') }}</dt>
                             <dd data-testid="versions-os">{{ system.calaosOs }}</dd>
