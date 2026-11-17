@@ -222,6 +222,7 @@ async function apply(
     build: ProgramEdit,
     failText?: string,
     onSuccess?: () => void,
+    unwritten: number[] = [],
 ): Promise<DirectionProgram | null> {
     const before = programOf(d);
     if (!before || locked.value) return null;
@@ -244,14 +245,21 @@ async function apply(
         error = await store.writeValue(io.setpointId, String(sp));
         if (error !== '') break;
     }
-    for (const n of error === '' ? diff.ranges : []) {
+    const notWritten: number[] = [];
+    // Levels the server holds in memory only are re-sent even though a re-read shows no difference.
+    for (const n of error === '' ? [...new Set([...diff.ranges, ...unwritten])] : []) {
         const io = ids.find((l) => l.n === n);
         if (!io) continue;
         const e = await store.writeRanges(io.id, levelRanges(next, n));
         if (e === '') continue;
-        error ||= e;
         // The server kept the change in memory: the other levels must still be written.
-        if (e !== 'config_not_written') break;
+        if (e === 'config_not_written') {
+            notWritten.push(n);
+            error ||= e;
+            continue;
+        }
+        error = e;
+        break;
     }
     busy.value = false;
     void flushStale();
@@ -260,7 +268,11 @@ async function apply(
         onSuccess?.();
         return next;
     }
-    banner.value = { text: failText ?? errorText(error), retry: () => void apply(d, build, failText, onSuccess) };
+    const pending = error === 'config_not_written' ? [...new Set([...unwritten, ...notWritten])] : notWritten;
+    banner.value = {
+        text: failText ?? errorText(error),
+        retry: () => void apply(d, () => next, failText, onSuccess, pending),
+    };
     await loadDirection(d);
     return null;
 }

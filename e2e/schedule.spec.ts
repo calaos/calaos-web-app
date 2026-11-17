@@ -171,6 +171,7 @@ test('the level counter grows with each new temperature and the seventh is refus
     await expect(dialog.getByRole('alert').filter({ hasText: S.tooMany.replace('{n}', '6').replace('{dir}', S.heat) })).toBeVisible();
     await expect(dialog.getByRole('heading', { name: S.form.new })).toBeVisible();
     expect((await mock.log()).length).toBe(before);
+    await dialog.getByRole('button', { name: S.form.save }).scrollIntoViewIfNeeded();
     await shot(page, testInfo, 'shot-09-seventh-refused');
 });
 

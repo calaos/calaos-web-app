@@ -559,10 +559,9 @@ describe('a write that fails half-way', () => {
         expect(writes(server, mark)).toEqual(['set_state:H2S=22.5', 'set_timerange:H2']);
         expect(banner(wrapper).text()).toContain('Not saved, try again');
         expect(form(wrapper).exists()).toBe(true);
-        // The heating program is read again, and shows what the server holds.
+        // The heating program is read again; the server holds the range in memory only.
         expect(reads(server, mark).sort()).toEqual(['H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
-        expect(segments(wrapper)).toEqual(['Level 1, 08:00 to 10:00, 22°']);
-        expect(server.ranges.get('H2')).toEqual([]);
+        expect(server.ranges.get('H2')).toEqual([wireRange(1, 12, 0, 13, 0)]);
 
         const mark2 = server.sent.length;
         await button(banner(wrapper), 'Retry').trigger('click');
@@ -637,7 +636,7 @@ describe('a write that fails half-way', () => {
         expect(writes(server, mark)).toEqual(['set_timerange:H1', 'set_timerange:H2']);
         expect(banner(wrapper).text()).toContain('Copy incomplete: not saved, try again');
         expect(server.ranges.get('H1')).toHaveLength(2);
-        expect(server.ranges.get('H2')).toHaveLength(1);
+        expect(server.ranges.get('H2')).toHaveLength(2);
         expect(panel().exists()).toBe(true);
 
         const mark2 = server.sent.length;
@@ -646,6 +645,20 @@ describe('a write that fails half-way', () => {
         expect(writes(server, mark2)).toEqual(['set_timerange:H2']);
         expect(server.ranges.get('H2')).toHaveLength(2);
         expect(banner(wrapper).exists()).toBe(false);
+    });
+
+    it('keeps the most serious error when a later level is refused after a not-written one', async () => {
+        const { wrapper, server } = await mountEditor({
+            heat: { 1: [MON_8_10], 2: [wireRange(1, 12, 0, 14, 0)] },
+            prepare: (s) => (s.refuseRanges = (id) => (id === 'H1' ? 'config_not_written' : id === 'H2' ? 'wrong input' : undefined)),
+        });
+        await selectDay(wrapper, 'Monday');
+        await wrapper.findAll('button.track__seg')[1].trigger('click');
+        const mark = server.sent.length;
+        await button(form(wrapper), 'Raise priority').trigger('click');
+        await flushPromises();
+        expect(writes(server, mark)).toContain('set_timerange:H2');
+        expect(banner(wrapper).text()).toContain('The server refused the change');
     });
 
     it('closes the form once a retried save has succeeded', async () => {

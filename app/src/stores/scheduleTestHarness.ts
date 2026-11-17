@@ -78,7 +78,7 @@ export function fakeServer(): FakeServer {
             const nth = (counts.get(id) ?? 0) + 1;
             counts.set(id, nth);
             const error = server.refuseRanges(id, nth) ?? '';
-            if (error === '') server.ranges.set(id, frame.data.ranges as WireRange[]);
+            if (error === '' || error === 'config_not_written') server.ranges.set(id, frame.data.ranges as WireRange[]);
             data = error === '' ? { success: 'true', months: frame.data.months } : { success: 'false', error };
         } else if (frame.msg === 'set_state') {
             const refused = server.refuseValue(id);

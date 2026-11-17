@@ -122,6 +122,14 @@ const lightFrom = computed(() => (props.program.direction === 'heat' ? 6 : 5));
     border: 0;
 }
 
+.track__gap span {
+    /* A flex-centred label that overflows is cut on both sides: ellipsis keeps its start. */
+    min-inline-size: 0;
+    padding-inline: 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .track__seg {
     color: #000;
     border-inline: 1px solid var(--c-surface);
