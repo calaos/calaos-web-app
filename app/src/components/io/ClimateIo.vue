@@ -18,6 +18,7 @@ import ClimateDetail from './ClimateDetail.vue';
 import ClimateDial from './ClimateDial.vue';
 import ClimateModeDialog from './ClimateModeDialog.vue';
 import ClimateMoreDialog from './ClimateMoreDialog.vue';
+import ScheduleEditor from '../schedule/ScheduleEditor.vue';
 import { PAINT } from './climate-dial';
 import IoRowFrame from './IoRowFrame.vue';
 import BaseDialog from '../ui/BaseDialog.vue';
@@ -55,10 +56,16 @@ const hasMore = computed(
         ctl.state.value?.humidity !== undefined,
 );
 
+const hasProgram = computed(() => {
+    const ios = props.io.device?.ios ?? {};
+    return ios.heat_level1 !== undefined || ios.cool_level1 !== undefined;
+});
+
 // ------------------------------------------------------- open and close ---
 
 const modeOpen = ref(false);
 const moreOpen = ref(false);
+const scheduleOpen = ref(false);
 const panel = ref<HTMLElement | null>(null);
 let opener: HTMLElement | null = null;
 
@@ -70,6 +77,7 @@ function open() {
 function close() {
     modeOpen.value = false;
     moreOpen.value = false;
+    scheduleOpen.value = false;
     closeClimate(props.io.id);
 }
 
@@ -81,6 +89,7 @@ watch(isOpen, async (now, was) => {
     } else if (was && !now) {
         modeOpen.value = false;
         moreOpen.value = false;
+        scheduleOpen.value = false;
         if (wide.value) opener?.focus();
         opener = null;
     }
@@ -176,7 +185,7 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
                     <IconClose />
                 </IconButton>
             </header>
-            <ClimateDetail :io="io" :ctl="ctl" :has-more="hasMore" @mode="modeOpen = true" @more="moreOpen = true" />
+            <ClimateDetail :io="io" :ctl="ctl" :has-more="hasMore" :has-program="hasProgram" @mode="modeOpen = true" @more="moreOpen = true" @program="scheduleOpen = true" />
         </section>
     </Teleport>
 
@@ -191,7 +200,7 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
         <IconButton class="climate-dialog__close" data-autofocus :label="t('climate.close')" @click="close">
             <IconClose />
         </IconButton>
-        <ClimateDetail compact :io="io" :ctl="ctl" :has-more="hasMore" @mode="modeOpen = true" @more="moreOpen = true" />
+        <ClimateDetail compact :io="io" :ctl="ctl" :has-more="hasMore" :has-program="hasProgram" @mode="modeOpen = true" @more="moreOpen = true" @program="scheduleOpen = true" />
     </BaseDialog>
 
     <ClimateModeDialog
@@ -203,6 +212,18 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
         @choose="choose"
         @close="modeOpen = false"
     />
+
+    <BaseDialog
+        v-if="device && hasProgram"
+        :open="scheduleOpen"
+        wide
+        :eyebrow="io.name"
+        :title="t('schedule.title')"
+        :cancel-label="t('climate.close')"
+        @cancel="scheduleOpen = false"
+    >
+        <ScheduleEditor v-if="scheduleOpen" :io="io" />
+    </BaseDialog>
 
     <ClimateMoreDialog
         v-if="device"

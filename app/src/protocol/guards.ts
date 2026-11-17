@@ -129,6 +129,17 @@ function toDeviceCapabilities(raw: unknown): DeviceCapabilities {
     if ('target_temp_range' in obj) caps.targetTempRange = wireBool(obj.target_temp_range);
     if ('reports_action' in obj) caps.reportsAction = wireBool(obj.reports_action);
     if ('remote_temp' in obj) caps.remoteTemp = wireBool(obj.remote_temp);
+    if (isRecord(obj.program)) {
+        const count = (v: unknown) => {
+            const n = toDeviceNumber(v);
+            return n !== null && Number.isInteger(n) && n > 0 ? n : 0;
+        };
+        caps.program = {
+            heatLevels: count(obj.program.heat_levels),
+            coolLevels: count(obj.program.cool_levels),
+            maxLevels: count(obj.program.max_levels) || 6,
+        };
+    }
     return caps;
 }
 

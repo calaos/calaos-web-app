@@ -123,6 +123,14 @@ export interface DeviceCapabilities {
     swingModes?: string[];
     reportsAction?: boolean;
     remoteTemp?: boolean;
+    /** Number of program level IOs per direction (docs/17_device_templates.md). */
+    program?: DeviceProgramCaps;
+}
+
+export interface DeviceProgramCaps {
+    heatLevels: number;
+    coolLevels: number;
+    maxLevels: number;
 }
 
 /** Optional: the server only sends the fields the device actually has. */
@@ -454,7 +462,19 @@ export interface UnknownMessage {
     raw: unknown;
 }
 
+/** The answer to `get_timerange` or `set_timerange`; `ranges` is checked by protocol/schedule.ts. */
+export interface TimerangeMessage {
+    kind: 'timerange';
+    op: 'get' | 'set';
+    msgId: string;
+    /** '' on success. */
+    error: string;
+    months: string;
+    ranges: unknown[];
+}
+
 export type ServerMessage =
+    | TimerangeMessage
     | LoginResultMessage
     | GetHomeMessage
     | GetStateMessage

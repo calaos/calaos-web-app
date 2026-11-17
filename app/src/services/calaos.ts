@@ -29,6 +29,7 @@ import { useCameraTokenStore } from '../stores/cameraToken';
 import { useConnectionStore } from '../stores/connection';
 import { useEventsStore } from '../stores/events';
 import { useHomeStore } from '../stores/home';
+import { useScheduleStore } from '../stores/schedule';
 import type { CalaosSocketListener, SocketStatusInfo } from '../protocol/socket';
 import type { ServerMessage } from '../protocol/types';
 
@@ -64,6 +65,7 @@ export function createCalaosService(
     const adminNetwork = useAdminNetworkStore();
     const events = useEventsStore();
     const cameraToken = useCameraTokenStore();
+    const schedule = useScheduleStore();
 
     const sendFrame = (frame: string): boolean => socket.send(frame);
     auth.attachTransport(sendFrame);
@@ -74,6 +76,7 @@ export function createCalaosService(
     events.attachTransport(sendFrame);
     events.attachCredentials(() => (auth.state === 'authed' ? { user: auth.user, pass: auth.pass } : null));
     cameraToken.attachTransport(sendFrame);
+    schedule.attachTransport(sendFrame);
     admin.attachHousehold({
         credentials: () => ({ user: auth.user, pass: auth.pass }),
         rotate: (user, pass) => auth.rotateCredentials(user, pass),
@@ -167,6 +170,11 @@ export function createCalaosService(
 
             case 'get_state':
                 audio.applyGetState(msg);
+                schedule.applyStates(msg.ios);
+                break;
+
+            case 'timerange':
+                schedule.applyReply(msg);
                 break;
 
             case 'audio_query':
@@ -174,12 +182,17 @@ export function createCalaosService(
                 break;
 
             case 'set_state':
-                home.applySetStateResult(msg);
+                if (!schedule.applyReply(msg)) home.applySetStateResult(msg);
                 break;
 
             case 'io_changed':
-            case 'unknown_event':
+                schedule.applyIoChanged(msg.id, msg.state);
                 home.handleEvent(msg);
+                break;
+
+            case 'unknown_event':
+                if (msg.typeStr === 'timerange_changed') schedule.applyTimerangeChanged(msg.data);
+                else home.handleEvent(msg);
                 break;
 
             case 'unknown':

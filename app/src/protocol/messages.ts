@@ -69,6 +69,15 @@ export function encodeCameraToken(msgId: string): string {
 // Decode any frame received from the server. Accepts the raw websocket string
 // (or an already-parsed value, for tests). NEVER throws: malformed or
 // unrecognized input returns the typed { kind: 'unknown' } fallback.
+export function encodeGetTimerange(id: string, msgId: string): string {
+    return JSON.stringify({ msg: 'get_timerange', msg_id: msgId, data: { id } });
+}
+
+/** `ranges` replaces every range of the IO; `[]` clears them all. */
+export function encodeSetTimerange(id: string, months: string, ranges: object[], msgId: string): string {
+    return JSON.stringify({ msg: 'set_timerange', msg_id: msgId, data: { id, months, ranges } });
+}
+
 export function decodeServerMessage(raw: unknown): ServerMessage {
     let obj: unknown = raw;
     if (typeof raw === 'string') {
@@ -197,6 +206,22 @@ export function decodeServerMessage(raw: unknown): ServerMessage {
                 return { kind: 'unknown', raw: obj };
             }
             return { kind: 'change_cred', success: data.success === 'true' };
+        }
+
+        case 'get_timerange':
+        case 'set_timerange': {
+            const data = isRecord(obj.data) ? obj.data : {};
+            const op = obj.msg === 'get_timerange' ? 'get' : 'set';
+            let error = toWireString(data.error);
+            if (op === 'set' && error === '' && data.success !== 'true') error = 'failed';
+            return {
+                kind: 'timerange',
+                op,
+                msgId: toWireString(obj.msg_id),
+                error,
+                months: toWireString(data.months),
+                ranges: Array.isArray(data.ranges) ? data.ranges : [],
+            };
         }
 
         case 'camera_token': {

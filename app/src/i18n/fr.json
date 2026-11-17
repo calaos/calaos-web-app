@@ -155,6 +155,93 @@
         "lowerHigh": "Baisser la température haute de {name}",
         "settings": "Réglages de {name}"
     },
+    "schedule": {
+        "edit": "Modifier le programme",
+        "title": "Programme",
+        "loading": "Chargement du programme…",
+        "tabs": "Sens du programme",
+        "heat": "Chauffage",
+        "cool": "Clim",
+        "tab": "{dir} ({n})",
+        "days": "Jour",
+        "dayShort": {
+            "1": "L",
+            "2": "M",
+            "3": "M",
+            "4": "J",
+            "5": "V",
+            "6": "S",
+            "7": "D"
+        },
+        "dayName": {
+            "1": "lundi",
+            "2": "mardi",
+            "3": "mercredi",
+            "4": "jeudi",
+            "5": "vendredi",
+            "6": "samedi",
+            "7": "dimanche"
+        },
+        "timeline": "{day}, {dir}",
+        "now": "Maintenant",
+        "segment": "Niveau {n}, {start} à {end}, {setpoint}°",
+        "gapDefault": "Défaut {setpoint}°",
+        "off": "Arrêt",
+        "week": "Semaine",
+        "weekDay": "Afficher {day}",
+        "addSlot": "Ajouter un créneau",
+        "addLevel": "+ Niveau ({n} sur {max})",
+        "levelsFull": "Tous les niveaux sont pris : reprenez une température existante.",
+        "empty": "Aucun créneau en {dir}. Défaut : {setpoint}°.",
+        "emptyOff": "Aucun créneau en {dir}. Arrêt hors créneau.",
+        "defaultSetpoint": "Consigne par défaut (°C)",
+        "coolOff": "Clim arrêtée hors créneau",
+        "form": {
+            "new": "Nouveau créneau",
+            "edit": "Modifier le créneau",
+            "start": "Début",
+            "end": "Fin",
+            "endHint": "Une fin avant le début passe minuit.",
+            "setpoint": "Consigne (°C)",
+            "days": "Jours",
+            "level": "Niveau {n}",
+            "raise": "Monter la priorité",
+            "lower": "Baisser la priorité",
+            "delete": "Supprimer",
+            "cancel": "Annuler",
+            "save": "Enregistrer"
+        },
+        "copy": {
+            "open": "Copier ce jour…",
+            "title": "Copier {day} vers",
+            "nothing": "Rien à copier : ce jour n'a pas de créneau",
+            "workdays": "Jours ouvrés",
+            "weekend": "Week-end",
+            "all": "Tous",
+            "submit": "Copier",
+            "cancel": "Annuler",
+            "confirmTitle": "Remplacer les créneaux ?",
+            "slots": "{day} ({count} créneau) | {day} ({count} créneaux)",
+            "and": "{list} et {last}",
+            "confirm": "{targets} sera remplacé par ceux de {source}. | {targets} seront remplacés par ceux de {source}.",
+            "replace": "Remplacer et copier",
+            "failed": "Copie incomplète : non enregistré, réessayer"
+        },
+        "simple": {
+            "apply": "Appliquer",
+            "applied": "Appliqué au niveau {n}."
+        },
+        "tooMany": "{n} niveaux maximum pour {dir}",
+        "error": {
+            "range": "La fin doit suivre le début",
+            "notWritten": "Non enregistré, réessayer",
+            "timeout": "Pas de réponse du serveur, réessayer",
+            "offline": "Hors ligne : le programme est en lecture seule",
+            "generic": "Le serveur a refusé la modification"
+        },
+        "retry": "Réessayer",
+        "readOnly": "Lecture seule hors ligne."
+    },
     "dialog": {
         "cancel": "Annuler",
         "color": {
