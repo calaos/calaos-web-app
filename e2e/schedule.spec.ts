@@ -24,7 +24,9 @@ function editor(page: Page): Locator {
 }
 
 async function openEditor(page: Page): Promise<Locator> {
-    await page.locator('.room-tile').nth(LOUNGE).click();
+    // A reload lands back in the room it was in.
+    const tile = page.locator('.room-tile').nth(LOUNGE);
+    if (await tile.isVisible()) await tile.click();
     await page.locator('.io-row').filter({ has: page.locator('.io-row__name', { hasText: THERMOSTAT }) }).click();
     await page.locator('.climate-detail').getByRole('button', { name: S.edit }).click();
     const dialog = editor(page);
@@ -59,10 +61,10 @@ test('a slot edited in the editor is written, then read back after a reload', as
 
     await dialog.getByRole('button', { name: segment(1, '06:30', '08:00', '19') }).click();
     await expect(dialog.getByRole('heading', { name: S.form.edit })).toBeVisible();
-    // The morning slot runs Monday to Friday: the form edits it on all five days.
-    for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']) {
-        await expect(dialog.getByRole('button', { name: day, pressed: true })).toBeVisible();
-    }
+    // The form edits the slot of the day being shown; other days are opt-in.
+    await expect(dialog.getByRole('button', { name: 'Monday', pressed: true, exact: true })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Tuesday', pressed: false, exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Tuesday', exact: true }).click();
     await shot(page, testInfo, 'shot-02-form');
 
     await dialog.getByLabel(S.form.end).fill('09:00');
@@ -74,11 +76,11 @@ test('a slot edited in the editor is written, then read back after a reload', as
             const last = sent.at(-1) ?? [];
             return last.filter((r) => r.start_hour === '6' && r.end_hour === '9').map((r) => r.day).sort();
         })
-        .toEqual(['1', '2', '3', '4', '5']);
+        .toEqual(['1', '2']);
     await expect(dialog.getByRole('button', { name: segment(1, '06:30', '09:00', '19') })).toBeVisible();
 
     await page.reload();
-    await loginAs(page);
+    await loginAs(page, undefined, /#\/home/);
     dialog = await openEditor(page);
     await expect(dialog.getByRole('button', { name: segment(1, '06:30', '09:00', '19') })).toBeVisible();
     await expect(dialog.getByRole('button', { name: segment(1, '17:30', '22:30', '19') })).toBeVisible();
