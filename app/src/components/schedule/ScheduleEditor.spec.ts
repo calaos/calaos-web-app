@@ -594,6 +594,36 @@ describe('a write that fails half-way', () => {
         expect(banner(wrapper).exists()).toBe(false);
     });
 
+    it('stops at the first refused setpoint when a priority swap changes two of them', async () => {
+        const { wrapper, server } = await mountEditor({
+            heat: { 1: [MON_8_10], 2: [wireRange(1, 12, 0, 14, 0)] },
+            prepare: (s) => (s.refuseValue = (id) => id === 'H1S'),
+        });
+        await selectDay(wrapper, 'Monday');
+        await wrapper.findAll('button.track__seg')[1].trigger('click');
+        const mark = server.sent.length;
+        await button(form(wrapper), 'Raise priority').trigger('click');
+        await flushPromises();
+        expect(writes(server, mark)).toEqual(['set_state:H1S=20']);
+        expect(banner(wrapper).text()).toContain('The server refused the change');
+    });
+
+    it('stops at the first refused level when a copy would write several', async () => {
+        const { wrapper, server } = await mountEditor({
+            heat: { 1: [MON_8_10], 2: [wireRange(1, 12, 0, 14, 0)] },
+            prepare: (s) => (s.refuseRanges = (id, nth) => (id === 'H1' && nth === 1 ? 'config_not_written' : undefined)),
+        });
+        await selectDay(wrapper, 'Monday');
+        await button(wrapper, 'Copy this day…').trigger('click');
+        const panel = () => wrapper.find('section.schedule__panel');
+        await panel().find('button[aria-label="Tuesday"]').trigger('click');
+        const mark = server.sent.length;
+        await button(panel(), 'Copy').trigger('click');
+        await flushPromises();
+        expect(writes(server, mark)).toEqual(['set_timerange:H1']);
+        expect(server.ranges.get('H2')).toHaveLength(1);
+    });
+
     it('leaves the levels written before the failure, then retries only the missing one', async () => {
         const { wrapper, server } = await mountEditor({
             heat: { 1: [MON_8_10], 2: [wireRange(1, 12, 0, 14, 0)] },
