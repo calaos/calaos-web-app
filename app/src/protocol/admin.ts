@@ -24,6 +24,8 @@ export const NETWORK_CHANGE_TIMEOUT_MS = 40_000;
 export const SERVICE_ACTION_TIMEOUT_MS = 20_000;
 /** Enable and disable also wait on the daemon's `reset-failed`; the relay waits 35 s. */
 export const SERVICE_BOOT_TIMEOUT_MS = 40_000;
+/** `grub-reboot` or `calaos_rollback` behind 10 s probes; the relay waits 35 s. */
+export const SNAPSHOT_ACTION_TIMEOUT_MS = 40_000;
 /** `admin_unavailable`: retry every 5 s for 2 min, then every 60 s. */
 export const UNAVAILABLE_FAST_RETRY_MS = 5_000;
 export const UNAVAILABLE_FAST_WINDOW_MS = 120_000;
@@ -69,6 +71,12 @@ export const ADMIN_ERROR_CODES = [
     'service_unavailable',
     'login_failed',
     'internal',
+    'invalid_snapshot',
+    'not_bootable',
+    'snapshot_too_old',
+    'in_rescue',
+    'not_in_rescue',
+    'rescue_unavailable',
 ] as const;
 
 export type AdminErrorCode = (typeof ADMIN_ERROR_CODES)[number];
@@ -162,6 +170,10 @@ export const ADMIN_ACTIONS = [
     'config_set',
     'config_backup',
     'config_restore',
+    'rescue_status',
+    'snapshots_list',
+    'snapshot_boot',
+    'snapshot_rollback',
     'admin_logout',
 ] as const;
 
@@ -271,6 +283,9 @@ export function adminReplyTimeoutMs(action: AdminAction): number {
         case 'network_confirm':
         case 'network_revert':
             return NETWORK_CHANGE_TIMEOUT_MS;
+        case 'snapshot_boot':
+        case 'snapshot_rollback':
+            return SNAPSHOT_ACTION_TIMEOUT_MS;
         default:
             return ADMIN_REPLY_TIMEOUT_MS;
     }
