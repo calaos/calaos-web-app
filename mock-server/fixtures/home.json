@@ -198,7 +198,12 @@
                                 "min_range": 1
                             },
                             "target_temp_range": true,
-                            "reports_action": true
+                            "reports_action": true,
+                            "program": {
+                                "heat_levels": 6,
+                                "cool_levels": 6,
+                                "max_levels": 6
+                            }
                         },
                         "state": {
                             "mode": "off",
@@ -213,7 +218,35 @@
                             "target_temp": "thermo_bureau_target",
                             "target_temp_low": "thermo_bureau_low",
                             "target_temp_high": "thermo_bureau_high",
-                            "action": "thermo_bureau_action"
+                            "action": "thermo_bureau_action",
+                            "heat_level1": "thermo_bureau_heat_level1",
+                            "heat_level1_setpoint": "thermo_bureau_heat_level1_setpoint",
+                            "heat_level2": "thermo_bureau_heat_level2",
+                            "heat_level2_setpoint": "thermo_bureau_heat_level2_setpoint",
+                            "heat_level3": "thermo_bureau_heat_level3",
+                            "heat_level3_setpoint": "thermo_bureau_heat_level3_setpoint",
+                            "heat_level4": "thermo_bureau_heat_level4",
+                            "heat_level4_setpoint": "thermo_bureau_heat_level4_setpoint",
+                            "heat_level5": "thermo_bureau_heat_level5",
+                            "heat_level5_setpoint": "thermo_bureau_heat_level5_setpoint",
+                            "heat_level6": "thermo_bureau_heat_level6",
+                            "heat_level6_setpoint": "thermo_bureau_heat_level6_setpoint",
+                            "heat_default": "thermo_bureau_heat_default",
+                            "cool_level1": "thermo_bureau_cool_level1",
+                            "cool_level1_setpoint": "thermo_bureau_cool_level1_setpoint",
+                            "cool_level2": "thermo_bureau_cool_level2",
+                            "cool_level2_setpoint": "thermo_bureau_cool_level2_setpoint",
+                            "cool_level3": "thermo_bureau_cool_level3",
+                            "cool_level3_setpoint": "thermo_bureau_cool_level3_setpoint",
+                            "cool_level4": "thermo_bureau_cool_level4",
+                            "cool_level4_setpoint": "thermo_bureau_cool_level4_setpoint",
+                            "cool_level5": "thermo_bureau_cool_level5",
+                            "cool_level5_setpoint": "thermo_bureau_cool_level5_setpoint",
+                            "cool_level6": "thermo_bureau_cool_level6",
+                            "cool_level6_setpoint": "thermo_bureau_cool_level6_setpoint",
+                            "cool_default": "thermo_bureau_cool_default",
+                            "cool_default_off": "thermo_bureau_cool_default_off",
+                            "program_enabled": "thermo_bureau_program_enabled"
                         }
                     }
                 },
