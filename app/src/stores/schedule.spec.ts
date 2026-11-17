@@ -219,7 +219,7 @@ describe('replies and message ids', () => {
         const store = useScheduleStore();
         const frames = mute();
         const pending = store.writeRanges('heat_level1', []);
-        const ok = { kind: 'timerange', op: 'set', msgId: frames[0].msg_id, error: '', months: '', ranges: [] } as const;
+        const ok: Parameters<typeof store.applyReply>[0] = { kind: 'timerange', op: 'set', msgId: frames[0].msg_id, error: '', months: '', ranges: [] };
         store.applyReply(ok);
         store.applyReply({ ...ok, error: 'late failure' });
 
