@@ -161,6 +161,7 @@ export function createCalaosService(
                 // Audio tab is first pressed, and re-issued after every
                 // reconnect because get_home is what a reconnect replays.
                 audio.clear();
+                schedule.clear();
                 audio.requestDetails(msg.home.audio.map((player) => player.id));
                 // Raises the 'home' navigation intent for interactive
                 // sign-ins only — and with no artificial delay (the old app

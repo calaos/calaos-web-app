@@ -122,10 +122,16 @@ export function rangesToSlots(level: number, ranges: WireRange[]): { slots: Slot
         const day = int(r.day);
         const start = wireToMinutes(r.start_hour, r.start_min, '0');
         const end = wireToMinutes(r.end_hour, r.end_min, r.end_sec);
+        const startSec = (int(r.start_hour) * 60 + int(r.start_min)) * 60 + int(r.start_sec);
+        const endSec = (int(r.end_hour) * 60 + int(r.end_min)) * 60 + int(r.end_sec);
         if (end > start) {
             slots.push({ day, start, end, level });
+        } else if (startSec <= endSec) {
+            // The server treats start <= end as a plain range inside its day (so start == end is an
+            // instant, not 24 h); the minute grid cannot show it, and rewriting it would widen it.
+            kept.push(r);
         } else {
-            // The server wraps end < start over midnight; end == start is a full day.
+            // The server wraps end < start over midnight.
             slots.push({ day, start, end: DAY_MINUTES, level });
             if (end > 0) slots.push({ day: nextDay(day), start: 0, end, level });
         }

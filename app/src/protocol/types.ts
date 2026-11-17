@@ -123,14 +123,6 @@ export interface DeviceCapabilities {
     swingModes?: string[];
     reportsAction?: boolean;
     remoteTemp?: boolean;
-    /** Number of program level IOs per direction (docs/17_device_templates.md). */
-    program?: DeviceProgramCaps;
-}
-
-export interface DeviceProgramCaps {
-    heatLevels: number;
-    coolLevels: number;
-    maxLevels: number;
 }
 
 /** Optional: the server only sends the fields the device actually has. */

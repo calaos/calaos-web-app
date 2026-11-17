@@ -4,7 +4,7 @@
     sequence. 'simple' is the one-entry form the scenarios reuse.
 -->
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ScheduleTrack from './ScheduleTrack.vue';
 import { useConnectionStore } from '../../stores/connection';
@@ -169,27 +169,45 @@ async function load(): Promise<void> {
     const error = errors.find((e) => e !== '') ?? '';
     loadFailed.value = error !== '';
     if (loadFailed.value) banner.value = { text: errorText(error), retry: () => void load() };
+    else void flushStale();
+}
+
+/** Levels whose timerange_changed could not be applied yet (loading, writing, failed read). */
+const stale = new Set<string>();
+
+async function rereadLevel(id: string): Promise<void> {
+    for (const d of directions.value) {
+        const io = levelsOf.value[d].find((l) => l.id === id);
+        if (!io) continue;
+        if (!read[d] || busy.value) {
+            stale.add(id);
+            continue;
+        }
+        const r = await store.readRanges(id);
+        const current = read[d];
+        if (r.error !== '' || !current) {
+            stale.add(id);
+            continue;
+        }
+        const one = programFromWire(d, [{ n: io.n, ranges: r.ranges, setpoint: undefined }]);
+        read[d] = {
+            ...current,
+            levels: current.levels.map((l) => (l.n === io.n ? { ...l, kept: one.levels[0].kept } : l)),
+            slots: sortSlots([...current.slots.filter((s) => s.level !== io.n), ...one.slots]),
+        };
+    }
+}
+
+async function flushStale(): Promise<void> {
+    const ids = [...stale];
+    stale.clear();
+    for (const id of ids) await rereadLevel(id);
 }
 
 /** timerange_changed carries only the id: re-read that level. */
 watch(
     () => store.changes,
-    async () => {
-        const id = store.changedId;
-        for (const d of directions.value) {
-            const io = levelsOf.value[d].find((l) => l.id === id);
-            if (!io || !read[d]) continue;
-            const r = await store.readRanges(id);
-            const current = read[d];
-            if (r.error !== '' || !current) return;
-            const one = programFromWire(d, [{ n: io.n, ranges: r.ranges, setpoint: undefined }]);
-            read[d] = {
-                ...current,
-                levels: current.levels.map((l) => (l.n === io.n ? { ...l, kept: one.levels[0].kept } : l)),
-                slots: sortSlots([...current.slots.filter((s) => s.level !== io.n), ...one.slots]),
-            };
-        }
-    },
+    () => void rereadLevel(store.changedId),
 );
 
 // -------------------------------------------------------------- write ---
@@ -229,10 +247,14 @@ async function apply(
     for (const n of error === '' ? diff.ranges : []) {
         const io = ids.find((l) => l.n === n);
         if (!io) continue;
-        error = await store.writeRanges(io.id, levelRanges(next, n));
-        if (error !== '') break;
+        const e = await store.writeRanges(io.id, levelRanges(next, n));
+        if (e === '') continue;
+        error ||= e;
+        // The server kept the change in memory: the other levels must still be written.
+        if (e !== 'config_not_written') break;
     }
     busy.value = false;
+    void flushStale();
     if (error === '') {
         read[d] = next;
         onSuccess?.();
@@ -374,6 +396,14 @@ const copyOpen = ref(false);
 const copyTargets = ref<number[]>([]);
 const confirming = ref(false);
 const confirmBox = ref<HTMLElement | null>(null);
+const bannerBox = ref<HTMLElement | null>(null);
+const noticeBox = ref<HTMLElement | null>(null);
+
+// The editor sits in a scrolling dialog: an error raised from the bottom of it must not stay off screen.
+watch([banner, notice], async () => {
+    await nextTick();
+    (banner.value ? bannerBox.value : noticeBox.value)?.scrollIntoView?.({ block: 'nearest' });
+});
 
 function openCopy(): void {
     form.value = null;
@@ -460,7 +490,7 @@ const AXIS = [0, 6, 12, 18, 24];
         </div>
 
         <template v-else>
-            <div v-if="banner" class="schedule__banner" role="alert">
+            <div v-if="banner" ref="bannerBox" class="schedule__banner" role="alert">
                 <span>{{ banner.text }}</span>
                 <button v-if="banner.retry" type="button" class="schedule__button" :disabled="busy" @click="banner.retry()">
                     {{ t('schedule.retry') }}
@@ -524,7 +554,7 @@ const AXIS = [0, 6, 12, 18, 24];
                 <p class="schedule__muted" data-testid="level-count">{{ t('schedule.levelCount', { n: used.length, max: levelCount }) }}</p>
             </template>
 
-            <p v-if="notice" class="schedule__notice" role="alert">{{ notice }}</p>
+            <p v-if="notice && !form" ref="noticeBox" class="schedule__notice" role="alert">{{ notice }}</p>
             <p v-if="done" class="schedule__muted" role="status">{{ done }}</p>
 
             <section v-if="copyOpen && mode === 'multi'" class="schedule__panel" :aria-label="t('schedule.copy.title', { day: dayName(day) })">
@@ -626,6 +656,7 @@ const AXIS = [0, 6, 12, 18, 24];
                         </button>
                     </div>
                 </fieldset>
+                <p v-if="notice" ref="noticeBox" class="schedule__notice" role="alert">{{ notice }}</p>
                 <div v-if="mode === 'multi'" class="schedule__actions schedule__actions--end">
                     <button
                         v-if="form.replacing.length"
@@ -790,7 +821,14 @@ const AXIS = [0, 6, 12, 18, 24];
     cursor: pointer;
 }
 
+.schedule__days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--space-1);
+}
+
 .schedule__day {
+    min-inline-size: 0;
     padding: 0;
 }
 
@@ -820,7 +858,7 @@ const AXIS = [0, 6, 12, 18, 24];
 button:disabled,
 input:disabled {
     cursor: not-allowed;
-    opacity: 0.5;
+    opacity: 0.65;
 }
 
 .schedule__axis {

@@ -24,6 +24,8 @@ const { t, locale } = useI18n();
 
 /** Under this share of the day a segment only shows its level number. */
 const NARROW_PERCENT = 9;
+/** Under this share not even the number fits. */
+const TINY_PERCENT = 5;
 
 const pieces = computed(() =>
     effectiveDay(props.program, props.day).map((p) => {
@@ -35,6 +37,7 @@ const pieces = computed(() =>
             left: (p.start / DAY_MINUTES) * 100,
             width,
             narrow: width < NARROW_PERCENT,
+            tiny: width < TINY_PERCENT,
             text: p.level === null ? props.gapLabel : `N${p.level} ${degrees}°`,
             aria:
                 p.level === null
@@ -54,6 +57,8 @@ function formatDegrees(value: number): string {
 }
 
 const kind = computed(() => (props.program.direction === 'heat' ? 'h' : 'c'));
+/** First level whose fill takes white text: black stays above 4.5:1 up to there, white from there on. */
+const lightFrom = computed(() => (props.program.direction === 'heat' ? 6 : 5));
 </script>
 
 <template>
@@ -63,21 +68,21 @@ const kind = computed(() => (props.program.direction === 'heat' ? 'h' : 'c'));
                 v-if="p.level !== null && interactive"
                 type="button"
                 class="track__seg"
-                :class="{ 'track__seg--light': p.level >= 4 }"
+                :class="{ 'track__seg--light': p.level >= lightFrom }"
                 :style="{ left: `${p.left}%`, width: `${p.width}%`, background: `var(--lv-${kind}${p.level})` }"
                 :aria-label="p.aria"
                 @click="emit('open', p.level, p.start)"
             >
-                <span aria-hidden="true">{{ p.narrow ? `N${p.level}` : p.text }}</span>
+                <span aria-hidden="true">{{ p.tiny ? '' : p.narrow ? `N${p.level}` : p.text }}</span>
             </button>
             <div
                 v-else-if="p.level !== null"
                 class="track__seg"
-                :class="{ 'track__seg--light': p.level >= 4 }"
+                :class="{ 'track__seg--light': p.level >= lightFrom }"
                 :style="{ left: `${p.left}%`, width: `${p.width}%`, background: `var(--lv-${kind}${p.level})` }"
                 aria-hidden="true"
             >
-                <span>{{ p.narrow ? `N${p.level}` : p.text }}</span>
+                <span>{{ p.tiny ? '' : p.narrow ? `N${p.level}` : p.text }}</span>
             </div>
             <div v-else class="track__gap" :style="{ left: `${p.left}%`, width: `${p.width}%` }" aria-hidden="true">
                 <span v-if="interactive && !p.narrow">{{ p.text }}</span>
@@ -91,8 +96,9 @@ const kind = computed(() => (props.program.direction === 'heat' ? 'h' : 'c'));
 .track {
     position: relative;
     block-size: 2.75rem;
-    background: var(--c-track);
-    border: 1px solid var(--c-border);
+    /* The gap label is muted text: --c-track (slider rails) would leave it at 1.9:1. */
+    background: var(--c-surface-raised);
+    border: 1px solid var(--c-border-strong);
     border-radius: var(--radius-sm);
     overflow: hidden;
 }
@@ -117,7 +123,7 @@ const kind = computed(() => (props.program.direction === 'heat' ? 'h' : 'c'));
 }
 
 .track__seg {
-    color: #111;
+    color: #000;
     border-inline: 1px solid var(--c-surface);
 }
 

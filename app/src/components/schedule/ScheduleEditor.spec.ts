@@ -607,7 +607,7 @@ describe('a write that fails half-way', () => {
         expect(banner(wrapper).text()).toContain('The server refused the change');
     });
 
-    it('stops at the first refused level when a copy would write several', async () => {
+    it('still writes the other levels when the server kept one change in memory only', async () => {
         const { wrapper, server } = await mountEditor({
             heat: { 1: [MON_8_10], 2: [wireRange(1, 12, 0, 14, 0)] },
             prepare: (s) => (s.refuseRanges = (id, nth) => (id === 'H1' && nth === 1 ? 'config_not_written' : undefined)),
@@ -619,8 +619,7 @@ describe('a write that fails half-way', () => {
         const mark = server.sent.length;
         await button(panel(), 'Copy').trigger('click');
         await flushPromises();
-        expect(writes(server, mark)).toEqual(['set_timerange:H1']);
-        expect(server.ranges.get('H2')).toHaveLength(1);
+        expect(writes(server, mark)).toEqual(['set_timerange:H1', 'set_timerange:H2']);
     });
 
     it('leaves the levels written before the failure, then retries only the missing one', async () => {

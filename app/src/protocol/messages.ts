@@ -66,9 +66,6 @@ export function encodeCameraToken(msgId: string): string {
     return JSON.stringify({ msg: 'camera_token', msg_id: msgId });
 }
 
-// Decode any frame received from the server. Accepts the raw websocket string
-// (or an already-parsed value, for tests). NEVER throws: malformed or
-// unrecognized input returns the typed { kind: 'unknown' } fallback.
 export function encodeGetTimerange(id: string, msgId: string): string {
     return JSON.stringify({ msg: 'get_timerange', msg_id: msgId, data: { id } });
 }
@@ -78,6 +75,9 @@ export function encodeSetTimerange(id: string, months: string | undefined, range
     return JSON.stringify({ msg: 'set_timerange', msg_id: msgId, data: { id, months, ranges } });
 }
 
+// Decode any frame received from the server. Accepts the raw websocket string
+// (or an already-parsed value, for tests). NEVER throws: malformed or
+// unrecognized input returns the typed { kind: 'unknown' } fallback.
 export function decodeServerMessage(raw: unknown): ServerMessage {
     let obj: unknown = raw;
     if (typeof raw === 'string') {

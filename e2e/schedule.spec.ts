@@ -43,6 +43,10 @@ async function writes(mock: MockControl, id: string): Promise<Record<string, str
 
 async function shot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
     await page.evaluate(() => document.fonts.ready);
+    // The dialog fades in: a capture taken mid-fade shows the list through it.
+    await page.evaluate(() => Promise.all(document.getAnimations()
+                .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+                .map((a) => a.finished.catch(() => undefined))));
     await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
 }
 
@@ -156,6 +160,7 @@ test('the level counter grows with each new temperature and the seventh is refus
     await add(3, '24');
     await expect(dialog.getByText(count(6), { exact: true })).toBeVisible();
     await expect(addSlot).toBeEnabled();
+    await shot(page, testInfo, 'shot-10-counter-full');
 
     const before = (await mock.log()).length;
     await addSlot.click();
@@ -167,4 +172,23 @@ test('the level counter grows with each new temperature and the seventh is refus
     await expect(dialog.getByRole('heading', { name: S.form.new })).toBeVisible();
     expect((await mock.log()).length).toBe(before);
     await shot(page, testInfo, 'shot-09-seventh-refused');
+});
+
+test('copying an empty day says there is nothing to copy; a copy that fails is reported as incomplete', async ({ page, mock }, testInfo) => {
+    const dialog = await openEditor(page);
+    await dialog.getByRole('tab', { name: /^Cooling/ }).click();
+    await dialog.getByRole('button', { name: S.copy.open }).click();
+    await expect(dialog.getByText(S.copy.nothing)).toBeVisible();
+    await shot(page, testInfo, 'shot-11-nothing-to-copy');
+
+    await dialog.getByRole('tab', { name: /^Heating/ }).click();
+    await dialog.getByRole('tab', { name: 'Saturday' }).click();
+    await dialog.getByRole('button', { name: S.copy.open }).click();
+    await mock.send({ op: 'timerange_fail' });
+    const panel = dialog.getByRole('region', { name: 'Copy Saturday to' });
+    await panel.getByRole('button', { name: 'Sunday' }).click();
+    await panel.getByRole('button', { name: S.copy.submit }).click();
+    await dialog.getByRole('alertdialog', { name: S.copy.confirmTitle }).getByRole('button', { name: S.copy.replace }).click();
+    await expect(dialog.getByText(S.copy.failed)).toBeVisible();
+    await shot(page, testInfo, 'shot-12-copy-incomplete');
 });

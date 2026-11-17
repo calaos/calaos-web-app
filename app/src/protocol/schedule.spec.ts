@@ -77,6 +77,19 @@ describe('wire ranges → slots', () => {
         expect(rangesToSlots(1, [range]).slots).toEqual(slots);
     });
 
+    it.each([
+        ['00:00-00:00', wire(2, 0, 0, 0, 0)],
+        ['08:00-08:00', wire(2, 8, 0, 8, 0)],
+        ['08:00:00-08:00:30', wire(2, 8, 0, 8, 0, 30)],
+    ])('a %s range is a single-instant range for the server: kept, never a full day', (_label, range) => {
+        const { slots, kept } = rangesToSlots(1, [range]);
+        expect(slots).toEqual([]);
+        expect(kept).toEqual([range]);
+        const p = programFromWire('heat', [{ n: 1, ranges: [wire(1, 6, 0, 8, 0), range], setpoint: 20 }]);
+        expect(levelRanges(p, 1)).toEqual([wire(1, 6, 0, 8, 0), range]);
+        expect(reread(p).levels[0].kept).toEqual([range]);
+    });
+
     it('keeps sunrise/sunset ranges untouched and writes them back', () => {
         const solar = { ...wire(2, 0, 0, 0, 30), start_type: '1', start_offset: '-1' };
         const p = programFromWire('heat', [{ n: 1, ranges: [wire(1, 6, 0, 8, 0), solar], setpoint: 20 }]);
