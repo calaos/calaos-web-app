@@ -551,7 +551,8 @@ describe('snapshots', () => {
         const { ask } = await session();
         const reply = await ask('snapshots_list');
         const rows = reply.result.snapshots;
-        expect(reply.result.booted).toEqual({ id: 1 });
+        expect(reply.result.booted).toMatchObject({ id: 1, current: true, default: true, bootable: true, type: 'single' });
+        expect(rows.find((s) => s.id === 145)).toMatchObject({ pre_id: 144, cleanup: 'number' });
         expect(rows.map((s) => s.id)).toEqual([145, 144, 143, 142, 139, 1]);
         expect(rows.find((s) => s.id === 143)).toMatchObject({ date: '', description: '' });
         expect(rows.find((s) => s.id === 139).bootable).toBe(false);
@@ -575,7 +576,10 @@ describe('snapshots', () => {
         const list = (await ask2('snapshots_list')).result;
         expect(list.snapshots.every((s) => s.bootable === false)).toBe(true);
         expect(list.snapshots.find((s) => s.current).id).toBe(144);
-        expect(await ask2('snapshot_boot', { id: 145 })).toMatchObject({ error: 'in_rescue' });
+        expect(await ask2('snapshot_boot', { id: 145 })).toMatchObject({ error: 'not_bootable' });
+        expect(list.booted).toMatchObject({ id: 144, current: true });
+        expect(await ask2('update_upgrade_all')).toMatchObject({ error: 'in_rescue' });
+        expect(await ask2('update_upgrade', { package: 'calaos-server' })).toMatchObject({ error: 'in_rescue' });
     });
 
     it('rolls back only from rescue, and leaves it by a reboot as well', async () => {

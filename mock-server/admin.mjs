@@ -1022,6 +1022,9 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 }
                 return ok(structuredClone(state.updates));
             case 'update_upgrade_all':
+                if (features.snapshots.inRescue()) {
+                    return respond(failure('in_rescue', 'the box is running a snapshot'));
+                }
                 if (running()) {
                     return respond(failure('upgrade_in_progress', 'upgrade already in progress', {
                         job_id: state.job.id,
@@ -1032,6 +1035,9 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 const pkg = data.params?.package;
                 if (typeof pkg !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9.+-]*$/.test(pkg) || pkg.includes('..') || pkg.length > 128) {
                     return respond(failure('invalid_request', 'invalid package name'));
+                }
+                if (features.snapshots.inRescue()) {
+                    return respond(failure('in_rescue', 'the box is running a snapshot'));
                 }
                 if (running()) {
                     return respond(failure('upgrade_in_progress', 'upgrade already in progress', {

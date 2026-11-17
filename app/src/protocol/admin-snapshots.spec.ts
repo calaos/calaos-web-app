@@ -16,10 +16,11 @@ describe('toSnapshotList', () => {
         expect(list.aptSnapshots).toBe(true);
         expect(list.snapshots.map((s) => s.id)).toEqual([145, 1]);
         expect(list.snapshots[0]).toEqual({
-            id: 145, date: '2026-11-17T10:00:00+01:00', type: 'post', description: 'apt',
+            id: 145, date: '2026-11-17T10:00:00+01:00', type: 'post', preId: 144, description: 'apt', cleanup: 'number',
             current: false, default: false, bootable: true,
         });
         expect(list.snapshots[1].date).toBe('');
+        expect(list.snapshots[1]).toMatchObject({ preId: 0, cleanup: '' });
     });
 
     it('drops rows without a usable id and blanks an unknown type', () => {

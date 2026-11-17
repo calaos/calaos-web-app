@@ -39,6 +39,15 @@ describe('admin encoders', () => {
         );
     });
 
+    it('encodes snapshot_rollback with an empty body and snapshot_boot with a JSON id', () => {
+        expect(encodeAdminAction('snapshot_rollback', 'abc', '6')).toBe(
+            '{"msg":"admin","msg_id":"6","data":{"action":"snapshot_rollback","admin_session":"abc"}}',
+        );
+        expect(encodeAdminAction('snapshot_boot', 'abc', '7', { id: 144 })).toBe(
+            '{"msg":"admin","msg_id":"7","data":{"action":"snapshot_boot","admin_session":"abc","params":{"id":144}}}',
+        );
+    });
+
     it('encodes the household change_cred frame', () => {
         expect(encodeChangeCredentials('user', 'pass', 'raoul', 's3cret')).toBe(
             '{"msg":"settings","data":{"action":"change_cred","old_user":"user","old_pw":"pass","new_user":"raoul","new_pw":"s3cret"}}',

@@ -12,21 +12,23 @@ function fixture(now) {
     const day = 86_400_000;
     const date = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, '+00:00');
     return [
-        { id: 145, date: date(now - 2 * 3_600_000), type: 'post', description: 'apt upgrade', current: false, default: false, bootable: true },
-        { id: 144, date: date(now - 2 * 3_600_000 - 60_000), type: 'pre', description: 'apt upgrade', current: false, default: false, bootable: true },
-        { id: 143, date: '', type: 'single', description: '', current: false, default: false, bootable: true },
+        { id: 145, date: date(now - 2 * 3_600_000), type: 'post', pre_id: 144, description: 'apt upgrade', cleanup: 'number', current: false, default: false, bootable: true },
+        { id: 144, date: date(now - 2 * 3_600_000 - 60_000), type: 'pre', pre_id: 0, description: 'apt upgrade', cleanup: 'number', current: false, default: false, bootable: true },
+        { id: 143, date: '', type: 'single', pre_id: 0, description: '', cleanup: '', current: false, default: false, bootable: true },
         {
             id: 142,
             date: date(now - 6 * day),
             type: 'single',
+            pre_id: 0,
+            cleanup: '',
             description:
                 'Manual snapshot before the migration of the zigbee2mqtt network and the replacement of the main coordinator stick',
             current: false,
             default: false,
             bootable: true,
         },
-        { id: 139, date: date(now - 20 * day), type: 'post', description: 'apt upgrade', current: false, default: false, bootable: false },
-        { id: 1, date: date(now - 90 * day), type: 'single', description: 'first boot', current: true, default: true, bootable: true },
+        { id: 139, date: date(now - 20 * day), type: 'post', pre_id: 138, description: 'apt upgrade', cleanup: 'number', current: false, default: false, bootable: false },
+        { id: 1, date: date(now - 90 * day), type: 'single', pre_id: 0, description: 'first boot', cleanup: '', current: true, default: true, bootable: true },
     ];
 }
 
@@ -68,13 +70,21 @@ export function createSnapshots({ hub, failure, running }) {
 
     function view() {
         if (state.empty) return { booted: null, snapshots: [], apt_snapshots: true };
-        if (state.rescue === false) return { booted: { id: 1 }, snapshots: state.rows.map((row) => ({ ...row })), apt_snapshots: true };
+        if (state.rescue === false) {
+            const rows = state.rows.map((row) => ({ ...row }));
+            return { booted: { ...rows.find((row) => row.current) }, snapshots: rows, apt_snapshots: true };
+        }
         const snapshots = state.rows.map((row) => ({
             ...row,
             bootable: false,
             current: row.id === state.rescue,
         }));
-        return { booted: { id: state.rescue }, snapshots, apt_snapshots: true };
+        return { booted: { ...snapshots.find((row) => row.current) }, snapshots, apt_snapshots: true };
+    }
+
+    /** Upgrades are refused while the box runs a snapshot (`in_rescue`, 409). */
+    function inRescue() {
+        return state.rescue !== false;
     }
 
     function rescueStatus() {
@@ -121,7 +131,7 @@ export function createSnapshots({ hub, failure, running }) {
         if (running()) return failure('upgrade_in_progress', 'upgrade already in progress');
         const found = target(params);
         if (found.error !== undefined) return found.error;
-        if (state.rescue !== false) return failure('in_rescue', 'already booted on a snapshot');
+        if (state.rescue !== false) return failure('not_bootable', 'already booted on a snapshot');
         if (!found.row.bootable) return failure('not_bootable', 'snapshot has no boot entry');
         if (state.tooOld.has(found.id)) return failure('snapshot_too_old', 'snapshot predates the rescue support');
         state.calls.push({ action: 'snapshot_boot', id: found.id });
@@ -202,5 +212,5 @@ export function createSnapshots({ hub, failure, running }) {
         };
     }
 
-    return { reset, handle, delay, rebooted, configure, status };
+    return { reset, handle, delay, rebooted, inRescue, configure, status };
 }

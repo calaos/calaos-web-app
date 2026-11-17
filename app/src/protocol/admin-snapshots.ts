@@ -18,7 +18,11 @@ export interface Snapshot {
     date: string;
     /** '' for a type outside the contract. */
     type: SnapshotType | '';
+    /** The "pre" snapshot a "post" one pairs with; 0 when none. */
+    preId: number;
     description: string;
+    /** snapper's cleanup algorithm ("number", "timeline", ""). */
+    cleanup: string;
     current: boolean;
     default: boolean;
     bootable: boolean;
@@ -53,7 +57,9 @@ function toSnapshot(raw: unknown): Snapshot | null {
         id: raw.id,
         date: toWireString(raw.date),
         type: toSnapshotType(raw.type),
+        preId: isSnapshotId(raw.pre_id) ? raw.pre_id : 0,
         description: toWireString(raw.description),
+        cleanup: toWireString(raw.cleanup),
         current: toBool(raw.current),
         default: toBool(raw.default),
         bootable: toBool(raw.bootable),
