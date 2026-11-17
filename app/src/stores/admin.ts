@@ -759,7 +759,7 @@ export const useAdminStore = defineStore('admin', () => {
      * expired session must not turn it into `bad_session`, and no error here
      * says anything about the admin gate.
      */
-    function relayHousehold(action: AdminAction): Promise<Outcome> {
+    function relayHousehold(action: 'rescue_status'): Promise<Outcome> {
         return request((id) => encodeAdminAction(action, null, id), adminReplyTimeoutMs(action));
     }
 
@@ -808,9 +808,12 @@ export const useAdminStore = defineStore('admin', () => {
         schedulePoll();
     }
 
-    async function reboot(): Promise<void> {
+    /** true once the box accepted the reboot. */
+    async function reboot(): Promise<boolean> {
         const data = await run('system_reboot');
-        if (data !== null) info.value = 'reboot_sent';
+        if (data === null) return false;
+        info.value = 'reboot_sent';
+        return true;
     }
 
     /** true once the box has a new token; `get_mcp_info` is how it is read. */

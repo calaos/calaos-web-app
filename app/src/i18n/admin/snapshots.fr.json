@@ -8,7 +8,7 @@
     "type": { "single": "Isolé", "pre": "Avant", "post": "Après" },
     "noDate": "Date inconnue",
     "noDescription": "Sans description",
-    "boot": "Redémarrer dessus…",
+    "boot": "Redémarrer dessus",
     "bootLabel": "Redémarrer sur le snapshot #{id}",
     "bootDialog": {
         "title": "Redémarrer sur le snapshot #{id} ?",

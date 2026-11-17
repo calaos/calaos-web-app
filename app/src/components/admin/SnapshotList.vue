@@ -172,6 +172,8 @@ function canBoot(snapshot: Snapshot): boolean {
 .snaps__badges {
     display: inline-flex;
     flex-wrap: wrap;
+    min-inline-size: 0;
+    max-inline-size: 100%;
     gap: var(--space-1);
 }
 
@@ -180,6 +182,7 @@ function canBoot(snapshot: Snapshot): boolean {
     border: 1px solid var(--c-border-strong);
     border-radius: 999px;
     font-size: 0.75rem;
+    white-space: nowrap;
     color: var(--c-text-muted);
 }
 
@@ -195,6 +198,19 @@ function canBoot(snapshot: Snapshot): boolean {
 .snaps__badge--no {
     border-color: var(--c-warn-border);
     color: var(--c-warn);
+}
+
+/* The current row is teal: the muted badge text and borders are unreadable on it,
+   so its badges sit on the page black with full-strength text. */
+.snaps__row--current .snaps__badge {
+    background-color: var(--c-bg);
+    border-color: var(--c-text);
+    color: var(--c-text);
+}
+
+.snaps__row--current .snaps__badge--current {
+    border-color: var(--c-accent);
+    color: var(--c-accent);
 }
 
 @container (min-width: 640px) {

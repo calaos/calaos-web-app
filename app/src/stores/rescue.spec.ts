@@ -86,6 +86,29 @@ describe('rescue store', () => {
         expect(harness.sent).toHaveLength(0);
     });
 
+    it.each(['daemon_too_old', 'not_allowed', 'invalid_request'])('stops retrying on the permanent code %s', async (code) => {
+        const rescue = useRescueStore();
+        goOnline();
+        await flush();
+        fail(code);
+        await flush();
+        expect(rescue.failed).toBe(true);
+        harness.sent = [];
+        vi.advanceTimersByTime(RETRY_SLOW_MS * 3);
+        expect(harness.sent).toHaveLength(0);
+    });
+
+    it.each(['daemon_unreachable', 'rescue_unavailable'])('keeps retrying on %s', async (code) => {
+        useRescueStore();
+        goOnline();
+        await flush();
+        fail(code);
+        await flush();
+        harness.sent = [];
+        vi.advanceTimersByTime(RETRY_FAST_MS);
+        expect(harness.sent).toHaveLength(1);
+    });
+
     it('forgets the status when the login is lost', async () => {
         const rescue = useRescueStore();
         goOnline();

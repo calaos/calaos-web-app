@@ -151,6 +151,48 @@ describe('adminSnapshots store', () => {
         expect(snaps.action).toBe('return');
     });
 
+    it('shows a refused reboot in the panel and does not wait for one', async () => {
+        void snaps.returnNormal();
+        fail('not_allowed');
+        await flush();
+        expect(snaps.phase).toBe('idle');
+        expect(snaps.actionError?.code).toBe('not_allowed');
+    });
+
+    it('does not follow a stale reboot_sent when the reboot was not sent', async () => {
+        const admin = useAdminStore();
+        void admin.reboot();
+        ok(null);
+        await flush();
+        expect(admin.info).toBe('reboot_sent');
+        // A request is in flight: run() returns early and leaves `info` alone.
+        void admin.checkUpdates();
+        void snaps.returnNormal();
+        await flush();
+        expect(snaps.phase).toBe('idle');
+        expect(harness.sent.filter((f) => f.data.action === 'system_reboot')).toHaveLength(1);
+    });
+
+    it.each(['snapshot_too_old', 'rescue_unavailable', 'not_bootable'])(
+        'maps %s on an action to the panel and reads the list again',
+        async (code) => {
+            void snaps.boot(1);
+            fail(code);
+            await flush();
+            expect(snaps.phase).toBe('idle');
+            expect(snaps.actionError?.code).toBe(code);
+            expect(useAdminStore().gate).toBe('unlocked');
+            expect(last().data.action).toBe('snapshots_list');
+        },
+    );
+
+    it('flips the gate to unreachable on daemon_unreachable without an outcome', async () => {
+        void snaps.load();
+        fail('daemon_unreachable');
+        await flush();
+        expect(useAdminStore().gate).toBe('unreachable');
+    });
+
     it('resets when the admin session is lost', async () => {
         await loaded();
         useAdminStore().reset();

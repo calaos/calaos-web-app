@@ -15,6 +15,9 @@ export const RETRY_FAST_MS = 5_000;
 export const RETRY_FAST_WINDOW_MS = 120_000;
 export const RETRY_SLOW_MS = 60_000;
 
+/** Only these may clear up by themselves; anything else (too old, not allowed...) will not. */
+const TRANSIENT_CODES: readonly string[] = ['admin_unavailable', 'daemon_unreachable', 'rescue_unavailable', 'timeout'];
+
 export const useRescueStore = defineStore('rescue', () => {
     const admin = useAdminStore();
     const auth = useAuthStore();
@@ -69,7 +72,7 @@ export const useRescueStore = defineStore('rescue', () => {
         // A drop is followed by the reconnection's own read.
         if (outcome.error.code === 'disconnected') return;
         failed.value = true;
-        scheduleRetry();
+        if (TRANSIENT_CODES.includes(outcome.error.code)) scheduleRetry();
     }
 
     function reset(): void {

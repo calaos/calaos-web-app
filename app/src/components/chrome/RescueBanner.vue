@@ -74,9 +74,4 @@ const onSnapshots = computed(() => route.name === 'adminSnapshots');
     text-underline-offset: 3px;
     cursor: pointer;
 }
-
-.rescue-banner__details:focus-visible {
-    outline: 2px solid var(--c-warn);
-    outline-offset: 2px;
-}
 </style>

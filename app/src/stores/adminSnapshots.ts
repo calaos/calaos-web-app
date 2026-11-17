@@ -171,9 +171,13 @@ export const useAdminSnapshotsStore = defineStore('adminSnapshots', () => {
         if (phase.value !== 'idle') return;
         phase.value = 'sending';
         actionError.value = null;
-        await admin.reboot();
-        if (admin.info === 'reboot_sent') startReboot('return', false);
-        else phase.value = 'idle';
+        if (await admin.reboot()) {
+            startReboot('return', false);
+            return;
+        }
+        phase.value = 'idle';
+        // A refusal lands in the admin notice, which this panel does not show.
+        if (admin.noticeSource === 'box') actionError.value = admin.notice;
     }
 
     function dismissActionError(): void {

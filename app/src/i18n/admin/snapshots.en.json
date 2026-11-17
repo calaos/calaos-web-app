@@ -8,7 +8,7 @@
     "type": { "single": "Single", "pre": "Pre", "post": "Post" },
     "noDate": "Unknown date",
     "noDescription": "No description",
-    "boot": "Reboot on this…",
+    "boot": "Reboot on this",
     "bootLabel": "Reboot on snapshot #{id}",
     "bootDialog": {
         "title": "Reboot on snapshot #{id}?",
