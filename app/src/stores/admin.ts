@@ -754,6 +754,15 @@ export const useAdminStore = defineStore('admin', () => {
         return outcome;
     }
 
+    /**
+     * A household read that carries no admin session (`rescue_status`): an
+     * expired session must not turn it into `bad_session`, and no error here
+     * says anything about the admin gate.
+     */
+    function relayHousehold(action: AdminAction): Promise<Outcome> {
+        return request((id) => encodeAdminAction(action, null, id), adminReplyTimeoutMs(action));
+    }
+
     /** The fifth wrong code, or a refused console: ask for the password again. */
     function dropSession(reason: AdminInfo | null): void {
         forgetSession(reason);
@@ -992,6 +1001,7 @@ export const useAdminStore = defineStore('admin', () => {
         changePassword,
         changeHouseholdPassword,
         relay,
+        relayHousehold,
         dropSession,
         householdCredentials,
         checkUpdates,
