@@ -86,7 +86,7 @@ describe('rescue store', () => {
         expect(harness.sent).toHaveLength(0);
     });
 
-    it.each(['daemon_too_old', 'not_allowed', 'invalid_request'])('stops retrying on the permanent code %s', async (code) => {
+    it.each(['not_allowed', 'invalid_request'])('stops retrying on the permanent code %s', async (code) => {
         const rescue = useRescueStore();
         goOnline();
         await flush();
@@ -98,7 +98,7 @@ describe('rescue store', () => {
         expect(harness.sent).toHaveLength(0);
     });
 
-    it.each(['daemon_unreachable', 'rescue_unavailable'])('keeps retrying on %s', async (code) => {
+    it.each(['daemon_unreachable', 'daemon_too_old', 'rescue_unavailable'])('keeps retrying on %s', async (code) => {
         useRescueStore();
         goOnline();
         await flush();

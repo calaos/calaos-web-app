@@ -159,6 +159,19 @@ describe('adminSnapshots store', () => {
         expect(snaps.actionError?.code).toBe('not_allowed');
     });
 
+    it('does not show another panel notice as the reboot error when an action is running', async () => {
+        const admin = useAdminStore();
+        void admin.reboot();
+        fail('not_allowed');
+        await flush();
+        expect(admin.noticeSource).toBe('box');
+        void admin.checkUpdates();
+        void snaps.returnNormal();
+        await flush();
+        expect(snaps.phase).toBe('idle');
+        expect(snaps.actionError).toBeNull();
+    });
+
     it('does not follow a stale reboot_sent when the reboot was not sent', async () => {
         const admin = useAdminStore();
         void admin.reboot();

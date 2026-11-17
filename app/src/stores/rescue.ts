@@ -15,8 +15,11 @@ export const RETRY_FAST_MS = 5_000;
 export const RETRY_FAST_WINDOW_MS = 120_000;
 export const RETRY_SLOW_MS = 60_000;
 
-/** Only these may clear up by themselves; anything else (too old, not allowed...) will not. */
-const TRANSIENT_CODES: readonly string[] = ['admin_unavailable', 'daemon_unreachable', 'rescue_unavailable', 'timeout'];
+/**
+ * Only these may clear up by themselves; anything else (not allowed, invalid...) will not.
+ * daemon_too_old is one of them: the contract asks for an automatic retry while the daemon restarts.
+ */
+const TRANSIENT_CODES: readonly string[] = ['admin_unavailable', 'daemon_unreachable', 'daemon_too_old', 'rescue_unavailable', 'timeout'];
 
 export const useRescueStore = defineStore('rescue', () => {
     const admin = useAdminStore();
