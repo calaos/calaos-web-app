@@ -19,7 +19,7 @@ async function unlock(page: Page): Promise<void> {
     await expect(admin.hub).toBeVisible();
 }
 
-const PAGES = ['updates', 'network', 'services', 'logs', 'time', 'mcp', 'security', 'system', 'settings'];
+const PAGES = ['updates', 'network', 'services', 'snapshots', 'logs', 'time', 'mcp', 'security', 'system', 'settings'];
 
 test('every admin page, captured at the top and the bottom of its scroll', async ({ page, mock }, testInfo) => {
     await mock.reset();
