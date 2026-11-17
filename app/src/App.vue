@@ -13,6 +13,8 @@ import AppBackground from './components/chrome/AppBackground.vue';
 import ConnectionBanner from './components/chrome/ConnectionBanner.vue';
 import FooterNav from './components/chrome/FooterNav.vue';
 import NavBar from './components/chrome/NavBar.vue';
+import RescueBanner from './components/chrome/RescueBanner.vue';
+import RescueInfoDialog from './components/chrome/RescueInfoDialog.vue';
 import { useAuthStore } from './stores/auth';
 
 const auth = useAuthStore();
@@ -25,12 +27,14 @@ const auth = useAuthStore();
         <NavBar v-if="auth.isAuthed" />
         <ConnectionBanner />
         <AdminAlertBanner />
+        <RescueBanner />
 
         <main class="app-shell__content">
             <RouterView />
         </main>
 
         <FooterNav v-if="auth.isAuthed" />
+        <RescueInfoDialog />
     </div>
 </template>
 

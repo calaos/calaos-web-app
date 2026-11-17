@@ -25,6 +25,9 @@ export const useRescueStore = defineStore('rescue', () => {
     /** Set while the last read failed. */
     const failed = ref(false);
 
+    /** The information dialog: opened once per snapshot by itself, again by the banner's link. */
+    const infoOpen = ref(false);
+
     let seq = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let failingSince = 0;
@@ -75,6 +78,7 @@ export const useRescueStore = defineStore('rescue', () => {
         status.value = null;
         failed.value = false;
         failingSince = 0;
+        infoOpen.value = false;
     }
 
     watch(
@@ -93,5 +97,5 @@ export const useRescueStore = defineStore('rescue', () => {
         { immediate: true },
     );
 
-    return { status, failed, active, snapshot, load, reset };
+    return { status, failed, active, snapshot, infoOpen, load, reset };
 });

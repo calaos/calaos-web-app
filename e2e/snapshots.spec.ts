@@ -29,9 +29,13 @@ test.beforeEach(async ({ mock }) => {
     await mock.admin({ password: ADMIN_PASSWORD });
 });
 
-async function openUnlocked(page: Page): Promise<void> {
+async function openUnlocked(page: Page, inRescue = false): Promise<void> {
     await page.goto('/');
     await loginAs(page);
+    if (inRescue) {
+        // The first sign-in during rescue mode opens the information dialog.
+        await page.getByRole('dialog').getByRole('button', { name: MESSAGES.rescue.info.close }).click();
+    }
     const admin = adminScreen(page);
     await admin.tab.click();
     await expect(admin.heading).toHaveText(MESSAGES.admin.unlock.title);
@@ -99,8 +103,8 @@ test('an unknown outcome is shown as waiting, not as a failure', async ({ page, 
 test('in rescue, the rollback needs its box ticked every time', async ({ page, mock }) => {
     await page.setViewportSize({ width: 1100, height: 900 });
     await configure(mock, { rescue: 142 });
-    await openUnlocked(page);
-    await expect(page.getByText(snapshots.rescue.title)).toBeVisible();
+    await openUnlocked(page, true);
+    await expect(page.getByRole('heading', { name: snapshots.rescue.title })).toBeVisible();
 
     await page.getByRole('button', { name: snapshots.rescue.rollback }).click();
     const dialog = page.getByRole('dialog');

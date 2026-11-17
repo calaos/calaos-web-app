@@ -665,5 +665,17 @@
         "oldServer": "This server is too old to give its versions: update calaos-server.",
         "daemonTooOld": "The box system is too old to give its versions: update calaos-container.",
         "failed": "The versions could not be read from the server. Try again once the connection is back."
+    },
+    "rescue": {
+        "label": "Rescue mode",
+        "banner": "Rescue mode: booted on snapshot #{id}. Changes are lost on reboot.",
+        "bannerNoId": "Rescue mode: booted on a previous snapshot. Changes are lost on reboot.",
+        "details": "Details",
+        "info": {
+            "title": "Recovery system",
+            "body": "The system is booted from a previous snapshot. It is read-only: no data is saved on the disk. You can roll back to this snapshot so that it becomes the primary read-write system; the box will reboot. Rollback is also available in Admin > Snapshots.",
+            "close": "Close",
+            "open": "Open Snapshots"
+        }
     }
 }
