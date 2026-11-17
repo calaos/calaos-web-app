@@ -151,16 +151,16 @@ describe('reading the program', () => {
         expect(writes(server)).toEqual([]);
     });
 
-    it('counts the levels in use on each tab and in the + Level button', async () => {
+    it('counts the levels in use on each tab and in the level counter', async () => {
         const { wrapper } = await mountEditor({
             heat: { 1: [MON_8_10], 2: [wireRange(1, 12, 0, 14, 0)] },
             cool: { 1: [wireRange(2, 14, 0, 16, 0)] },
         });
         const tabs = wrapper.findAll('[role="tab"].schedule__tab').map((t) => t.text());
         expect(tabs).toEqual(['Heating (2)', 'Cooling (1)']);
-        expect(text(wrapper)).toContain('+ Level (2 of 6)');
+        expect(text(wrapper)).toContain('Levels: 2 of 6');
         await openTab(wrapper, 'Cooling (1)');
-        expect(text(wrapper)).toContain('+ Level (1 of 6)');
+        expect(text(wrapper)).toContain('Levels: 1 of 6');
     });
 
     it('ignores a seventh level and reads only the IOs it was given', async () => {
@@ -168,7 +168,7 @@ describe('reading the program', () => {
         const { wrapper, server } = await mountEditor({ ios });
         expect(reads(server)).not.toContain('H7');
         expect(wrapper.find('.schedule__tabs').exists()).toBe(false);
-        expect(text(wrapper)).toContain('+ Level (0 of 6)');
+        expect(text(wrapper)).toContain('Levels: 0 of 6');
     });
 
     it('shows the level of a slot on the track with its setpoint', async () => {
@@ -188,9 +188,9 @@ describe('reading the program', () => {
     it('counts a sunrise range as a used level and gives a new setpoint the next one', async () => {
         const sunrise: WireRange = { ...wireRange(1, 0, 0, 0, 0), start_type: '1', start_offset: '30', end_hour: '9' };
         const { wrapper, server } = await mountEditor({ heat: { 1: [sunrise] } });
-        expect(text(wrapper)).toContain('+ Level (1 of 6)');
+        expect(text(wrapper)).toContain('Levels: 1 of 6');
         await selectDay(wrapper, 'Monday');
-        await button(wrapper, 'Add a slot').trigger('click');
+        await button(wrapper, '+ Slot').trigger('click');
         // 22.5 is not level 1's setpoint: the kept range makes level 1 busy, so the slot takes level 2.
         await fillForm(wrapper, { setpoint: 22.5 });
         const mark = server.sent.length;
@@ -222,7 +222,7 @@ function mondayNoon(): void {
 
 async function addSlot(w: VueWrapper, v: Parameters<typeof fillForm>[1]): Promise<void> {
     await selectDay(w, 'Monday');
-    await button(w, 'Add a slot').trigger('click');
+    await button(w, '+ Slot').trigger('click');
     await fillForm(w, v);
 }
 
@@ -239,7 +239,7 @@ describe('simple mode', () => {
         const { wrapper, server } = await mountEditor({ mode: 'simple' });
         expect(form(wrapper).exists()).toBe(true);
         expect(wrapper.find('button.track__seg').exists()).toBe(false);
-        expect(wrapper.findAll('button').some((b) => b.text() === 'Add a slot')).toBe(false);
+        expect(wrapper.findAll('button').some((b) => b.text() === '+ Slot')).toBe(false);
         expect(writes(server)).toEqual([]);
     });
 
@@ -340,24 +340,24 @@ describe('simple mode', () => {
 // -------------------------------------------------- level limit (Q2) ---
 
 describe('six levels at most (Q2)', () => {
-    it('lets a sixth level be added, then disables + Level', async () => {
+    it('lets a sixth level be added, and never greys out + Slot', async () => {
         const { wrapper, server } = await mountEditor({ heat: levelsInUse(5) });
-        const add = () => wrapper.findAll('button').find((b) => b.text().startsWith('+ Level'));
-        expect(add()?.text()).toBe('+ Level (5 of 6)');
-        expect(add()?.attributes('disabled')).toBeUndefined();
-        await add()?.trigger('click');
+        const add = () => button(wrapper, '+ Slot');
+        expect(text(wrapper)).toContain('Levels: 5 of 6');
+        await add().trigger('click');
         // Default 19° is free among 22, 20, 18, 16, 14: the form proposes it.
         expect((form(wrapper).find('input[type="number"]').element as HTMLInputElement).value).toBe('19');
         await fillForm(wrapper, { start: '20:00', end: '21:00' });
         const mark = server.sent.length;
         await save(wrapper);
         expect(writes(server, mark)).toEqual(['set_state:H6S=19', 'set_timerange:H6']);
-        expect(add()?.text()).toBe('+ Level (6 of 6)');
-        expect(add()?.attributes('disabled')).toBeDefined();
-        expect(text(wrapper)).toContain('Every level is in use: reuse an existing temperature.');
+        expect(text(wrapper)).toContain('Levels: 6 of 6');
+        expect(add().attributes('disabled')).toBeUndefined();
+        expect(wrapper.findAll('button').some((b) => b.text().includes('Level'))).toBe(false);
+        expect(text(wrapper)).not.toContain('Every level is in use');
     });
 
-    it('refuses a seventh temperature from "Add a slot", keeps the form open and writes nothing', async () => {
+    it('refuses a seventh temperature from "+ Slot", keeps the form open and writes nothing', async () => {
         const { wrapper, server } = await mountEditor({ heat: levelsInUse(6) });
         await addSlot(wrapper, { start: '20:00', end: '21:00', setpoint: 25 });
         const mark = server.sent.length;
@@ -382,7 +382,7 @@ describe('six levels at most (Q2)', () => {
     it('counts the levels configured, not six, when the device has fewer', async () => {
         const ios = climateIos({ levels: 4, cool: false });
         const { wrapper, server } = await mountEditor({ ios, heat: levelsInUse(4) });
-        expect(text(wrapper)).toContain('+ Level (4 of 4)');
+        expect(text(wrapper)).toContain('Levels: 4 of 4');
         await addSlot(wrapper, { start: '20:00', end: '21:00', setpoint: 25 });
         await save(wrapper);
         expect(notice(wrapper).text()).toBe('4 levels maximum for Heating');
@@ -393,9 +393,8 @@ describe('six levels at most (Q2)', () => {
         const { wrapper } = await mountEditor({ heat: levelsInUse(6), cool: levelsInUse(2) });
         expect(wrapper.findAll('[role="tab"].schedule__tab').map((t) => t.text())).toEqual(['Heating (6)', 'Cooling (2)']);
         await openTab(wrapper, 'Cooling (2)');
-        const add = wrapper.findAll('button').find((b) => b.text().startsWith('+ Level'));
-        expect(add?.text()).toBe('+ Level (2 of 6)');
-        expect(add?.attributes('disabled')).toBeUndefined();
+        expect(text(wrapper)).toContain('Levels: 2 of 6');
+        expect(button(wrapper, '+ Slot').attributes('disabled')).toBeUndefined();
     });
 
     it('creates no level when a day is copied, so the limit cannot be hit', async () => {
@@ -511,7 +510,7 @@ describe('auto mode and a disabled program', () => {
         expect(writes(server, mark)).toEqual(['set_state:H1S=28', 'set_timerange:H1']);
         await openTab(wrapper, 'Cooling (1)');
         await selectDay(wrapper, 'Tuesday');
-        await button(wrapper, 'Add a slot').trigger('click');
+        await button(wrapper, '+ Slot').trigger('click');
         await fillForm(wrapper, { start: '20:00', end: '21:00', setpoint: 18 });
         const mark2 = server.sent.length;
         await save(wrapper);

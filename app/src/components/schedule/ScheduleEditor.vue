@@ -517,20 +517,11 @@ const AXIS = [0, 6, 12, 18, 24];
                     <button type="button" class="schedule__button" :disabled="locked || busy" @click="openNew()">
                         {{ t('schedule.addSlot') }}
                     </button>
-                    <button
-                        type="button"
-                        class="schedule__button"
-                        :disabled="locked || busy || used.length >= levelCount"
-                        :aria-describedby="used.length >= levelCount ? 'schedule-levels-full' : undefined"
-                        @click="openNew(true)"
-                    >
-                        {{ t('schedule.addLevel', { n: used.length, max: levelCount }) }}
-                    </button>
                     <button type="button" class="schedule__button" :disabled="locked || busy" @click="openCopy">
                         {{ t('schedule.copy.open') }}
                     </button>
                 </div>
-                <p v-if="used.length >= levelCount" id="schedule-levels-full" class="schedule__muted">{{ t('schedule.levelsFull') }}</p>
+                <p class="schedule__muted" data-testid="level-count">{{ t('schedule.levelCount', { n: used.length, max: levelCount }) }}</p>
             </template>
 
             <p v-if="notice" class="schedule__notice" role="alert">{{ notice }}</p>

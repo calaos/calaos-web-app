@@ -136,3 +136,35 @@ test('cooling tab: switching the cool off outside slots is written and the gap r
         .toEqual(['true']);
     await shot(page, testInfo, 'shot-07-cool-off');
 });
+
+test('the level counter grows with each new temperature and the seventh is refused with a message', async ({ page, mock }, testInfo) => {
+    const dialog = await openEditor(page);
+    const count = (n: number) => S.levelCount.replace('{n}', String(n)).replace('{max}', '6');
+    const addSlot = dialog.getByRole('button', { name: S.addSlot, exact: true });
+    await expect(dialog.getByText(count(3), { exact: true })).toBeVisible();
+    await shot(page, testInfo, 'shot-08-counter');
+
+    const add = async (hour: number, setpoint: string): Promise<void> => {
+        await addSlot.click();
+        await dialog.getByLabel(S.form.start).fill(`${String(hour).padStart(2, '0')}:00`);
+        await dialog.getByLabel(S.form.end).fill(`${String(hour + 1).padStart(2, '0')}:00`);
+        await dialog.getByLabel(S.form.setpoint).first().fill(setpoint);
+        await dialog.getByRole('button', { name: S.form.save }).click();
+    };
+    await add(1, '22');
+    await add(2, '23');
+    await add(3, '24');
+    await expect(dialog.getByText(count(6), { exact: true })).toBeVisible();
+    await expect(addSlot).toBeEnabled();
+
+    const before = (await mock.log()).length;
+    await addSlot.click();
+    await dialog.getByLabel(S.form.start).fill('04:00');
+    await dialog.getByLabel(S.form.end).fill('05:00');
+    await dialog.getByLabel(S.form.setpoint).first().fill('25');
+    await dialog.getByRole('button', { name: S.form.save }).click();
+    await expect(dialog.getByRole('alert').filter({ hasText: S.tooMany.replace('{n}', '6').replace('{dir}', S.heat) })).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: S.form.new })).toBeVisible();
+    expect((await mock.log()).length).toBe(before);
+    await shot(page, testInfo, 'shot-09-seventh-refused');
+});
