@@ -454,7 +454,19 @@ export interface UnknownMessage {
     raw: unknown;
 }
 
+/** The answer to `get_timerange` or `set_timerange`; `ranges` is checked by protocol/schedule.ts. */
+export interface TimerangeMessage {
+    kind: 'timerange';
+    op: 'get' | 'set';
+    msgId: string;
+    /** '' on success. */
+    error: string;
+    months: string;
+    ranges: unknown[];
+}
+
 export type ServerMessage =
+    | TimerangeMessage
     | LoginResultMessage
     | GetHomeMessage
     | GetStateMessage

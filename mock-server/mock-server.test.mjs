@@ -2011,3 +2011,80 @@ describe('admin: unlock, set, actions (admin.mjs)', () => {
         });
     });
 });
+
+describe('climate time programs', () => {
+    const LEVEL = 'thermo_bureau_heat_level1';
+    const range = (over = {}) => ({
+        day: '2',
+        start_hour: '6',
+        start_min: '0',
+        start_sec: '0',
+        start_type: '0',
+        start_offset: '0',
+        end_hour: '7',
+        end_min: '30',
+        end_sec: '0',
+        end_type: '0',
+        end_offset: '0',
+        ...over,
+    });
+    const reply = (msg, msgId) => (f) => f.msg === msg && f.msg_id === msgId;
+
+    it('the thermostat names its level IOs by role', () => {
+        const thermo = FIXTURE.home.flatMap((room) => room.items).find((io) => io.id === 'thermo_bureau');
+        expect(thermo.device.ios.heat_level1).toBe(LEVEL);
+        expect(thermo.device.ios.cool_level6_setpoint).toBe('thermo_bureau_cool_level6_setpoint');
+        expect(thermo.device.capabilities.program).toEqual({ heat_levels: 6, cool_levels: 6, max_levels: 6 });
+    });
+
+    it('set_timerange replaces the ranges, get_timerange reads them back, the event carries the id', async () => {
+        const { client } = await login();
+        client.send({ msg: 'set_timerange', msg_id: 'a', data: { id: LEVEL, months: '111111111111', ranges: [range({ day: 3 })] } });
+        // The event goes out before the reply, and waitFor drops what it skips.
+        const event = await client.waitFor((f) => f.msg === 'event' && f.data?.type_str === 'timerange_changed');
+        expect(event.data.data).toEqual({ id: LEVEL });
+        expect((await client.waitFor(reply('set_timerange', 'a'))).data).toEqual({ success: 'true' });
+        client.send({ msg: 'get_timerange', msg_id: 'b', data: { id: LEVEL } });
+        const read = await client.waitFor(reply('get_timerange', 'b'));
+        expect(read.data).toEqual({ months: '111111111111', ranges: [range({ day: '3' })] });
+    });
+
+    it.each([
+        ['unknown id', { id: 'nope', ranges: [] }, 'wrong input'],
+        ['an IO that is not a time range', { id: 'thermo_bureau_heat_default', ranges: [] }, 'wrong input'],
+        ['short months', { id: LEVEL, months: '1111', ranges: [] }, 'invalid months'],
+        ['day 8', { id: LEVEL, ranges: [range({ day: '8' })] }, 'invalid day'],
+        ['hour 24', { id: LEVEL, ranges: [range({ end_hour: '24' })] }, 'invalid range'],
+        ['missing field', { id: LEVEL, ranges: [range({ end_sec: undefined })] }, 'invalid range'],
+        ['ranges not an array', { id: LEVEL, ranges: {} }, 'invalid ranges'],
+    ])('refuses %s and changes nothing', async (_label, data, error) => {
+        const { client } = await login();
+        client.send({ msg: 'get_timerange', msg_id: 'before', data: { id: LEVEL } });
+        const before = await client.waitFor(reply('get_timerange', 'before'));
+        client.send({ msg: 'set_timerange', msg_id: 's', data });
+        expect((await client.waitFor(reply('set_timerange', 's'))).data).toEqual({ error });
+        client.send({ msg: 'get_timerange', msg_id: 'after', data: { id: LEVEL } });
+        expect((await client.waitFor(reply('get_timerange', 'after'))).data).toEqual(before.data);
+    });
+
+    it('timerange_fail makes the armed write answer config_not_written, then recovers', async () => {
+        const { client } = await login();
+        await control({ op: 'timerange_fail', after: 1 });
+        for (const id of ['1', '2', '3']) {
+            client.send({ msg: 'set_timerange', msg_id: id, data: { id: LEVEL, ranges: [] } });
+        }
+        const answers = [];
+        for (const id of ['1', '2', '3']) answers.push((await client.waitFor(reply('set_timerange', id))).data);
+        expect(answers).toEqual([{ success: 'true' }, { error: 'config_not_written' }, { success: 'true' }]);
+    });
+
+    it('get_state and set_state reach the hidden setpoint IOs', async () => {
+        const { client } = await login();
+        const id = 'thermo_bureau_heat_level2_setpoint';
+        client.send({ msg: 'set_state', msg_id: 'w', data: { id, value: '21.5' } });
+        await client.waitFor(ioChangedFor(id));
+        expect((await client.waitFor(reply('set_state', 'w'))).data).toEqual({ success: 'true' });
+        client.send({ msg: 'get_state', msg_id: 'r', data: { items: [id, 'thermo_bureau_cool_default_off'] } });
+        expect((await client.waitFor(reply('get_state', 'r'))).data).toEqual({ [id]: '21.5', thermo_bureau_cool_default_off: 'false' });
+    });
+});

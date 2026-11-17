@@ -1,0 +1,294 @@
+{
+    "values": {
+        "thermo_bureau_heat_level1_setpoint": {
+            "gui_type": "var_float",
+            "state": "19"
+        },
+        "thermo_bureau_heat_level2_setpoint": {
+            "gui_type": "var_float",
+            "state": "21"
+        },
+        "thermo_bureau_heat_level3_setpoint": {
+            "gui_type": "var_float",
+            "state": "17"
+        },
+        "thermo_bureau_heat_level4_setpoint": {
+            "gui_type": "var_float",
+            "state": "20"
+        },
+        "thermo_bureau_heat_level5_setpoint": {
+            "gui_type": "var_float",
+            "state": "20"
+        },
+        "thermo_bureau_heat_level6_setpoint": {
+            "gui_type": "var_float",
+            "state": "20"
+        },
+        "thermo_bureau_heat_default": {
+            "gui_type": "var_float",
+            "state": "17"
+        },
+        "thermo_bureau_cool_level1_setpoint": {
+            "gui_type": "var_float",
+            "state": "26"
+        },
+        "thermo_bureau_cool_level2_setpoint": {
+            "gui_type": "var_float",
+            "state": "25"
+        },
+        "thermo_bureau_cool_level3_setpoint": {
+            "gui_type": "var_float",
+            "state": "24"
+        },
+        "thermo_bureau_cool_level4_setpoint": {
+            "gui_type": "var_float",
+            "state": "24"
+        },
+        "thermo_bureau_cool_level5_setpoint": {
+            "gui_type": "var_float",
+            "state": "24"
+        },
+        "thermo_bureau_cool_level6_setpoint": {
+            "gui_type": "var_float",
+            "state": "24"
+        },
+        "thermo_bureau_cool_default": {
+            "gui_type": "var_float",
+            "state": "28"
+        },
+        "thermo_bureau_cool_default_off": {
+            "gui_type": "var_bool",
+            "state": "false"
+        },
+        "thermo_bureau_program_enabled": {
+            "gui_type": "var_bool",
+            "state": "true"
+        }
+    },
+    "timeranges": {
+        "thermo_bureau_heat_level1": [
+            {
+                "day": "1",
+                "start_hour": "6",
+                "start_min": "30",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "8",
+                "end_min": "0",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            },
+            {
+                "day": "2",
+                "start_hour": "6",
+                "start_min": "30",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "8",
+                "end_min": "0",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            },
+            {
+                "day": "3",
+                "start_hour": "6",
+                "start_min": "30",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "8",
+                "end_min": "0",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            },
+            {
+                "day": "4",
+                "start_hour": "6",
+                "start_min": "30",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "8",
+                "end_min": "0",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            },
+            {
+                "day": "5",
+                "start_hour": "6",
+                "start_min": "30",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "8",
+                "end_min": "0",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            },
+            {
+                "day": "1",
+                "start_hour": "17",
+                "start_min": "30",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "22",
+                "end_min": "30",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            },
+            {
+                "day": "2",
+                "start_hour": "17",
+                "start_min": "30",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "22",
+                "end_min": "30",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            },
+            {
+                "day": "3",
+                "start_hour": "17",
+                "start_min": "30",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "22",
+                "end_min": "30",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            },
+            {
+                "day": "4",
+                "start_hour": "17",
+                "start_min": "30",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "22",
+                "end_min": "30",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            },
+            {
+                "day": "5",
+                "start_hour": "17",
+                "start_min": "30",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "22",
+                "end_min": "30",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            }
+        ],
+        "thermo_bureau_heat_level2": [
+            {
+                "day": "6",
+                "start_hour": "8",
+                "start_min": "0",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "23",
+                "end_min": "0",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            },
+            {
+                "day": "7",
+                "start_hour": "8",
+                "start_min": "0",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "23",
+                "end_min": "0",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            }
+        ],
+        "thermo_bureau_heat_level3": [
+            {
+                "day": "5",
+                "start_hour": "22",
+                "start_min": "30",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "23",
+                "end_min": "59",
+                "end_sec": "59",
+                "end_type": "0",
+                "end_offset": "0"
+            },
+            {
+                "day": "6",
+                "start_hour": "0",
+                "start_min": "0",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "6",
+                "end_min": "0",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            }
+        ],
+        "thermo_bureau_heat_level4": [],
+        "thermo_bureau_heat_level5": [],
+        "thermo_bureau_heat_level6": [],
+        "thermo_bureau_cool_level1": [
+            {
+                "day": "6",
+                "start_hour": "14",
+                "start_min": "0",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "18",
+                "end_min": "0",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            },
+            {
+                "day": "7",
+                "start_hour": "14",
+                "start_min": "0",
+                "start_sec": "0",
+                "start_type": "0",
+                "start_offset": "0",
+                "end_hour": "18",
+                "end_min": "0",
+                "end_sec": "0",
+                "end_type": "0",
+                "end_offset": "0"
+            }
+        ],
+        "thermo_bureau_cool_level2": [],
+        "thermo_bureau_cool_level3": [],
+        "thermo_bureau_cool_level4": [],
+        "thermo_bureau_cool_level5": [],
+        "thermo_bureau_cool_level6": []
+    }
+}

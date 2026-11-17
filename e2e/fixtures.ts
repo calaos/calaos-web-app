@@ -54,6 +54,8 @@ export type ControlOp =
     | { op: 'credentials'; user: string; pass: string }
     /** Lifetime of the camera capture tokens issued from now on (reset: 120 s). */
     | { op: 'camera_token'; ttl?: number }
+    /** The (after+1)th set_timerange from now answers config_not_written (default 0: the next one). */
+    | { op: 'timerange_fail'; after?: number }
     | { op: 'reset' };
 
 /** The fake daemon's knobs (mock-server/admin.mjs `configure`). */

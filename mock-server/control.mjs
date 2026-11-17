@@ -60,6 +60,7 @@ const KNOWN_OPS = [
     'console',
     'credentials',
     'camera_token',
+    'timerange_fail',
     'reset',
 ];
 
@@ -171,8 +172,15 @@ export function applyControlOp(hub, body) {
             return { status: 200, body: { ok: true, op, ttl: hub.cameraTokens.ttlS, issued: hub.cameraTokens.issued } };
         }
 
+        case 'timerange_fail': {
+            // The (after+1)th set_timerange answers config_not_written.
+            hub.program.failWrite(body.after);
+            return { status: 200, body: { ok: true, op } };
+        }
+
         case 'reset': {
             hub.state.reset();
+            hub.program.reset();
             hub.admin.reset();
             hub.console.reset();
             hub.user = hub.defaultUser;

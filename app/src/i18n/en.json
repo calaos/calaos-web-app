@@ -155,6 +155,92 @@
         "lowerHigh": "Lower the highest temperature of {name}",
         "settings": "{name} settings"
     },
+    "schedule": {
+        "edit": "Edit program",
+        "title": "Program",
+        "loading": "Loading the program…",
+        "tabs": "Program direction",
+        "heat": "Heating",
+        "cool": "Cooling",
+        "tab": "{dir} ({n})",
+        "days": "Day",
+        "dayShort": {
+            "1": "M",
+            "2": "T",
+            "3": "W",
+            "4": "T",
+            "5": "F",
+            "6": "S",
+            "7": "S"
+        },
+        "dayName": {
+            "1": "Monday",
+            "2": "Tuesday",
+            "3": "Wednesday",
+            "4": "Thursday",
+            "5": "Friday",
+            "6": "Saturday",
+            "7": "Sunday"
+        },
+        "timeline": "{day}, {dir}",
+        "now": "Now",
+        "segment": "Level {n}, {start} to {end}, {setpoint}°",
+        "gapDefault": "Default {setpoint}°",
+        "off": "Off",
+        "week": "Week",
+        "weekDay": "Show {day}",
+        "addSlot": "+ Slot",
+        "levelCount": "Levels: {n} of {max}",
+        "empty": "No {dir} slot. Default: {setpoint}°.",
+        "emptyOff": "No {dir} slot. Off outside slots.",
+        "defaultSetpoint": "Default setpoint (°C)",
+        "coolOff": "Cooling off outside slots",
+        "form": {
+            "new": "New slot",
+            "edit": "Edit slot",
+            "start": "Start",
+            "end": "End",
+            "endHint": "An end before the start runs past midnight.",
+            "setpoint": "Setpoint (°C)",
+            "days": "Days",
+            "level": "Level {n}",
+            "raise": "Raise priority",
+            "lower": "Lower priority",
+            "delete": "Delete",
+            "cancel": "Cancel",
+            "save": "Save"
+        },
+        "copy": {
+            "open": "Copy this day…",
+            "title": "Copy {day} to",
+            "nothing": "Nothing to copy: this day has no slot",
+            "workdays": "Weekdays",
+            "weekend": "Weekend",
+            "all": "All",
+            "submit": "Copy",
+            "cancel": "Cancel",
+            "confirmTitle": "Replace slots?",
+            "slots": "{day} ({count} slot) | {day} ({count} slots)",
+            "and": "{list} and {last}",
+            "confirm": "{targets} will be replaced by those of {source}. | {targets} will be replaced by those of {source}.",
+            "replace": "Replace and copy",
+            "failed": "Copy incomplete: not saved, try again"
+        },
+        "simple": {
+            "apply": "Apply",
+            "applied": "Applied to level {n}."
+        },
+        "tooMany": "{n} levels maximum for {dir}",
+        "error": {
+            "range": "The end must follow the start",
+            "notWritten": "Not saved, try again",
+            "timeout": "No answer from the server, try again",
+            "offline": "Offline: the program is read-only",
+            "generic": "The server refused the change"
+        },
+        "retry": "Retry",
+        "readOnly": "Read-only while offline."
+    },
     "dialog": {
         "cancel": "Cancel",
         "color": {

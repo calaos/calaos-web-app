@@ -19,6 +19,7 @@ import { WebSocketServer } from 'ws';
 import { createAdmin } from './admin.mjs';
 import { createCameraTokens } from './camera-tokens.mjs';
 import { createConsole } from './console.mjs';
+import { createProgram } from './program.mjs';
 import { createState } from './state.mjs';
 import { handleControlRequest, readJsonBody } from './control.mjs';
 
@@ -100,6 +101,7 @@ export function startServer(options = {}) {
     }
 
     hub.state = createState({ broadcast });
+    hub.program = createProgram({ broadcast });
     hub.admin = createAdmin({ hub, send, broadcast, withMsgId });
     hub.console = createConsole({ hub, log });
 
@@ -189,7 +191,9 @@ export function startServer(options = {}) {
                 if (typeof id !== 'string') return;
 
                 let success;
-                if (hub.state.isAudioPlayer(id)) {
+                if (hub.program.has(id)) {
+                    success = hub.program.setValue(id, value ?? '');
+                } else if (hub.state.isAudioPlayer(id)) {
                     // Audio transport/volume commands ride set_state, like any
                     // IO — AudioPlayer::set_value always reports true.
                     success = hub.state.applyAudioCommand(id, value ?? '');
@@ -230,6 +234,16 @@ export function startServer(options = {}) {
                 return;
             }
 
+            case 'get_timerange':
+                if (!requireAuth(ws, clientId, 'get_timerange')) return;
+                send(ws, withMsgId({ msg: 'get_timerange', data: hub.program.getTimerange(frame.data?.id) }, msgId));
+                return;
+
+            case 'set_timerange':
+                if (!requireAuth(ws, clientId, 'set_timerange')) return;
+                send(ws, withMsgId({ msg: 'set_timerange', data: hub.program.setTimerange(frame.data) }, msgId));
+                return;
+
             default:
                 log(`client #${clientId}: unhandled msg '${frame.msg}'`);
         }
@@ -250,7 +264,9 @@ export function startServer(options = {}) {
             : [];
         const data = {};
         for (const id of items) {
-            if (hub.state.isAudioPlayer(id)) {
+            if (hub.program.state(id) !== undefined) {
+                data[id] = hub.program.state(id);
+            } else if (hub.state.isAudioPlayer(id)) {
                 data[id] = hub.state.audioPlayerState(id);
             } else {
                 const io = hub.state.getIo(id);

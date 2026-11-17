@@ -26,11 +26,13 @@ const props = defineProps<{
     ctl: UseClimate;
     /** Whether a second level of settings exists for this device. */
     hasMore: boolean;
+    /** The device has a time program (level IOs) to edit. */
+    hasProgram?: boolean;
     /** In a dialog that is as tall as its content: the link to more settings does not stick to the bottom. */
     compact?: boolean;
 }>();
 
-defineEmits<{ mode: []; more: [] }>();
+defineEmits<{ mode: []; more: []; program: [] }>();
 
 const { t } = useI18n();
 const text = useClimateText(props.ctl);
@@ -149,6 +151,10 @@ const name = computed(() => props.io.name);
             <IconChevronDown class="climate-detail__pill-chevron" aria-hidden="true" />
         </button>
 
+        <button v-if="hasProgram" type="button" class="climate-detail__more" aria-haspopup="dialog" @click="$emit('program')">
+            <span>{{ t('schedule.edit') }}</span>
+            <IconChevronRight aria-hidden="true" />
+        </button>
         <button v-if="hasMore" type="button" class="climate-detail__more" aria-haspopup="dialog" @click="$emit('more')">
             <span>{{ t('climate.more') }}</span>
             <IconChevronRight aria-hidden="true" />
@@ -295,6 +301,11 @@ const name = computed(() => props.io.name);
 
 .climate-detail--compact .climate-detail__more {
     margin-block-start: 1.25rem;
+    padding-block-start: 0;
+}
+
+.climate-detail__more + .climate-detail__more {
+    margin-block-start: 0;
     padding-block-start: 0;
 }
 

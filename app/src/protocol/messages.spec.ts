@@ -5,8 +5,10 @@ import {
     encodeCameraToken,
     encodeGetHome,
     encodeGetState,
+    encodeGetTimerange,
     encodeLogin,
     encodeSetState,
+    encodeSetTimerange,
 } from './messages';
 import { setColor, setPercent, setText } from './io-states';
 import { AUDIO_PREVIOUS, volumeSet } from './audio';
@@ -530,5 +532,46 @@ describe('camera_token', () => {
             expiresIn: null,
             error: '',
         });
+    });
+});
+
+describe('get_timerange / set_timerange', () => {
+    it('encodes both requests with a msg_id', () => {
+        expect(encodeGetTimerange('heat_level1', 'tr-1')).toBe(
+            '{"msg":"get_timerange","msg_id":"tr-1","data":{"id":"heat_level1"}}',
+        );
+        expect(encodeSetTimerange('heat_level1', '111111111111', [], 'tr-2')).toBe(
+            '{"msg":"set_timerange","msg_id":"tr-2","data":{"id":"heat_level1","months":"111111111111","ranges":[]}}',
+        );
+    });
+
+    it.each([
+        [
+            'a read',
+            { msg: 'get_timerange', msg_id: 'tr-1', data: { months: '111111111111', ranges: [{ day: '1' }] } },
+            { op: 'get', msgId: 'tr-1', error: '', months: '111111111111', ranges: [{ day: '1' }] },
+        ],
+        [
+            'a refused read',
+            { msg: 'get_timerange', msg_id: 'tr-1', data: { error: 'wrong input' } },
+            { op: 'get', msgId: 'tr-1', error: 'wrong input', months: '', ranges: [] },
+        ],
+        [
+            'a write',
+            { msg: 'set_timerange', msg_id: 'tr-2', data: { success: 'true' } },
+            { op: 'set', msgId: 'tr-2', error: '', months: '', ranges: [] },
+        ],
+        [
+            'a write not saved',
+            { msg: 'set_timerange', msg_id: 'tr-2', data: { error: 'config_not_written' } },
+            { op: 'set', msgId: 'tr-2', error: 'config_not_written', months: '', ranges: [] },
+        ],
+        [
+            'a write with neither success nor error',
+            { msg: 'set_timerange', msg_id: 'tr-2', data: 'x' },
+            { op: 'set', msgId: 'tr-2', error: 'failed', months: '', ranges: [] },
+        ],
+    ])('decodes %s', (_label, frame, expected) => {
+        expect(decodeServerMessage(frame)).toEqual({ kind: 'timerange', ...expected });
     });
 });
