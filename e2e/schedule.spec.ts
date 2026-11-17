@@ -46,8 +46,6 @@ async function shot(page: Page, testInfo: TestInfo, name: string): Promise<void>
     await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
 }
 
-test.skip(({ isMobile }) => isMobile, 'the thermostat settings open as a side panel on wide screens only');
-
 test.beforeEach(async ({ page, mock }) => {
     await mock.reset();
     await page.clock.setFixedTime(NOW);
@@ -121,4 +119,20 @@ test('a write the server could not save shows an alert with a retry, and the edi
     await expect(alert).toBeVisible();
     await expect(alert.getByRole('button', { name: S.retry })).toBeVisible();
     await shot(page, testInfo, 'shot-05-not-written');
+});
+
+test('cooling tab: switching the cool off outside slots is written and the gap reads Off', async ({ page, mock }, testInfo) => {
+    const dialog = await openEditor(page);
+    await dialog.getByRole('tab', { name: /^Cooling/ }).click();
+    await shot(page, testInfo, 'shot-06-cool');
+
+    await dialog.getByRole('checkbox', { name: S.coolOff }).check();
+    await expect
+        .poll(async () =>
+            (await mock.log())
+                .filter((e) => e.frame?.msg === 'set_state' && e.frame.data?.id === 'thermo_bureau_cool_default_off')
+                .map((e) => e.frame?.data?.value),
+        )
+        .toEqual(['true']);
+    await shot(page, testInfo, 'shot-07-cool-off');
 });
