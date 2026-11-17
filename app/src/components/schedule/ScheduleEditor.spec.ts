@@ -7,7 +7,6 @@ import { messages } from '../../i18n/messages';
 import type { WireRange } from '../../protocol/schedule';
 import type { IoItem } from '../../protocol/types';
 import { useConnectionStore } from '../../stores/connection';
-import { REPLY_TIMEOUT_MS, useScheduleStore } from '../../stores/schedule';
 import { fakeServer, wireRange } from '../../stores/scheduleTestHarness';
 import type { FakeServer } from '../../stores/scheduleTestHarness';
 import ScheduleEditor from './ScheduleEditor.vue';
@@ -131,13 +130,6 @@ async function fillForm(w: VueWrapper, v: { start?: string; end?: string; setpoi
     if (v.end !== undefined) await times[1].setValue(v.end);
     if (v.setpoint !== undefined) await f.find('input[type="number"]').setValue(v.setpoint);
     for (const day of v.days ?? []) await f.find(`button[aria-label="${day}"]`).trigger('click');
-}
-
-/** Six heating levels, each with one Monday hour, setpoints 22, 20 ... 12. */
-function sixLevels(): Record<number, WireRange[]> {
-    const out: Record<number, WireRange[]> = {};
-    for (let n = 1; n <= 6; n++) out[n] = [wireRange(1, 2 * n, 0, 2 * n + 1, 0)];
-    return out;
 }
 
 const MON_8_10 = wireRange(1, 8, 0, 10, 0);

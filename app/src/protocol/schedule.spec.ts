@@ -199,6 +199,48 @@ describe('copy a day', () => {
     });
 });
 
+describe('cool "off" default', () => {
+    // "Off" is not a level: it is what a gap means when cool_default_off is true,
+    // so the protocol must never write or read anything for it.
+    const coolIos = {
+        cool_level1: 'C1',
+        cool_level1_setpoint: 'C1S',
+        cool_level2: 'C2',
+        cool_level2_setpoint: 'C2S',
+        cool_default: 'CD',
+        cool_default_off: 'COFF',
+    };
+
+    it('levelIos never takes the default or the off switch for a level', () => {
+        expect(levelIos(coolIos, 'cool')).toEqual([
+            { n: 1, id: 'C1', setpointId: 'C1S' },
+            { n: 2, id: 'C2', setpointId: 'C2S' },
+        ]);
+        expect(levelIos({ cool_default_off: 'COFF', cool_default: 'CD' }, 'cool')).toEqual([]);
+    });
+
+    it('a cool program with no slot has gaps only, and writes no range at all', () => {
+        const p = programFromWire('cool', [
+            { n: 1, ranges: [], setpoint: 26 },
+            { n: 2, ranges: [], setpoint: 24 },
+        ]);
+        for (let day = 1; day <= 7; day++) expect(effectiveDay(p, day)).toEqual([{ start: 0, end: 1440, level: null }]);
+        expect(levelRanges(p, 1)).toEqual([]);
+        expect(levelRanges(p, 2)).toEqual([]);
+        expect(diffPrograms(p, p)).toEqual({ ranges: [], setpoints: [] });
+    });
+
+    it('slots stay levels and the surrounding gaps stay null, so "off" only ever shows in the gaps', () => {
+        const p = programFromWire('cool', [{ n: 1, ranges: [wire(2, 12, 0, 18, 0)], setpoint: 26 }]);
+        expect(effectiveDay(p, 2)).toEqual([
+            { start: 0, end: 720, level: null },
+            { start: 720, end: 1080, level: 1 },
+            { start: 1080, end: 1440, level: null },
+        ]);
+        expect(effectiveDay(p, 3)).toEqual([{ start: 0, end: 1440, level: null }]);
+    });
+});
+
 describe('helpers', () => {
     it('reads level IOs by role, never rebuilding ids', () => {
         expect(
