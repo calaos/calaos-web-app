@@ -468,6 +468,8 @@ describe('cooling "off" default', () => {
         expect(wrapper.find('.schedule__defaults input[type="checkbox"]').exists()).toBe(false);
         expect((wrapper.find('.schedule__defaults input[type="number"]').element as HTMLInputElement).value).toBe('19');
         expect(text(wrapper)).toContain('No heating slot. Default: 19°.');
+        expect(wrapper.find('.track__gap').text()).toContain('19');
+        expect(wrapper.find('.track__gap').text()).not.toContain('Off');
     });
 
     it('fails the switch visibly, keeps the old value on screen and retries', async () => {
