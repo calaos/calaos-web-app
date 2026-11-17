@@ -29,6 +29,8 @@ export interface FakeServer {
     sent: Frame[];
     /** id → ranges the server holds. */
     ranges: Map<string, WireRange[]>;
+    /** id → months mask a get_timerange answers; all months when absent. */
+    months: Map<string, string>;
     /** id → raw state (setpoints, defaults, switches). */
     values: Map<string, string>;
     /** false: send() refuses, as a closed socket does. */
@@ -50,6 +52,7 @@ export function fakeServer(): FakeServer {
     const server: FakeServer = {
         sent: [],
         ranges: new Map(),
+        months: new Map(),
         values: new Map(),
         online: true,
         silent: new Set(),
@@ -70,7 +73,7 @@ export function fakeServer(): FakeServer {
             const error = server.refuseReads(id);
             data = error
                 ? { error }
-                : { months: '111111111111', ranges: (server.ranges.get(id) ?? []).map((r) => ({ ...r })) };
+                : { months: server.months.get(id) ?? '111111111111', ranges: (server.ranges.get(id) ?? []).map((r) => ({ ...r })) };
         } else if (frame.msg === 'set_timerange') {
             const nth = (counts.get(id) ?? 0) + 1;
             counts.set(id, nth);
