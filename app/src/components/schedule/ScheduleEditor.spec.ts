@@ -650,8 +650,10 @@ describe('a write that fails half-way', () => {
 
 // ------------------------------------------------------------- months ---
 
-describe('months sent with a range write', () => {
-    it('always writes all twelve months, whatever the server reported on read', async () => {
+// Pins the current forcing (stores/schedule.ts), not a wanted invariant: CP-WEB-EDITOR-C omits
+// the months, as the contract says. Invert this test there (expect no `months` key).
+describe('months sent with a range write (to invert in C)', () => {
+    it('currently writes all twelve months, whatever the server reported on read', async () => {
         const { wrapper, server } = await mountEditor({
             heat: { 1: [MON_8_10] },
             prepare: (s) => s.months.set('H1', '000011110000'),
@@ -663,5 +665,145 @@ describe('months sent with a range write', () => {
         const frames = setTimeranges(server);
         expect(frames).toHaveLength(1);
         expect(frames[0].data.months).toBe('111111111111');
+    });
+});
+
+// -------------------------------------------------------- copy a day (Q4) ---
+
+describe('copy a day (Q4)', () => {
+    const TUE_6_7 = wireRange(2, 6, 0, 7, 0);
+    const panel = (w: VueWrapper) => w.find('section.schedule__panel');
+    const dialog = (w: VueWrapper) => w.find('[role="alertdialog"]');
+
+    async function openCopy(w: VueWrapper, day = 'Monday'): Promise<void> {
+        await selectDay(w, day);
+        await button(w, 'Copy this day…').trigger('click');
+    }
+
+    const days = (ranges: WireRange[] | undefined) => (ranges ?? []).map((r) => r.day);
+
+    it('copies at once, without asking, when no target holds a slot', async () => {
+        const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] } });
+        await openCopy(wrapper);
+        await panel(wrapper).find('button[aria-label="Tuesday"]').trigger('click');
+        const mark = server.sent.length;
+        await button(panel(wrapper), 'Copy').trigger('click');
+        await flushPromises();
+        expect(dialog(wrapper).exists()).toBe(false);
+        expect(writes(server, mark)).toEqual(['set_timerange:H1']);
+        expect(days(server.ranges.get('H1'))).toEqual(['1', '2']);
+        expect(panel(wrapper).exists()).toBe(false);
+    });
+
+    it('asks first when a target holds slots, names only those days, and writes nothing until confirmed', async () => {
+        const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10], 2: [TUE_6_7] } });
+        await openCopy(wrapper);
+        for (const d of ['Tuesday', 'Wednesday']) await panel(wrapper).find(`button[aria-label="${d}"]`).trigger('click');
+        const mark = server.sent.length;
+        await button(panel(wrapper), 'Copy').trigger('click');
+        await flushPromises();
+        expect(dialog(wrapper).exists()).toBe(true);
+        expect(dialog(wrapper).text()).toContain('Tuesday (1 slot)');
+        expect(dialog(wrapper).text()).not.toContain('Wednesday');
+        expect(writes(server, mark)).toEqual([]);
+
+        await button(dialog(wrapper), 'Replace and copy').trigger('click');
+        await flushPromises();
+        expect(writes(server, mark)).toEqual(['set_timerange:H1', 'set_timerange:H2']);
+        // Tuesday's own 06:00-07:00 slot is overwritten, by the Monday one at the same level.
+        expect(days(server.ranges.get('H1'))).toEqual(['1', '2', '3']);
+        expect(server.ranges.get('H2')).toEqual([]);
+        expect(panel(wrapper).exists()).toBe(false);
+    });
+
+    it('cancelling the confirmation writes nothing and keeps the panel and its targets', async () => {
+        const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10], 2: [TUE_6_7] } });
+        await openCopy(wrapper);
+        await panel(wrapper).find('button[aria-label="Tuesday"]').trigger('click');
+        await button(panel(wrapper), 'Copy').trigger('click');
+        const mark = server.sent.length;
+        await button(dialog(wrapper), 'Cancel').trigger('click');
+        await flushPromises();
+        expect(dialog(wrapper).exists()).toBe(false);
+        expect(panel(wrapper).exists()).toBe(true);
+        expect(panel(wrapper).find('button[aria-label="Tuesday"]').attributes('aria-pressed')).toBe('true');
+        expect(writes(server, mark)).toEqual([]);
+        expect(server.ranges.get('H2')).toEqual([TUE_6_7]);
+    });
+
+    it('works on the active tab only: heating slots of the target day are replaced, cooling ones are left alone', async () => {
+        const { wrapper, server } = await mountEditor({
+            heat: { 1: [MON_8_10], 2: [TUE_6_7] },
+            cool: { 1: [wireRange(2, 14, 0, 16, 0)] },
+        });
+        await openCopy(wrapper);
+        await panel(wrapper).find('button[aria-label="Tuesday"]').trigger('click');
+        await button(panel(wrapper), 'Copy').trigger('click');
+        await button(dialog(wrapper), 'Replace and copy').trigger('click');
+        await flushPromises();
+        expect(writes(server).every((w) => w.startsWith('set_timerange:H'))).toBe(true);
+        expect(server.writesOf('C1')).toEqual([]);
+        expect(server.ranges.get('C1')).toEqual([wireRange(2, 14, 0, 16, 0)]);
+        // The occupied-target check ignores the other direction too: Cooling Tuesday has a slot, Heating Wednesday none.
+        await openTab(wrapper, 'Cooling (1)');
+        await openCopy(wrapper, 'Wednesday');
+        expect(notice(wrapper).text()).toContain('Nothing to copy');
+        expect(panel(wrapper).exists()).toBe(false);
+    });
+
+    it('copies the other direction on its own tab and never touches heating', async () => {
+        const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] }, cool: { 1: [wireRange(2, 14, 0, 16, 0)] } });
+        await openTab(wrapper, 'Cooling (1)');
+        await openCopy(wrapper, 'Tuesday');
+        await panel(wrapper).find('button[aria-label="Thursday"]').trigger('click');
+        await button(panel(wrapper), 'Copy').trigger('click');
+        await flushPromises();
+        expect(dialog(wrapper).exists()).toBe(false);
+        expect(writes(server)).toEqual(['set_timerange:C1']);
+        expect(days(server.ranges.get('C1'))).toEqual(['2', '4']);
+    });
+
+    it('refuses to open on a day with no slot, writing nothing', async () => {
+        const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] } });
+        const mark = server.sent.length;
+        await openCopy(wrapper, 'Friday');
+        expect(notice(wrapper).text()).toContain('Nothing to copy');
+        expect(panel(wrapper).exists()).toBe(false);
+        expect(writes(server, mark)).toEqual([]);
+    });
+
+    it('keeps Copy disabled until a target is picked, and never offers the source day', async () => {
+        const { wrapper } = await mountEditor({ heat: { 1: [MON_8_10] } });
+        await openCopy(wrapper);
+        expect(button(panel(wrapper), 'Copy').attributes('disabled')).toBeDefined();
+        expect(panel(wrapper).find('button[aria-label="Monday"]').attributes('disabled')).toBeDefined();
+        await panel(wrapper).find('button[aria-label="Tuesday"]').trigger('click');
+        expect(button(panel(wrapper), 'Copy').attributes('disabled')).toBeUndefined();
+    });
+
+    it('the Weekdays chip targets Tuesday to Friday from a Monday source, and Weekend both weekend days', async () => {
+        const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] } });
+        await openCopy(wrapper);
+        await button(panel(wrapper), 'Weekdays').trigger('click');
+        const pressed = () =>
+            panel(wrapper)
+                .findAll('.schedule__days button')
+                .filter((b) => b.attributes('aria-pressed') === 'true')
+                .map((b) => b.attributes('aria-label'));
+        expect(pressed()).toEqual(['Tuesday', 'Wednesday', 'Thursday', 'Friday']);
+        await button(panel(wrapper), 'Weekend').trigger('click');
+        expect(pressed()).toEqual(['Saturday', 'Sunday']);
+        await button(panel(wrapper), 'Copy').trigger('click');
+        await flushPromises();
+        expect(days(server.ranges.get('H1'))).toEqual(['1', '6', '7']);
+    });
+
+    it('cannot be opened when read-only', async () => {
+        const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] }, readonly: true });
+        await selectDay(wrapper, 'Monday');
+        expect(button(wrapper, 'Copy this day…').attributes('disabled')).toBeDefined();
+        await button(wrapper, 'Copy this day…').trigger('click');
+        expect(panel(wrapper).exists()).toBe(false);
+        expect(writes(server)).toEqual([]);
     });
 });

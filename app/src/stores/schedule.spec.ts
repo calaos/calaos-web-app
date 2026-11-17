@@ -96,7 +96,7 @@ describe('reading a level', () => {
 });
 
 describe('writing', () => {
-    it('writeRanges sends every month and the ranges, and succeeds with an empty error', async () => {
+    it('writeRanges sends the ranges and succeeds with an empty error', async () => {
         const store = useScheduleStore();
         const server = fakeServer();
 
@@ -104,8 +104,10 @@ describe('writing', () => {
 
         expect(server.sent[0]).toMatchObject({
             msg: 'set_timerange',
-            data: { id: 'heat_level2', months: '111111111111', ranges: [wireRange(1, 6, 0, 7, 0)] },
+            data: { id: 'heat_level2', ranges: [wireRange(1, 6, 0, 7, 0)] },
         });
+        // Current behaviour, not an invariant: CP-WEB-EDITOR-C drops the months (contract: omitted). Invert then.
+        expect(server.sent[0].data.months).toBe('111111111111');
         expect(server.ranges.get('heat_level2')).toEqual([wireRange(1, 6, 0, 7, 0)]);
     });
 
