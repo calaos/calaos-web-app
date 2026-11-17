@@ -243,8 +243,7 @@ describe('simple mode', () => {
         expect(writes(server)).toEqual([]);
     });
 
-    // The form opens before the defaults are read, so it proposes the 20° fallback, not the 19° default.
-    it.fails('proposes the default setpoint it reads, as the multi-level form does', async () => {
+    it('proposes the default setpoint it reads, as the multi-level form does', async () => {
         const { wrapper } = await mountEditor({ mode: 'simple' });
         expect((form(wrapper).find('input[type="number"]').element as HTMLInputElement).value).toBe('19');
     });
@@ -331,8 +330,7 @@ describe('simple mode', () => {
         expect(writes(server, mark)).toEqual(['set_state:C1S=26', 'set_timerange:C1']);
     });
 
-    // selectDirection closes the form and simple mode never reopens it.
-    it.fails('keeps the form when the other direction is chosen', async () => {
+    it('keeps the form when the other direction is chosen', async () => {
         const { wrapper } = await mountEditor({ mode: 'simple' });
         await openTab(wrapper, 'Cooling (0)');
         expect(form(wrapper).exists()).toBe(true);
@@ -622,8 +620,7 @@ describe('a write that fails half-way', () => {
         expect(banner(wrapper).exists()).toBe(false);
     });
 
-    // Retry only re-runs apply(): the form and the copy panel are closed by their callers, which saw null.
-    it.fails('closes the form once a retried save has succeeded', async () => {
+    it('closes the form once a retried save has succeeded', async () => {
         const { wrapper } = await mountEditor({
             heat: { 1: [MON_8_10] },
             prepare: (s) => (s.refuseRanges = (id, nth) => (id === 'H2' && nth === 1 ? 'config_not_written' : undefined)),
@@ -652,10 +649,9 @@ describe('a write that fails half-way', () => {
 
 // ------------------------------------------------------------- months ---
 
-// Pins the current forcing (stores/schedule.ts), not a wanted invariant: CP-WEB-EDITOR-C omits
-// the months, as the contract says. Invert this test there (expect no `months` key).
-describe('months sent with a range write (to invert in C)', () => {
-    it('currently writes all twelve months, whatever the server reported on read', async () => {
+// The contract says a write omits `months`: the server keeps the mask it holds.
+describe('months with a range write', () => {
+    it('omits months, whatever the server reported on read', async () => {
         const { wrapper, server } = await mountEditor({
             heat: { 1: [MON_8_10] },
             prepare: (s) => s.months.set('H1', '000011110000'),
@@ -666,7 +662,7 @@ describe('months sent with a range write (to invert in C)', () => {
         await save(wrapper);
         const frames = setTimeranges(server);
         expect(frames).toHaveLength(1);
-        expect(frames[0].data.months).toBe('111111111111');
+        expect(frames[0].data).not.toHaveProperty('months');
     });
 });
 

@@ -9,8 +9,6 @@ import { isRecord, toWireString } from './guards';
 
 export const MAX_LEVELS = 6;
 export const DAY_MINUTES = 1440;
-/** Every month: the editor programs weeks, not seasons. */
-export const ALL_MONTHS = '111111111111';
 export const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 export const WORKDAYS = [1, 2, 3, 4, 5];
 export const WEEKEND = [6, 7];

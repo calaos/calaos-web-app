@@ -74,7 +74,7 @@ export function encodeGetTimerange(id: string, msgId: string): string {
 }
 
 /** `ranges` replaces every range of the IO; `[]` clears them all. */
-export function encodeSetTimerange(id: string, months: string, ranges: object[], msgId: string): string {
+export function encodeSetTimerange(id: string, months: string | undefined, ranges: object[], msgId: string): string {
     return JSON.stringify({ msg: 'set_timerange', msg_id: msgId, data: { id, months, ranges } });
 }
 

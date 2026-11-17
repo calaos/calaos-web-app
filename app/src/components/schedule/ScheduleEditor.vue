@@ -203,6 +203,7 @@ async function apply(
     d: Direction,
     build: ProgramEdit,
     failText?: string,
+    onSuccess?: () => void,
 ): Promise<DirectionProgram | null> {
     const before = programOf(d);
     if (!before || locked.value) return null;
@@ -234,9 +235,10 @@ async function apply(
     busy.value = false;
     if (error === '') {
         read[d] = next;
+        onSuccess?.();
         return next;
     }
-    banner.value = { text: failText ?? errorText(error), retry: () => void apply(d, build, failText) };
+    banner.value = { text: failText ?? errorText(error), retry: () => void apply(d, build, failText, onSuccess) };
     await loadDirection(d);
     return null;
 }
@@ -325,21 +327,26 @@ async function saveForm(): Promise<void> {
     const f = form.value;
     const entry = f ? entryOf(f) : null;
     if (!f || !entry) return;
-    const next = await apply(direction.value, (p) =>
+    await apply(direction.value, (p) =>
         upsertSlot(
             p,
             entry,
             p.slots.filter((s) => f.replacing.some((r) => sameSlot(r, s))),
         ),
+        undefined,
+        () => (form.value = null),
     );
-    if (next) form.value = null;
 }
 
 async function deleteForm(): Promise<void> {
     const f = form.value;
     if (!f) return;
-    const next = await apply(direction.value, (p) => removeSlots(p, p.slots.filter((s) => f.replacing.some((r) => sameSlot(r, s)))));
-    if (next) form.value = null;
+    await apply(
+        direction.value,
+        (p) => removeSlots(p, p.slots.filter((s) => f.replacing.some((r) => sameSlot(r, s)))),
+        undefined,
+        () => (form.value = null),
+    );
 }
 
 async function move(by: -1 | 1): Promise<void> {
@@ -411,8 +418,7 @@ async function runCopy(): Promise<void> {
     const source = day.value;
     const targets = [...copyTargets.value];
     confirming.value = false;
-    const next = await apply(direction.value, (p) => copyDay(p, source, targets), t('schedule.copy.failed'));
-    if (next) copyOpen.value = false;
+    await apply(direction.value, (p) => copyDay(p, source, targets), t('schedule.copy.failed'), () => (copyOpen.value = false));
 }
 
 // --------------------------------------------------------------- misc ---
@@ -423,6 +429,7 @@ function selectDirection(d: Direction): void {
     copyOpen.value = false;
     notice.value = '';
     done.value = '';
+    if (props.mode === 'simple') openNew();
 }
 
 function selectDay(d: number): void {
@@ -435,9 +442,10 @@ function selectDay(d: number): void {
 let clock: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
     if (!directions.value.includes(direction.value)) direction.value = directions.value[0] ?? 'heat';
-    if (props.mode === 'simple') openNew();
     clock = setInterval(() => (now.value = minutesOf(new Date())), 60_000);
-    void load();
+    void load().then(() => {
+        if (props.mode === 'simple') openNew();
+    });
 });
 onBeforeUnmount(() => clearInterval(clock));
 

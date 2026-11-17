@@ -106,8 +106,7 @@ describe('writing', () => {
             msg: 'set_timerange',
             data: { id: 'heat_level2', ranges: [wireRange(1, 6, 0, 7, 0)] },
         });
-        // Current behaviour, not an invariant: CP-WEB-EDITOR-C drops the months (contract: omitted). Invert then.
-        expect(server.sent[0].data.months).toBe('111111111111');
+        expect(server.sent[0].data).not.toHaveProperty('months');
         expect(server.ranges.get('heat_level2')).toEqual([wireRange(1, 6, 0, 7, 0)]);
     });
 

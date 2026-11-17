@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia';
 import { reactive, ref } from 'vue';
-import { ALL_MONTHS, toWireRange } from '../protocol/schedule';
+import { toWireRange } from '../protocol/schedule';
 import type { WireRange } from '../protocol/schedule';
 import { encodeGetState, encodeGetTimerange, encodeSetState, encodeSetTimerange } from '../protocol/messages';
 import type { SetStateResultMessage, TimerangeMessage } from '../protocol/types';
@@ -93,7 +93,7 @@ export const useScheduleStore = defineStore('schedule', () => {
 
     /** '' on success, else the server's error string (or timeout / offline). */
     async function writeRanges(id: string, ranges: WireRange[]): Promise<string> {
-        const reply = await request((msgId) => encodeSetTimerange(id, ALL_MONTHS, ranges, msgId));
+        const reply = await request((msgId) => encodeSetTimerange(id, undefined, ranges, msgId));
         if (reply.kind === 'timerange') return reply.error;
         return reply.kind === 'timeout' ? 'timeout' : 'offline';
     }
