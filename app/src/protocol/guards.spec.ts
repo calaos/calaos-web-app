@@ -559,3 +559,58 @@ describe('toIoItem — device', () => {
         expect(home.rooms[0].items.map((i) => i.id)).toEqual(['a', 'b']);
     });
 });
+
+describe('toDeviceInfo: program', () => {
+    const device = (capabilities: unknown, state: unknown) => toDeviceInfo({ family: 'climate', capabilities, state, ios: {} });
+
+    it('decodes the capability and the live state', () => {
+        const info = device(
+            { program: { heat_levels: 3, cool_levels: 0, max_levels: 6 } },
+            {
+                program: {
+                    enabled: true,
+                    mode_set: 'auto',
+                    heat: { levels: 3, active_level: 2, setpoint: 20.5, default: 17 },
+                    cool: { levels: 2, active_level: null, setpoint: null, default: null },
+                    next_change: { at: '2026-11-18T17:30:00+01:00', set: 'heat', level: 2, setpoint: 20.5 },
+                },
+            },
+        );
+        expect(info?.capabilities.program).toEqual({ heatLevels: 3, coolLevels: 0, maxLevels: 6 });
+        expect(info?.state.program).toEqual({
+            enabled: true,
+            modeSet: 'auto',
+            heat: { levels: 3, activeLevel: 2, setpoint: 20.5, default: 17 },
+            cool: { levels: 2, activeLevel: null, setpoint: null, default: null },
+            nextChange: { at: '2026-11-18T17:30:00+01:00', set: 'heat', level: 2, setpoint: 20.5 },
+        });
+    });
+
+    it('leaves the program out when absent or unusable', () => {
+        const none = device({ program: { heat_levels: 0, cool_levels: 0, max_levels: 6 } }, {});
+        expect(none?.capabilities.program).toBeUndefined();
+        expect(none?.state.program).toBeUndefined();
+        expect(device({ program: 'x' }, { program: 3 })?.capabilities.program).toBeUndefined();
+        expect(device({ program: { heat_levels: 'a', cool_levels: 1, max_levels: 6 } }, {})?.capabilities.program).toBeUndefined();
+    });
+
+    it('drops what it cannot read without losing the rest', () => {
+        const info = device(
+            {},
+            {
+                program: {
+                    enabled: 'false',
+                    mode_set: 'banana',
+                    heat: { levels: 0 },
+                    cool: 'x',
+                    next_change: { at: 'soon', set: 'heat' },
+                },
+            },
+        );
+        expect(info?.state.program).toEqual({ enabled: false, modeSet: null, nextChange: null });
+        const odd = device({}, { program: { enabled: true, next_change: { at: '2026-11-18T17:30:00Z', set: 'up' } } });
+        expect(odd?.state.program?.nextChange).toBeNull();
+        const half = device({}, { program: { enabled: true, next_change: { at: '2026-11-18T17:30:00Z', set: 'cool', level: 0 } } });
+        expect(half?.state.program?.nextChange).toEqual({ at: '2026-11-18T17:30:00Z', set: 'cool', level: null, setpoint: null });
+    });
+});

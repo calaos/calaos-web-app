@@ -7,6 +7,7 @@ import { messages } from '../../i18n/messages';
 import type { WireRange } from '../../protocol/schedule';
 import type { IoItem } from '../../protocol/types';
 import { useConnectionStore } from '../../stores/connection';
+import { useScheduleStore } from '../../stores/schedule';
 import { fakeServer, wireRange } from '../../stores/scheduleTestHarness';
 import type { FakeServer } from '../../stores/scheduleTestHarness';
 import ScheduleEditor from './ScheduleEditor.vue';
@@ -572,6 +573,27 @@ describe('a write that fails half-way', () => {
         expect(segments(wrapper)).toEqual(['Level 1, 08:00 to 10:00, 22°', 'Level 2, 12:00 to 13:00, 22.5°']);
     });
 
+    it('retries on what another client changed meanwhile instead of erasing it', async () => {
+        const { wrapper, server } = await mountEditor({
+            heat: { 1: [MON_8_10] },
+            prepare: (s) => (s.refuseValue = (id) => id === 'H2S'),
+        });
+        await addSlot(wrapper, { start: '12:00', end: '13:00', setpoint: 22.5 });
+        await save(wrapper);
+        expect(banner(wrapper).text()).toContain('The server refused the change');
+
+        server.refuseValue = () => false;
+        server.ranges.set('H3', [wireRange(1, 15, 0, 16, 0)]);
+        useScheduleStore().applyTimerangeChanged({ id: 'H3' });
+        await flushPromises();
+
+        const mark = server.sent.length;
+        await button(banner(wrapper), 'Retry').trigger('click');
+        await flushPromises();
+        expect(writes(server, mark)).toEqual(['set_state:H2S=22.5', 'set_timerange:H2']);
+        expect(server.ranges.get('H3')).toEqual([wireRange(1, 15, 0, 16, 0)]);
+    });
+
     it('stops at a refused setpoint: no range is written, and Retry writes both', async () => {
         const { wrapper, server } = await mountEditor({
             heat: { 1: [MON_8_10] },
@@ -844,5 +866,26 @@ describe('copy a day (Q4)', () => {
         await button(wrapper, 'Copy this day…').trigger('click');
         expect(panel(wrapper).exists()).toBe(false);
         expect(writes(server)).toEqual([]);
+    });
+});
+
+describe('a re-read that overlaps a write', () => {
+    it('drops the stale answer and reads again, so the screen shows what the write left', async () => {
+        const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] } });
+        server.ranges.set('H1', [wireRange(1, 6, 0, 7, 0)]);
+        server.held.add('H1');
+        useScheduleStore().applyTimerangeChanged({ id: 'H1' });
+        await flushPromises();
+
+        // Same setpoint as level 1: the slot joins level 1 and H1 is written while its re-read waits.
+        await addSlot(wrapper, { start: '12:00', end: '13:00', setpoint: 22 });
+        await save(wrapper);
+        expect(server.ranges.get('H1')).toEqual([wireRange(1, 8, 0, 10, 0), wireRange(1, 12, 0, 13, 0)]);
+
+        const mark = server.sent.length;
+        server.release();
+        await flushPromises();
+        expect(reads(server, mark)).toEqual(['H1']);
+        expect(segments(wrapper)).toEqual(['Level 1, 08:00 to 10:00, 22°', 'Level 1, 12:00 to 13:00, 22°']);
     });
 });

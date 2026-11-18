@@ -26,6 +26,7 @@ import IconButton from '../ui/IconButton.vue';
 import { useClimate } from '../../composables/useClimate';
 import { useClimateText } from '../../composables/useClimateText';
 import { closeClimate, openClimate, openClimateId } from '../../composables/useClimatePanel';
+import { useProgram } from '../../composables/useProgram';
 import { useMediaQuery } from '../../composables/useMediaQuery';
 import { dialPaint } from '../../protocol/climate';
 import { useHomeStore } from '../../stores/home';
@@ -56,9 +57,13 @@ const hasMore = computed(
         ctl.state.value?.humidity !== undefined,
 );
 
-const hasProgram = computed(() => {
-    const ios = props.io.device?.ios ?? {};
-    return ios.heat_level1 !== undefined || ios.cool_level1 !== undefined;
+const program = useProgram(() => props.io);
+const hasProgram = computed(() => program.available.value);
+const badge = computed(() => {
+    if (!hasProgram.value || program.state.value === undefined) return undefined;
+    if (!program.enabled.value) return { text: '⏸', label: t('program.badgePaused') };
+    if (!program.nextChange.value) return undefined;
+    return { text: `▶ ${program.nextTime.value}`, label: t('program.badgeNext', { time: program.nextTime.value }) };
 });
 
 // ------------------------------------------------------- open and close ---
@@ -158,11 +163,16 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
                     <span v-if="text.setpoint.value !== ''" class="climate-io__dot" aria-hidden="true">·</span>
                     <span>{{ text.room.value }}</span>
                 </template>
+                <template v-if="hasProgram">
+                    <span class="climate-io__dot" aria-hidden="true">·</span>
+                    <span>{{ t('program.rowLabel') }}</span>
+                </template>
             </template>
             <span v-else>{{ io.state }}</span>
         </template>
 
         <template v-if="device" #actions>
+            <span v-if="badge" class="climate-io__badge" :aria-label="badge.label">{{ badge.text }}</span>
             <span class="climate-io__status" :style="{ color: statusColor }">{{ text.statusShort.value }}</span>
             <IconChevronRight class="climate-io__chevron" aria-hidden="true" />
         </template>
@@ -258,6 +268,14 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
 
 .climate-io__dot {
     margin-inline: 0.375rem;
+}
+
+.climate-io__badge {
+    margin-inline-end: var(--space-2);
+    font-size: 0.8125rem;
+    color: var(--c-text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .climate-io__status {

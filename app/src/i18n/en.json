@@ -165,13 +165,13 @@
         "tab": "{dir} ({n})",
         "days": "Day",
         "dayShort": {
-            "1": "M",
-            "2": "T",
-            "3": "W",
-            "4": "T",
-            "5": "F",
-            "6": "S",
-            "7": "S"
+            "1": "Mon",
+            "2": "Tue",
+            "3": "Wed",
+            "4": "Thu",
+            "5": "Fri",
+            "6": "Sat",
+            "7": "Sun"
         },
         "dayName": {
             "1": "Monday",
@@ -676,6 +676,38 @@
             "body": "The system is booted from a previous snapshot. It is read-only: no data is saved on the disk. You can roll back to this snapshot so that it becomes the primary read-write system; the box will reboot. Rollback is also available in Admin > Snapshots.",
             "close": "Close",
             "open": "Open Snapshots"
+        }
+    },
+    "program": {
+        "title": "Program",
+        "enabled": "Program enabled",
+        "loading": "Loading the program…",
+        "active": "Active level",
+        "activeLevel": "Level {level} · {setpoint}°",
+        "noLevel": "No level now",
+        "paused": "Program paused",
+        "pausedLevel": "Program paused: level {level} ({setpoint}°)",
+        "next": "{time}, {what} ({in})",
+        "nextLevel": "{dir} level {level} at {setpoint}°",
+        "nextOff": "{dir} off",
+        "nothingNext": "No change in the next 7 days",
+        "lessThanAMinute": "in under a minute",
+        "inMinutes": "in {minutes} min",
+        "inHours": "in {hours} h {minutes}",
+        "inDays": "in {days} d {hours} h",
+        "badgeNext": "Next change at {time}",
+        "badgePaused": "Program paused",
+        "rowLabel": "Program",
+        "range": "Range {low} – {high}",
+        "help": "About the range",
+        "helpGap": "In auto, heating stays below cooling and the two stay at least {gap} apart.",
+        "helpPlain": "In auto, heating stays below cooling, with a minimum gap between the two.",
+        "today": "Today, {dir}",
+        "overlay": "Today, heating and cooling",
+        "hatched": "Between heating and cooling",
+        "error": {
+            "offline": "Not sent: you are offline.",
+            "generic": "The program was not changed. Try again."
         }
     }
 }

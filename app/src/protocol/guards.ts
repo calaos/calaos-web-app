@@ -13,6 +13,10 @@ import type {
     DeviceInfo,
     DeviceState,
     DeviceTargetTemp,
+    ProgramCapability,
+    ProgramNextChange,
+    ProgramSetState,
+    ProgramState,
     GuiType,
     HomeData,
     IoItem,
@@ -115,6 +119,54 @@ function toTargetTemp(v: unknown): DeviceTargetTemp | undefined {
     return target;
 }
 
+function toProgramCapability(v: unknown): ProgramCapability | undefined {
+    if (!isRecord(v)) return undefined;
+    const heatLevels = toDeviceNumber(v.heat_levels);
+    const coolLevels = toDeviceNumber(v.cool_levels);
+    const maxLevels = toDeviceNumber(v.max_levels);
+    if (heatLevels === null || coolLevels === null || maxLevels === null) return undefined;
+    if (heatLevels + coolLevels <= 0) return undefined;
+    return { heatLevels, coolLevels, maxLevels };
+}
+
+function toLevelNumber(v: unknown): number | null {
+    const n = toDeviceNumber(v);
+    return n !== null && Number.isInteger(n) && n >= 1 ? n : null;
+}
+
+function toProgramSet(v: unknown): ProgramSetState | undefined {
+    if (!isRecord(v)) return undefined;
+    const levels = toLevelNumber(v.levels);
+    if (levels === null) return undefined;
+    return {
+        levels,
+        activeLevel: toLevelNumber(v.active_level),
+        setpoint: toDeviceNumber(v.setpoint),
+        default: toDeviceNumber(v.default),
+    };
+}
+
+function toNextChange(v: unknown): ProgramNextChange | null {
+    if (!isRecord(v)) return null;
+    if (typeof v.at !== 'string' || Number.isNaN(Date.parse(v.at))) return null;
+    if (v.set !== 'heat' && v.set !== 'cool') return null;
+    return { at: v.at, set: v.set, level: toLevelNumber(v.level), setpoint: toDeviceNumber(v.setpoint) };
+}
+
+function toProgramState(v: unknown): ProgramState | undefined {
+    if (!isRecord(v)) return undefined;
+    const program: ProgramState = {
+        enabled: wireBool(v.enabled),
+        modeSet: v.mode_set === 'heat' || v.mode_set === 'cool' || v.mode_set === 'auto' ? v.mode_set : null,
+        nextChange: toNextChange(v.next_change),
+    };
+    const heat = toProgramSet(v.heat);
+    if (heat) program.heat = heat;
+    const cool = toProgramSet(v.cool);
+    if (cool) program.cool = cool;
+    return program;
+}
+
 function toDeviceCapabilities(raw: unknown): DeviceCapabilities {
     const obj = isRecord(raw) ? raw : {};
     const caps: DeviceCapabilities = {};
@@ -129,6 +181,8 @@ function toDeviceCapabilities(raw: unknown): DeviceCapabilities {
     if ('target_temp_range' in obj) caps.targetTempRange = wireBool(obj.target_temp_range);
     if ('reports_action' in obj) caps.reportsAction = wireBool(obj.reports_action);
     if ('remote_temp' in obj) caps.remoteTemp = wireBool(obj.remote_temp);
+    const program = toProgramCapability(obj.program);
+    if (program) caps.program = program;
     return caps;
 }
 
@@ -152,6 +206,8 @@ function toDeviceState(raw: unknown): DeviceState {
             state.lockout = { output: toWireString(obj.lockout.output), remaining };
         }
     }
+    const program = toProgramState(obj.program);
+    if (program) state.program = program;
     for (const [wire, key] of [
         ['current_temp', 'currentTemp'],
         ['target_temp', 'targetTemp'],

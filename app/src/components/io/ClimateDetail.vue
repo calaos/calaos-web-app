@@ -6,7 +6,7 @@
 //
 // One way to set the target: the buttons. The dial is not draggable.
 
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ActionButton from './ActionButton.vue';
 import { BUTTONS } from './calaos-icons';
@@ -14,8 +14,13 @@ import ClimateDial from './ClimateDial.vue';
 import { PAINT } from './climate-dial';
 import IconChevronDown from '~icons/mdi/chevron-down';
 import IconChevronRight from '~icons/mdi/chevron-right';
+import IconHelp from '~icons/mdi/information-outline';
+import IconPause from '~icons/mdi/pause';
+import ScheduleTrack from '../schedule/ScheduleTrack.vue';
 import { useClimateText } from '../../composables/useClimateText';
 import { useMediaQuery } from '../../composables/useMediaQuery';
+import { useProgram } from '../../composables/useProgram';
+import { useProgramTracks } from '../../composables/useProgramTracks';
 import type { UseClimate } from '../../composables/useClimate';
 import { canAdjust, dialPaint } from '../../protocol/climate';
 import { MODE_ICONS } from './climate-icons';
@@ -61,6 +66,51 @@ const lowAtMin = computed(() => bounds.value !== undefined && props.ctl.low.valu
 const highAtMax = computed(() => bounds.value !== undefined && props.ctl.high.value !== undefined && props.ctl.high.value >= bounds.value.max);
 
 const name = computed(() => props.io.name);
+
+// ------------------------------------------------------------ program ---
+
+const program = useProgram(() => props.io);
+const tracks = useProgramTracks(
+    () => props.io,
+    () => program.available.value && !program.loading.value,
+);
+const auto = computed(() => program.state.value?.modeSet === 'auto');
+const helpOpen = ref(false);
+const helpId = `climate-help-${Math.random().toString(36).slice(2, 8)}`;
+
+// The range on show: the live pair when the device is in range mode, else what the program sets.
+const rangeText = computed(() => {
+    const s = program.state.value;
+    const low = props.ctl.low.value ?? s?.heat?.setpoint ?? undefined;
+    const high = props.ctl.high.value ?? s?.cool?.setpoint ?? undefined;
+    return low === undefined || high === undefined ? '' : t('program.range', { low: text.degrees(low), high: text.degrees(high) });
+});
+const helpText = computed(() =>
+    bounds.value?.minRange ? t('program.helpGap', { gap: text.degrees(bounds.value.minRange) }) : t('program.helpPlain'),
+);
+
+const today = computed(() => new Date().getDay() || 7);
+const nowMinutes = computed(() => {
+    const d = new Date();
+    return d.getHours() * 60 + d.getMinutes();
+});
+const gapLabel = (d: 'heat' | 'cool') => {
+    const v = tracks.defaultOf(d);
+    return d === 'cool' && tracks.coolOff.value ? t('schedule.off') : v === undefined ? '' : t('schedule.gapDefault', { setpoint: text.degrees(v).replace('°', '') });
+};
+const shownDirections = computed<('heat' | 'cool')[]>(() => {
+    const out: ('heat' | 'cool')[] = [];
+    for (const d of ['heat', 'cool'] as const) {
+        const p = tracks.programs.value[d];
+        if (p && (auto.value || program.state.value?.modeSet === d || program.state.value?.modeSet === null)) out.push(d);
+    }
+    return out;
+});
+const activeText = computed(() => {
+    const set = program.current.value;
+    if (!set || set.activeLevel === null || set.setpoint === null) return t('program.noLevel');
+    return t('program.activeLevel', { level: set.activeLevel, setpoint: text.degrees(set.setpoint).replace('°', '') });
+});
 </script>
 
 <template>
@@ -138,6 +188,63 @@ const name = computed(() => props.io.name);
                 {{ t('climate.rangeStop', { gap: text.degrees(bounds.minRange) }) }}
             </p>
         </template>
+
+        <section v-if="program.available.value" class="climate-detail__program" :aria-label="t('program.title')">
+            <div v-if="program.loading.value" class="climate-detail__skeleton" role="status" aria-live="polite">
+                <i aria-hidden="true" />
+                <span class="visually-hidden">{{ t('program.loading') }}</span>
+            </div>
+            <template v-else>
+                <label class="climate-detail__switch">
+                    <input
+                        type="checkbox"
+                        role="switch"
+                        :checked="program.enabled.value"
+                        :disabled="program.readonly.value || program.saving.value"
+                        @change="program.toggle()"
+                    />
+                    <span>{{ t('program.enabled') }}</span>
+                </label>
+                <p v-if="program.error.value" class="climate-detail__error" role="alert">{{ program.error.value }}</p>
+
+                <p v-if="!program.enabled.value" class="climate-detail__paused">
+                    <IconPause aria-hidden="true" />
+                    <span>{{ program.pausedText.value }}</span>
+                </p>
+                <template v-else>
+                    <p class="climate-detail__active">{{ activeText }}</p>
+                    <p class="climate-detail__next">{{ program.nextText.value }}</p>
+                </template>
+
+                <div v-if="auto && rangeText" class="climate-detail__fork">
+                    <span>{{ rangeText }}</span>
+                    <button
+                        type="button"
+                        class="climate-detail__help"
+                        :aria-expanded="helpOpen"
+                        :aria-controls="helpId"
+                        :aria-label="t('program.help')"
+                        @click="helpOpen = !helpOpen"
+                    >
+                        <IconHelp aria-hidden="true" />
+                    </button>
+                </div>
+                <p v-if="auto && helpOpen" :id="helpId" class="climate-detail__helptext">{{ helpText }}</p>
+
+                <div v-if="shownDirections.length" class="climate-detail__strips" :class="{ 'climate-detail__strips--auto': auto }">
+                    <template v-for="(d, i) in shownDirections" :key="d">
+                        <div v-if="auto && i === 1" class="climate-detail__hatch" role="img" :aria-label="t('program.hatched')" />
+                        <ScheduleTrack
+                            :program="tracks.programs.value[d]!"
+                            :day="today"
+                            :now="nowMinutes"
+                            :gap-label="gapLabel(d)"
+                            :label="t('program.today', { dir: t(`schedule.${d}`) })"
+                        />
+                    </template>
+                </div>
+            </template>
+        </section>
 
         <button
             type="button"
@@ -250,6 +357,106 @@ const name = computed(() => props.io.name);
     font-size: 0.8125rem;
     color: var(--c-text-muted);
     text-align: center;
+}
+
+.climate-detail__program {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    align-self: stretch;
+    margin-block-start: var(--space-4);
+    font-size: 0.875rem;
+}
+
+.climate-detail__switch {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-block-size: 2.75rem;
+    cursor: pointer;
+}
+
+.climate-detail__switch input {
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    accent-color: var(--c-accent);
+}
+
+.climate-detail__active {
+    font-weight: 500;
+}
+
+.climate-detail__next {
+    color: var(--c-text-muted);
+}
+
+.climate-detail__error {
+    color: var(--c-danger-text);
+}
+
+.climate-detail__paused {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px dashed var(--c-border-strong);
+    border-radius: 6px;
+}
+
+.climate-detail__fork {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.climate-detail__help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2.75rem;
+    block-size: 2.75rem;
+    font-size: 1.25rem;
+    color: var(--c-text-muted);
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.climate-detail__helptext {
+    color: var(--c-text-muted);
+}
+
+.climate-detail__strips {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+/* Hatching, not colour alone, marks the zone the two setpoints leave free. */
+.climate-detail__hatch {
+    block-size: 0.5rem;
+    background: repeating-linear-gradient(135deg, var(--c-border-strong) 0 3px, transparent 3px 7px);
+    border-radius: 2px;
+}
+
+.climate-detail__skeleton i {
+    display: block;
+    block-size: 5rem;
+    border-radius: 6px;
+    background: var(--c-surface-raised);
+    animation: climate-detail-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes climate-detail-pulse {
+    50% {
+        opacity: 0.45;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .climate-detail__skeleton i {
+        animation: none;
+    }
 }
 
 .climate-detail__pill {

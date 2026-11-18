@@ -175,6 +175,9 @@ async function load(): Promise<void> {
 /** Levels whose timerange_changed could not be applied yet (loading, writing, failed read). */
 const stale = new Set<string>();
 
+/** Bumped when a write starts: a re-read begun before it describes a server that has since changed. */
+let writeGeneration = 0;
+
 async function rereadLevel(id: string): Promise<void> {
     for (const d of directions.value) {
         const io = levelsOf.value[d].find((l) => l.id === id);
@@ -183,10 +186,17 @@ async function rereadLevel(id: string): Promise<void> {
             stale.add(id);
             continue;
         }
+        const generation = writeGeneration;
         const r = await store.readRanges(id);
         const current = read[d];
         if (r.error !== '' || !current) {
             stale.add(id);
+            continue;
+        }
+        if (generation !== writeGeneration) {
+            // A write overtook this answer; while it runs its own flushStale will pick the id up.
+            if (busy.value) stale.add(id);
+            else await rereadLevel(id);
             continue;
         }
         const one = programFromWire(d, [{ n: io.n, ranges: r.ranges, setpoint: undefined }]);
@@ -212,10 +222,16 @@ watch(
 
 // -------------------------------------------------------------- write ---
 
+function sameProgram(a: DirectionProgram, b: DirectionProgram): boolean {
+    const diff = diffPrograms(a, b);
+    return diff.ranges.length === 0 && diff.setpoints.length === 0;
+}
+
 /**
  * Builds the next program from the current one and writes the difference.
  * On failure the direction is re-read so the screen shows what the server
- * really holds; the retry rebuilds from that state.
+ * really holds; Retry replays the edit on that state, so a change another
+ * client made in between is kept.
  */
 async function apply(
     d: Direction,
@@ -236,6 +252,7 @@ async function apply(
     const diff = diffPrograms(before, next);
     const ids = levelsOf.value[d];
     busy.value = true;
+    writeGeneration++;
     banner.value = null;
     let error = '';
     for (const n of diff.setpoints) {
@@ -271,7 +288,7 @@ async function apply(
     const pending = error === 'config_not_written' ? [...new Set([...unwritten, ...notWritten])] : notWritten;
     banner.value = {
         text: failText ?? errorText(error),
-        retry: () => void apply(d, () => next, failText, onSuccess, pending),
+        retry: () => void apply(d, (current) => (sameProgram(current, next) ? current : build(current)), failText, onSuccess, pending),
     };
     await loadDirection(d);
     return null;

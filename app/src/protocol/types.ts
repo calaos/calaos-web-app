@@ -123,6 +123,41 @@ export interface DeviceCapabilities {
     swingModes?: string[];
     reportsAction?: boolean;
     remoteTemp?: boolean;
+    /** Present only when at least one direction has levels. */
+    program?: ProgramCapability;
+}
+
+export interface ProgramCapability {
+    heatLevels: number;
+    coolLevels: number;
+    maxLevels: number;
+}
+
+export type ProgramDirection = 'heat' | 'cool';
+
+/** One direction of the live program; `setpoint` and `default` are null when the direction is off. */
+export interface ProgramSetState {
+    levels: number;
+    activeLevel: number | null;
+    setpoint: number | null;
+    default: number | null;
+}
+
+export interface ProgramNextChange {
+    /** ISO 8601 with its UTC offset. */
+    at: string;
+    set: ProgramDirection;
+    level: number | null;
+    setpoint: number | null;
+}
+
+export interface ProgramState {
+    enabled: boolean;
+    /** Direction the program drives; `auto` when both do. */
+    modeSet: 'heat' | 'cool' | 'auto' | null;
+    heat?: ProgramSetState;
+    cool?: ProgramSetState;
+    nextChange: ProgramNextChange | null;
 }
 
 /** Optional: the server only sends the fields the device actually has. */
@@ -144,6 +179,7 @@ export interface DeviceState {
     lockout?: DeviceLockout;
     /** A safety rule holds the outputs off (`sensor_stale`, `humidity_high`…). */
     fault?: string;
+    program?: ProgramState;
 }
 
 export interface DeviceLockout {
