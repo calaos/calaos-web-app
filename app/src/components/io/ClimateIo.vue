@@ -59,11 +59,12 @@ const hasMore = computed(
 
 const program = useProgram(() => props.io);
 const hasProgram = computed(() => program.available.value);
-const badge = computed(() => {
-    if (!hasProgram.value || program.state.value === undefined) return undefined;
-    if (!program.enabled.value) return { text: '⏸', label: t('program.badgePaused') };
-    if (!program.nextChange.value) return undefined;
-    return { text: `▶ ${program.nextTime.value}`, label: t('program.badgeNext', { time: program.nextTime.value }) };
+// What the row says about the program: the level in force and when it changes.
+const programLine = computed(() => {
+    if (!hasProgram.value || program.state.value === undefined) return '';
+    if (!program.enabled.value) return program.pausedText.value;
+    const next = program.nextChange.value ? ` · ▶ ${program.nextTime.value}` : '';
+    return program.activeText.value + next;
 });
 
 // ------------------------------------------------------- open and close ---
@@ -163,16 +164,26 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
                     <span v-if="text.setpoint.value !== ''" class="climate-io__dot" aria-hidden="true">·</span>
                     <span>{{ text.room.value }}</span>
                 </template>
-                <template v-if="hasProgram">
+                <template v-if="programLine !== ''">
                     <span class="climate-io__dot" aria-hidden="true">·</span>
-                    <span>{{ t('program.rowLabel') }}</span>
+                    <span class="climate-io__program">{{ programLine }}</span>
                 </template>
             </template>
             <span v-else>{{ io.state }}</span>
         </template>
 
         <template v-if="device" #actions>
-            <span v-if="badge" class="climate-io__badge" :aria-label="badge.label">{{ badge.text }}</span>
+            <!-- Inside a row that is itself a button: the clicks stay here. -->
+            <label v-if="hasProgram && program.state.value !== undefined" class="climate-io__switch" @click.stop>
+                <input
+                    type="checkbox"
+                    role="switch"
+                    :checked="program.enabled.value"
+                    :disabled="program.readonly.value || program.saving.value"
+                    @change="program.toggle()"
+                />
+                <span>{{ t('program.enabled') }}</span>
+            </label>
             <span class="climate-io__status" :style="{ color: statusColor }">{{ text.statusShort.value }}</span>
             <IconChevronRight class="climate-io__chevron" aria-hidden="true" />
         </template>
@@ -270,12 +281,21 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
     margin-inline: 0.375rem;
 }
 
-.climate-io__badge {
+.climate-io__switch {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-block-size: 2.75rem;
     margin-inline-end: var(--space-2);
     font-size: 0.8125rem;
     color: var(--c-text-muted);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
+    cursor: pointer;
+}
+
+.climate-io__switch input {
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    accent-color: var(--c-accent);
 }
 
 .climate-io__status {

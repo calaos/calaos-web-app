@@ -38,6 +38,8 @@ export interface UseProgram {
     nextIn: ComputedRef<string>;
     /** The one line of the detail ("17:30, Heating level 2 at 20.5° (in 3 h 20)"). */
     nextText: ComputedRef<string>;
+    /** "Level 2 · 20.5°", or that no level applies now. */
+    activeText: ComputedRef<string>;
     /** Heating/cooling in play now, for the pause banner. */
     pausedText: ComputedRef<string>;
 }
@@ -169,11 +171,17 @@ export function useProgram(io: MaybeRefOrGetter<IoItem>): UseProgram {
         return s[set];
     });
 
+    const activeText = computed(() => {
+        const set = current.value;
+        if (!set || set.activeLevel === null || set.setpoint === null) return t('program.noLevel');
+        return t('program.activeLevel', { level: set.activeLevel, setpoint: degrees(set.setpoint) });
+    });
+
     const pausedText = computed(() => {
         const set = current.value;
         if (!set || set.activeLevel === null || set.setpoint === null) return t('program.paused');
         return t('program.pausedLevel', { level: set.activeLevel, setpoint: degrees(set.setpoint) });
     });
 
-    return { available, loading, state, enabled, readonly, saving, error, toggle, current, nextTime, nextChange, nextIn, nextText, pausedText };
+    return { available, loading, state, enabled, readonly, saving, error, toggle, current, nextTime, nextChange, nextIn, nextText, activeText, pausedText };
 }

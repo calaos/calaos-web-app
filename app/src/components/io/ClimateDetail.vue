@@ -106,11 +106,6 @@ const shownDirections = computed<('heat' | 'cool')[]>(() => {
     }
     return out;
 });
-const activeText = computed(() => {
-    const set = program.current.value;
-    if (!set || set.activeLevel === null || set.setpoint === null) return t('program.noLevel');
-    return t('program.activeLevel', { level: set.activeLevel, setpoint: text.degrees(set.setpoint).replace('°', '') });
-});
 </script>
 
 <template>
@@ -212,7 +207,7 @@ const activeText = computed(() => {
                     <span>{{ program.pausedText.value }}</span>
                 </p>
                 <template v-else>
-                    <p class="climate-detail__active">{{ activeText }}</p>
+                    <p class="climate-detail__active">{{ program.activeText.value }}</p>
                     <p class="climate-detail__next">{{ program.nextText.value }}</p>
                 </template>
 
