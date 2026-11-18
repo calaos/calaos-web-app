@@ -6,7 +6,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import IconPause from '~icons/mdi/pause';
 import ScheduleTrack from './ScheduleTrack.vue';
+import { useProgram } from '../../composables/useProgram';
 import { useConnectionStore } from '../../stores/connection';
 import { useScheduleStore } from '../../stores/schedule';
 import {
@@ -509,10 +511,12 @@ onMounted(() => {
 onBeforeUnmount(() => clearInterval(clock));
 
 const AXIS = [0, 6, 12, 18, 24];
+const programCtl = useProgram(() => props.io);
+const paused = computed(() => programCtl.state.value !== undefined && !programCtl.enabled.value);
 </script>
 
 <template>
-    <div class="schedule" :class="`schedule--${mode}`">
+    <div class="schedule" :class="[`schedule--${mode}`, { 'schedule--paused': paused }]">
         <div v-if="loading" class="schedule__loading" role="status">
             <div class="schedule__skeleton" aria-hidden="true" />
             <p>{{ t('schedule.loading') }}</p>
@@ -523,6 +527,13 @@ const AXIS = [0, 6, 12, 18, 24];
                 <span>{{ banner.text }}</span>
                 <button v-if="banner.retry" type="button" class="schedule__button" :disabled="busy" @click="banner.retry()">
                     {{ t('schedule.retry') }}
+                </button>
+            </div>
+            <div v-if="paused" class="schedule__paused" role="status">
+                <IconPause aria-hidden="true" />
+                <span>{{ t('program.editorPaused') }}</span>
+                <button v-if="!programCtl.readonly.value && !readonly" type="button" class="schedule__button" :disabled="programCtl.saving.value" @click="programCtl.toggle()">
+                    {{ t('program.resume') }}
                 </button>
             </div>
             <p v-if="readonly || !connection.isOpen" class="schedule__muted">{{ t('schedule.readOnly') }}</p>
@@ -793,6 +804,21 @@ const AXIS = [0, 6, 12, 18, 24];
     .schedule__skeleton {
         animation: none;
     }
+}
+
+.schedule__paused {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--c-border-strong);
+    border-radius: 6px;
+}
+
+.schedule--paused .schedule__track,
+.schedule--paused :deep(.track) {
+    opacity: 0.55;
 }
 
 .schedule__banner {

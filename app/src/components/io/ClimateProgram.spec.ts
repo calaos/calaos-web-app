@@ -329,8 +329,12 @@ describe('ClimateDetail — the program', () => {
         await help.trigger('click');
         expect(body().find('.climate-detail__helptext').exists()).toBe(false);
 
-        const kids = body().get('.climate-detail__strips').element.children;
-        expect([...kids].map((k) => k.getAttribute('aria-label'))).toEqual(['Today, Heating', 'Between heating and cooling', 'Today, Cooling']);
+        const kids = [...body().get('.climate-detail__strips').element.querySelectorAll('[role="group"], .climate-detail__hatch')];
+        expect(kids.map((k) => k.getAttribute('aria-label'))).toEqual(['Today, Heating', 'Between heating and cooling', 'Today, Cooling']);
+        // Each overlaid track carries a visible name, hidden from AT since the track is already labelled.
+        const labels = [...body().element.querySelectorAll('.climate-detail__strip-label')];
+        expect(labels.map((l) => l.textContent)).toEqual(['Heating', 'Cooling']);
+        expect(labels.every((l) => l.getAttribute('aria-hidden') === 'true')).toBe(true);
     });
 
     it('in auto: falls back on the program setpoints when the device publishes no range, and on the plain help without min_range', async () => {

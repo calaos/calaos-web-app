@@ -685,6 +685,8 @@
         "activeLevel": "Niveau {level} · {setpoint}°",
         "activeDefault": "Par défaut · {setpoint}°",
         "noLevel": "Aucun niveau en ce moment",
+        "editorPaused": "Programme en pause, les plages ne s'appliquent pas",
+        "resume": "Réactiver le programme",
         "paused": "Programme en pause",
         "pausedLevel": "Programme en pause : niveau {level} ({setpoint}°)",
         "pausedDefault": "Programme en pause : par défaut ({setpoint}°)",

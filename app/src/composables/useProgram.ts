@@ -50,8 +50,8 @@ export function useProgram(io: MaybeRefOrGetter<IoItem>): UseProgram {
     const connection = useConnectionStore();
 
     const device = computed(() => toValue(io).device);
-    const state = computed(() => device.value?.state.program);
-    const available = computed(() => device.value?.capabilities.program !== undefined);
+    const state = computed(() => device.value?.state?.program);
+    const available = computed(() => device.value?.capabilities?.program !== undefined);
     const loading = computed(() => available.value && state.value === undefined);
     const enabledId = computed(() => device.value?.ios.program_enabled ?? '');
 

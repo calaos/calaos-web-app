@@ -229,13 +229,16 @@ const shownDirections = computed<('heat' | 'cool')[]>(() => {
                 <div v-if="shownDirections.length" class="climate-detail__strips" :class="{ 'climate-detail__strips--auto': auto }">
                     <template v-for="(d, i) in shownDirections" :key="d">
                         <div v-if="auto && i === 1" class="climate-detail__hatch" role="img" :aria-label="t('program.hatched')" />
-                        <ScheduleTrack
-                            :program="tracks.programs.value[d]!"
-                            :day="today"
-                            :now="nowMinutes"
-                            :gap-label="gapLabel(d)"
-                            :label="t('program.today', { dir: t(`schedule.${d}`) })"
-                        />
+                        <div class="climate-detail__strip">
+                            <span v-if="auto" class="climate-detail__strip-label" aria-hidden="true">{{ t(`schedule.${d}`) }}</span>
+                            <ScheduleTrack
+                                :program="tracks.programs.value[d]!"
+                                :day="today"
+                                :now="nowMinutes"
+                                :gap-label="gapLabel(d)"
+                                :label="t('program.today', { dir: t(`schedule.${d}`) })"
+                            />
+                        </div>
                     </template>
                 </div>
             </template>
@@ -418,6 +421,23 @@ const shownDirections = computed<('heat' | 'cool')[]>(() => {
 }
 
 .climate-detail__helptext {
+    color: var(--c-text-muted);
+}
+
+.climate-detail__strip {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.climate-detail__strip > :last-child {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+}
+
+.climate-detail__strip-label {
+    flex: 0 0 4.5rem;
+    font-size: 0.8125rem;
     color: var(--c-text-muted);
 }
 

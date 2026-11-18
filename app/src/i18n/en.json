@@ -685,6 +685,8 @@
         "activeLevel": "Level {level} · {setpoint}°",
         "activeDefault": "Default · {setpoint}°",
         "noLevel": "No level now",
+        "editorPaused": "Program paused, slots do not apply",
+        "resume": "Resume program",
         "paused": "Program paused",
         "pausedLevel": "Program paused: level {level} ({setpoint}°)",
         "pausedDefault": "Program paused: default ({setpoint}°)",

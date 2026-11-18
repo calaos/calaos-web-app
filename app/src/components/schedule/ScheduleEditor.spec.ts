@@ -83,6 +83,24 @@ async function mountEditor(opts: Options = {}): Promise<Mounted> {
     return { wrapper, server };
 }
 
+describe('program paused', () => {
+    it('says the slots do not apply and offers to resume, none when the program runs', async () => {
+        const io = (enabled: boolean) =>
+            ({ device: { ios: { ...climateIos(), program_enabled: 'PE' }, capabilities: { program: {} }, state: { program: { enabled } } } }) as unknown as IoItem;
+        const run = async (enabled: boolean) => {
+            const { wrapper } = await mountEditor({ prepare: () => {} });
+            await wrapper.setProps({ io: io(enabled) });
+            return wrapper;
+        };
+        const paused = await run(false);
+        const banner = paused.get('.schedule__paused');
+        expect(banner.attributes('role')).toBe('status');
+        expect(banner.text()).toContain('Program paused, slots do not apply');
+        expect(banner.find('button').text()).toBe('Resume program');
+        expect((await run(true)).find('.schedule__paused').exists()).toBe(false);
+    });
+});
+
 // ------------------------------------------------------------- helpers ---
 
 const text = (w: VueWrapper) => w.text().replace(/\s+/g, ' ');
