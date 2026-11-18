@@ -67,6 +67,9 @@ const programLine = computed(() => {
     return program.activeText.value + next;
 });
 
+const paused = computed(() => hasProgram.value && program.state.value !== undefined && !program.enabled.value);
+const valueTitle = computed(() => [text.setpoint.value, text.room.value, programLine.value].filter((v) => v !== '').join(' · '));
+
 // ------------------------------------------------------- open and close ---
 
 const modeOpen = ref(false);
@@ -158,7 +161,7 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
         </template>
 
         <template #value>
-            <template v-if="device">
+            <span v-if="device" class="climate-io__line" :title="valueTitle">
                 <span v-if="text.setpoint.value !== ''" class="climate-io__set">{{ text.setpoint.value }}</span>
                 <template v-if="text.room.value !== ''">
                     <span v-if="text.setpoint.value !== ''" class="climate-io__dot" aria-hidden="true">·</span>
@@ -166,15 +169,20 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
                 </template>
                 <template v-if="programLine !== ''">
                     <span class="climate-io__dot" aria-hidden="true">·</span>
+                    <span v-if="paused" class="climate-io__pause" aria-hidden="true">⏸</span>
                     <span class="climate-io__program">{{ programLine }}</span>
                 </template>
-            </template>
+            </span>
             <span v-else>{{ io.state }}</span>
         </template>
 
         <template v-if="device" #actions>
-            <!-- Inside a row that is itself a button: the clicks stay here. -->
-            <label v-if="hasProgram && program.state.value !== undefined" class="climate-io__switch" @click.stop>
+            <span class="climate-io__status" :style="{ color: statusColor }">{{ text.statusShort.value }}</span>
+            <IconChevronRight class="climate-io__chevron" aria-hidden="true" />
+        </template>
+
+        <template v-if="device && hasProgram && program.state.value !== undefined" #controls>
+            <label class="climate-io__switch">
                 <input
                     type="checkbox"
                     role="switch"
@@ -184,8 +192,6 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
                 />
                 <span>{{ t('program.enabled') }}</span>
             </label>
-            <span class="climate-io__status" :style="{ color: statusColor }">{{ text.statusShort.value }}</span>
-            <IconChevronRight class="climate-io__chevron" aria-hidden="true" />
         </template>
     </IoRowFrame>
 
@@ -269,7 +275,20 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
 /* The row's own value slot caps at 45%: a setpoint range and the room's
    temperature are the point of this row. */
 .climate-io :deep(.io-row__value) {
-    max-inline-size: none;
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+}
+
+.climate-io__line {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.climate-io__pause {
+    margin-inline-end: var(--space-1);
 }
 
 .climate-io__set {
@@ -278,7 +297,7 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
 }
 
 .climate-io__dot {
-    margin-inline: 0.375rem;
+    margin-inline: var(--space-2);
 }
 
 .climate-io__switch {
@@ -309,7 +328,7 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
     margin-inline-start: var(--space-1);
     font-size: 1.125rem;
     color: var(--c-text-muted);
-    transition: color 160ms ease;
+    transition: color var(--duration-fade) ease;
 }
 
 .climate-io:hover .climate-io__chevron,

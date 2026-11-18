@@ -90,7 +90,6 @@ describe('useProgramTracks', () => {
         expect(tracks.defaultOf('cool')).toBe(28);
         expect(tracks.coolOff.value).toBe(false);
 
-
         useScheduleStore().applyIoChanged('CO', 'true');
         expect(tracks.coolOff.value).toBe(true);
     });

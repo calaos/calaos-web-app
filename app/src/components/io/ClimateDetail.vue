@@ -278,7 +278,7 @@ const shownDirections = computed<('heat' | 'cool')[]>(() => {
 }
 
 .climate-detail__word {
-    margin-block-start: 0.375rem;
+    margin-block-start: var(--space-2);
     font-size: 1rem;
     font-weight: 500;
     white-space: nowrap;
@@ -490,7 +490,7 @@ const shownDirections = computed<('heat' | 'cool')[]>(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.375rem;
+    gap: var(--space-2);
     margin-block-start: auto;
     min-block-size: 2.75rem;
     padding: var(--space-4) var(--space-2) 0;

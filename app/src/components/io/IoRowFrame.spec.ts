@@ -65,25 +65,26 @@ describe('IoRowFrame', () => {
 
         it('is a plain row, not a button, unless it opens a view', () => {
             const wrapper = mount(IoRowFrame, { props: { name: 'Plafonnier' }, global: { plugins: [i18n] } });
-            expect(wrapper.attributes('role')).toBeUndefined();
-            expect(wrapper.attributes('tabindex')).toBeUndefined();
+            expect(wrapper.find('[role="button"]').exists()).toBe(false);
+            expect(wrapper.find('[tabindex]').exists()).toBe(false);
             expect(wrapper.classes()).not.toContain('io-row--opens');
         });
 
         it('becomes a focusable button that says whether its view is showing', async () => {
             const wrapper = open();
-            expect(wrapper.attributes('role')).toBe('button');
-            expect(wrapper.attributes('tabindex')).toBe('0');
-            expect(wrapper.attributes('aria-expanded')).toBe('false');
+            const button = wrapper.get('[role="button"]');
+            expect(button.attributes('tabindex')).toBe('0');
+            expect(button.attributes('aria-expanded')).toBe('false');
 
             await wrapper.setProps({ expanded: true });
-            expect(wrapper.attributes('aria-expanded')).toBe('true');
+            expect(button.attributes('aria-expanded')).toBe('true');
         });
 
         it('emits open on a click and on Enter', async () => {
             const wrapper = open();
-            await wrapper.trigger('click');
-            await wrapper.trigger('keydown', { key: 'Enter' });
+            const button = wrapper.get('[role="button"]');
+            await button.trigger('click');
+            await button.trigger('keydown', { key: 'Enter' });
             expect(wrapper.emitted('open')).toHaveLength(2);
         });
 
@@ -91,25 +92,26 @@ describe('IoRowFrame', () => {
             const wrapper = open();
             // Firefox fires a click on the release: opening on the press would
             // leave that click on whatever the opened view put under the finger.
-            await wrapper.trigger('keydown', { key: ' ' });
+            const button = wrapper.get('[role="button"]');
+            await button.trigger('keydown', { key: ' ' });
             expect(wrapper.emitted('open')).toBeUndefined();
 
-            await wrapper.trigger('keyup', { key: ' ' });
+            await button.trigger('keyup', { key: ' ' });
             expect(wrapper.emitted('open')).toHaveLength(1);
         });
 
         it('keeps Space from scrolling the page while it is pressed', () => {
             const wrapper = open();
             const event = new KeyboardEvent('keydown', { key: ' ', cancelable: true, bubbles: true });
-            wrapper.element.dispatchEvent(event);
+            wrapper.get('[role="button"]').element.dispatchEvent(event);
 
             expect(event.defaultPrevented).toBe(true);
         });
 
         it('ignores other keys, and keys typed in something inside it', async () => {
             const wrapper = open();
-            await wrapper.trigger('keydown', { key: 'a' });
-            await wrapper.trigger('keydown', { key: 'Tab' });
+            await wrapper.get('[role="button"]').trigger('keydown', { key: 'a' });
+            await wrapper.get('[role="button"]').trigger('keydown', { key: 'Tab' });
             expect(wrapper.emitted('open')).toBeUndefined();
 
             const nested = mount(IoRowFrame, {
@@ -127,6 +129,16 @@ describe('IoRowFrame', () => {
             await wrapper.trigger('click');
             await wrapper.trigger('keydown', { key: 'Enter' });
             expect(wrapper.emitted('open')).toBeUndefined();
+        });
+        it('puts a control of its own outside the button, so it is not nested in it', () => {
+            const wrapper = mount(IoRowFrame, {
+                props: { name: 'Clim', opens: true },
+                global: { plugins: [i18n] },
+                slots: { controls: '<input type="checkbox" role="switch" class="own" />' },
+            });
+            const button = wrapper.get('[role="button"]');
+            expect(button.find('.own').exists()).toBe(false);
+            expect(wrapper.find('.own').exists()).toBe(true);
         });
     });
 });

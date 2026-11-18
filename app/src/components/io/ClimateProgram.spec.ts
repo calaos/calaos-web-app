@@ -79,7 +79,7 @@ const detailSwitch = () => body().find('.climate-detail__switch input');
 const sentStates = () => server.sent.filter((f) => f.msg === 'set_state').map((f) => `${String(f.data.id)}=${String(f.data.value)}`);
 
 async function openSettings(w: VueWrapper) {
-    await w.get('.io-row').trigger('click');
+    await w.get('[role="button"]').trigger('click');
     await flushPromises();
 }
 
@@ -125,6 +125,12 @@ describe('ClimateIo — the program on the card', () => {
         const w = mountClimate(device({ program: program({ enabled: false }) }));
         expect(w.get('.climate-io__program').text()).toBe('Program paused: level 2 (20.5°)');
         expect(rowSwitch(w).element).toHaveProperty('checked', false);
+        expect(w.get('.climate-io__pause').text()).toBe('⏸');
+        expect(w.get('.climate-io__pause').attributes('aria-hidden')).toBe('true');
+    });
+
+    it('shows no pause glyph while the program runs', () => {
+        expect(mountClimate().find('.climate-io__pause').exists()).toBe(false);
     });
 
     it('says no level applies when the clock is in a gap', () => {
@@ -157,6 +163,23 @@ describe('ClimateIo — the program on the card', () => {
         expect(w.get('.climate-io__program').text()).toContain('Program paused');
         await vi.advanceTimersByTimeAsync(5000);
         expect(rowSwitch(w).element).toHaveProperty('checked', false);
+    });
+
+    it('keeps the switch reachable by its role: outside the button, nothing interactive nested in it', () => {
+        const w = mountClimate();
+        const button = w.get('[role="button"]');
+        expect(w.findAll('[role="switch"]')).toHaveLength(1);
+        expect(button.find('[role="switch"], input, button, a, select').exists()).toBe(false);
+        expect(button.element.contains(rowSwitch(w).element)).toBe(false);
+    });
+
+    it('does not open the settings on Space or Enter on the switch', async () => {
+        const w = mountClimate();
+        await rowSwitch(w).trigger('keydown', { key: ' ' });
+        await rowSwitch(w).trigger('keydown', { key: 'Enter' });
+        await rowSwitch(w).trigger('keyup', { key: ' ' });
+        await flushPromises();
+        expect(body().find('.climate-panel').exists()).toBe(false);
     });
 
     it('does not open the settings when the switch is tapped', async () => {

@@ -157,10 +157,13 @@ export function useProgram(io: MaybeRefOrGetter<IoItem>): UseProgram {
         const change = nextChange.value;
         if (!change) return t('program.nothingNext');
         const dir = t(`schedule.${change.set}`);
+        // A null level is the default setpoint taking over; only a null setpoint is "off".
         const what =
-            change.level === null || change.setpoint === null
+            change.setpoint === null
                 ? t('program.nextOff', { dir })
-                : t('program.nextLevel', { dir, level: change.level, setpoint: degrees(change.setpoint) });
+                : change.level === null
+                  ? t('program.nextDefault', { dir, setpoint: degrees(change.setpoint) })
+                  : t('program.nextLevel', { dir, level: change.level, setpoint: degrees(change.setpoint) });
         return t('program.next', { time: nextTime.value, what, in: nextIn.value });
     });
 
@@ -173,13 +176,15 @@ export function useProgram(io: MaybeRefOrGetter<IoItem>): UseProgram {
 
     const activeText = computed(() => {
         const set = current.value;
-        if (!set || set.activeLevel === null || set.setpoint === null) return t('program.noLevel');
+        if (!set || set.setpoint === null) return t('program.noLevel');
+        if (set.activeLevel === null) return t('program.activeDefault', { setpoint: degrees(set.setpoint) });
         return t('program.activeLevel', { level: set.activeLevel, setpoint: degrees(set.setpoint) });
     });
 
     const pausedText = computed(() => {
         const set = current.value;
-        if (!set || set.activeLevel === null || set.setpoint === null) return t('program.paused');
+        if (!set || set.setpoint === null) return t('program.paused');
+        if (set.activeLevel === null) return t('program.pausedDefault', { setpoint: degrees(set.setpoint) });
         return t('program.pausedLevel', { level: set.activeLevel, setpoint: degrees(set.setpoint) });
     });
 

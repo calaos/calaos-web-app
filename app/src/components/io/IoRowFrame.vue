@@ -81,33 +81,41 @@ withDefaults(
         class="io-row"
         :class="{ 'io-row--opens': opens }"
         :aria-busy="pending ? 'true' : undefined"
-        :role="opens ? 'button' : undefined"
-        :tabindex="opens ? 0 : undefined"
-        :aria-expanded="opens ? expanded : undefined"
-        @click="opens && emit('open')"
-        @keydown="opens && onKeydown($event)"
-        @keyup="opens && onKeyup($event)"
     >
-        <span class="io-row__lead">
-            <slot name="icon" />
-            <!-- Anchored to the glyph, not to the row: it is this control that
-                 is waiting, and a badge on the thing itself costs no layout
-                 (a dot that appears in the flow would shove the name). -->
-            <span v-if="pending" class="io-row__pending pulse-soft" aria-hidden="true" />
+        <!-- With `opens`, the button is this wrapper alone: a button's children are
+             presentational, so a control of its own (`controls`) sits beside it. -->
+        <span
+            class="io-row__main"
+            :role="opens ? 'button' : undefined"
+            :tabindex="opens ? 0 : undefined"
+            :aria-expanded="opens ? expanded : undefined"
+            @click="opens && emit('open')"
+            @keydown="opens && onKeydown($event)"
+            @keyup="opens && onKeyup($event)"
+        >
+            <span class="io-row__lead">
+                <slot name="icon" />
+                <!-- Anchored to the glyph, not to the row: it is this control that
+                     is waiting, and a badge on the thing itself costs no layout
+                     (a dot that appears in the flow would shove the name). -->
+                <span v-if="pending" class="io-row__pending pulse-soft" aria-hidden="true" />
+            </span>
+
+            <span class="io-row__text">
+                <span class="io-row__name">{{ name }}</span>
+                <span v-if="note !== ''" class="io-row__note">{{ note }}</span>
+            </span>
+
+            <span v-if="$slots.value" class="io-row__value"><slot name="value" /></span>
+
+            <!-- Between the reading and the controls, exactly where calaos_mobile
+                 puts it: the device's own health, on whichever rows have any. -->
+            <SensorStatusBadge :status="status" />
+
+            <span v-if="$slots.actions" class="io-row__actions"><slot name="actions" /></span>
         </span>
 
-        <span class="io-row__text">
-            <span class="io-row__name">{{ name }}</span>
-            <span v-if="note !== ''" class="io-row__note">{{ note }}</span>
-        </span>
-
-        <span v-if="$slots.value" class="io-row__value"><slot name="value" /></span>
-
-        <!-- Between the reading and the controls, exactly where calaos_mobile
-             puts it: the device's own health, on whichever rows have any. -->
-        <SensorStatusBadge :status="status" />
-
-        <span v-if="$slots.actions" class="io-row__actions"><slot name="actions" /></span>
+        <span v-if="$slots.controls" class="io-row__controls"><slot name="controls" /></span>
     </div>
 </template>
 
@@ -132,11 +140,37 @@ withDefaults(
     border-radius: var(--radius-md);
 }
 
+/* Plain rows: the wrapper adds no box, the children lay out in the row. */
+.io-row__main {
+    display: contents;
+}
+
 .io-row--opens {
-    cursor: pointer;
+    padding: 0;
+    gap: 0;
     transition:
-        background-color 160ms ease,
-        border-color 160ms ease;
+        background-color var(--duration-fade) ease,
+        border-color var(--duration-fade) ease;
+}
+
+.io-row--opens > .io-row__main {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    flex: 1 1 16rem;
+    gap: var(--space-3);
+    min-inline-size: 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.io-row__controls {
+    display: flex;
+    align-items: center;
+    flex: none;
+    margin-inline-start: auto;
+    padding-inline: 0 var(--space-3);
 }
 
 .io-row--opens:hover,
@@ -237,7 +271,7 @@ withDefaults(
 /* On the narrowest phones the two action buttons and a long name are fighting
    for the same 320px; give the fight back to the name. */
 @media (max-width: 24rem) {
-    .io-row {
+    .io-row:not(.io-row--opens) {
         gap: var(--space-2);
         padding-inline: var(--space-2);
     }

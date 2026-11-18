@@ -213,6 +213,11 @@ describe('useProgram — the next change', () => {
         expect(p.nextText.value).toBe('12:00, Cooling off (in 2 h 00)');
     });
 
+    it('says the default applies, not that the set is off, when the level is null but a setpoint is given', () => {
+        const p = setup(wire(state({ next_change: { at: at(2 * 3600_000), set: 'heat', level: null, setpoint: 17 } })));
+        expect(p.nextText.value).toBe('12:00, Heating default at 17° (in 2 h 00)');
+    });
+
     it('stops its timers with its scope, the ticker and a pending draft', async () => {
         const p = setup(wire(state()));
         await p.toggle();
@@ -247,6 +252,14 @@ describe('useProgram — the set in force', () => {
             wire(state({ mode_set: null, heat: undefined, cool: { levels: 2, active_level: 1, setpoint: 24, default: null }, next_change: null })),
         );
         expect(coolOnly.current.value?.setpoint).toBe(24);
+    });
+
+    it('says the default setpoint applies when no level is active but a setpoint is set', () => {
+        const p = setup(wire(state({ heat: { levels: 2, active_level: null, setpoint: 17, default: 17 }, enabled: false })));
+        expect(p.pausedText.value).toBe('Program paused: default (17°)');
+        scope.stop();
+        const q = setup(wire(state({ heat: { levels: 2, active_level: null, setpoint: 17.5, default: 17.5 } })));
+        expect(q.activeText.value).toBe('Default · 17.5°');
     });
 
     it('says no level applies, and what the pause covers', () => {
