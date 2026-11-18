@@ -89,9 +89,9 @@ const helpText = computed(() =>
     bounds.value?.minRange ? t('program.helpGap', { gap: text.degrees(bounds.value.minRange) }) : t('program.helpPlain'),
 );
 
-const today = computed(() => new Date().getDay() || 7);
+const today = computed(() => new Date(program.now.value).getDay() || 7);
 const nowMinutes = computed(() => {
-    const d = new Date();
+    const d = new Date(program.now.value);
     return d.getHours() * 60 + d.getMinutes();
 });
 const gapLabel = (d: 'heat' | 'cool') => {

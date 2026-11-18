@@ -3,7 +3,7 @@
     44 px segments that open the slot) or a 28 px read-only preview row.
 -->
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { DAY_MINUTES, effectiveDay, formatMinutes, setpointOf } from '../../protocol/schedule';
 import type { DirectionProgram } from '../../protocol/schedule';
@@ -22,10 +22,21 @@ const props = defineProps<{
 const emit = defineEmits<{ open: [level: number, start: number] }>();
 const { t, locale } = useI18n();
 
-/** Under this share of the day a segment only shows its level number. */
+/** Text fits by pixels once the track is measured; before that (and in jsdom) by share of the day. */
 const NARROW_PERCENT = 9;
-/** Under this share not even the number fits. */
 const TINY_PERCENT = 5;
+const NARROW_PX = 68;
+const TINY_PX = 28;
+
+const root = ref<HTMLElement | null>(null);
+const trackPx = ref(0);
+let observer: ResizeObserver | undefined;
+onMounted(() => {
+    if (root.value === null || typeof ResizeObserver === 'undefined') return;
+    observer = new ResizeObserver(() => (trackPx.value = root.value?.clientWidth ?? 0));
+    observer.observe(root.value);
+});
+onBeforeUnmount(() => observer?.disconnect());
 
 const pieces = computed(() =>
     effectiveDay(props.program, props.day).map((p) => {
@@ -36,8 +47,8 @@ const pieces = computed(() =>
             ...p,
             left: (p.start / DAY_MINUTES) * 100,
             width,
-            narrow: width < NARROW_PERCENT,
-            tiny: width < TINY_PERCENT,
+            narrow: trackPx.value > 0 ? (width / 100) * trackPx.value < NARROW_PX : width < NARROW_PERCENT,
+            tiny: trackPx.value > 0 ? (width / 100) * trackPx.value < TINY_PX : width < TINY_PERCENT,
             text: p.level === null ? props.gapLabel : `N${p.level} ${degrees}°`,
             aria:
                 p.level === null
@@ -62,7 +73,7 @@ const lightFrom = computed(() => (props.program.direction === 'heat' ? 6 : 5));
 </script>
 
 <template>
-    <div class="track" :class="{ 'track--preview': !interactive }" role="group" :aria-label="label">
+    <div ref="root" class="track" :class="{ 'track--preview': !interactive }" role="group" :aria-label="label">
         <template v-for="p in pieces" :key="`${p.start}-${p.level}`">
             <button
                 v-if="p.level !== null && interactive"
@@ -71,6 +82,7 @@ const lightFrom = computed(() => (props.program.direction === 'heat' ? 6 : 5));
                 :class="{ 'track__seg--light': p.level >= lightFrom }"
                 :style="{ left: `${p.left}%`, width: `${p.width}%`, background: `var(--lv-${kind}${p.level})` }"
                 :aria-label="p.aria"
+                :title="p.aria"
                 @click="emit('open', p.level, p.start)"
             >
                 <span aria-hidden="true">{{ p.tiny ? '' : p.narrow ? `N${p.level}` : p.text }}</span>
@@ -80,12 +92,13 @@ const lightFrom = computed(() => (props.program.direction === 'heat' ? 6 : 5));
                 class="track__seg"
                 :class="{ 'track__seg--light': p.level >= lightFrom }"
                 :style="{ left: `${p.left}%`, width: `${p.width}%`, background: `var(--lv-${kind}${p.level})` }"
+                :title="p.aria"
                 aria-hidden="true"
             >
                 <span>{{ p.tiny ? '' : p.narrow ? `N${p.level}` : p.text }}</span>
             </div>
             <div v-else class="track__gap" :style="{ left: `${p.left}%`, width: `${p.width}%` }" aria-hidden="true">
-                <span v-if="interactive && !p.narrow">{{ p.text }}</span>
+                <span v-if="!p.narrow">{{ p.text }}</span>
             </div>
         </template>
         <div v-if="now !== undefined" class="track__now" :style="{ left: `${(now / DAY_MINUTES) * 100}%` }" :title="t('schedule.now')" aria-hidden="true" />
@@ -125,7 +138,7 @@ const lightFrom = computed(() => (props.program.direction === 'heat' ? 6 : 5));
 .track__gap span {
     /* A flex-centred label that overflows is cut on both sides: ellipsis keeps its start. */
     min-inline-size: 0;
-    padding-inline: 0.25rem;
+    padding-inline: var(--space-1);
     overflow: hidden;
     text-overflow: ellipsis;
 }

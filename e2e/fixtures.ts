@@ -56,6 +56,7 @@ export type ControlOp =
     | { op: 'camera_token'; ttl?: number }
     /** The (after+1)th set_timerange from now answers config_not_written (default 0: the next one). */
     | { op: 'timerange_fail'; after?: number }
+    | { op: 'program_reject'; on?: boolean }
     | { op: 'program_clock'; clock?: string | null; hidden?: boolean }
     | { op: 'reset' };
 

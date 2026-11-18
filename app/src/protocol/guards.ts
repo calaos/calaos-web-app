@@ -119,11 +119,17 @@ function toTargetTemp(v: unknown): DeviceTargetTemp | undefined {
     return target;
 }
 
+/** The contract has at most 6 levels per direction; anything else is a broken device. */
+function toLevelCount(v: unknown): number | null {
+    const n = toDeviceNumber(v);
+    return n !== null && Number.isInteger(n) && n >= 0 && n <= 6 ? n : null;
+}
+
 function toProgramCapability(v: unknown): ProgramCapability | undefined {
     if (!isRecord(v)) return undefined;
-    const heatLevels = toDeviceNumber(v.heat_levels);
-    const coolLevels = toDeviceNumber(v.cool_levels);
-    const maxLevels = toDeviceNumber(v.max_levels);
+    const heatLevels = toLevelCount(v.heat_levels);
+    const coolLevels = toLevelCount(v.cool_levels);
+    const maxLevels = toLevelCount(v.max_levels);
     if (heatLevels === null || coolLevels === null || maxLevels === null) return undefined;
     if (heatLevels + coolLevels <= 0) return undefined;
     return { heatLevels, coolLevels, maxLevels };

@@ -96,6 +96,8 @@ export function createProgram({ broadcast = () => {}, onChange = () => {} } = {}
     let timeranges;
     /** set_timerange calls still to answer normally before the armed failure. */
     let failAfter = -1;
+    /** While true every set_state on a program IO answers success:false. */
+    let rejectValues = false;
 
     function reset() {
         const fixture = loadFixture();
@@ -104,6 +106,7 @@ export function createProgram({ broadcast = () => {}, onChange = () => {} } = {}
             Object.entries(fixture.timeranges).map(([id, ranges]) => [id, { months: '111111111111', ranges }]),
         );
         failAfter = -1;
+        rejectValues = false;
         clock = null;
         hidden = false;
     }
@@ -216,7 +219,7 @@ export function createProgram({ broadcast = () => {}, onChange = () => {} } = {}
         /** @returns {boolean} set_state's success */
         setValue(id, value) {
             const io = values.get(id);
-            if (!io) return false;
+            if (!io || rejectValues) return false;
             const v = String(value);
             if (io.gui_type === 'var_bool' && v !== 'true' && v !== 'false') return false;
             if (io.gui_type === 'var_float' && !Number.isFinite(Number(v))) return false;
@@ -265,6 +268,10 @@ export function createProgram({ broadcast = () => {}, onChange = () => {} } = {}
             }
             if (failAfter > 0) failAfter--;
             return { success: 'true' };
+        },
+
+        reject(on = true) {
+            rejectValues = on === true;
         },
 
         /** The (n+1)th set_timerange from now answers config_not_written. */

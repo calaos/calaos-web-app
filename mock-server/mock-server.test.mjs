@@ -2107,6 +2107,19 @@ describe('climate time programs', () => {
         expect(device.state.program).toBeUndefined();
     });
 
+    it('program_clock answers 400 on an invalid date', async () => {
+        const res = await control({ op: 'program_clock', clock: 'not a date' });
+        expect(res.status).toBe(400);
+    });
+
+    it('program_reject makes set_state on a program IO fail, until it is lifted', async () => {
+        await control({ op: 'program_reject' });
+        const { client } = await login();
+        client.send({ msg: 'set_state', msg_id: 'r1', data: { id: 'thermo_bureau_program_enabled', value: 'false' } });
+        const frame = await client.waitFor((f) => f.msg === 'set_state');
+        expect(frame.data.success).toBe('false');
+    });
+
     it('get_state and set_state reach the hidden setpoint IOs', async () => {
         const { client } = await login();
         const id = 'thermo_bureau_heat_level2_setpoint';

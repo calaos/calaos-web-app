@@ -91,7 +91,10 @@ export function useProgram(io: MaybeRefOrGetter<IoItem>): UseProgram {
             return;
         }
         if (state.value?.enabled === next) clearDraft();
-        else timer = setTimeout(clearDraft, DRAFT_TIMEOUT_MS);
+        else {
+            if (timer !== undefined) clearTimeout(timer);
+            timer = setTimeout(clearDraft, DRAFT_TIMEOUT_MS);
+        }
     }
 
     // ---------------------------------------------------------- the clock ---
@@ -188,5 +191,5 @@ export function useProgram(io: MaybeRefOrGetter<IoItem>): UseProgram {
         return t('program.pausedLevel', { level: set.activeLevel, setpoint: degrees(set.setpoint) });
     });
 
-    return { available, loading, state, enabled, readonly, saving, error, toggle, current, nextTime, nextChange, nextIn, nextText, activeText, pausedText };
+    return { available, loading, state, enabled, readonly, saving, error, toggle, current, now, nextTime, nextChange, nextIn, nextText, activeText, pausedText };
 }

@@ -594,6 +594,28 @@ describe('toDeviceInfo: program', () => {
         expect(device({ program: { heat_levels: 'a', cool_levels: 1, max_levels: 6 } }, {})?.capabilities.program).toBeUndefined();
     });
 
+    it('refuses level counts that are negative, fractional or beyond 6', () => {
+        const caps = (heat: unknown, max: unknown = 6) => device({ program: { heat_levels: heat, cool_levels: 0, max_levels: max } }, {})?.capabilities.program;
+        expect(caps(-1)).toBeUndefined();
+        expect(caps(2.5)).toBeUndefined();
+        expect(caps(7)).toBeUndefined();
+        expect(caps(3, 7)).toBeUndefined();
+        expect(caps(6)).toEqual({ heatLevels: 6, coolLevels: 0, maxLevels: 6 });
+    });
+
+    it('reads a level count sent as a numeric string, like every device number', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        expect(device({ program: { heat_levels: '3', cool_levels: 0, max_levels: 6 } }, {})?.capabilities.program?.heatLevels).toBe(3);
+        warn.mockRestore();
+    });
+
+    it('drops a next change with an invalid date or a set other than heat/cool', () => {
+        const next = (change: unknown) => device({}, { program: { enabled: true, next_change: change } })?.state.program?.nextChange;
+        expect(next({ at: 'not a date', set: 'heat' })).toBeNull();
+        expect(next({ at: '2026-11-18T17:30:00Z', set: 'auto' })).toBeNull();
+        expect(next({ at: '2026-11-18T17:30:00Z', set: 'heat' })).toMatchObject({ set: 'heat' });
+    });
+
     it('drops what it cannot read without losing the rest', () => {
         const info = device(
             {},

@@ -62,6 +62,7 @@ const KNOWN_OPS = [
     'camera_token',
     'timerange_fail',
     'program_clock',
+    'program_reject',
     'reset',
 ];
 
@@ -181,7 +182,16 @@ export function applyControlOp(hub, body) {
 
         case 'program_clock': {
             // clock: ISO instant or null for the real one; hidden withholds state.program.
+            if (body.clock != null && Number.isNaN(Date.parse(body.clock))) {
+                return { status: 400, body: { ok: false, error: 'program_clock requires clock to be an ISO date or null' } };
+            }
             hub.program.configure({ clock: body.clock, hidden: body.hidden });
+            return { status: 200, body: { ok: true, op } };
+        }
+
+        case 'program_reject': {
+            // on: refuse every set_state on a program IO (the server's success:false).
+            hub.program.reject(body.on !== false);
             return { status: 200, body: { ok: true, op } };
         }
 
