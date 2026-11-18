@@ -169,6 +169,13 @@ export function createAppRouter(history: RouterHistory = createWebHashHistory())
                 beforeEnter: adminOnly,
             },
             {
+                path: '/admin/snapshots',
+                name: 'adminSnapshots',
+                component: () => import('../views/SnapshotsView.vue'),
+                meta: { requiresAuth: true, detail: true },
+                beforeEnter: adminOnly,
+            },
+            {
                 path: '/admin/time',
                 name: 'adminTime',
                 component: () => import('../views/TimeView.vue'),

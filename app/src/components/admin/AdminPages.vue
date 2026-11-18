@@ -13,12 +13,14 @@ import IconMcp from '~icons/mdi/robot-outline';
 import IconNetwork from '~icons/mdi/lan';
 import IconSecurity from '~icons/mdi/shield-lock-outline';
 import IconServices from '~icons/mdi/application-cog-outline';
+import IconSnapshots from '~icons/mdi/history';
 import IconSettings from '~icons/mdi/tune-variant';
 import IconSystem from '~icons/mdi/server';
 import IconTime from '~icons/mdi/clock-outline';
 import IconUpdates from '~icons/mdi/update';
 import { useAdminStore } from '../../stores/admin';
 import { useAdminNetworkStore } from '../../stores/adminNetwork';
+import { useRescueStore } from '../../stores/rescue';
 import { useAdminText } from '../../composables/useAdminText';
 import { useNetworkCountdown } from '../../composables/useNetworkCountdown';
 import { useUpdatesPhase } from '../../composables/useUpdatesPhase';
@@ -37,6 +39,7 @@ interface Tile {
 const { t } = useI18n();
 const admin = useAdminStore();
 const network = useAdminNetworkStore();
+const rescue = useRescueStore();
 const { errorText } = useAdminText();
 const { phase, headline } = useUpdatesPhase();
 
@@ -94,6 +97,17 @@ const tiles = computed<Tile[]>(() => {
             name: t('admin.services.title'),
             hint: t('admin.services.entryHint'),
             tone: 'muted',
+            disabled: false,
+        },
+        {
+            id: 'snapshots',
+            route: 'adminSnapshots',
+            icon: IconSnapshots,
+            name: t('admin.snapshots.title'),
+            hint: rescue.active
+                ? t('admin.snapshots.entryHintRescue', { id: rescue.snapshot ?? '' })
+                : t('admin.snapshots.entryHint'),
+            tone: rescue.active ? 'warn' : 'muted',
             disabled: false,
         },
         {

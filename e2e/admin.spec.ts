@@ -12,6 +12,7 @@ import config from '../app/src/i18n/admin/config.en.json';
 import logs from '../app/src/i18n/admin/logs.en.json';
 import network from '../app/src/i18n/admin/network.en.json';
 import services from '../app/src/i18n/admin/services.en.json';
+import snapshots from '../app/src/i18n/admin/snapshots.en.json';
 import time from '../app/src/i18n/admin/time.en.json';
 import {
     CREDENTIALS,
@@ -96,6 +97,7 @@ test('a fresh box: household password first, then the admin password, then unloc
     await expect(admin.info).toContainText(MESSAGES.admin.info.password_set);
     expect(await mock.adminStatus()).toMatchObject({ set: true, sessions: 1 });
     await expect.poll(async () => (await mock.frameKinds()).filter((kind) => kind?.startsWith('admin'))).toEqual([
+        'admin', // rescue_status, read once signed in
         'admin', // update_status probe → admin_not_set
         'admin_set',
         'admin_unlock',
@@ -145,7 +147,7 @@ test('unlock: a wrong password is refused, the right one opens the panel, and th
     await expect(admin.adminPassword).toHaveCount(0);
     await expect(appChrome(page).navBar).toBeVisible();
     const actions = await mock.adminActions();
-    expect(actions[actions.length - 1]).toBe('update_status');
+    expect(actions.filter((action) => action !== 'rescue_status').slice(-1)[0]).toBe('update_status');
     expect((await mock.adminStatus()).sessions).toBe(1);
 });
 
@@ -327,7 +329,7 @@ test('an old calaos-server that never answers gets a clear message after 5 s', a
     // Exactly one probe went out; nothing is retried against a server that
     // does not speak the protocol.
     await page.waitForTimeout(1_000);
-    expect(await mock.adminActions()).toEqual(['update_status']);
+    expect((await mock.adminActions()).filter((action) => action !== 'rescue_status')).toEqual(['update_status']);
 });
 
 test('admin_unavailable retries every 5 s and clears itself once the daemon is back', async ({ page, mock }) => {
@@ -390,12 +392,13 @@ test('the hub is only tiles, in order, and a locked sub-page sends back to it', 
     await admin.submit.click();
     await expect(page).toHaveURL(/#\/admin\/system$/);
     await page.evaluate(() => (location.hash = '#/admin'));
-    await expect(page.locator('[data-page]')).toHaveCount(9);
+    await expect(page.locator('[data-page]')).toHaveCount(10);
     const titles = MESSAGES.admin;
     await expect(page.locator('.pages__name')).toHaveText([
         titles.updates.title,
         network.entry.name,
         services.title,
+        snapshots.title,
         logs.title,
         time.title,
         titles.mcp.title,

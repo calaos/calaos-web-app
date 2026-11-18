@@ -66,6 +66,8 @@ const props = withDefaults(
         danger?: boolean;
         /** 35rem instead of 22rem, for a body that is a view rather than a form. */
         wide?: boolean;
+        /** Initial focus on Cancel, for an action that cannot be undone. */
+        focusCancel?: boolean;
     }>(),
     {
         eyebrow: '',
@@ -74,6 +76,7 @@ const props = withDefaults(
         confirmDisabled: false,
         danger: false,
         wide: false,
+        focusCancel: false,
     },
 );
 
@@ -211,6 +214,7 @@ watch(
                             v-if="cancelLabel !== undefined"
                             type="button"
                             class="base-dialog__button base-dialog__button--quiet pressable"
+                            :data-autofocus="focusCancel ? '' : undefined"
                             @click="emit('cancel')"
                         >
                             {{ cancelLabel }}
@@ -221,6 +225,7 @@ watch(
                             class="base-dialog__button pressable"
                             :class="danger ? 'base-dialog__button--danger' : 'base-dialog__button--primary'"
                             :disabled="confirmDisabled"
+                            :aria-disabled="confirmDisabled ? 'true' : undefined"
                         >
                             {{ confirmLabel }}
                         </button>

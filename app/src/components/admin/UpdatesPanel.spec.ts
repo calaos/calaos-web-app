@@ -151,7 +151,7 @@ describe('UpdatesPanel after a run that needs a restart', () => {
 
     it('asks once, then restarts', async () => {
         const admin = needsRestart();
-        const reboot = vi.spyOn(admin, 'reboot').mockResolvedValue();
+        const reboot = vi.spyOn(admin, 'reboot').mockResolvedValue(true);
         const wrapper = mountPanel();
         await flushPromises();
         await wrapper.find('.updates__actions button').trigger('click');

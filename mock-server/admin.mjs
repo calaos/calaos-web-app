@@ -20,6 +20,7 @@ import { createConfig } from './admin-config.mjs';
 import { createLogs } from './admin-logs.mjs';
 import { createNetwork, networkBinding } from './admin-network.mjs';
 import { createServices } from './admin-services.mjs';
+import { createSnapshots } from './admin-snapshots.mjs';
 import { createTime } from './admin-time.mjs';
 
 export const ADMIN_SCENARIOS = [
@@ -86,11 +87,15 @@ const ACTIONS = [
     'config_set',
     'config_backup',
     'config_restore',
+    'rescue_status',
+    'snapshots_list',
+    'snapshot_boot',
+    'snapshot_rollback',
 ];
 
 const CODE_ACTIONS = ['console_open', 'admin_password', 'approver_enroll', 'approver_remove', 'network_config'];
 /** The phase-3 features, each in its own module; `/control {op:'admin', <name>: {...}}` patches one. */
-const FEATURES = ['services', 'logs', 'time', 'config', 'network'];
+const FEATURES = ['services', 'logs', 'time', 'config', 'network', 'snapshots'];
 const APPROVER_MAX = 2;
 const CODE_FAILURES_MAX = 5;
 const HEX16 = /^[0-9a-f]{16}$/;
@@ -766,6 +771,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
 
     features = {
         services: createServices({ hub, failure, running }),
+        snapshots: createSnapshots({ hub, failure, running }),
         logs: createLogs({ failure }),
         time: createTime({ failure }),
         config: createConfig({ failure, hub, running }),
@@ -928,6 +934,14 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             }
             return answer();
         }
+        if (action === 'rescue_status') {
+            // Household view, like `versions`: no session, no admin password needed.
+            const payload = features.snapshots.handle(action, null, {});
+            const wait = features.snapshots.delay(action);
+            if (wait > 0) setTimeout(() => respond(payload), wait);
+            else respond(payload);
+            return;
+        }
         if (!state.set) {
             return respond(failure('admin_not_set', 'Admin password not set', {
                 api_allowed_hosts: state.apiAllowedHosts,
@@ -963,7 +977,11 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
             // undefined: not this feature's action; null: the socket is gone, no answer.
             const payload = features[name].handle(action, data.admin_session, params);
             if (payload === null) return;
-            if (payload !== undefined) return respond(payload);
+            if (payload === undefined) continue;
+            const wait = features[name].delay?.(action) ?? 0;
+            if (wait > 0) setTimeout(() => respond(payload), wait);
+            else respond(payload);
+            return;
         }
 
         switch (action) {
@@ -1004,6 +1022,9 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 }
                 return ok(structuredClone(state.updates));
             case 'update_upgrade_all':
+                if (features.snapshots.inRescue()) {
+                    return respond(failure('in_rescue', 'the box is running a snapshot'));
+                }
                 if (running()) {
                     return respond(failure('upgrade_in_progress', 'upgrade already in progress', {
                         job_id: state.job.id,
@@ -1014,6 +1035,9 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                 const pkg = data.params?.package;
                 if (typeof pkg !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9.+-]*$/.test(pkg) || pkg.includes('..') || pkg.length > 128) {
                     return respond(failure('invalid_request', 'invalid package name'));
+                }
+                if (features.snapshots.inRescue()) {
+                    return respond(failure('in_rescue', 'the box is running a snapshot'));
                 }
                 if (running()) {
                     return respond(failure('upgrade_in_progress', 'upgrade already in progress', {
@@ -1032,6 +1056,7 @@ export function createAdmin({ hub, send, broadcast, withMsgId }) {
                     }));
                 }
                 state.reboots += 1;
+                features.snapshots.rebooted();
                 return ok(null);
             case 'system_restart':
                 state.restarts += 1;

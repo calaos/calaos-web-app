@@ -364,6 +364,7 @@ describe.each([
     ['/admin/logs', 'adminLogs'],
     ['/admin/network', 'adminNetwork'],
     ['/admin/services', 'adminServices'],
+    ['/admin/snapshots', 'adminSnapshots'],
     ['/admin/time', 'adminTime'],
     ['/admin/updates', 'adminUpdates'],
     ['/admin/mcp', 'adminMcp'],

@@ -12,16 +12,18 @@ import networkEn from './admin/network.en.json';
 import networkFr from './admin/network.fr.json';
 import servicesEn from './admin/services.en.json';
 import servicesFr from './admin/services.fr.json';
+import snapshotsEn from './admin/snapshots.en.json';
+import snapshotsFr from './admin/snapshots.fr.json';
 import timeEn from './admin/time.en.json';
 import timeFr from './admin/time.fr.json';
 
 export const messages = {
     en: {
         ...en,
-        admin: { ...en.admin, services: servicesEn, logs: logsEn, time: timeEn, config: configEn, network: networkEn },
+        admin: { ...en.admin, services: servicesEn, snapshots: snapshotsEn, logs: logsEn, time: timeEn, config: configEn, network: networkEn },
     },
     fr: {
         ...fr,
-        admin: { ...fr.admin, services: servicesFr, logs: logsFr, time: timeFr, config: configFr, network: networkFr },
+        admin: { ...fr.admin, services: servicesFr, snapshots: snapshotsFr, logs: logsFr, time: timeFr, config: configFr, network: networkFr },
     },
 };

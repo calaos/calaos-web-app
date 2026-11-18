@@ -545,3 +545,81 @@ describe('network', () => {
         await closed;
     });
 });
+
+describe('snapshots', () => {
+    it('lists newest first, the awkward rows included', async () => {
+        const { ask } = await session();
+        const reply = await ask('snapshots_list');
+        const rows = reply.result.snapshots;
+        expect(reply.result.booted).toMatchObject({ id: 1, current: true, default: true, bootable: true, type: 'single' });
+        expect(rows.find((s) => s.id === 145)).toMatchObject({ pre_id: 144, cleanup: 'number' });
+        expect(rows.map((s) => s.id)).toEqual([145, 144, 143, 142, 139, 1]);
+        expect(rows.find((s) => s.id === 143)).toMatchObject({ date: '', description: '' });
+        expect(rows.find((s) => s.id === 139).bootable).toBe(false);
+        await control({ op: 'admin', snapshots: { empty: true } });
+        expect((await ask('snapshots_list')).result.snapshots).toEqual([]);
+    });
+
+    it('answers rescue_status without any session', async () => {
+        const { raw } = await session();
+        const reply = await raw('admin', { action: 'rescue_status' });
+        expect(reply.result).toEqual({ rescue: false, overlay: false, snapshot: null });
+    });
+
+    it('boots a snapshot: replies, then drops sockets and comes back in rescue', async () => {
+        const { ask, ws } = await session();
+        await control({ op: 'admin', snapshots: { rebootMs: 50 } });
+        expect(await ask('snapshot_boot', { id: 144 })).toMatchObject({ success: 'true', result: null });
+        await new Promise((resolve) => ws.once('close', resolve));
+        const { raw, ask: ask2 } = await session();
+        expect((await raw('admin', { action: 'rescue_status' })).result).toEqual({ rescue: true, overlay: true, snapshot: 144 });
+        const list = (await ask2('snapshots_list')).result;
+        expect(list.snapshots.every((s) => s.bootable === false)).toBe(true);
+        expect(list.snapshots.find((s) => s.current).id).toBe(144);
+        expect(await ask2('snapshot_boot', { id: 145 })).toMatchObject({ error: 'not_bootable' });
+        expect(list.booted).toMatchObject({ id: 144, current: true });
+        expect(await ask2('update_upgrade_all')).toMatchObject({ error: 'in_rescue' });
+        expect(await ask2('update_upgrade', { package: 'calaos-server' })).toMatchObject({ error: 'in_rescue' });
+    });
+
+    it('rolls back only from rescue, and leaves it by a reboot as well', async () => {
+        const { ask } = await session();
+        expect(await ask('snapshot_rollback')).toMatchObject({ error: 'not_in_rescue' });
+        await control({ op: 'admin', snapshots: { rescue: 144, rebootMs: 50 } });
+        expect(await ask('snapshot_rollback')).toMatchObject({ success: 'true' });
+        await sleep(200);
+        const again = await session();
+        expect((await again.raw('admin', { action: 'rescue_status' })).result.rescue).toBe(false);
+
+        await control({ op: 'admin', snapshots: { rescue: 144, rebootMs: 50 } });
+        await again.ask('system_reboot');
+        await sleep(200);
+        const last = await session();
+        expect((await last.raw('admin', { action: 'rescue_status' })).result.rescue).toBe(false);
+    });
+
+    it('refuses with the daemon codes', async () => {
+        const { ask } = await session();
+        expect(await ask('snapshot_boot', { id: '144' })).toMatchObject({ error: 'invalid_request' });
+        expect(await ask('snapshot_boot', { id: 9999 })).toMatchObject({ error: 'invalid_snapshot' });
+        expect(await ask('snapshot_boot', { id: 139 })).toMatchObject({ error: 'not_bootable' });
+        await control({ op: 'admin', snapshots: { tooOld: [142] } });
+        expect(await ask('snapshot_boot', { id: 142 })).toMatchObject({ error: 'snapshot_too_old' });
+        await control({ op: 'admin', snapshots: { failOnce: { snapshots_list: 'admin_unavailable' }, fail: { rescue_status: 'rescue_unavailable' } } });
+        expect(await ask('snapshots_list')).toMatchObject({ error: 'admin_unavailable' });
+        expect((await ask('snapshots_list')).success).toBe('true');
+        expect(await ask('rescue_status')).toMatchObject({ error: 'rescue_unavailable' });
+    });
+
+    it('answers an unknown outcome, the reboot done or not as told', async () => {
+        const { ask } = await session();
+        await control({ op: 'admin', snapshots: { unknownOutcome: 'unapplied', rebootMs: 50 } });
+        expect(await ask('snapshot_boot', { id: 144 })).toMatchObject({ error: 'daemon_unreachable', outcome: 'unknown' });
+        await sleep(150);
+        expect((await control({ op: 'admin' })).snapshots.rescue).toBe(false);
+        await control({ op: 'admin', snapshots: { unknownOutcome: true } });
+        expect(await ask('snapshot_boot', { id: 144 })).toMatchObject({ outcome: 'unknown' });
+        await sleep(150);
+        expect((await control({ op: 'admin' })).snapshots.rescue).toBe(144);
+    });
+});
