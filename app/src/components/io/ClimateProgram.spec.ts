@@ -187,14 +187,14 @@ describe('ClimateIo — the program on the card', () => {
     });
 
     it('disables the switch when offline or when the device has no program_enabled IO', async () => {
-        useConnectionStore().applyStatus({ status: 'closed', attempt: 1, nextRetryMs: 1000 });
+        useConnectionStore().applyStatus({ status: 'reconnecting', attempt: 1, nextRetryMs: 1000 });
         const w = mountClimate();
         expect(rowSwitch(w).attributes('disabled')).toBeDefined();
         w.unmount();
         mounted = [];
 
         useConnectionStore().applyStatus({ status: 'open', attempt: 0, nextRetryMs: 0 });
-        const { program_enabled: _, ...ios } = IOS;
+        const ios = Object.fromEntries(Object.entries(IOS).filter(([key]) => key !== 'program_enabled'));
         const w2 = mountClimate(device({ ios }));
         expect(rowSwitch(w2).attributes('disabled')).toBeDefined();
         await rowSwitch(w2).trigger('change');

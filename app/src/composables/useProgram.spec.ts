@@ -171,7 +171,7 @@ describe('useProgram — toggle', () => {
         scope.stop();
 
         const closed = setup(wire(state()));
-        useConnectionStore().applyStatus({ status: 'closed', attempt: 1, nextRetryMs: 1000 });
+        useConnectionStore().applyStatus({ status: 'reconnecting', attempt: 1, nextRetryMs: 1000 });
         expect(closed.readonly.value).toBe(true);
         await closed.toggle();
         expect(server.sent).toEqual([]);

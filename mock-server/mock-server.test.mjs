@@ -128,6 +128,13 @@ function createClient(url = server.wsUrl) {
 }
 
 const isLogin = (f) => f.msg === 'login';
+/** get_home without the computed `state.program`, to compare with the fixture file. */
+function withoutProgram(data) {
+    const copy = structuredClone(data);
+    for (const room of copy.home) for (const io of room.items) delete io.device?.state?.program;
+    return copy;
+}
+
 const isGetHome = (f) => f.msg === 'get_home';
 const ioChangedFor = (id) => (f) =>
     f.msg === 'event' && f.data?.type_str === 'io_changed' && f.data?.data?.id === id;
@@ -357,7 +364,7 @@ describe('get_home', () => {
             }
         }
 
-        expect(frame.data).toEqual(FIXTURE);
+        expect(withoutProgram(frame.data)).toEqual(FIXTURE);
     });
 
     it('is ignored before login', async () => {
@@ -794,7 +801,7 @@ describe('/control', () => {
         expect(reply.data.success).toBe('true'); // scenario really is gone
         after.send({ msg: 'get_home' });
         const home = await after.waitFor(isGetHome);
-        expect(home.data).toEqual(FIXTURE); // fixture state restored
+        expect(withoutProgram(home.data)).toEqual(FIXTURE); // fixture state restored
     });
 
     it('rejects unknown ops and bad JSON', async () => {
@@ -2076,6 +2083,28 @@ describe('climate time programs', () => {
         const answers = [];
         for (const id of ['1', '2', '3']) answers.push((await client.waitFor(reply('set_timerange', id))).data);
         expect(answers).toEqual([{ success: 'true' }, { error: 'config_not_written' }, { success: 'true' }]);
+    });
+
+    it('publishes state.program in get_home and republishes the device when the program changes', async () => {
+        const { client } = await login();
+        client.send({ msg: 'get_home' });
+        const home = (await client.waitFor(isGetHome)).data.home;
+        const device = home.flatMap((r) => r.items).find((io) => io.id === 'thermo_bureau').device;
+        expect(device.state.program).toMatchObject({ enabled: true, mode_set: null });
+
+        const id = 'thermo_bureau_program_enabled';
+        client.send({ msg: 'set_state', msg_id: 'p', data: { id, value: 'false' } });
+        const frame = await client.waitFor((f) => ioChangedFor('thermo_bureau')(f) && f.data.data.device);
+        expect(frame.data.data.device.state.program.enabled).toBe(false);
+    });
+
+    it('program_clock withholds state.program', async () => {
+        await control({ op: 'program_clock', hidden: true });
+        const { client } = await login();
+        client.send({ msg: 'get_home' });
+        const home = (await client.waitFor(isGetHome)).data.home;
+        const device = home.flatMap((r) => r.items).find((io) => io.id === 'thermo_bureau').device;
+        expect(device.state.program).toBeUndefined();
     });
 
     it('get_state and set_state reach the hidden setpoint IOs', async () => {

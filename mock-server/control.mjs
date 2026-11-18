@@ -61,6 +61,7 @@ const KNOWN_OPS = [
     'credentials',
     'camera_token',
     'timerange_fail',
+    'program_clock',
     'reset',
 ];
 
@@ -175,6 +176,12 @@ export function applyControlOp(hub, body) {
         case 'timerange_fail': {
             // The (after+1)th set_timerange answers config_not_written.
             hub.program.failWrite(body.after);
+            return { status: 200, body: { ok: true, op } };
+        }
+
+        case 'program_clock': {
+            // clock: ISO instant or null for the real one; hidden withholds state.program.
+            hub.program.configure({ clock: body.clock, hidden: body.hidden });
             return { status: 200, body: { ok: true, op } };
         }
 
