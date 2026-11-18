@@ -1,6 +1,6 @@
 // The program on the climate card and in its settings, against the mock's
-// time programs. The mock reads the server clock, so what is active "now" is
-// asserted by shape; the exact hours are covered by the Vitest specs.
+// time programs. The tests that read what is active "now" pin both the mock's
+// clock and the browser's to NOW, so the level is asserted exactly.
 
 import { MESSAGES, expect, loginAs, test } from './fixtures';
 import type { MockControl } from './fixtures';
@@ -12,6 +12,13 @@ const WITH = 'Thermostat bureau';
 const WITHOUT = 'Climatisation salon';
 const C = MESSAGES.climate;
 const P = MESSAGES.program;
+// A Monday morning: the mock's seeded program has no slot now and its next change is at 17:30.
+const NOW = '2026-11-16T10:00:00';
+
+async function pinClock(page: Page, mock: MockControl): Promise<void> {
+    await mock.send({ op: 'program_clock', clock: new Date(NOW).toISOString() });
+    await page.clock.setFixedTime(new Date(NOW));
+}
 
 function row(page: Page, name: string): Locator {
     return page.locator('.io-row').filter({ has: page.locator('.io-row__name', { hasText: name }) });
@@ -57,14 +64,15 @@ test('the switch on the row sends program_enabled and does not open the settings
     await expect(toggle).toBeChecked();
 });
 
-test('the row shows the active level and the next change', async ({ page }) => {
+test('the row shows the active level and the next change', async ({ page, mock }) => {
+    await pinClock(page, mock);
     await openLounge(page);
     await row(page, WITH).click();
     await setMode(page, C.mode.heat);
     await page.keyboard.press('Escape');
     await expect(settings(page)).toHaveCount(0);
 
-    await expect(row(page, WITH).locator('.climate-io__program')).toHaveText(/Level \d|Default · [\d.]+°|No level now/);
+    await expect(row(page, WITH).locator('.climate-io__program')).toHaveText('Default · 17° · ▶ 17:30');
 });
 
 test('a program the server withholds hides the switch and the line', async ({ page, mock }) => {
@@ -75,12 +83,13 @@ test('a program the server withholds hides the switch and the line', async ({ pa
     await expect(row(page, WITH).locator('.climate-io__program')).toHaveCount(0);
 });
 
-test('the settings show the level in force, the next change, and the pause', async ({ page }) => {
+test('the settings show the level in force, the next change, and the pause', async ({ page, mock }) => {
+    await pinClock(page, mock);
     await openLounge(page);
     await row(page, WITH).click();
     await setMode(page, C.mode.heat);
 
-    await expect(section(page).locator('.climate-detail__active')).toHaveText(/Level \d · [\d.]+°|Default · [\d.]+°|No level now/);
+    await expect(section(page).locator('.climate-detail__active')).toHaveText('Default · 17°');
     await expect(section(page).locator('.climate-detail__next')).toHaveText(/\(in .+\)/);
 
     await section(page).getByRole('switch').click();

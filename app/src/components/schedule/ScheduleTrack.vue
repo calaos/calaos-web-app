@@ -172,7 +172,9 @@ button.track__seg:focus-visible {
     inset-block: 0;
     inline-size: 2px;
     margin-inline-start: -1px;
-    background: var(--c-text);
+    /* Ticks at both ends only: a full-height line would cut the centred label of
+       the segment under it (the first letter of « Default »). */
+    background: linear-gradient(to bottom, var(--c-text) 0 22%, transparent 22% 78%, var(--c-text) 78% 100%);
     pointer-events: none;
 }
 </style>

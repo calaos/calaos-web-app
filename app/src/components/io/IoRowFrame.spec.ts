@@ -80,6 +80,13 @@ describe('IoRowFrame', () => {
             expect(button.attributes('aria-expanded')).toBe('true');
         });
 
+        it('highlights the row itself while its view is showing', async () => {
+            const wrapper = open();
+            expect(wrapper.classes()).not.toContain('io-row--expanded');
+            await wrapper.setProps({ expanded: true });
+            expect(wrapper.classes()).toContain('io-row--expanded');
+        });
+
         it('emits open on a click and on Enter', async () => {
             const wrapper = open();
             const button = wrapper.get('[role="button"]');

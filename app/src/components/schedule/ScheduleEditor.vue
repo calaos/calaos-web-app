@@ -536,6 +536,7 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                     {{ t('program.resume') }}
                 </button>
             </div>
+            <p v-if="programCtl.error.value" class="schedule__notice" role="alert">{{ programCtl.error.value }}</p>
             <p v-if="readonly || !connection.isOpen" class="schedule__muted">{{ t('schedule.readOnly') }}</p>
 
             <div v-if="directions.length > 1" class="schedule__tabs" role="tablist" :aria-label="t('schedule.tabs')">

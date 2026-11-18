@@ -99,6 +99,38 @@ describe('program paused', () => {
         expect(banner.find('button').text()).toBe('Resume program');
         expect((await run(true)).find('.schedule__paused').exists()).toBe(false);
     });
+
+    describe('Resume', () => {
+        const pausedIo = () =>
+            ({ device: { ios: { ...climateIos(), program_enabled: 'PE' }, capabilities: { program: {} }, state: { program: { enabled: false } } } }) as unknown as IoItem;
+        const mountPaused = async (refuse: boolean) => {
+            const m = await mountEditor({ prepare: (server) => (server.refuseValue = () => refuse) });
+            await m.wrapper.setProps({ io: pausedIo() });
+            return m;
+        };
+        const setStates = (server: FakeServer) => server.sent.filter((f) => f.msg === 'set_state');
+
+        it('sends program_enabled=true when clicked', async () => {
+            const { wrapper, server } = await mountPaused(false);
+            await wrapper.get('.schedule__paused button').trigger('click');
+            await flushPromises();
+            const sent = setStates(server);
+            expect(sent).toHaveLength(1);
+            expect(sent[0]?.data).toMatchObject({ id: 'PE', value: 'true' });
+            expect(wrapper.find('.schedule__notice').exists()).toBe(false);
+        });
+
+        it('says so when the server refuses, instead of staying silent', async () => {
+            const { wrapper, server } = await mountPaused(true);
+            await wrapper.get('.schedule__paused button').trigger('click');
+            await flushPromises();
+            expect(setStates(server)).toHaveLength(1);
+            const alert = wrapper.get('.schedule__notice');
+            expect(alert.attributes('role')).toBe('alert');
+            expect(alert.text()).toBe(messages.en.program.error.generic);
+            expect(wrapper.find('.schedule__paused').exists()).toBe(true);
+        });
+    });
 });
 
 // ------------------------------------------------------------- helpers ---

@@ -79,7 +79,7 @@ withDefaults(
 <template>
     <div
         class="io-row"
-        :class="{ 'io-row--opens': opens }"
+        :class="{ 'io-row--opens': opens, 'io-row--expanded': opens && expanded }"
         :aria-busy="pending ? 'true' : undefined"
     >
         <!-- With `opens`, the button is this wrapper alone: a button's children are
@@ -165,6 +165,11 @@ withDefaults(
     cursor: pointer;
 }
 
+.io-row--opens > .io-row__main:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: -2px;
+}
+
 .io-row__controls {
     display: flex;
     align-items: center;
@@ -174,7 +179,7 @@ withDefaults(
 }
 
 .io-row--opens:hover,
-.io-row--opens[aria-expanded='true'] {
+.io-row--expanded {
     background-color: var(--c-surface-raised);
     border-color: var(--c-border-strong);
 }
@@ -274,6 +279,10 @@ withDefaults(
     .io-row:not(.io-row--opens) {
         gap: var(--space-2);
         padding-inline: var(--space-2);
+    }
+
+    .io-row--opens > .io-row__main {
+        padding: var(--space-2);
     }
 }
 </style>
