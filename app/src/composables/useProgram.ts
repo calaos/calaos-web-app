@@ -42,6 +42,8 @@ export interface UseProgram {
     activeText: ComputedRef<string>;
     /** Heating/cooling in play now, for the pause banner. */
     pausedText: ComputedRef<string>;
+    /** Ticking clock (ms) the next-change countdown reads. */
+    now: Ref<number>;
 }
 
 export function useProgram(io: MaybeRefOrGetter<IoItem>): UseProgram {
