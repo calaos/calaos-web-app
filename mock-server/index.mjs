@@ -100,8 +100,11 @@ export function startServer(options = {}) {
         for (const ws of hub.clients) send(ws, frame);
     }
 
-    hub.state = createState({ broadcast });
-    hub.program = createProgram({ broadcast });
+    hub.state = createState({
+        broadcast,
+        programState: (ios, mode) => hub.program.programState(ios, mode),
+    });
+    hub.program = createProgram({ broadcast, onChange: () => hub.state.republishPrograms() });
     hub.admin = createAdmin({ hub, send, broadcast, withMsgId });
     hub.console = createConsole({ hub, log });
 
