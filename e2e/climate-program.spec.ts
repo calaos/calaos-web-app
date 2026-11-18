@@ -64,7 +64,7 @@ test('the row shows the active level and the next change', async ({ page }) => {
     await page.keyboard.press('Escape');
     await expect(settings(page)).toHaveCount(0);
 
-    await expect(row(page, WITH).locator('.climate-io__program')).toHaveText(/Level \d|No level now/);
+    await expect(row(page, WITH).locator('.climate-io__program')).toHaveText(/Level \d|Default · [\d.]+°|No level now/);
 });
 
 test('a program the server withholds hides the switch and the line', async ({ page, mock }) => {
@@ -80,12 +80,30 @@ test('the settings show the level in force, the next change, and the pause', asy
     await row(page, WITH).click();
     await setMode(page, C.mode.heat);
 
-    await expect(section(page).locator('.climate-detail__active')).toHaveText(/Level \d · [\d.]+°|No level now/);
+    await expect(section(page).locator('.climate-detail__active')).toHaveText(/Level \d · [\d.]+°|Default · [\d.]+°|No level now/);
     await expect(section(page).locator('.climate-detail__next')).toHaveText(/\(in .+\)/);
 
     await section(page).getByRole('switch').click();
     await expect(section(page).locator('.climate-detail__paused')).toContainText(P.paused);
     await expect(section(page).locator('.climate-detail__next')).toHaveCount(0);
+});
+
+test('a refused switch goes back, says so, and works again once the server accepts', async ({ page, mock }) => {
+    await mock.send({ op: 'program_reject' });
+    await openLounge(page);
+    await row(page, WITH).click();
+    await setMode(page, C.mode.heat);
+
+    const toggle = section(page).getByRole('switch');
+    await expect(toggle).toBeChecked();
+    await toggle.click();
+    await expect(section(page).locator('.climate-detail__error')).toHaveText(P.error.generic);
+    await expect(toggle).toBeChecked();
+
+    await mock.send({ op: 'program_reject', on: false });
+    await toggle.click();
+    await expect(section(page).locator('.climate-detail__error')).toHaveCount(0);
+    await expect(toggle).not.toBeChecked();
 });
 
 test('auto mode shows the range, the help, and both strips', async ({ page }) => {

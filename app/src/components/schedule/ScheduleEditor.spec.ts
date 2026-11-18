@@ -591,6 +591,30 @@ describe('a write that fails half-way', () => {
         expect(segments(wrapper)).toEqual(['Level 1, 08:00 to 10:00, 22°', 'Level 2, 12:00 to 13:00, 22.5°']);
     });
 
+    it('keeps both edits when another client changes the same level before Retry', async () => {
+        const { wrapper, server } = await mountEditor({
+            heat: { 1: [MON_8_10] },
+            prepare: (s) => (s.refuseValue = (id) => id === 'H2S'),
+        });
+        await addSlot(wrapper, { start: '12:00', end: '13:00', setpoint: 22.5 });
+        await save(wrapper);
+        expect(banner(wrapper).text()).toContain('The server refused the change');
+
+        server.refuseValue = () => false;
+        server.ranges.set('H2', [wireRange(1, 15, 0, 16, 0)]);
+        useScheduleStore().applyTimerangeChanged({ id: 'H2' });
+        await flushPromises();
+
+        await button(banner(wrapper), 'Retry').trigger('click');
+        await flushPromises();
+        // The level the slot first went to is now taken, so it is replayed on the next free one.
+        expect(server.ranges.get('H2')).toEqual([wireRange(1, 15, 0, 16, 0)]);
+        const held = ['H1', 'H2', 'H3'].flatMap((id) => server.ranges.get(id) ?? []);
+        expect(held).toEqual(expect.arrayContaining([MON_8_10, wireRange(1, 12, 0, 13, 0), wireRange(1, 15, 0, 16, 0)]));
+        expect(held).toHaveLength(3);
+        expect(banner(wrapper).exists()).toBe(false);
+    });
+
     it('retries on what another client changed meanwhile instead of erasing it', async () => {
         const { wrapper, server } = await mountEditor({
             heat: { 1: [MON_8_10] },
