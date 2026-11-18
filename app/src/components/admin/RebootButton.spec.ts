@@ -25,7 +25,7 @@ beforeEach(() => {
 describe('RebootButton', () => {
     it('sends nothing until the question is answered', async () => {
         const admin = useAdminStore();
-        const reboot = vi.spyOn(admin, 'reboot').mockResolvedValue();
+        const reboot = vi.spyOn(admin, 'reboot').mockResolvedValue(true);
         const wrapper = mountButton();
         expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
 
@@ -39,7 +39,7 @@ describe('RebootButton', () => {
     });
 
     it('lets the question go', async () => {
-        const reboot = vi.spyOn(useAdminStore(), 'reboot').mockResolvedValue();
+        const reboot = vi.spyOn(useAdminStore(), 'reboot').mockResolvedValue(true);
         const wrapper = mountButton();
         await wrapper.find('button').trigger('click');
         await wrapper.find('.base-dialog__actions button[type="button"]').trigger('click');

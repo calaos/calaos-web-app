@@ -459,6 +459,12 @@
             "code_expired": "Ce code a expiré. Demandez-en un nouveau.",
             "busy": "Une autre opération est en cours. Réessayez dans un instant.",
             "internal": "Un problème est survenu sur la box. Réessayez ; le détail est dans ses journaux.",
+            "invalid_snapshot": "Ce snapshot n’existe plus. La liste vient d’être mise à jour.",
+            "not_bootable": "Ce snapshot ne peut pas être démarré : il n’a pas d’entrée de démarrage, ou la box tourne déjà sur un snapshot.",
+            "snapshot_too_old": "Ce snapshot est trop ancien pour démarrer avec le système actuel.",
+            "in_rescue": "La box tourne sur un snapshot. Revenez d’abord à la normale ou restaurez-le.",
+            "not_in_rescue": "La box ne tourne pas sur un snapshot : il n’y a rien à restaurer.",
+            "rescue_unavailable": "Les snapshots sont indisponibles sur cette box (snapper ne répond pas).",
             "timeout": "La box n’a pas répondu. calaos-server est peut-être trop ancien : mettez la box à jour une fois avec l’outil habituel (le bouton de l’écran tactile, ou calaos-os upgrade).",
             "disconnected": "Connexion perdue avant la réponse de la box. Réessayez quand elle est revenue.",
             "unknown": "Réponse inattendue de la box. {msg}",
@@ -659,5 +665,17 @@
         "oldServer": "Ce serveur est trop ancien pour donner ses versions : mettez à jour calaos-server.",
         "daemonTooOld": "Le système de la box est trop ancien pour donner ses versions : mettez à jour calaos-container.",
         "failed": "Les versions n'ont pas pu être lues sur le serveur. Réessayez une fois la connexion rétablie."
+    },
+    "rescue": {
+        "label": "Mode secours",
+        "banner": "Mode secours : démarré sur le snapshot #{id}. Les modifications sont perdues au redémarrage.",
+        "bannerNoId": "Mode secours : démarré sur un snapshot précédent. Les modifications sont perdues au redémarrage.",
+        "details": "Détails",
+        "info": {
+            "title": "Système de récupération",
+            "body": "Le système est démarré sur un snapshot précédent. Il est en lecture seule : aucune donnée n'est enregistrée sur le disque. Vous pouvez faire un rollback vers ce snapshot pour qu'il devienne le système principal, en lecture-écriture ; la box redémarrera. Le rollback est aussi disponible dans Administration > Snapshots.",
+            "close": "Fermer",
+            "open": "Ouvrir Snapshots"
+        }
     }
 }

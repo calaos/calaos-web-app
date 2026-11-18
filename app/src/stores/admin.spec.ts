@@ -744,6 +744,17 @@ describe('updates', () => {
         expect(last().data).toEqual({ action: 'update_status', admin_session: SESSION });
     });
 
+    it('shows in_rescue inline on an upgrade without freezing the gate', async () => {
+        const admin = await unlocked();
+        void admin.upgradeAll();
+        fail(admin, 'in_rescue');
+        await flush();
+        expect(admin.notice).toMatchObject({ code: 'in_rescue' });
+        expect(admin.noticeSource).toBe('updates');
+        expect(admin.gate).toBe('unlocked');
+        expect(admin.job).toBeNull();
+    });
+
     it('surfaces upgrade_in_progress and internal inline', async () => {
         const admin = await unlocked();
         void admin.upgradeAll();

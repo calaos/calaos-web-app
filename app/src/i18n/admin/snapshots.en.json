@@ -1,0 +1,50 @@
+{
+    "title": "Snapshots",
+    "hint": "Previous system versions, newest first.",
+    "entryHint": "Reboot on a previous version",
+    "entryHintRescue": "Rescue mode active: snapshot #{id}",
+    "columns": { "id": "Snapshot", "date": "Date", "type": "Type", "description": "Description", "action": "Action" },
+    "badge": { "current": "Current", "default": "Default", "notBootable": "Not bootable" },
+    "type": { "single": "Single", "pre": "Pre", "post": "Post" },
+    "noDate": "Unknown date",
+    "noDescription": "No description",
+    "boot": "Reboot on this",
+    "bootLabel": "Reboot on snapshot #{id}",
+    "bootDialog": {
+        "title": "Reboot on snapshot #{id}?",
+        "hint": "The box reboots on this snapshot, in rescue mode, read-only. It stays offline for 1 to 3 minutes.",
+        "confirm": "Reboot"
+    },
+    "rescue": {
+        "title": "Rescue mode",
+        "hint": "The system is booted from a previous snapshot. It is read-only: nothing is saved on the disk. You can make this snapshot the primary read-write system: the box will reboot.",
+        "rollback": "Roll back: make permanent",
+        "normal": "Return to normal system"
+    },
+    "rollbackDialog": {
+        "title": "Roll back to snapshot #{id}?",
+        "titleUnknown": "Roll back to this snapshot?",
+        "hint": "This snapshot becomes the primary system: changes made since are lost. The box reboots.",
+        "check": "I understand this is permanent",
+        "confirm": "Roll back"
+    },
+    "normalDialog": {
+        "title": "Return to normal system?",
+        "hint": "The box reboots on the primary system. Anything done in rescue mode is lost.",
+        "confirm": "Reboot"
+    },
+    "loading": "Loading snapshots…",
+    "empty": { "title": "No snapshots", "hint": "No previous version is available on this box." },
+    "retry": "Retry",
+    "state": {
+        "unreachable": { "title": "Cannot reach the admin service", "hint": "The box is not answering. Check that it is powered on, then retry." },
+        "tooOld": { "title": "Feature unavailable", "hint": "This box's admin service is too old to manage snapshots. Update the box." },
+        "snapper": { "title": "Snapper unavailable", "hint": "The snapshot list cannot be read on this box." },
+        "upgrading": { "title": "Update in progress", "hint": "Snapshots are unavailable during the update. Actions come back afterwards." },
+        "failed": { "title": "Snapshots could not be read" },
+        "rebooting": { "title": "Rebooting", "hint": "The box is rebooting. This page reconnects by itself, allow 1 to 3 minutes." },
+        "unknown": { "title": "Waiting for the box", "hint": "The box did not confirm the request. It may be rebooting: this page checks again by itself. Do not send the request twice." },
+        "refused": { "title": "The box refused the request" }
+    },
+    "dismiss": "Close"
+}

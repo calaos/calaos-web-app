@@ -165,6 +165,7 @@ describe('AdminView hub', () => {
             'updates',
             'network',
             'services',
+            'snapshots',
             'logs',
             'time',
             'mcp',

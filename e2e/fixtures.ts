@@ -183,13 +183,13 @@ export interface AdminStatus {
  * track and position are deliberately NOT in get_home (docs/audio-protocol.md),
  * so the service asks for all of them in one batched `get_state`, and then one
  * `get_cover_url` per player once their tracks are known. The fixture house
- * has two players, hence two `audio` frames.
+ * has two players, hence two `audio` frames. The `admin` frame is the rescue_status read.
  *
  * Specs assert this with `expect.poll`: the cover queries are sent from the
  * get_state ANSWER, one round trip after the house lands, so a spec that
  * reads the log the instant it arrives on /#/home would race them.
  */
-export const SIGN_IN_FRAMES = ['login', 'get_home', 'eventlog', 'get_state', 'audio', 'audio'];
+export const SIGN_IN_FRAMES = ['login', 'get_home', 'eventlog', 'admin', 'get_state', 'audio', 'audio'];
 
 /** One frame the mock received, as recorded by `{op:'log'}`. */
 export interface LoggedFrame {

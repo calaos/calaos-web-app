@@ -157,6 +157,14 @@ describe('BaseDialog', () => {
         expect(document.activeElement).toBe(document.querySelector('.chosen'));
     });
 
+    it('focuses Cancel on open when focusCancel is set', async () => {
+        wrapper = mountDialog({ focusCancel: true });
+        await wrapper.setProps({ open: true });
+        await nextTick();
+
+        expect(document.activeElement).toBe(buttons()[0]);
+    });
+
     it('confirms on the primary button and on Enter in the body', async () => {
         wrapper = mountDialog({ open: true });
         await nextTick();
@@ -201,6 +209,7 @@ describe('BaseDialog', () => {
         await nextTick();
 
         expect(buttons()[1].disabled).toBe(true);
+        expect(buttons()[1].getAttribute('aria-disabled')).toBe('true');
         buttons()[1].click();
         await nextTick();
 

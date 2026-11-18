@@ -1,0 +1,50 @@
+{
+    "title": "Snapshots",
+    "hint": "Versions précédentes du système, de la plus récente à la plus ancienne.",
+    "entryHint": "Redémarrer sur une version précédente",
+    "entryHintRescue": "Mode secours actif : snapshot #{id}",
+    "columns": { "id": "Snapshot", "date": "Date", "type": "Type", "description": "Description", "action": "Action" },
+    "badge": { "current": "Actuel", "default": "Par défaut", "notBootable": "Non bootable" },
+    "type": { "single": "Isolé", "pre": "Avant", "post": "Après" },
+    "noDate": "Date inconnue",
+    "noDescription": "Sans description",
+    "boot": "Redémarrer dessus",
+    "bootLabel": "Redémarrer sur le snapshot #{id}",
+    "bootDialog": {
+        "title": "Redémarrer sur le snapshot #{id} ?",
+        "hint": "La box redémarre sur ce snapshot, en mode secours, en lecture seule. Elle reste hors ligne 1 à 3 minutes.",
+        "confirm": "Redémarrer"
+    },
+    "rescue": {
+        "title": "Mode secours",
+        "hint": "Le système est démarré sur un snapshot précédent. Il est en lecture seule : rien n'est enregistré sur le disque. Vous pouvez définir ce snapshot comme système principal en lecture-écriture : la box redémarrera.",
+        "rollback": "Rollback : rendre permanent",
+        "normal": "Revenir au système normal"
+    },
+    "rollbackDialog": {
+        "title": "Rollback vers le snapshot #{id} ?",
+        "titleUnknown": "Rollback vers ce snapshot ?",
+        "hint": "Ce snapshot devient le système principal : les changements faits depuis sont perdus. La box redémarre.",
+        "check": "Je comprends que c'est définitif",
+        "confirm": "Rollback"
+    },
+    "normalDialog": {
+        "title": "Revenir au système normal ?",
+        "hint": "La box redémarre sur le système principal. Ce qui a été fait en mode secours est perdu.",
+        "confirm": "Redémarrer"
+    },
+    "loading": "Chargement des snapshots…",
+    "empty": { "title": "Aucun snapshot", "hint": "Aucune version précédente n'est disponible sur cette box." },
+    "retry": "Réessayer",
+    "state": {
+        "unreachable": { "title": "Impossible de joindre le service d'administration", "hint": "La box ne répond pas. Vérifiez qu'elle est allumée puis réessayez." },
+        "tooOld": { "title": "Fonction indisponible", "hint": "Le service d'administration de cette box est trop ancien pour gérer les snapshots. Mettez la box à jour." },
+        "snapper": { "title": "Snapper indisponible", "hint": "La liste des snapshots ne peut pas être lue sur cette box." },
+        "upgrading": { "title": "Mise à jour en cours", "hint": "Les snapshots sont indisponibles pendant la mise à jour. Les actions reviendront ensuite." },
+        "failed": { "title": "Impossible de lire les snapshots" },
+        "rebooting": { "title": "Redémarrage en cours", "hint": "La box redémarre. Cette page se reconnecte toute seule, comptez 1 à 3 minutes." },
+        "unknown": { "title": "En attente de la box", "hint": "La box n'a pas confirmé la demande. Elle est peut-être en train de redémarrer : cette page vérifie toute seule. Ne renvoyez pas la demande." },
+        "refused": { "title": "La box a refusé la demande" }
+    },
+    "dismiss": "Fermer"
+}
