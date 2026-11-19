@@ -54,13 +54,29 @@ async function writes(mock: MockControl, id: string): Promise<Record<string, str
         .map((entry) => (entry.frame?.data as unknown as { ranges: Record<string, string>[] }).ranges);
 }
 
+/**
+ * One capture per theme. The phone project is shot at 390 px, the width the
+ * mock-ups were drawn for (a Pixel 7 is 412).
+ */
 async function shot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
-    await page.evaluate(() => document.fonts.ready);
-    // The dialog fades in: a capture taken mid-fade shows the list through it.
-    await page.evaluate(() => Promise.all(document.getAnimations()
-                .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
-                .map((a) => a.finished.catch(() => undefined))));
-    await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
+    if (!process.env.ARCHI_SHOT) return;
+    const phone = testInfo.project.name === 'mobile-pixel7';
+    const format = phone ? 'phone' : 'desktop';
+    const size = page.viewportSize();
+    if (phone) await page.setViewportSize({ width: 390, height: 844 });
+    for (const theme of ['dark', 'light']) {
+        await page.evaluate((t) => {
+            if (t === 'light') document.documentElement.dataset.theme = 'light';
+            else delete document.documentElement.dataset.theme;
+        }, theme);
+        await page.evaluate(() => document.fonts.ready);
+        // The dialog fades in: a capture taken mid-fade shows the list through it.
+        await page.evaluate(() => Promise.all(document.getAnimations()
+            .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+            .map((a) => a.finished.catch(() => undefined))));
+        await page.screenshot({ path: testInfo.outputPath(`${name}-${format}-${theme}.png`), fullPage: true });
+    }
+    if (size) await page.setViewportSize(size);
 }
 
 test.beforeEach(async ({ page, mock }) => {
@@ -331,4 +347,43 @@ test('swapping two overlapping periods that fails halfway keeps the view open; t
     await expect(again.getByRole('button', { name: period('07:00', '10:00', '21') })).toBeVisible();
     await expect(again.getByRole('button', { name: period('06:30', '08:00', '19') })).toBeVisible();
     await expect(again.getByRole('button', { name: /^Edit / })).toHaveCount(3);
+});
+
+test('the program paused and the connection lost are shown in the editor', async ({ page, mock }, testInfo) => {
+    await page.locator('.room-tile').nth(LOUNGE).click();
+    await page.locator('.io-row').filter({ has: page.locator('.io-row__name', { hasText: THERMOSTAT }) }).click();
+    await page.locator('.climate-detail').getByRole('switch').click();
+    await expect(page.locator('.climate-detail__paused')).toBeVisible();
+    await page.locator('.climate-detail').getByRole('button', { name: S.edit }).click();
+    const dialog = editor(page);
+    await expect(dialog.getByRole('button', { name: /^Monday, Heating/ })).toBeVisible();
+    await shot(page, testInfo, 'shot-17-paused');
+
+    await mock.drop();
+    await expect(dialog.getByText(S.readOnly)).toBeVisible();
+    await openDay(dialog, 'Monday');
+    await expect(dialog.getByRole('button', { name: S.addSlot, exact: true })).toBeDisabled();
+    await shot(page, testInfo, 'shot-18-offline');
+});
+
+test('every control of the editor is at least 44 px and shows a focus ring', async ({ page }) => {
+    const dialog = await openEditor(page);
+    const check = async (): Promise<void> => {
+        const controls = dialog.locator('button:visible, [role="tab"]:visible');
+        const n = await controls.count();
+        for (let i = 0; i < n; i++) {
+            const box = await controls.nth(i).boundingBox();
+            const name = await controls.nth(i).innerText();
+            expect(box && box.width >= 44 && box.height >= 44, `${name.trim() || i}: ${box?.width}x${box?.height}`).toBe(true);
+        }
+    };
+    await check();
+    await openDay(dialog, 'Monday');
+    await check();
+    await dialog.getByRole('button', { name: period('06:30', '08:00', '19') }).click();
+    await check();
+
+    // Tab away from the back button: the element that gets focus draws an outline.
+    await page.keyboard.press('Tab');
+    await expect(page.locator(':focus')).toHaveCSS('outline-style', 'solid');
 });
