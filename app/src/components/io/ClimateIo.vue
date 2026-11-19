@@ -272,6 +272,21 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
     color: var(--c-text-muted);
 }
 
+/* Status and chevron stay on the line of the name: the value is what gives
+   way (ellipsis below), not the actions, which wrapped under it on a
+   desktop row that also carries the program switch. */
+.climate-io :deep(.io-row__main) {
+    flex-wrap: nowrap;
+}
+
+/* On a wide row the name keeps one line and the value pays for it; on a
+   phone the name may wrap, or the value would be cut to a digit. */
+@media (min-width: 40rem) {
+    .climate-io :deep(.io-row__text) {
+        min-inline-size: 9rem;
+    }
+}
+
 /* The row's own value slot caps at 45%: a setpoint range and the room's
    temperature are the point of this row. */
 .climate-io :deep(.io-row__value) {

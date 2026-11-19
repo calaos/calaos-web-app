@@ -103,6 +103,8 @@ describe('program paused', () => {
     describe('Resume', () => {
         const pausedIo = () =>
             ({ device: { ios: { ...climateIos(), program_enabled: 'PE' }, capabilities: { program: {} }, state: { program: { enabled: false } } } }) as unknown as IoItem;
+        const runningIo = () =>
+            ({ device: { ios: { ...climateIos(), program_enabled: 'PE' }, capabilities: { program: {} }, state: { program: { enabled: true } } } }) as unknown as IoItem;
         const mountPaused = async (refuse: boolean) => {
             const m = await mountEditor({ prepare: (server) => (server.refuseValue = () => refuse) });
             await m.wrapper.setProps({ io: pausedIo() });
@@ -129,6 +131,29 @@ describe('program paused', () => {
             expect(alert.attributes('role')).toBe('alert');
             expect(alert.text()).toBe(messages.en.program.error.generic);
             expect(wrapper.find('.schedule__paused').exists()).toBe(true);
+        });
+
+        it('drops the refusal when another client turns the program back on', async () => {
+            const { wrapper } = await mountPaused(true);
+            await wrapper.get('.schedule__paused button').trigger('click');
+            await flushPromises();
+            expect(wrapper.find('.schedule__notice').exists()).toBe(true);
+            await wrapper.setProps({ io: runningIo() });
+            await flushPromises();
+            expect(wrapper.find('.schedule__notice').exists()).toBe(false);
+            expect(wrapper.find('.schedule__paused').exists()).toBe(false);
+        });
+
+        it('forgets a refusal on the next click, which the server then takes', async () => {
+            const { wrapper, server } = await mountPaused(true);
+            await wrapper.get('.schedule__paused button').trigger('click');
+            await flushPromises();
+            expect(wrapper.find('.schedule__notice').exists()).toBe(true);
+            server.refuseValue = () => false;
+            await wrapper.get('.schedule__paused button').trigger('click');
+            await flushPromises();
+            expect(setStates(server)).toHaveLength(2);
+            expect(wrapper.find('.schedule__notice').exists()).toBe(false);
         });
     });
 });
