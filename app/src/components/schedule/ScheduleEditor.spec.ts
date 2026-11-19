@@ -93,11 +93,11 @@ describe('program paused', () => {
             return wrapper;
         };
         const paused = await run(false);
-        const banner = paused.get('.schedule__paused');
+        const banner = paused.get('.week__state--paused');
         expect(banner.attributes('role')).toBe('status');
-        expect(banner.text()).toContain('Program paused, slots do not apply');
-        expect(banner.find('button').text()).toBe('Resume program');
-        expect((await run(true)).find('.schedule__paused').exists()).toBe(false);
+        expect(banner.text()).toContain('Program paused');
+        expect(banner.find('button').text()).toBe('Resume');
+        expect((await run(true)).find('.week__state--paused').exists()).toBe(false);
     });
 
     describe('Resume', () => {
@@ -114,7 +114,7 @@ describe('program paused', () => {
 
         it('sends program_enabled=true when clicked', async () => {
             const { wrapper, server } = await mountPaused(false);
-            await wrapper.get('.schedule__paused button').trigger('click');
+            await wrapper.get('.week__state--paused button').trigger('click');
             await flushPromises();
             const sent = setStates(server);
             expect(sent).toHaveLength(1);
@@ -124,33 +124,33 @@ describe('program paused', () => {
 
         it('says so when the server refuses, instead of staying silent', async () => {
             const { wrapper, server } = await mountPaused(true);
-            await wrapper.get('.schedule__paused button').trigger('click');
+            await wrapper.get('.week__state--paused button').trigger('click');
             await flushPromises();
             expect(setStates(server)).toHaveLength(1);
             const alert = wrapper.get('.schedule__notice');
             expect(alert.attributes('role')).toBe('alert');
             expect(alert.text()).toBe(messages.en.program.error.generic);
-            expect(wrapper.find('.schedule__paused').exists()).toBe(true);
+            expect(wrapper.find('.week__state--paused').exists()).toBe(true);
         });
 
         it('drops the refusal when another client turns the program back on', async () => {
             const { wrapper } = await mountPaused(true);
-            await wrapper.get('.schedule__paused button').trigger('click');
+            await wrapper.get('.week__state--paused button').trigger('click');
             await flushPromises();
             expect(wrapper.find('.schedule__notice').exists()).toBe(true);
             await wrapper.setProps({ io: runningIo() });
             await flushPromises();
             expect(wrapper.find('.schedule__notice').exists()).toBe(false);
-            expect(wrapper.find('.schedule__paused').exists()).toBe(false);
+            expect(wrapper.find('.week__state--paused').exists()).toBe(false);
         });
 
         it('forgets a refusal on the next click, which the server then takes', async () => {
             const { wrapper, server } = await mountPaused(true);
-            await wrapper.get('.schedule__paused button').trigger('click');
+            await wrapper.get('.week__state--paused button').trigger('click');
             await flushPromises();
             expect(wrapper.find('.schedule__notice').exists()).toBe(true);
             server.refuseValue = () => false;
-            await wrapper.get('.schedule__paused button').trigger('click');
+            await wrapper.get('.week__state--paused button').trigger('click');
             await flushPromises();
             expect(setStates(server)).toHaveLength(2);
             expect(wrapper.find('.schedule__notice').exists()).toBe(false);
@@ -170,16 +170,34 @@ function button(root: Root, label: string) {
     return found;
 }
 
-async function selectDay(w: VueWrapper, name: string): Promise<void> {
-    await w.find(`.schedule__days[role="tablist"] button[aria-label="${name}"]`).trigger('click');
+async function toWeek(w: VueWrapper): Promise<void> {
+    const back = w.find('.day__back');
+    if (back.exists()) {
+        await back.trigger('click');
+        await flushPromises();
+    }
 }
 
+/** Opens the day list of one day (from the week, whichever view is showing). */
+async function selectDay(w: VueWrapper, name: string): Promise<void> {
+    await toWeek(w);
+    const row = w.findAll('button.week__row').find((b) => b.attributes('aria-label')?.startsWith(`${name}, `));
+    if (!row) throw new Error(`no week row "${name}"`);
+    await row.trigger('click');
+}
+
+/** Switches the direction tab; the tabs live on the week view. */
 async function openTab(w: VueWrapper, label: string): Promise<void> {
-    await button(w, label).trigger('click');
+    await toWeek(w);
+    await button(w, label.replace(/ \(\d+\)$/, '')).trigger('click');
     await flushPromises();
 }
 
-const segments = (w: VueWrapper) => w.findAll('button.track__seg').map((b) => b.attributes('aria-label'));
+/** The period rows of the day shown, as "08:00 – 10:00, 20°". */
+const segments = (w: VueWrapper) =>
+    w.findAll('button.day__row[aria-label^="Edit "]').map((b) => b.attributes('aria-label')?.replace(/^Edit /, ''));
+
+const periodRow = (w: VueWrapper, n = 0) => w.findAll('button.day__row[aria-label^="Edit "]')[n];
 
 function form(w: VueWrapper) {
     return w.find('section[aria-labelledby="schedule-form-title"]');
@@ -227,30 +245,27 @@ describe('reading the program', () => {
         expect(writes(server)).toEqual([]);
     });
 
-    it('counts the levels in use on each tab and in the level counter', async () => {
+    it('names the Heating and Cooling tabs without a counter', async () => {
         const { wrapper } = await mountEditor({
             heat: { 1: [MON_8_10], 2: [wireRange(1, 12, 0, 14, 0)] },
             cool: { 1: [wireRange(2, 14, 0, 16, 0)] },
         });
-        const tabs = wrapper.findAll('[role="tab"].schedule__tab').map((t) => t.text());
-        expect(tabs).toEqual(['Heating (2)', 'Cooling (1)']);
-        expect(text(wrapper)).toContain('Levels: 2 of 6');
-        await openTab(wrapper, 'Cooling (1)');
-        expect(text(wrapper)).toContain('Levels: 1 of 6');
+        const tabs = wrapper.findAll('[role="tab"]').map((t) => t.text());
+        expect(tabs).toEqual(['Heating', 'Cooling']);
+        await openTab(wrapper, 'Cooling');
     });
 
     it('ignores a seventh level and reads only the IOs it was given', async () => {
         const ios = { ...climateIos({ cool: false }), heat_level7: 'H7', heat_level7_setpoint: 'H7S' };
         const { wrapper, server } = await mountEditor({ ios });
         expect(reads(server)).not.toContain('H7');
-        expect(wrapper.find('.schedule__tabs').exists()).toBe(false);
-        expect(text(wrapper)).toContain('Levels: 0 of 6');
+        expect(wrapper.find('.week__tabs').exists()).toBe(false);
     });
 
     it('shows the level of a slot on the track with its setpoint', async () => {
         const { wrapper } = await mountEditor({ heat: { 2: [MON_8_10] } });
         await selectDay(wrapper, 'Monday');
-        expect(segments(wrapper)).toEqual(['Level 2, 08:00 to 10:00, 20°']);
+        expect(segments(wrapper)).toEqual(['08:00 – 10:00, 20°']);
     });
 
     it('lets level 1 win over a lower priority slot that overlaps it', async () => {
@@ -258,15 +273,14 @@ describe('reading the program', () => {
             heat: { 1: [wireRange(1, 8, 0, 12, 0)], 2: [wireRange(1, 10, 0, 14, 0)] },
         });
         await selectDay(wrapper, 'Monday');
-        expect(segments(wrapper)).toEqual(['Level 1, 08:00 to 12:00, 22°', 'Level 2, 12:00 to 14:00, 20°']);
+        expect(segments(wrapper)).toEqual(['08:00 – 12:00, 22°', '10:00 – 14:00, 20°']);
     });
 
     it('counts a sunrise range as a used level and gives a new setpoint the next one', async () => {
         const sunrise: WireRange = { ...wireRange(1, 0, 0, 0, 0), start_type: '1', start_offset: '30', end_hour: '9' };
         const { wrapper, server } = await mountEditor({ heat: { 1: [sunrise] } });
-        expect(text(wrapper)).toContain('Levels: 1 of 6');
         await selectDay(wrapper, 'Monday');
-        await button(wrapper, '+ Slot').trigger('click');
+        await button(wrapper, 'Add a period').trigger('click');
         // 22.5 is not level 1's setpoint: the kept range makes level 1 busy, so the slot takes level 2.
         await fillForm(wrapper, { setpoint: 22.5 });
         const mark = server.sent.length;
@@ -274,6 +288,48 @@ describe('reading the program', () => {
         await flushPromises();
         expect(writes(server, mark)).toEqual(['set_state:H2S=22.5', 'set_timerange:H2']);
         expect(server.writesOf('H1')).toEqual([]);
+    });
+});
+
+describe('week and day views', () => {
+    it('opens on the week, goes into a day from its row and comes back by name', async () => {
+        const { wrapper } = await mountEditor({ heat: { 1: [MON_8_10] } });
+        expect(wrapper.find('.week').exists()).toBe(true);
+        expect(wrapper.find('.day').exists()).toBe(false);
+        await selectDay(wrapper, 'Monday');
+        expect(wrapper.find('.week').exists()).toBe(false);
+        expect(wrapper.get('.day__title').text()).toBe('Monday');
+        await button(wrapper, 'Week').trigger('click');
+        expect(wrapper.find('.week').exists()).toBe(true);
+    });
+
+    it('goes back to the week on Escape and stops it there, only from a day', async () => {
+        const { wrapper } = await mountEditor({ heat: { 1: [MON_8_10] } });
+        const outer = vi.fn();
+        const host = wrapper.element.parentElement!;
+        host.addEventListener('keydown', outer);
+        await wrapper.get('.schedule').trigger('keydown', { key: 'Escape' });
+        expect(outer).toHaveBeenCalledTimes(1);
+        await selectDay(wrapper, 'Monday');
+        await wrapper.get('.schedule').trigger('keydown', { key: 'Escape' });
+        expect(wrapper.find('.week').exists()).toBe(true);
+        expect(outer).toHaveBeenCalledTimes(1);
+        host.removeEventListener('keydown', outer);
+    });
+
+    it('lists the periods as rows and opens nothing when the preview bar is clicked', async () => {
+        const { wrapper } = await mountEditor({ heat: { 1: [MON_8_10] } });
+        await selectDay(wrapper, 'Monday');
+        await wrapper.get('.track').trigger('click');
+        expect(form(wrapper).exists()).toBe(false);
+        await periodRow(wrapper).trigger('click');
+        expect(form(wrapper).exists()).toBe(true);
+    });
+
+    it('names the day in the week row and the period count', async () => {
+        const { wrapper } = await mountEditor({ heat: { 1: [MON_8_10] } });
+        const labels = wrapper.findAll('button.week__row').map((b) => b.attributes('aria-label'));
+        expect(labels[0]).toMatch(/^Monday, Heating, 1 period/);
     });
 });
 
@@ -298,7 +354,7 @@ function mondayNoon(): void {
 
 async function addSlot(w: VueWrapper, v: Parameters<typeof fillForm>[1]): Promise<void> {
     await selectDay(w, 'Monday');
-    await button(w, '+ Slot').trigger('click');
+    await button(w, 'Add a period').trigger('click');
     await fillForm(w, v);
 }
 
@@ -314,8 +370,8 @@ describe('simple mode', () => {
         mondayNoon();
         const { wrapper, server } = await mountEditor({ mode: 'simple' });
         expect(form(wrapper).exists()).toBe(true);
-        expect(wrapper.find('button.track__seg').exists()).toBe(false);
-        expect(wrapper.findAll('button').some((b) => b.text() === '+ Slot')).toBe(false);
+        expect(wrapper.find('button.day__row').exists()).toBe(false);
+        expect(wrapper.findAll('button').some((b) => b.text() === 'Add a period')).toBe(false);
         expect(writes(server)).toEqual([]);
     });
 
@@ -408,7 +464,7 @@ describe('simple mode', () => {
 
     it('keeps the form when the other direction is chosen', async () => {
         const { wrapper } = await mountEditor({ mode: 'simple' });
-        await openTab(wrapper, 'Cooling (0)');
+        await openTab(wrapper, 'Cooling');
         expect(form(wrapper).exists()).toBe(true);
     });
 });
@@ -416,10 +472,10 @@ describe('simple mode', () => {
 // -------------------------------------------------- level limit (Q2) ---
 
 describe('six levels at most (Q2)', () => {
-    it('lets a sixth level be added, and never greys out + Slot', async () => {
+    it('lets a sixth level be added, and never greys out Add a period', async () => {
         const { wrapper, server } = await mountEditor({ heat: levelsInUse(5) });
-        const add = () => button(wrapper, '+ Slot');
-        expect(text(wrapper)).toContain('Levels: 5 of 6');
+        await selectDay(wrapper, 'Monday');
+        const add = () => button(wrapper, 'Add a period');
         await add().trigger('click');
         // Default 19° is free among 22, 20, 18, 16, 14: the form proposes it.
         expect((form(wrapper).find('input[type="number"]').element as HTMLInputElement).value).toBe('19');
@@ -427,13 +483,12 @@ describe('six levels at most (Q2)', () => {
         const mark = server.sent.length;
         await save(wrapper);
         expect(writes(server, mark)).toEqual(['set_state:H6S=19', 'set_timerange:H6']);
-        expect(text(wrapper)).toContain('Levels: 6 of 6');
         expect(add().attributes('disabled')).toBeUndefined();
         expect(wrapper.findAll('button').some((b) => b.text().includes('Level'))).toBe(false);
         expect(text(wrapper)).not.toContain('Every level is in use');
     });
 
-    it('refuses a seventh temperature from "+ Slot", keeps the form open and writes nothing', async () => {
+    it('refuses a seventh temperature from "Add a period", keeps the form open and writes nothing', async () => {
         const { wrapper, server } = await mountEditor({ heat: levelsInUse(6) });
         await addSlot(wrapper, { start: '20:00', end: '21:00', setpoint: 25 });
         const mark = server.sent.length;
@@ -458,7 +513,7 @@ describe('six levels at most (Q2)', () => {
     it('counts the levels configured, not six, when the device has fewer', async () => {
         const ios = climateIos({ levels: 4, cool: false });
         const { wrapper, server } = await mountEditor({ ios, heat: levelsInUse(4) });
-        expect(text(wrapper)).toContain('Levels: 4 of 4');
+        
         await addSlot(wrapper, { start: '20:00', end: '21:00', setpoint: 25 });
         await save(wrapper);
         expect(notice(wrapper).text()).toBe('4 levels maximum for Heating');
@@ -467,16 +522,16 @@ describe('six levels at most (Q2)', () => {
 
     it('limits each direction on its own', async () => {
         const { wrapper } = await mountEditor({ heat: levelsInUse(6), cool: levelsInUse(2) });
-        expect(wrapper.findAll('[role="tab"].schedule__tab').map((t) => t.text())).toEqual(['Heating (6)', 'Cooling (2)']);
-        await openTab(wrapper, 'Cooling (2)');
-        expect(text(wrapper)).toContain('Levels: 2 of 6');
-        expect(button(wrapper, '+ Slot').attributes('disabled')).toBeUndefined();
+        expect(wrapper.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Heating', 'Cooling']);
+        await openTab(wrapper, 'Cooling');
+        await selectDay(wrapper, 'Monday');
+        expect(button(wrapper, 'Add a period').attributes('disabled')).toBeUndefined();
     });
 
     it('creates no level when a day is copied, so the limit cannot be hit', async () => {
         const { wrapper, server } = await mountEditor({ heat: levelsInUse(6) });
         await selectDay(wrapper, 'Monday');
-        await button(wrapper, 'Copy this day…').trigger('click');
+        await button(wrapper, 'Copy to…').trigger('click');
         const panel = wrapper.find('section.schedule__panel');
         await panel.find('button[aria-label="Tuesday"]').trigger('click');
         await button(panel, 'Copy').trigger('click');
@@ -490,67 +545,78 @@ describe('six levels at most (Q2)', () => {
 // ------------------------------------------------- cooling off (Q3) ---
 
 describe('cooling "off" default', () => {
+    const offBox = (w: VueWrapper) => w.find('.day__off input[type="checkbox"]');
+    const value = (w: VueWrapper) => w.find('.day__value');
+    const step = (w: VueWrapper, label: 'Lower' | 'Raise') => button(w.get('.day__stepper'), label === 'Lower' ? '−' : '+');
+
     it('is offered on the Cooling tab only, reflecting the server value', async () => {
         const { wrapper } = await mountEditor({ coolOff: true });
-        expect(wrapper.find('.schedule__defaults input[type="checkbox"]').exists()).toBe(false);
-        await openTab(wrapper, 'Cooling (0)');
-        const box = wrapper.find('.schedule__defaults input[type="checkbox"]');
-        expect((box.element as HTMLInputElement).checked).toBe(true);
+        await selectDay(wrapper, 'Monday');
+        expect(offBox(wrapper).exists()).toBe(false);
+        await openTab(wrapper, 'Cooling');
+        await selectDay(wrapper, 'Monday');
+        expect((offBox(wrapper).element as HTMLInputElement).checked).toBe(true);
     });
 
     it('hides the default setpoint and says "Off" outside slots while it is on', async () => {
         const { wrapper } = await mountEditor({ coolOff: true });
-        await openTab(wrapper, 'Cooling (0)');
-        expect(wrapper.find('.schedule__defaults input[type="number"]').exists()).toBe(false);
-        expect(text(wrapper)).toContain('No cooling slot. Off outside slots.');
+        await openTab(wrapper, 'Cooling');
+        await selectDay(wrapper, 'Monday');
+        expect(wrapper.find('.day__stepper').exists()).toBe(false);
+        expect(text(wrapper)).toContain('Cooling stays off all day.');
         expect(wrapper.find('.track__gap').text()).toBe('Off');
     });
 
     it('shows the default setpoint while it is off', async () => {
         const { wrapper } = await mountEditor({ coolOff: false });
-        await openTab(wrapper, 'Cooling (0)');
-        const input = wrapper.find('.schedule__defaults input[type="number"]');
-        expect((input.element as HTMLInputElement).value).toBe('26');
-        expect(text(wrapper)).toContain('No cooling slot. Default: 26°.');
+        await openTab(wrapper, 'Cooling');
+        await selectDay(wrapper, 'Monday');
+        expect(value(wrapper).text()).toBe('26°');
+        expect(text(wrapper)).toContain('Cooling stays at 26° all day.');
     });
 
-    it('writes only the switch when it is ticked, and swaps the setpoint field for "Off"', async () => {
+    it('writes only the switch when it is ticked, and swaps the stepper for "Off"', async () => {
         const { wrapper, server } = await mountEditor({ coolOff: false });
-        await openTab(wrapper, 'Cooling (0)');
+        await openTab(wrapper, 'Cooling');
+        await selectDay(wrapper, 'Monday');
         const mark = server.sent.length;
-        await wrapper.find('.schedule__defaults input[type="checkbox"]').setValue(true);
+        await offBox(wrapper).setValue(true);
         await flushPromises();
         expect(writes(server, mark)).toEqual(['set_state:CO=true']);
-        expect(wrapper.find('.schedule__defaults input[type="number"]').exists()).toBe(false);
-        await wrapper.find('.schedule__defaults input[type="checkbox"]').setValue(false);
+        expect(wrapper.find('.day__stepper').exists()).toBe(false);
+        await offBox(wrapper).setValue(false);
         await flushPromises();
         expect(writes(server, mark)).toEqual(['set_state:CO=true', 'set_state:CO=false']);
-        expect(wrapper.find('.schedule__defaults input[type="number"]').exists()).toBe(true);
+        expect(wrapper.find('.day__stepper').exists()).toBe(true);
     });
 
     it('is not offered when the device has no cool_default_off IO', async () => {
         const ios = climateIos({ coolOff: false });
+        delete ios.cool_default_off;
         const { wrapper } = await mountEditor({ ios });
-        await openTab(wrapper, 'Cooling (0)');
-        expect(wrapper.find('.schedule__defaults input[type="checkbox"]').exists()).toBe(false);
-        expect(wrapper.find('.schedule__defaults input[type="number"]').exists()).toBe(true);
+        await openTab(wrapper, 'Cooling');
+        await selectDay(wrapper, 'Monday');
+        expect(offBox(wrapper).exists()).toBe(false);
+        expect(wrapper.find('.day__stepper').exists()).toBe(true);
     });
 
     it('never offers an "off" for heating, which has a fixed default only', async () => {
         const { wrapper } = await mountEditor({ coolOff: true });
-        expect(wrapper.find('.schedule__defaults input[type="checkbox"]').exists()).toBe(false);
-        expect((wrapper.find('.schedule__defaults input[type="number"]').element as HTMLInputElement).value).toBe('19');
-        expect(text(wrapper)).toContain('No heating slot. Default: 19°.');
+        await selectDay(wrapper, 'Monday');
+        expect(offBox(wrapper).exists()).toBe(false);
+        expect(value(wrapper).text()).toBe('19°');
+        expect(text(wrapper)).toContain('Heating stays at 19° all day.');
         expect(wrapper.find('.track__gap').text()).toContain('19');
         expect(wrapper.find('.track__gap').text()).not.toContain('Off');
     });
 
     it('fails the switch visibly, keeps the old value on screen and retries', async () => {
         const { wrapper, server } = await mountEditor({ coolOff: false });
-        await openTab(wrapper, 'Cooling (0)');
+        await openTab(wrapper, 'Cooling');
+        await selectDay(wrapper, 'Monday');
         server.refuseValue = () => true;
         const mark = server.sent.length;
-        await wrapper.find('.schedule__defaults input[type="checkbox"]').setValue(true);
+        await offBox(wrapper).setValue(true);
         await flushPromises();
         expect(banner(wrapper).text()).toContain('The server refused the change');
         expect(server.values.get('CO')).toBe('false');
@@ -562,15 +628,16 @@ describe('cooling "off" default', () => {
         expect(server.values.get('CO')).toBe('true');
     });
 
-    it('writes a default setpoint inside 7 to 30 and ignores one outside', async () => {
-        const { wrapper, server } = await mountEditor();
-        const input = () => wrapper.find('.schedule__defaults input[type="number"]');
-        // The field is disabled while a write is in flight: let each one finish.
-        for (const v of ['21.5', '6.5', '30.5', '', '30', '7']) {
-            await input().setValue(v);
-            await flushPromises();
-        }
-        expect(writes(server)).toEqual(['set_state:HD=21.5', 'set_state:HD=30', 'set_state:HD=7']);
+    it('steps the default setpoint by half a degree and stops at 7 and 30', async () => {
+        const { wrapper, server } = await mountEditor({ prepare: (srv) => { srv.values.set('HD', '29.5'); } });
+        await selectDay(wrapper, 'Monday');
+        await step(wrapper, 'Raise').trigger('click');
+        await flushPromises();
+        expect(value(wrapper).text()).toBe('30°');
+        expect(step(wrapper, 'Raise').attributes('disabled')).toBeDefined();
+        await step(wrapper, 'Lower').trigger('click');
+        await flushPromises();
+        expect(writes(server)).toEqual(['set_state:HD=30', 'set_state:HD=29.5']);
     });
 });
 
@@ -584,9 +651,9 @@ describe('auto mode and a disabled program', () => {
         await save(wrapper);
         // 28° is above every cooling setpoint: the editor does not police the gap, the server does.
         expect(writes(server, mark)).toEqual(['set_state:H1S=28', 'set_timerange:H1']);
-        await openTab(wrapper, 'Cooling (1)');
+        await openTab(wrapper, 'Cooling');
         await selectDay(wrapper, 'Tuesday');
-        await button(wrapper, '+ Slot').trigger('click');
+        await button(wrapper, 'Add a period').trigger('click');
         await fillForm(wrapper, { start: '20:00', end: '21:00', setpoint: 18 });
         const mark2 = server.sent.length;
         await save(wrapper);
@@ -597,8 +664,8 @@ describe('auto mode and a disabled program', () => {
 
     it('reads each direction from its own IOs and never writes while loading or switching tabs (Q4)', async () => {
         const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] } });
-        await openTab(wrapper, 'Cooling (0)');
-        await openTab(wrapper, 'Heating (1)');
+        await openTab(wrapper, 'Cooling');
+        await openTab(wrapper, 'Heating');
         await selectDay(wrapper, 'Wednesday');
         expect(writes(server)).toEqual([]);
         expect(server.sent.filter((f) => f.msg !== 'get_state' && f.msg !== 'get_timerange')).toEqual([]);
@@ -606,12 +673,13 @@ describe('auto mode and a disabled program', () => {
 
     it('leaves every setpoint alone when cooling goes off or a slot is deleted (Q4)', async () => {
         const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] }, coolOff: false });
-        await openTab(wrapper, 'Cooling (0)');
-        await wrapper.find('.schedule__defaults input[type="checkbox"]').setValue(true);
-        await flushPromises();
-        await openTab(wrapper, 'Heating (1)');
+        await openTab(wrapper, 'Cooling');
         await selectDay(wrapper, 'Monday');
-        await wrapper.find('button.track__seg').trigger('click');
+        await wrapper.find('.day__off input[type="checkbox"]').setValue(true);
+        await flushPromises();
+        await openTab(wrapper, 'Heating');
+        await selectDay(wrapper, 'Monday');
+        await wrapper.find('button.day__row[aria-label^="Edit "]').trigger('click');
         await button(form(wrapper), 'Delete').trigger('click');
         await flushPromises();
         expect(writes(server)).toEqual(['set_state:CO=true', 'set_timerange:H1']);
@@ -645,7 +713,7 @@ describe('a write that fails half-way', () => {
         expect(writes(server, mark2)).toEqual(['set_timerange:H2']);
         expect(banner(wrapper).exists()).toBe(false);
         expect(server.ranges.get('H2')).toEqual([wireRange(1, 12, 0, 13, 0)]);
-        expect(segments(wrapper)).toEqual(['Level 1, 08:00 to 10:00, 22°', 'Level 2, 12:00 to 13:00, 22.5°']);
+        expect(segments(wrapper)).toEqual(['08:00 – 10:00, 22°', '12:00 – 13:00, 22.5°']);
     });
 
     it('keeps both edits when another client changes the same level before Retry', async () => {
@@ -719,7 +787,7 @@ describe('a write that fails half-way', () => {
             prepare: (s) => (s.refuseValue = (id) => id === 'H1S'),
         });
         await selectDay(wrapper, 'Monday');
-        await wrapper.findAll('button.track__seg')[1].trigger('click');
+        await wrapper.findAll('button.day__row[aria-label^="Edit "]')[1].trigger('click');
         const mark = server.sent.length;
         await button(form(wrapper), 'Raise priority').trigger('click');
         await flushPromises();
@@ -733,7 +801,7 @@ describe('a write that fails half-way', () => {
             prepare: (s) => (s.refuseRanges = (id, nth) => (id === 'H1' && nth === 1 ? 'config_not_written' : undefined)),
         });
         await selectDay(wrapper, 'Monday');
-        await button(wrapper, 'Copy this day…').trigger('click');
+        await button(wrapper, 'Copy to…').trigger('click');
         const panel = () => wrapper.find('section.schedule__panel');
         await panel().find('button[aria-label="Tuesday"]').trigger('click');
         const mark = server.sent.length;
@@ -748,7 +816,7 @@ describe('a write that fails half-way', () => {
             prepare: (s) => (s.refuseRanges = (id, nth) => (id === 'H2' && nth === 1 ? 'config_not_written' : undefined)),
         });
         await selectDay(wrapper, 'Monday');
-        await button(wrapper, 'Copy this day…').trigger('click');
+        await button(wrapper, 'Copy to…').trigger('click');
         const panel = () => wrapper.find('section.schedule__panel');
         await panel().find('button[aria-label="Tuesday"]').trigger('click');
         const mark = server.sent.length;
@@ -774,7 +842,7 @@ describe('a write that fails half-way', () => {
             prepare: (s) => (s.refuseRanges = (id) => (id === 'H1' ? 'config_not_written' : id === 'H2' ? 'wrong input' : undefined)),
         });
         await selectDay(wrapper, 'Monday');
-        await wrapper.findAll('button.track__seg')[1].trigger('click');
+        await wrapper.findAll('button.day__row[aria-label^="Edit "]')[1].trigger('click');
         const mark = server.sent.length;
         await button(form(wrapper), 'Raise priority').trigger('click');
         await flushPromises();
@@ -819,7 +887,7 @@ describe('months with a range write', () => {
             prepare: (s) => s.months.set('H1', '000011110000'),
         });
         await selectDay(wrapper, 'Monday');
-        await wrapper.find('button.track__seg').trigger('click');
+        await wrapper.find('button.day__row[aria-label^="Edit "]').trigger('click');
         await fillForm(wrapper, { end: '11:00' });
         await save(wrapper);
         const frames = setTimeranges(server);
@@ -837,7 +905,7 @@ describe('copy a day (Q4)', () => {
 
     async function openCopy(w: VueWrapper, day = 'Monday'): Promise<void> {
         await selectDay(w, day);
-        await button(w, 'Copy this day…').trigger('click');
+        await button(w, 'Copy to…').trigger('click');
     }
 
     const days = (ranges: WireRange[] | undefined) => (ranges ?? []).map((r) => r.day);
@@ -905,15 +973,15 @@ describe('copy a day (Q4)', () => {
         expect(server.writesOf('C1')).toEqual([]);
         expect(server.ranges.get('C1')).toEqual([wireRange(2, 14, 0, 16, 0)]);
         // The occupied-target check ignores the other direction too: Cooling Tuesday has a slot, Heating Wednesday none.
-        await openTab(wrapper, 'Cooling (1)');
-        await openCopy(wrapper, 'Wednesday');
-        expect(notice(wrapper).text()).toContain('Nothing to copy');
+        await openTab(wrapper, 'Cooling');
+        await selectDay(wrapper, 'Wednesday');
+        expect(button(wrapper, 'Copy to…').attributes('disabled')).toBeDefined();
         expect(panel(wrapper).exists()).toBe(false);
     });
 
     it('copies the other direction on its own tab and never touches heating', async () => {
         const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] }, cool: { 1: [wireRange(2, 14, 0, 16, 0)] } });
-        await openTab(wrapper, 'Cooling (1)');
+        await openTab(wrapper, 'Cooling');
         await openCopy(wrapper, 'Tuesday');
         await panel(wrapper).find('button[aria-label="Thursday"]').trigger('click');
         await button(panel(wrapper), 'Copy').trigger('click');
@@ -923,11 +991,11 @@ describe('copy a day (Q4)', () => {
         expect(days(server.ranges.get('C1'))).toEqual(['2', '4']);
     });
 
-    it('refuses to open on a day with no slot, writing nothing', async () => {
+    it('keeps Copy to… disabled on a day with no slot, writing nothing', async () => {
         const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] } });
         const mark = server.sent.length;
-        await openCopy(wrapper, 'Friday');
-        expect(notice(wrapper).text()).toContain('Nothing to copy');
+        await selectDay(wrapper, 'Friday');
+        expect(button(wrapper, 'Copy to…').attributes('disabled')).toBeDefined();
         expect(panel(wrapper).exists()).toBe(false);
         expect(writes(server, mark)).toEqual([]);
     });
@@ -961,8 +1029,8 @@ describe('copy a day (Q4)', () => {
     it('cannot be opened when read-only', async () => {
         const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] }, readonly: true });
         await selectDay(wrapper, 'Monday');
-        expect(button(wrapper, 'Copy this day…').attributes('disabled')).toBeDefined();
-        await button(wrapper, 'Copy this day…').trigger('click');
+        expect(button(wrapper, 'Copy to…').attributes('disabled')).toBeDefined();
+        await button(wrapper, 'Copy to…').trigger('click');
         expect(panel(wrapper).exists()).toBe(false);
         expect(writes(server)).toEqual([]);
     });
@@ -985,6 +1053,6 @@ describe('a re-read that overlaps a write', () => {
         server.release();
         await flushPromises();
         expect(reads(server, mark)).toEqual(['H1']);
-        expect(segments(wrapper)).toEqual(['Level 1, 08:00 to 10:00, 22°', 'Level 1, 12:00 to 13:00, 22°']);
+        expect(segments(wrapper)).toEqual(['08:00 – 10:00, 22°', '12:00 – 13:00, 22°']);
     });
 });

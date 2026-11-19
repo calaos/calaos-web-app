@@ -6,8 +6,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import IconPause from '~icons/mdi/pause';
-import ScheduleTrack from './ScheduleTrack.vue';
+import ScheduleDay from './ScheduleDay.vue';
+import ScheduleWeek from './ScheduleWeek.vue';
 import { useProgram } from '../../composables/useProgram';
 import { useConnectionStore } from '../../stores/connection';
 import { useScheduleStore } from '../../stores/schedule';
@@ -53,6 +53,8 @@ const ios = computed(() => props.io.device?.ios ?? {});
 const levelsOf = computed(() => ({ heat: levelIos(ios.value, 'heat'), cool: levelIos(ios.value, 'cool') }));
 const directions = computed(() => (['heat', 'cool'] as Direction[]).filter((d) => levelsOf.value[d].length > 0));
 
+/** Week is the root; a day opens over it. The scenario form has no week. */
+const view = ref<'week' | 'day'>('week');
 const direction = ref<Direction>('heat');
 const day = ref(isoDay(new Date()));
 const now = ref(minutesOf(new Date()));
@@ -133,12 +135,16 @@ const used = computed(() => (program.value ? usedLevels(program.value) : []));
 const levelCount = computed(() => levelsOf.value[direction.value].length);
 const daySlots = computed(() => (program.value ? slotsOfDay(program.value, day.value) : []));
 const emptyText = computed(() => {
-    if (!program.value || program.value.slots.length > 0) return '';
-    const dir = dirName(direction.value).toLocaleLowerCase(locale.value);
-    if (direction.value === 'cool' && coolOff.value) return t('schedule.emptyOff', { dir });
+    if (direction.value === 'cool' && coolOff.value) return t('schedule.emptyOff');
     const v = defaultOf(direction.value);
-    return t('schedule.empty', { dir, setpoint: v === undefined ? '–' : degrees(v) });
+    const setpoint = v === undefined ? '–' : degrees(v);
+    return t(direction.value === 'heat' ? 'schedule.empty' : 'schedule.emptyCool', { setpoint });
 });
+const pausedText = computed(() => {
+    const v = programCtl.current.value?.setpoint;
+    return v === undefined || v === null ? t('program.paused') : t('schedule.v2.paused', { setpoint: degrees(v) });
+});
+const subtitle = computed(() => `${props.io.name ?? ''} · ${dirName(direction.value)}`.replace(/^ · /, ''));
 
 // --------------------------------------------------------------- read ---
 
@@ -303,12 +309,6 @@ async function writeValue(id: string | undefined, value: string): Promise<void> 
     const error = await store.writeValue(id, value);
     busy.value = false;
     if (error !== '') banner.value = { text: errorText(error), retry: () => void writeValue(id, value) };
-}
-
-function onDefault(d: Direction, event: Event): void {
-    const v = Number((event.target as HTMLInputElement).value);
-    if (!Number.isFinite(v) || v < SETPOINT_MIN || v > SETPOINT_MAX) return;
-    void writeValue(d === 'heat' ? ios.value.heat_default : ios.value.cool_default, String(v));
 }
 
 // --------------------------------------------------------------- form ---
@@ -495,9 +495,30 @@ function selectDirection(d: Direction): void {
 
 function selectDay(d: number): void {
     day.value = d;
+    view.value = 'day';
     form.value = null;
     copyOpen.value = false;
     notice.value = '';
+}
+
+function backToWeek(): void {
+    view.value = 'week';
+    form.value = null;
+    copyOpen.value = false;
+    notice.value = '';
+    done.value = '';
+}
+
+/** Escape is the back button of the view; only the week lets it reach the dialog. */
+function onEscape(event: KeyboardEvent): void {
+    if (props.mode !== 'multi' || view.value !== 'day') return;
+    event.stopPropagation();
+    event.preventDefault();
+    backToWeek();
+}
+
+function onSlot(slot: Slot): void {
+    openSlot(slot.level, slot.start);
 }
 
 let clock: ReturnType<typeof setInterval> | undefined;
@@ -510,13 +531,12 @@ onMounted(() => {
 });
 onBeforeUnmount(() => clearInterval(clock));
 
-const AXIS = [0, 6, 12, 18, 24];
 const programCtl = useProgram(() => props.io);
 const paused = computed(() => programCtl.state.value !== undefined && !programCtl.enabled.value);
 </script>
 
 <template>
-    <div class="schedule" :class="[`schedule--${mode}`, { 'schedule--paused': paused }]">
+    <div class="schedule" :class="`schedule--${mode}`" @keydown.esc="onEscape">
         <div v-if="loading" class="schedule__loading" role="status">
             <div class="schedule__skeleton" aria-hidden="true" />
             <p>{{ t('schedule.loading') }}</p>
@@ -529,76 +549,69 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                     {{ t('schedule.retry') }}
                 </button>
             </div>
-            <div v-if="paused" class="schedule__paused" role="status">
-                <IconPause aria-hidden="true" />
-                <span>{{ t('program.editorPaused') }}</span>
-                <button v-if="!programCtl.readonly.value && !readonly" type="button" class="schedule__button" :disabled="programCtl.saving.value" @click="programCtl.toggle()">
-                    {{ t('program.resume') }}
-                </button>
-            </div>
             <p v-if="programCtl.error.value" class="schedule__notice" role="alert">{{ programCtl.error.value }}</p>
             <p v-if="readonly || !connection.isOpen" class="schedule__muted">{{ t('schedule.readOnly') }}</p>
 
-            <div v-if="directions.length > 1" class="schedule__tabs" role="tablist" :aria-label="t('schedule.tabs')">
+            <div v-if="mode === 'simple' && directions.length > 1" class="schedule__tabs" role="tablist" :aria-label="t('schedule.tabs')">
                 <button
                     v-for="d in directions"
                     :key="d"
                     type="button"
                     role="tab"
-                    class="schedule__tab"
+                    class="schedule__button"
                     :aria-selected="d === direction"
                     @click="selectDirection(d)"
                 >
-                    {{ t('schedule.tab', { dir: dirName(d), n: programOf(d) ? usedLevels(programOf(d) as DirectionProgram).length : 0 }) }}
+                    {{ dirName(d) }}
                 </button>
             </div>
 
-            <template v-if="mode === 'multi' && program">
-                <div class="schedule__days" role="tablist" :aria-label="t('schedule.days')">
-                    <button
-                        v-for="d in WEEKDAYS"
-                        :key="d"
-                        type="button"
-                        role="tab"
-                        class="schedule__day"
-                        :aria-selected="d === day"
-                        :aria-label="dayName(d)"
-                        @click="selectDay(d)"
-                    >
-                        {{ t(`schedule.dayShort.${d}`) }}
-                    </button>
-                </div>
+            <ScheduleWeek
+                v-if="mode === 'multi' && program && view === 'week'"
+                :program="program"
+                :directions="directions"
+                :direction="direction"
+                :today="isoDay(new Date())"
+                :now="now"
+                :paused="paused"
+                :paused-text="pausedText"
+                :can-toggle="!programCtl.readonly.value && !readonly"
+                :saving="programCtl.saving.value"
+                @direction="selectDirection"
+                @day="selectDay"
+                @toggle="programCtl.toggle()"
+            />
 
-                <ScheduleTrack
-                    interactive
-                    :program="program"
-                    :day="day"
-                    :gap-label="gapLabel"
-                    :now="day === isoDay(new Date()) ? now : undefined"
-                    :label="t('schedule.timeline', { day: dayName(day), dir: dirName(direction) })"
-                    @open="openSlot"
-                />
-                <div class="schedule__axis" aria-hidden="true">
-                    <span v-for="h in AXIS" :key="h" :style="{ left: `${(h / 24) * 100}%` }">{{ h }}</span>
-                </div>
-
-                <p v-if="emptyText" class="schedule__muted">{{ emptyText }}</p>
-
-                <div class="schedule__actions">
-                    <button type="button" class="schedule__button" :disabled="locked || busy" @click="openNew()">
-                        {{ t('schedule.addSlot') }}
-                    </button>
-                    <button type="button" class="schedule__button" :disabled="locked || busy" @click="openCopy">
-                        {{ t('schedule.copy.open') }}
-                    </button>
-                </div>
-                <p class="schedule__muted" data-testid="level-count">{{ t('schedule.levelCount', { n: used.length, max: levelCount }) }}</p>
-            </template>
+            <ScheduleDay
+                v-else-if="mode === 'multi' && program"
+                :program="program"
+                :direction="direction"
+                :day="day"
+                :slots="daySlots"
+                :subtitle="subtitle"
+                :gap-label="gapLabel"
+                :now="day === isoDay(new Date()) ? now : undefined"
+                :empty-text="emptyText"
+                :locked="locked"
+                :busy="busy"
+                :default-value="defaultOf(direction)"
+                :default-min="SETPOINT_MIN"
+                :default-max="SETPOINT_MAX"
+                :off-toggle="direction === 'cool' && !!ios.cool_default_off"
+                :off="direction === 'cool' && coolOff"
+                :has-default="!!ios[`${direction}_default`]"
+                @back="backToWeek"
+                @add="openNew()"
+                @open="onSlot"
+                @copy="openCopy"
+                @set-default="(v) => writeValue(ios[`${direction}_default`], String(v))"
+                @set-off="(v) => writeValue(ios.cool_default_off, v ? 'true' : 'false')"
+            />
 
             <p v-if="notice && !form" ref="noticeBox" class="schedule__notice" role="alert">{{ notice }}</p>
             <p v-if="done" class="schedule__muted" role="status">{{ done }}</p>
 
-            <section v-if="copyOpen && mode === 'multi'" class="schedule__panel" :aria-label="t('schedule.copy.title', { day: dayName(day) })">
+            <section v-if="copyOpen && mode === 'multi' && view === 'day'" class="schedule__panel" :aria-label="t('schedule.copy.title', { day: dayName(day) })">
                 <h3 class="schedule__heading">{{ t('schedule.copy.title', { day: dayName(day) }) }}</h3>
                 <div class="schedule__days">
                     <button
@@ -720,42 +733,6 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                 </div>
             </section>
 
-            <template v-if="mode === 'multi' && program">
-                <div class="schedule__defaults">
-                    <label v-if="direction === 'cool' && ios.cool_default_off" class="schedule__check">
-                        <input
-                            type="checkbox"
-                            :checked="coolOff"
-                            :disabled="locked || busy"
-                            @change="writeValue(ios.cool_default_off, ($event.target as HTMLInputElement).checked ? 'true' : 'false')"
-                        />
-                        <span>{{ t('schedule.coolOff') }}</span>
-                    </label>
-                    <label v-if="!(direction === 'cool' && coolOff) && ios[`${direction}_default`]" class="schedule__field">
-                        <span>{{ t('schedule.defaultSetpoint') }}</span>
-                        <input
-                            type="number"
-                            :min="SETPOINT_MIN"
-                            :max="SETPOINT_MAX"
-                            step="0.5"
-                            :value="defaultOf(direction)"
-                            :disabled="locked || busy"
-                            @change="onDefault(direction, $event)"
-                            @keydown.enter.prevent
-                        />
-                    </label>
-                </div>
-
-                <section class="schedule__week" :aria-label="t('schedule.week')">
-                    <h3 class="schedule__heading">{{ t('schedule.week') }}</h3>
-                    <div v-for="d in WEEKDAYS" :key="d" class="schedule__week-row">
-                        <button type="button" class="schedule__week-day" :aria-label="t('schedule.weekDay', { day: dayName(d) })" :aria-current="d === day ? 'date' : undefined" @click="selectDay(d)">
-                            {{ t(`schedule.dayShort.${d}`) }}
-                        </button>
-                        <ScheduleTrack :program="program" :day="d" :gap-label="gapLabel" :label="dayName(d)" />
-                    </div>
-                </section>
-            </template>
         </template>
     </div>
 </template>
@@ -807,21 +784,6 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
     }
 }
 
-.schedule__paused {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--c-border-strong);
-    border-radius: 6px;
-}
-
-.schedule--paused .schedule__track,
-.schedule--paused :deep(.track) {
-    opacity: 0.55;
-}
-
 .schedule__banner {
     display: flex;
     flex-wrap: wrap;
@@ -845,12 +807,10 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
     color: var(--c-text-muted);
 }
 
-.schedule__tabs,
 .schedule__days,
 .schedule__actions,
 .schedule__level,
-.schedule__fields,
-.schedule__defaults {
+.schedule__fields {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -861,11 +821,9 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
     justify-content: flex-end;
 }
 
-.schedule__tab,
 .schedule__day,
 .schedule__button,
-.schedule__chip,
-.schedule__week-day {
+.schedule__chip {
     min-block-size: 2.75rem;
     min-inline-size: 2.75rem;
     padding: 0 var(--space-3);
@@ -888,7 +846,12 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
     padding: 0;
 }
 
-.schedule__tab[aria-selected='true'],
+.schedule__tabs {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.schedule__tabs .schedule__button[aria-selected='true'],
 .schedule__day[aria-selected='true'],
 .schedule__day[aria-pressed='true'] {
     color: #111;
@@ -915,26 +878,6 @@ button:disabled,
 input:disabled {
     cursor: not-allowed;
     opacity: 0.65;
-}
-
-.schedule__axis {
-    position: relative;
-    block-size: 1rem;
-    font-size: 0.75rem;
-    color: var(--c-text-muted);
-}
-
-.schedule__axis span {
-    position: absolute;
-    transform: translateX(-50%);
-}
-
-.schedule__axis span:first-child {
-    transform: none;
-}
-
-.schedule__axis span:last-child {
-    transform: translateX(-100%);
 }
 
 .schedule__panel,
@@ -1003,29 +946,5 @@ input:disabled {
     inline-size: 1.25rem;
     block-size: 1.25rem;
     accent-color: var(--c-accent);
-}
-
-.schedule__week {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-}
-
-.schedule__week-row {
-    display: grid;
-    grid-template-columns: 2.75rem 1fr;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.schedule__week-day {
-    padding: 0;
-    background: none;
-    border-color: transparent;
-}
-
-.schedule__week-day[aria-current='date'] {
-    color: var(--c-accent);
-    font-weight: 600;
 }
 </style>

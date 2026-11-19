@@ -15,8 +15,9 @@ const S = MESSAGES.schedule;
 /** A Monday, so the editor opens on day 1 with the now marker at 10:00. */
 const NOW = new Date('2026-11-16T10:00:00');
 
-function segment(level: number, start: string, end: string, setpoint: string): string {
-    return S.segment.replace('{n}', String(level)).replace('{start}', start).replace('{end}', end).replace('{setpoint}', setpoint);
+/** The accessible name of a period row in the day list. */
+function period(start: string, end: string, setpoint: string): string {
+    return `${S.edit} ${start} – ${end}, ${setpoint}°`;
 }
 
 function editor(page: Page): Locator {
@@ -30,8 +31,14 @@ async function openEditor(page: Page): Promise<Locator> {
     await page.locator('.io-row').filter({ has: page.locator('.io-row__name', { hasText: THERMOSTAT }) }).click();
     await page.locator('.climate-detail').getByRole('button', { name: S.edit }).click();
     const dialog = editor(page);
-    await expect(dialog.getByRole('group', { name: /Monday, Heating/ })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /^Monday, Heating/ })).toBeVisible();
     return dialog;
+}
+
+/** Week → Day: the day list of one day. */
+async function openDay(dialog: Locator, name: string): Promise<void> {
+    await dialog.getByRole('button', { name: new RegExp(`^${name}, `) }).click();
+    await expect(dialog.getByRole('heading', { name })).toBeVisible();
 }
 
 /** The ranges of every set_timerange the mock saw for one level IO. */
@@ -59,9 +66,11 @@ test.beforeEach(async ({ page, mock }) => {
 
 test('a slot edited in the editor is written, then read back after a reload', async ({ page, mock }, testInfo) => {
     let dialog = await openEditor(page);
+    await shot(page, testInfo, 'shot-00-week');
+    await openDay(dialog, 'Monday');
     await shot(page, testInfo, 'shot-01-nominal');
 
-    await dialog.getByRole('button', { name: segment(1, '06:30', '08:00', '19') }).click();
+    await dialog.getByRole('button', { name: period('06:30', '08:00', '19') }).click();
     await expect(dialog.getByRole('heading', { name: S.form.edit })).toBeVisible();
     // The form edits the slot of the day being shown; other days are opt-in.
     await expect(dialog.getByRole('button', { name: 'Monday', pressed: true, exact: true })).toBeVisible();
@@ -79,17 +88,19 @@ test('a slot edited in the editor is written, then read back after a reload', as
             return last.filter((r) => r.start_hour === '6' && r.end_hour === '9').map((r) => r.day).sort();
         })
         .toEqual(['1', '2']);
-    await expect(dialog.getByRole('button', { name: segment(1, '06:30', '09:00', '19') })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: period('06:30', '09:00', '19') })).toBeVisible();
 
     await page.reload();
     await loginAs(page, undefined, /#\/home/);
     dialog = await openEditor(page);
-    await expect(dialog.getByRole('button', { name: segment(1, '06:30', '09:00', '19') })).toBeVisible();
-    await expect(dialog.getByRole('button', { name: segment(1, '17:30', '22:30', '19') })).toBeVisible();
+    await openDay(dialog, 'Monday');
+    await expect(dialog.getByRole('button', { name: period('06:30', '09:00', '19') })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: period('17:30', '22:30', '19') })).toBeVisible();
 });
 
 test('copying a day over one that has slots asks first, then replaces them', async ({ page, mock }, testInfo) => {
     const dialog = await openEditor(page);
+    await openDay(dialog, 'Monday');
     await dialog.getByRole('button', { name: S.copy.open }).click();
     const panel = dialog.getByRole('region', { name: 'Copy Monday to' });
     await panel.getByRole('button', { name: 'Saturday' }).click();
@@ -103,19 +114,19 @@ test('copying a day over one that has slots asks first, then replaces them', asy
     await confirm.getByRole('button', { name: S.copy.replace }).click();
     await expect.poll(async () => (await writes(mock, HEAT_L1)).length).toBeGreaterThan(0);
 
-    await dialog.getByRole('tab', { name: 'Saturday' }).click();
-    await expect(dialog.getByRole('group', { name: /Saturday, Heating/ })).toBeVisible();
-    await expect(dialog.getByRole('button', { name: segment(1, '06:30', '08:00', '19') })).toBeVisible();
-    await expect(dialog.getByRole('button', { name: /^Level 2,/ })).toHaveCount(0);
-    await expect(dialog.getByRole('button', { name: /^Level 3,/ })).toHaveCount(0);
+    await dialog.getByRole('button', { name: S.week }).click();
+    await openDay(dialog, 'Saturday');
+    await expect(dialog.getByRole('button', { name: period('06:30', '08:00', '19') })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /^Edit / })).toHaveCount(2);
     await shot(page, testInfo, 'shot-04-copied');
 });
 
 test('a write the server could not save shows an alert with a retry, and the editor re-reads', async ({ page, mock }, testInfo) => {
     const dialog = await openEditor(page);
+    await openDay(dialog, 'Monday');
     await mock.send({ op: 'timerange_fail' });
 
-    await dialog.getByRole('button', { name: segment(1, '17:30', '22:30', '19') }).click();
+    await dialog.getByRole('button', { name: period('17:30', '22:30', '19') }).click();
     await dialog.getByLabel(S.form.start).fill('18:00');
     await dialog.getByRole('button', { name: S.form.save }).click();
 
@@ -129,6 +140,7 @@ test('cooling tab: switching the cool off outside slots is written and the gap r
     const dialog = await openEditor(page);
     await dialog.getByRole('tab', { name: /^Cooling/ }).click();
     await shot(page, testInfo, 'shot-06-cool');
+    await openDay(dialog, 'Monday');
 
     await dialog.getByRole('checkbox', { name: S.coolOff }).check();
     await expect
@@ -141,12 +153,10 @@ test('cooling tab: switching the cool off outside slots is written and the gap r
     await shot(page, testInfo, 'shot-07-cool-off');
 });
 
-test('the level counter grows with each new temperature and the seventh is refused with a message', async ({ page, mock }, testInfo) => {
+test('the seventh temperature is refused with a message and nothing is written', async ({ page, mock }, testInfo) => {
     const dialog = await openEditor(page);
-    const count = (n: number) => S.levelCount.replace('{n}', String(n)).replace('{max}', '6');
-    const addSlot = dialog.getByRole('button', { name: S.addSlot, exact: true });
-    await expect(dialog.getByText(count(3), { exact: true })).toBeVisible();
-    await shot(page, testInfo, 'shot-08-counter');
+    await openDay(dialog, 'Monday');
+    const addSlot = dialog.getByRole('button', { name: S.addSlot, exact: true }).last();
 
     const add = async (hour: number, setpoint: string): Promise<void> => {
         await addSlot.click();
@@ -158,9 +168,8 @@ test('the level counter grows with each new temperature and the seventh is refus
     await add(1, '22');
     await add(2, '23');
     await add(3, '24');
-    await expect(dialog.getByText(count(6), { exact: true })).toBeVisible();
-    await expect(addSlot).toBeEnabled();
-    await shot(page, testInfo, 'shot-10-counter-full');
+    await expect(dialog.getByRole('button', { name: period('01:00', '02:00', '22') })).toBeVisible();
+    await shot(page, testInfo, 'shot-10-six-levels');
 
     const before = (await mock.log()).length;
     await addSlot.click();
@@ -175,15 +184,38 @@ test('the level counter grows with each new temperature and the seventh is refus
     await shot(page, testInfo, 'shot-09-seventh-refused');
 });
 
-test('copying an empty day says there is nothing to copy; a copy that fails is reported as incomplete', async ({ page, mock }, testInfo) => {
+test('clicking a bar opens nothing; a row opens its day; the back button and Escape return to the week', async ({ page }, testInfo) => {
+    const dialog = await openEditor(page);
+    await dialog.locator('.track').first().click({ position: { x: 5, y: 5 } });
+    await expect(dialog.getByRole('heading', { name: 'Monday' })).toHaveCount(0);
+    await expect(dialog.getByRole('heading', { name: S.form.edit })).toHaveCount(0);
+
+    await openDay(dialog, 'Monday');
+    await expect(dialog.getByText(/\d+ periods/).first()).toBeVisible();
+    await dialog.getByRole('button', { name: period('06:30', '08:00', '19') }).click();
+    await expect(dialog.getByRole('heading', { name: S.form.edit })).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(dialog.getByRole('button', { name: /^Monday, Heating/ })).toBeVisible();
+    await expect(dialog).toBeVisible();
+    await openDay(dialog, 'Tuesday');
+    await dialog.getByRole('button', { name: S.week }).click();
+    await expect(dialog.getByRole('button', { name: /^Tuesday, Heating/ })).toBeVisible();
+    await shot(page, testInfo, 'shot-13-back');
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+});
+
+test('copying is unavailable on an empty day; a copy that fails is reported as incomplete', async ({ page, mock }, testInfo) => {
     const dialog = await openEditor(page);
     await dialog.getByRole('tab', { name: /^Cooling/ }).click();
-    await dialog.getByRole('button', { name: S.copy.open }).click();
-    await expect(dialog.getByText(S.copy.nothing)).toBeVisible();
+    await openDay(dialog, 'Monday');
+    await expect(dialog.getByRole('button', { name: S.copy.open })).toBeDisabled();
     await shot(page, testInfo, 'shot-11-nothing-to-copy');
 
+    await dialog.getByRole('button', { name: S.week }).click();
     await dialog.getByRole('tab', { name: /^Heating/ }).click();
-    await dialog.getByRole('tab', { name: 'Saturday' }).click();
+    await openDay(dialog, 'Saturday');
     await dialog.getByRole('button', { name: S.copy.open }).click();
     await mock.send({ op: 'timerange_fail' });
     const panel = dialog.getByRole('region', { name: 'Copy Saturday to' });
