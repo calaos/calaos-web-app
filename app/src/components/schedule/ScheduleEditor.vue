@@ -125,12 +125,6 @@ const program = computed(() => programOf(direction.value));
 const coolOff = computed(() => store.values.get(ios.value.cool_default_off ?? '') === 'true');
 const defaultOf = (d: Direction) => numberValue(d === 'heat' ? ios.value.heat_default : ios.value.cool_default);
 
-const gapLabel = computed(() => {
-    if (direction.value === 'cool' && coolOff.value) return t('schedule.off');
-    const v = defaultOf(direction.value);
-    return v === undefined ? '' : t('schedule.gapDefault', { setpoint: degrees(v) });
-});
-
 const used = computed(() => (program.value ? usedLevels(program.value) : []));
 const levelCount = computed(() => levelsOf.value[direction.value].length);
 const daySlots = computed(() => (program.value ? slotsOfDay(program.value, day.value) : []));
@@ -597,7 +591,6 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                 :day="day"
                 :slots="daySlots"
                 :subtitle="subtitle"
-                :gap-label="gapLabel"
                 :now="day === isoDay(new Date()) ? now : undefined"
                 :empty-text="emptyText"
                 :locked="locked"
@@ -862,13 +855,13 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
 .schedule__tabs .schedule__button[aria-selected='true'],
 .schedule__day[aria-selected='true'],
 .schedule__day[aria-pressed='true'] {
-    color: #111;
+    color: var(--c-on-accent);
     background: var(--c-accent);
     border-color: var(--c-accent);
 }
 
 .schedule__button--primary {
-    color: #111;
+    color: var(--c-on-accent);
     background: var(--c-accent);
     border-color: var(--c-accent);
 }

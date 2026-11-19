@@ -41,7 +41,8 @@ async function setMode(page: Page, label: string): Promise<void> {
 test.beforeEach(async ({ page, mock }) => {
     await mock.reset();
     await mock.send({ op: 'program_clock', clock: new Date(NOW).toISOString() });
-    await page.clock.setFixedTime(new Date(NOW));
+    // install, not setFixedTime: a frozen Date.now makes Vue skip ancestor handlers of the same event.
+    await page.clock.install({ time: new Date(NOW) });
     await page.goto('/');
     await loginAs(page);
     await page.locator('.room-tile').nth(LOUNGE).click();

@@ -59,7 +59,8 @@ async function shot(page: Page, testInfo: TestInfo, name: string): Promise<void>
 
 test.beforeEach(async ({ page, mock }) => {
     await mock.reset();
-    await page.clock.setFixedTime(NOW);
+    // install, not setFixedTime: a frozen Date.now makes Vue skip ancestor handlers of the same event.
+    await page.clock.install({ time: new Date(NOW) });
     await page.goto('/');
     await loginAs(page);
 });
@@ -96,6 +97,13 @@ test('a slot edited in the editor is written, then read back after a reload', as
     await openDay(dialog, 'Monday');
     await expect(dialog.getByRole('button', { name: period('06:30', '09:00', '19') })).toBeVisible();
     await expect(dialog.getByRole('button', { name: period('17:30', '22:30', '19') })).toBeVisible();
+
+    await dialog.getByRole('button', { name: S.week, exact: true }).click();
+    // The seeded cooling program has nothing on weekdays.
+    await dialog.getByRole('tab', { name: /^Cooling/ }).click();
+    await openDay(dialog, 'Monday');
+    await expect(dialog.getByText(S.v2.emptyTitle)).toBeVisible();
+    await shot(page, testInfo, 'shot-01b-empty-day');
 });
 
 test('copying a day over one that has slots asks first, then replaces them', async ({ page, mock }, testInfo) => {

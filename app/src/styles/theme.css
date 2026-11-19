@@ -26,6 +26,8 @@
     --c-heat: #ffda5a;
 
     --c-accent: #38b0d3;
+    /* Text on an accent fill. */
+    --c-on-accent: #111111;
     --c-accent-glow: rgba(56, 176, 211, 0.45);
 
     --c-danger: #e05656;

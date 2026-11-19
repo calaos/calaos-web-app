@@ -17,7 +17,8 @@ const NOW = '2026-11-16T10:00:00';
 
 async function pinClock(page: Page, mock: MockControl): Promise<void> {
     await mock.send({ op: 'program_clock', clock: new Date(NOW).toISOString() });
-    await page.clock.setFixedTime(new Date(NOW));
+    // install, not setFixedTime: a frozen Date.now makes Vue skip ancestor handlers of the same event.
+    await page.clock.install({ time: new Date(NOW) });
 }
 
 function row(page: Page, name: string): Locator {

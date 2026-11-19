@@ -69,10 +69,10 @@ const lightFrom = computed(() => (props.program.direction === 'heat' ? 6 : 5));
                 :style="{ left: `${p.left}%`, width: `${p.width}%`, background: `var(--lv-${kind}${p.level})` }"
                 aria-hidden="true"
             >
-                <span v-if="p.fits">{{ p.text }}</span>
+                <span v-if="p.fits && p.text">{{ p.text }}</span>
             </div>
             <div v-else class="track__gap" :style="{ left: `${p.left}%`, width: `${p.width}%` }" aria-hidden="true">
-                <span v-if="p.fits">{{ p.text }}</span>
+                <span v-if="p.fits && p.text">{{ p.text }}</span>
             </div>
         </template>
         <div v-if="now !== undefined" class="track__now" :style="{ left: `${(now / DAY_MINUTES) * 100}%` }" :title="t('schedule.now')" aria-hidden="true" />

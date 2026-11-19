@@ -19,7 +19,6 @@ const props = defineProps<{
     day: number;
     slots: Slot[];
     subtitle: string;
-    gapLabel: string;
     /** Minutes since midnight when the day is today. */
     now?: number;
     /** Empty-day sentence ("Heating stays at 17° all day."). */
@@ -87,7 +86,7 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
             </button>
         </header>
 
-        <ScheduleTrack :program="program" :day="day" :gap-label="gapLabel" :now="now" :label="t(`schedule.dayName.${day}`)" />
+        <ScheduleTrack :program="program" :day="day" gap-label="" :now="now" :label="t(`schedule.dayName.${day}`)" />
 
         <div v-if="slots.length === 0" class="day__empty">
             <strong>{{ t('schedule.v2.emptyTitle') }}</strong>
@@ -103,6 +102,7 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
                     <span class="day__dot" :style="{ background: `var(--lv-${kind}${s.level})` }" aria-hidden="true" />
                     <span class="day__range" aria-hidden="true">{{ range(s) }}</span>
                     <span class="day__temp" aria-hidden="true">{{ temp(s) }}</span>
+                    <span class="day__edit" aria-hidden="true">{{ t('schedule.v2.edit') }}</span>
                     <IconChevron class="day__chevron" aria-hidden="true" />
                 </button>
             </li>
@@ -154,14 +154,13 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
 
 .day__head {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2);
 }
 
 .day__titles {
     flex: 1;
-    min-inline-size: 8rem;
+    min-inline-size: 0;
 }
 
 .day__title,
@@ -169,8 +168,20 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
     margin: 0;
 }
 
+.day__action {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.day__subtitle {
+    overflow-wrap: anywhere;
+}
+
 .day__title {
+    overflow: hidden;
     font-size: 1.125rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .day__subtitle {
@@ -198,7 +209,7 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
 }
 
 .day__primary {
-    color: #111;
+    color: var(--c-on-accent);
     background: var(--c-accent);
     border-color: var(--c-accent);
 }
@@ -244,7 +255,7 @@ button:disabled {
 
 .day__row {
     display: grid;
-    grid-template-columns: 1rem 1fr auto 1.5rem;
+    grid-template-columns: 1rem 1fr auto auto 1.5rem;
     align-items: center;
     gap: var(--space-3);
     inline-size: 100%;
@@ -267,6 +278,11 @@ button:disabled {
 
 .day__temp {
     font-weight: 600;
+}
+
+.day__edit {
+    font-size: 0.875rem;
+    color: var(--c-accent);
 }
 
 .day__chevron {

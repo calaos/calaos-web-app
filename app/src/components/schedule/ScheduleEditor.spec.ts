@@ -564,7 +564,7 @@ describe('cooling "off" default', () => {
         await selectDay(wrapper, 'Monday');
         expect(wrapper.find('.day__stepper').exists()).toBe(false);
         expect(text(wrapper)).toContain('Cooling stays off all day.');
-        expect(wrapper.find('.track__gap').text()).toBe('Off');
+        expect(wrapper.find('.track__gap').text()).toBe('');
     });
 
     it('shows the default setpoint while it is off', async () => {
@@ -606,8 +606,7 @@ describe('cooling "off" default', () => {
         expect(offBox(wrapper).exists()).toBe(false);
         expect(value(wrapper).text()).toBe('19°');
         expect(text(wrapper)).toContain('Heating stays at 19° all day.');
-        expect(wrapper.find('.track__gap').text()).toContain('19');
-        expect(wrapper.find('.track__gap').text()).not.toContain('Off');
+        expect(wrapper.find('.track__gap').text()).toBe('');
     });
 
     it('fails the switch visibly, keeps the old value on screen and retries', async () => {

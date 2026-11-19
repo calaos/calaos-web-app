@@ -238,7 +238,6 @@
         "readOnly": "Lecture seule hors ligne.",
         "v2": {
             "edit": "Modifier",
-            "back": "Retour",
             "active": "Programme actif",
             "pause": "Mettre en pause",
             "paused": "En pause : la consigne reste à {setpoint}°",

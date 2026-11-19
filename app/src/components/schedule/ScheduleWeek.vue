@@ -116,7 +116,7 @@ const AXIS = [0, 6, 12, 18, 24];
 }
 
 .week__tab[aria-selected='true'] {
-    color: #111;
+    color: var(--c-on-accent);
     background: var(--c-accent);
     border-color: var(--c-accent);
 }

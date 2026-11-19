@@ -238,7 +238,6 @@
         "readOnly": "Read-only while offline.",
         "v2": {
             "edit": "Edit",
-            "back": "Back",
             "active": "Schedule active",
             "pause": "Pause",
             "paused": "Paused: setpoint stays at {setpoint}°",
