@@ -39,7 +39,7 @@ let bodyOverflow = '';
 // component emits a bare `confirm` and the wrapper turns it into its own typed
 // event (a hex, a line of text).
 
-import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 
 const props = withDefaults(
     defineProps<{
@@ -83,6 +83,7 @@ const props = withDefaults(
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
 
 const panel = ref<HTMLElement | null>(null);
+const root = ref<HTMLElement | null>(null);
 const titleId = useId();
 
 /** The control that had focus when the dialog opened, to give it back. */
@@ -107,7 +108,20 @@ function unlockScroll(): void {
     if (--scrollLocks === 0) document.body.style.overflow = bodyOverflow;
 }
 
+// Safety net: an Escape the panel's own @keydown never saw (the key came from
+// a control that was swapped out mid-click) still closes the topmost dialog.
+// A handled Escape has stopped propagating and never gets here.
+function onDocumentKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape' || event.defaultPrevented) return;
+    const dialogs = document.querySelectorAll('.base-dialog');
+    if (dialogs[dialogs.length - 1] !== root.value) return;
+    event.stopPropagation();
+    emit('cancel');
+}
+
 onBeforeUnmount(unlockScroll);
+onMounted(() => document.addEventListener('keydown', onDocumentKeydown));
+onBeforeUnmount(() => document.removeEventListener('keydown', onDocumentKeydown));
 
 // Deliberately not the exhaustive tabbable selector a library would ship: a
 // dialog in this app holds buttons, a text field and a colour picker, and
@@ -185,7 +199,7 @@ watch(
         <!-- @mousedown.self.prevent is the inert backdrop: preventDefault on
              mousedown keeps focus inside the panel (so Escape keeps working),
              and there is deliberately no @click that closes. -->
-        <div v-if="open" class="base-dialog fade-in" @keydown="onKeydown" @mousedown.self.prevent>
+        <div v-if="open" ref="root" class="base-dialog fade-in" @keydown="onKeydown" @mousedown.self.prevent>
             <div
                 ref="panel"
                 class="base-dialog__panel fade-in-up"
