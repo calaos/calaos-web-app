@@ -6,7 +6,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import IconPause from '~icons/mdi/pause';
 import ScheduleTrack from './ScheduleTrack.vue';
+import { useProgram } from '../../composables/useProgram';
 import { useConnectionStore } from '../../stores/connection';
 import { useScheduleStore } from '../../stores/schedule';
 import {
@@ -175,6 +177,9 @@ async function load(): Promise<void> {
 /** Levels whose timerange_changed could not be applied yet (loading, writing, failed read). */
 const stale = new Set<string>();
 
+/** Bumped when a write starts: a re-read begun before it describes a server that has since changed. */
+let writeGeneration = 0;
+
 async function rereadLevel(id: string): Promise<void> {
     for (const d of directions.value) {
         const io = levelsOf.value[d].find((l) => l.id === id);
@@ -183,10 +188,17 @@ async function rereadLevel(id: string): Promise<void> {
             stale.add(id);
             continue;
         }
+        const generation = writeGeneration;
         const r = await store.readRanges(id);
         const current = read[d];
         if (r.error !== '' || !current) {
             stale.add(id);
+            continue;
+        }
+        if (generation !== writeGeneration) {
+            // A write overtook this answer; while it runs its own flushStale will pick the id up.
+            if (busy.value) stale.add(id);
+            else await rereadLevel(id);
             continue;
         }
         const one = programFromWire(d, [{ n: io.n, ranges: r.ranges, setpoint: undefined }]);
@@ -212,10 +224,16 @@ watch(
 
 // -------------------------------------------------------------- write ---
 
+function sameProgram(a: DirectionProgram, b: DirectionProgram): boolean {
+    const diff = diffPrograms(a, b);
+    return diff.ranges.length === 0 && diff.setpoints.length === 0;
+}
+
 /**
  * Builds the next program from the current one and writes the difference.
  * On failure the direction is re-read so the screen shows what the server
- * really holds; the retry rebuilds from that state.
+ * really holds; Retry replays the edit on that state, so a change another
+ * client made in between is kept.
  */
 async function apply(
     d: Direction,
@@ -236,6 +254,7 @@ async function apply(
     const diff = diffPrograms(before, next);
     const ids = levelsOf.value[d];
     busy.value = true;
+    writeGeneration++;
     banner.value = null;
     let error = '';
     for (const n of diff.setpoints) {
@@ -271,7 +290,7 @@ async function apply(
     const pending = error === 'config_not_written' ? [...new Set([...unwritten, ...notWritten])] : notWritten;
     banner.value = {
         text: failText ?? errorText(error),
-        retry: () => void apply(d, () => next, failText, onSuccess, pending),
+        retry: () => void apply(d, (current) => (sameProgram(current, next) ? current : build(current)), failText, onSuccess, pending),
     };
     await loadDirection(d);
     return null;
@@ -492,10 +511,12 @@ onMounted(() => {
 onBeforeUnmount(() => clearInterval(clock));
 
 const AXIS = [0, 6, 12, 18, 24];
+const programCtl = useProgram(() => props.io);
+const paused = computed(() => programCtl.state.value !== undefined && !programCtl.enabled.value);
 </script>
 
 <template>
-    <div class="schedule" :class="`schedule--${mode}`">
+    <div class="schedule" :class="[`schedule--${mode}`, { 'schedule--paused': paused }]">
         <div v-if="loading" class="schedule__loading" role="status">
             <div class="schedule__skeleton" aria-hidden="true" />
             <p>{{ t('schedule.loading') }}</p>
@@ -508,6 +529,14 @@ const AXIS = [0, 6, 12, 18, 24];
                     {{ t('schedule.retry') }}
                 </button>
             </div>
+            <div v-if="paused" class="schedule__paused" role="status">
+                <IconPause aria-hidden="true" />
+                <span>{{ t('program.editorPaused') }}</span>
+                <button v-if="!programCtl.readonly.value && !readonly" type="button" class="schedule__button" :disabled="programCtl.saving.value" @click="programCtl.toggle()">
+                    {{ t('program.resume') }}
+                </button>
+            </div>
+            <p v-if="programCtl.error.value" class="schedule__notice" role="alert">{{ programCtl.error.value }}</p>
             <p v-if="readonly || !connection.isOpen" class="schedule__muted">{{ t('schedule.readOnly') }}</p>
 
             <div v-if="directions.length > 1" class="schedule__tabs" role="tablist" :aria-label="t('schedule.tabs')">
@@ -776,6 +805,21 @@ const AXIS = [0, 6, 12, 18, 24];
     .schedule__skeleton {
         animation: none;
     }
+}
+
+.schedule__paused {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--c-border-strong);
+    border-radius: 6px;
+}
+
+.schedule--paused .schedule__track,
+.schedule--paused :deep(.track) {
+    opacity: 0.55;
 }
 
 .schedule__banner {

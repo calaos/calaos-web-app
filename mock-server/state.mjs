@@ -299,11 +299,12 @@ export function nextState(io, value, lastColor = '#ffffff') {
 }
 
 /**
- * @param {{ broadcast?: (frame: object) => void }} [options]
+ * @param {{ broadcast?: (frame: object) => void, programState?: (ios: object, mode: string) => object | undefined }} [options]
  *   `broadcast` receives ready-to-send wire frames; the transport lives in
- *   index.mjs so this module stays testable on its own.
+ *   index.mjs so this module stays testable on its own. `programState` yields
+ *   a climate's `state.program` (program.mjs).
  */
-export function createState({ broadcast = () => {} } = {}) {
+export function createState({ broadcast = () => {}, programState = () => undefined } = {}) {
     /** @type {{home: object[], cameras: object[], audio: object[]}} */
     let home;
     /** @type {Map<string, object>} */
@@ -324,6 +325,19 @@ export function createState({ broadcast = () => {} } = {}) {
         for (const room of home.home ?? []) {
             for (const io of room.items ?? []) ios.set(io.id, io);
         }
+    }
+
+    /** Keeps `state.program` current on a device about to go on the wire. */
+    function withProgram(device) {
+        if (!device?.ios?.program_enabled) return device;
+        const program = programState(device.ios, device.state?.mode);
+        if (program) device.state.program = program;
+        else delete device.state.program;
+        return device;
+    }
+
+    function emit(id, state, device) {
+        broadcast(ioChangedEvent(id, state, device && withProgram(device)));
     }
 
     function reset() {
@@ -400,7 +414,15 @@ export function createState({ broadcast = () => {} } = {}) {
 
         /** The `get_home` payload: `{home, cameras, audio}`. */
         getHome() {
+            for (const io of ios.values()) withProgram(io.device);
             return home;
+        },
+
+        /** Republishes every climate that carries a program (its program or clock changed). */
+        republishPrograms() {
+            for (const io of ios.values()) {
+                if (io.device?.ios?.program_enabled) emit(io.id, io.state, io.device);
+            }
         },
 
         getIo(id) {
@@ -571,7 +593,7 @@ export function createState({ broadcast = () => {} } = {}) {
             if (io) io.state = next;
             // A device re-publishes itself whole, with the mode following state.
             if (io?.device) io.device.state.mode = next;
-            broadcast(ioChangedEvent(id, next, io?.device));
+            emit(id, next, io?.device);
             return Boolean(io);
         },
 
@@ -588,11 +610,11 @@ export function createState({ broadcast = () => {} } = {}) {
                 const res = applyDeviceCommand(io, value);
                 if (!res.accepted) {
                     // The real server republishes the device even when it refuses.
-                    broadcast(ioChangedEvent(id, io.state, io.device));
+                    emit(id, io.state, io.device);
                     return { id, state: io.state, rejected: true };
                 }
                 if (!res.changed) return null;
-                broadcast(ioChangedEvent(id, io.state, io.device));
+                emit(id, io.state, io.device);
                 return { id, state: io.state };
             }
 

@@ -43,12 +43,16 @@ export interface FakeServer {
     refuseReads: (id: string) => string | undefined;
     /** true: answer this set_state with success 'false'. */
     refuseValue: (id: string) => boolean;
+    /** Ids whose get_timerange answer is kept back, as it was at request time, until release(). */
+    held: Set<string>;
+    release(): void;
     writesOf(id: string): WireRange[][];
 }
 
 export function fakeServer(): FakeServer {
     const store = useScheduleStore();
     const counts = new Map<string, number>();
+    const delayed: (() => void)[] = [];
     const server: FakeServer = {
         sent: [],
         ranges: new Map(),
@@ -56,6 +60,11 @@ export function fakeServer(): FakeServer {
         values: new Map(),
         online: true,
         silent: new Set(),
+        held: new Set(),
+        release: () => {
+            server.held.clear();
+            for (const deliver of delayed.splice(0)) deliver();
+        },
         refuseRanges: () => undefined,
         refuseReads: () => undefined,
         refuseValue: () => false,
@@ -94,7 +103,11 @@ export function fakeServer(): FakeServer {
             return;
         }
         const msg = decodeServerMessage({ msg: frame.msg, msg_id: frame.msg_id, data });
-        if (msg.kind === 'timerange' || msg.kind === 'set_state') store.applyReply(msg);
+        const deliver = () => {
+            if (msg.kind === 'timerange' || msg.kind === 'set_state') store.applyReply(msg);
+        };
+        if (frame.msg === 'get_timerange' && server.held.has(id)) delayed.push(deliver);
+        else deliver();
     }
 
     store.attachTransport((raw) => {

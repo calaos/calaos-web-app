@@ -94,7 +94,7 @@ const body = () => new DOMWrapper(document.body);
 
 /** Taps the row: the settings open in a panel (wide) or a dialog (narrow). */
 async function openSettings(w: VueWrapper) {
-    await w.get('.io-row').trigger('click');
+    await w.get('.io-row__main').trigger('click');
     await w.vm.$nextTick();
 }
 
@@ -159,7 +159,7 @@ describe('ClimateIo — the row', () => {
         expect(w.get('.io-row__value').text()).toContain('Room 23.4°');
         expect(w.get('.climate-io__status').text()).toBe('Heating');
         expect(w.findAll('.io-row__actions button')).toHaveLength(0);
-        expect(w.get('.io-row').attributes('role')).toBe('button');
+        expect(w.get('.io-row__main').attributes('role')).toBe('button');
     });
 
     it('draws the mini dial with the setpoint and the room mark', () => {
@@ -214,7 +214,7 @@ describe('ClimateIo — the row', () => {
         const w = mountClimate(null);
 
         expect(w.get('.io-row__value').text()).toBe('heat');
-        expect(w.get('.io-row').attributes('role')).toBeUndefined();
+        expect(w.get('.io-row__main').attributes('role')).toBeUndefined();
         expect(w.find('.climate-dial').exists()).toBe(false);
         expect(w.find('.climate-io__status').exists()).toBe(false);
     });
@@ -222,7 +222,7 @@ describe('ClimateIo — the row', () => {
     it('ignores a device of another family', () => {
         const w = mountClimate({ ...wireDevice(), family: 'fan' });
 
-        expect(w.get('.io-row').attributes('role')).toBeUndefined();
+        expect(w.get('.io-row__main').attributes('role')).toBeUndefined();
         expect(w.get('.io-row__value').text()).toBe('heat');
     });
 
@@ -396,7 +396,7 @@ describe('ClimateIo — opening the settings', () => {
         expect(panel?.querySelector('h2')?.textContent).toBe(NAME);
         expect(panel?.querySelector('.climate-panel__eyebrow')?.textContent).toBe('Salon');
         expect(document.querySelector('[role="dialog"]')).toBeNull();
-        expect(w.get('.io-row').attributes('aria-expanded')).toBe('true');
+        expect(w.get('.io-row__main').attributes('aria-expanded')).toBe('true');
     });
 
     it('opens a wide centred dialog below 1024 px, with the same content', async () => {
@@ -463,7 +463,7 @@ describe('ClimateIo — opening the settings', () => {
 
     it('opens from the keyboard', async () => {
         const w = mountClimate();
-        await w.get('.io-row').trigger('keydown', { key: 'Enter' });
+        await w.get('.io-row__main').trigger('keydown', { key: 'Enter' });
         await w.vm.$nextTick();
 
         expect(body().find('.climate-detail').exists()).toBe(true);

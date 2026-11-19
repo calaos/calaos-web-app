@@ -26,6 +26,7 @@ import IconButton from '../ui/IconButton.vue';
 import { useClimate } from '../../composables/useClimate';
 import { useClimateText } from '../../composables/useClimateText';
 import { closeClimate, openClimate, openClimateId } from '../../composables/useClimatePanel';
+import { useProgram } from '../../composables/useProgram';
 import { useMediaQuery } from '../../composables/useMediaQuery';
 import { dialPaint } from '../../protocol/climate';
 import { useHomeStore } from '../../stores/home';
@@ -56,10 +57,18 @@ const hasMore = computed(
         ctl.state.value?.humidity !== undefined,
 );
 
-const hasProgram = computed(() => {
-    const ios = props.io.device?.ios ?? {};
-    return ios.heat_level1 !== undefined || ios.cool_level1 !== undefined;
+const program = useProgram(() => props.io);
+const hasProgram = computed(() => program.available.value);
+// What the row says about the program: the level in force and when it changes.
+const programLine = computed(() => {
+    if (!hasProgram.value || program.state.value === undefined) return '';
+    if (!program.enabled.value) return program.pausedText.value;
+    const next = program.nextChange.value ? ` · ▶ ${program.nextTime.value}` : '';
+    return program.activeText.value + next;
 });
+
+const paused = computed(() => hasProgram.value && program.state.value !== undefined && !program.enabled.value);
+const valueTitle = computed(() => [text.setpoint.value, text.room.value, programLine.value].filter((v) => v !== '').join(' · '));
 
 // ------------------------------------------------------- open and close ---
 
@@ -152,19 +161,37 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
         </template>
 
         <template #value>
-            <template v-if="device">
+            <span v-if="device" class="climate-io__line" :title="valueTitle">
                 <span v-if="text.setpoint.value !== ''" class="climate-io__set">{{ text.setpoint.value }}</span>
                 <template v-if="text.room.value !== ''">
                     <span v-if="text.setpoint.value !== ''" class="climate-io__dot" aria-hidden="true">·</span>
                     <span>{{ text.room.value }}</span>
                 </template>
-            </template>
+                <template v-if="programLine !== ''">
+                    <span class="climate-io__dot" aria-hidden="true">·</span>
+                    <span v-if="paused" class="climate-io__pause" aria-hidden="true">⏸</span>
+                    <span class="climate-io__program">{{ programLine }}</span>
+                </template>
+            </span>
             <span v-else>{{ io.state }}</span>
         </template>
 
         <template v-if="device" #actions>
             <span class="climate-io__status" :style="{ color: statusColor }">{{ text.statusShort.value }}</span>
             <IconChevronRight class="climate-io__chevron" aria-hidden="true" />
+        </template>
+
+        <template v-if="device && hasProgram && program.state.value !== undefined" #controls>
+            <label class="climate-io__switch">
+                <input
+                    type="checkbox"
+                    role="switch"
+                    :checked="program.enabled.value"
+                    :disabled="program.readonly.value || program.saving.value"
+                    @change="program.toggle()"
+                />
+                <span>{{ t('program.enabled') }}</span>
+            </label>
         </template>
     </IoRowFrame>
 
@@ -248,7 +275,20 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
 /* The row's own value slot caps at 45%: a setpoint range and the room's
    temperature are the point of this row. */
 .climate-io :deep(.io-row__value) {
-    max-inline-size: none;
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+}
+
+.climate-io__line {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.climate-io__pause {
+    margin-inline-end: var(--space-1);
 }
 
 .climate-io__set {
@@ -257,7 +297,24 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
 }
 
 .climate-io__dot {
-    margin-inline: 0.375rem;
+    margin-inline: var(--space-2);
+}
+
+.climate-io__switch {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-block-size: 2.75rem;
+    margin-inline-end: var(--space-2);
+    font-size: 0.8125rem;
+    color: var(--c-text-muted);
+    cursor: pointer;
+}
+
+.climate-io__switch input {
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    accent-color: var(--c-accent);
 }
 
 .climate-io__status {
@@ -271,7 +328,7 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
     margin-inline-start: var(--space-1);
     font-size: 1.125rem;
     color: var(--c-text-muted);
-    transition: color 160ms ease;
+    transition: color var(--duration-fade) ease;
 }
 
 .climate-io:hover .climate-io__chevron,

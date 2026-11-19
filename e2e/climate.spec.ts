@@ -108,7 +108,7 @@ test.describe('opening the settings', () => {
 
         await panel.getByRole('button', { name: C.close }).click();
         await expect(panel).toHaveCount(0);
-        await expect(row(page, DEVICES.cool.name)).toBeFocused();
+        await expect(row(page, DEVICES.cool.name).locator('.io-row__main')).toBeFocused();
     });
 
     test('Escape closes the panel', async ({ page }) => {
@@ -120,7 +120,7 @@ test.describe('opening the settings', () => {
 
     test('the row opens from the keyboard', async ({ page }) => {
         await openLounge(page);
-        await row(page, DEVICES.cool.name).focus();
+        await row(page, DEVICES.cool.name).locator('.io-row__main').focus();
         await page.keyboard.press('Enter');
         await expect(settings(page)).toBeVisible();
     });

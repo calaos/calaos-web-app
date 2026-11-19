@@ -7,6 +7,7 @@ import { messages } from '../../i18n/messages';
 import type { WireRange } from '../../protocol/schedule';
 import type { IoItem } from '../../protocol/types';
 import { useConnectionStore } from '../../stores/connection';
+import { useScheduleStore } from '../../stores/schedule';
 import { fakeServer, wireRange } from '../../stores/scheduleTestHarness';
 import type { FakeServer } from '../../stores/scheduleTestHarness';
 import ScheduleEditor from './ScheduleEditor.vue';
@@ -81,6 +82,56 @@ async function mountEditor(opts: Options = {}): Promise<Mounted> {
     await flushPromises();
     return { wrapper, server };
 }
+
+describe('program paused', () => {
+    it('says the slots do not apply and offers to resume, none when the program runs', async () => {
+        const io = (enabled: boolean) =>
+            ({ device: { ios: { ...climateIos(), program_enabled: 'PE' }, capabilities: { program: {} }, state: { program: { enabled } } } }) as unknown as IoItem;
+        const run = async (enabled: boolean) => {
+            const { wrapper } = await mountEditor({ prepare: () => {} });
+            await wrapper.setProps({ io: io(enabled) });
+            return wrapper;
+        };
+        const paused = await run(false);
+        const banner = paused.get('.schedule__paused');
+        expect(banner.attributes('role')).toBe('status');
+        expect(banner.text()).toContain('Program paused, slots do not apply');
+        expect(banner.find('button').text()).toBe('Resume program');
+        expect((await run(true)).find('.schedule__paused').exists()).toBe(false);
+    });
+
+    describe('Resume', () => {
+        const pausedIo = () =>
+            ({ device: { ios: { ...climateIos(), program_enabled: 'PE' }, capabilities: { program: {} }, state: { program: { enabled: false } } } }) as unknown as IoItem;
+        const mountPaused = async (refuse: boolean) => {
+            const m = await mountEditor({ prepare: (server) => (server.refuseValue = () => refuse) });
+            await m.wrapper.setProps({ io: pausedIo() });
+            return m;
+        };
+        const setStates = (server: FakeServer) => server.sent.filter((f) => f.msg === 'set_state');
+
+        it('sends program_enabled=true when clicked', async () => {
+            const { wrapper, server } = await mountPaused(false);
+            await wrapper.get('.schedule__paused button').trigger('click');
+            await flushPromises();
+            const sent = setStates(server);
+            expect(sent).toHaveLength(1);
+            expect(sent[0]?.data).toMatchObject({ id: 'PE', value: 'true' });
+            expect(wrapper.find('.schedule__notice').exists()).toBe(false);
+        });
+
+        it('says so when the server refuses, instead of staying silent', async () => {
+            const { wrapper, server } = await mountPaused(true);
+            await wrapper.get('.schedule__paused button').trigger('click');
+            await flushPromises();
+            expect(setStates(server)).toHaveLength(1);
+            const alert = wrapper.get('.schedule__notice');
+            expect(alert.attributes('role')).toBe('alert');
+            expect(alert.text()).toBe(messages.en.program.error.generic);
+            expect(wrapper.find('.schedule__paused').exists()).toBe(true);
+        });
+    });
+});
 
 // ------------------------------------------------------------- helpers ---
 
@@ -572,6 +623,51 @@ describe('a write that fails half-way', () => {
         expect(segments(wrapper)).toEqual(['Level 1, 08:00 to 10:00, 22°', 'Level 2, 12:00 to 13:00, 22.5°']);
     });
 
+    it('keeps both edits when another client changes the same level before Retry', async () => {
+        const { wrapper, server } = await mountEditor({
+            heat: { 1: [MON_8_10] },
+            prepare: (s) => (s.refuseValue = (id) => id === 'H2S'),
+        });
+        await addSlot(wrapper, { start: '12:00', end: '13:00', setpoint: 22.5 });
+        await save(wrapper);
+        expect(banner(wrapper).text()).toContain('The server refused the change');
+
+        server.refuseValue = () => false;
+        server.ranges.set('H2', [wireRange(1, 15, 0, 16, 0)]);
+        useScheduleStore().applyTimerangeChanged({ id: 'H2' });
+        await flushPromises();
+
+        await button(banner(wrapper), 'Retry').trigger('click');
+        await flushPromises();
+        // The level the slot first went to is now taken, so it is replayed on the next free one.
+        expect(server.ranges.get('H2')).toEqual([wireRange(1, 15, 0, 16, 0)]);
+        const held = ['H1', 'H2', 'H3'].flatMap((id) => server.ranges.get(id) ?? []);
+        expect(held).toEqual(expect.arrayContaining([MON_8_10, wireRange(1, 12, 0, 13, 0), wireRange(1, 15, 0, 16, 0)]));
+        expect(held).toHaveLength(3);
+        expect(banner(wrapper).exists()).toBe(false);
+    });
+
+    it('retries on what another client changed meanwhile instead of erasing it', async () => {
+        const { wrapper, server } = await mountEditor({
+            heat: { 1: [MON_8_10] },
+            prepare: (s) => (s.refuseValue = (id) => id === 'H2S'),
+        });
+        await addSlot(wrapper, { start: '12:00', end: '13:00', setpoint: 22.5 });
+        await save(wrapper);
+        expect(banner(wrapper).text()).toContain('The server refused the change');
+
+        server.refuseValue = () => false;
+        server.ranges.set('H3', [wireRange(1, 15, 0, 16, 0)]);
+        useScheduleStore().applyTimerangeChanged({ id: 'H3' });
+        await flushPromises();
+
+        const mark = server.sent.length;
+        await button(banner(wrapper), 'Retry').trigger('click');
+        await flushPromises();
+        expect(writes(server, mark)).toEqual(['set_state:H2S=22.5', 'set_timerange:H2']);
+        expect(server.ranges.get('H3')).toEqual([wireRange(1, 15, 0, 16, 0)]);
+    });
+
     it('stops at a refused setpoint: no range is written, and Retry writes both', async () => {
         const { wrapper, server } = await mountEditor({
             heat: { 1: [MON_8_10] },
@@ -844,5 +940,26 @@ describe('copy a day (Q4)', () => {
         await button(wrapper, 'Copy this day…').trigger('click');
         expect(panel(wrapper).exists()).toBe(false);
         expect(writes(server)).toEqual([]);
+    });
+});
+
+describe('a re-read that overlaps a write', () => {
+    it('drops the stale answer and reads again, so the screen shows what the write left', async () => {
+        const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] } });
+        server.ranges.set('H1', [wireRange(1, 6, 0, 7, 0)]);
+        server.held.add('H1');
+        useScheduleStore().applyTimerangeChanged({ id: 'H1' });
+        await flushPromises();
+
+        // Same setpoint as level 1: the slot joins level 1 and H1 is written while its re-read waits.
+        await addSlot(wrapper, { start: '12:00', end: '13:00', setpoint: 22 });
+        await save(wrapper);
+        expect(server.ranges.get('H1')).toEqual([wireRange(1, 8, 0, 10, 0), wireRange(1, 12, 0, 13, 0)]);
+
+        const mark = server.sent.length;
+        server.release();
+        await flushPromises();
+        expect(reads(server, mark)).toEqual(['H1']);
+        expect(segments(wrapper)).toEqual(['Level 1, 08:00 to 10:00, 22°', 'Level 1, 12:00 to 13:00, 22°']);
     });
 });

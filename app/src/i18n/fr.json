@@ -165,13 +165,13 @@
         "tab": "{dir} ({n})",
         "days": "Jour",
         "dayShort": {
-            "1": "L",
-            "2": "M",
-            "3": "M",
-            "4": "J",
-            "5": "V",
-            "6": "S",
-            "7": "D"
+            "1": "Lun",
+            "2": "Mar",
+            "3": "Mer",
+            "4": "Jeu",
+            "5": "Ven",
+            "6": "Sam",
+            "7": "Dim"
         },
         "dayName": {
             "1": "lundi",
@@ -676,6 +676,38 @@
             "body": "Le système est démarré sur un snapshot précédent. Il est en lecture seule : aucune donnée n'est enregistrée sur le disque. Vous pouvez faire un rollback vers ce snapshot pour qu'il devienne le système principal, en lecture-écriture ; la box redémarrera. Le rollback est aussi disponible dans Administration > Snapshots.",
             "close": "Fermer",
             "open": "Ouvrir Snapshots"
+        }
+    },
+    "program": {
+        "title": "Programme",
+        "enabled": "Programme activé",
+        "loading": "Chargement du programme…",
+        "activeLevel": "Niveau {level} · {setpoint}°",
+        "activeDefault": "Par défaut · {setpoint}°",
+        "noLevel": "Aucun niveau en ce moment",
+        "editorPaused": "Programme en pause, les plages ne s'appliquent pas",
+        "resume": "Réactiver le programme",
+        "paused": "Programme en pause",
+        "pausedLevel": "Programme en pause : niveau {level} ({setpoint}°)",
+        "pausedDefault": "Programme en pause : par défaut ({setpoint}°)",
+        "next": "{time}, {what} ({in})",
+        "nextLevel": "{dir} niveau {level} à {setpoint}°",
+        "nextDefault": "{dir} par défaut à {setpoint}°",
+        "nextOff": "{dir} arrêté",
+        "nothingNext": "Aucun changement dans les 7 jours",
+        "lessThanAMinute": "dans moins d'une minute",
+        "inMinutes": "dans {minutes} min",
+        "inHours": "dans {hours} h {minutes}",
+        "inDays": "dans {days} j {hours} h",
+        "range": "Fourchette {low} – {high}",
+        "help": "À propos de la fourchette",
+        "helpGap": "En auto, le chauffage reste sous le refroidissement et les deux restent séparés d'au moins {gap}.",
+        "helpPlain": "En auto, le chauffage reste sous la clim, avec un écart minimal entre les deux.",
+        "today": "Aujourd'hui, {dir}",
+        "hatched": "Entre chauffage et clim",
+        "error": {
+            "offline": "Non envoyé : vous êtes hors ligne.",
+            "generic": "Le programme n'a pas changé. Réessayez."
         }
     }
 }
