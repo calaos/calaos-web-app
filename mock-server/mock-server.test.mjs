@@ -2120,6 +2120,36 @@ describe('climate time programs', () => {
         expect(frame.data.success).toBe('false');
     });
 
+    it('program_reject lifted with on:false lets set_state through again', async () => {
+        await control({ op: 'program_reject' });
+        await control({ op: 'program_reject', on: false });
+        const { client } = await login();
+        client.send({ msg: 'set_state', msg_id: 'r2', data: { id: 'thermo_bureau_program_enabled', value: 'false' } });
+        const frame = await client.waitFor(reply('set_state', 'r2'));
+        expect(frame.data.success).toBe('true');
+    });
+
+    it('program_reject does not change the stored value', async () => {
+        await control({ op: 'program_reject' });
+        const { client } = await login();
+        client.send({ msg: 'get_state', msg_id: 'g1', data: { items: ['thermo_bureau_program_enabled'] } });
+        const before = (await client.waitFor(reply('get_state', 'g1'))).data;
+        client.send({ msg: 'set_state', msg_id: 'r3', data: { id: 'thermo_bureau_program_enabled', value: 'false' } });
+        await client.waitFor(reply('set_state', 'r3'));
+        client.send({ msg: 'get_state', msg_id: 'g2', data: { items: ['thermo_bureau_program_enabled'] } });
+        expect((await client.waitFor(reply('get_state', 'g2'))).data).toEqual(before);
+    });
+
+    it('program_clock with a null clock and hidden:false gives state.program back', async () => {
+        await control({ op: 'program_clock', hidden: true });
+        await control({ op: 'program_clock', clock: null, hidden: false });
+        const { client } = await login();
+        client.send({ msg: 'get_home' });
+        const home = (await client.waitFor(isGetHome)).data.home;
+        const device = home.flatMap((r) => r.items).find((io) => io.id === 'thermo_bureau').device;
+        expect(device.state.program).toMatchObject({ enabled: true });
+    });
+
     it('get_state and set_state reach the hidden setpoint IOs', async () => {
         const { client } = await login();
         const id = 'thermo_bureau_heat_level2_setpoint';
