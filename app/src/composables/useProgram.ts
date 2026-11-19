@@ -74,8 +74,10 @@ export function useProgram(io: MaybeRefOrGetter<IoItem>): UseProgram {
     // The server's word replaces the draft, whatever it says.
     watch(
         () => state.value?.enabled,
-        () => {
+        (on) => {
             if (!saving.value) clearDraft();
+            // A refusal of Resume says nothing once someone else turned the program on.
+            if (on === true) error.value = '';
         },
     );
 
