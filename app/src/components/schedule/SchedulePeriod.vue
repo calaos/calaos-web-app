@@ -344,8 +344,8 @@ const mark = computed(() => (invalid.value ? undefined : { start: start.value, e
     align-items: center;
     justify-content: center;
     gap: var(--space-1);
-    min-block-size: 2.75rem;
-    min-inline-size: 2.75rem;
+    min-block-size: 44px;
+    min-inline-size: 44px;
     padding: 0 var(--space-3);
     font: inherit;
     color: var(--c-text);

@@ -204,8 +204,8 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
     align-items: center;
     justify-content: center;
     gap: var(--space-1);
-    min-block-size: 2.75rem;
-    min-inline-size: 2.75rem;
+    min-block-size: 44px;
+    min-inline-size: 44px;
     padding: 0 var(--space-3);
     font: inherit;
     color: var(--c-text);
@@ -266,7 +266,7 @@ button:disabled {
     align-items: center;
     gap: var(--space-3);
     inline-size: 100%;
-    min-block-size: 2.75rem;
+    min-block-size: 44px;
     padding: 0 var(--space-2);
     font: inherit;
     color: var(--c-text);
@@ -319,7 +319,7 @@ button:disabled {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    min-block-size: 2.75rem;
+    min-block-size: 44px;
 }
 
 .day__off input {

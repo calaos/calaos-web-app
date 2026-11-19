@@ -192,8 +192,8 @@ onMounted(() => void nextTick(() => sheet.value?.querySelector<HTMLElement>('but
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-block-size: 2.75rem;
-    min-inline-size: 2.75rem;
+    min-block-size: 44px;
+    min-inline-size: 44px;
     padding: 0 var(--space-2);
     font: inherit;
     color: var(--c-text);

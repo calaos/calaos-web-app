@@ -559,7 +559,7 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
 }
 
 .schedule__skeleton {
-    block-size: 2.75rem;
+    block-size: 44px;
     background: var(--c-track);
     border-radius: var(--radius-sm);
     animation: schedule-pulse 1.2s ease-in-out infinite alternate;
@@ -601,8 +601,8 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
 }
 
 .schedule__button {
-    min-block-size: 2.75rem;
-    min-inline-size: 2.75rem;
+    min-block-size: 44px;
+    min-inline-size: 44px;
     padding: 0 var(--space-3);
     font: inherit;
     color: var(--c-text);
