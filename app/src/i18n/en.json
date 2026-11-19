@@ -245,7 +245,7 @@
             "overlap": "Overlaps “{range}” ({setpoint}°).",
             "overlapMine": "Between {from} and {to}, this period ({setpoint}°) applies: it takes priority.",
             "overlapOther": "Between {from} and {to}, that period ({setpoint}°) applies: it takes priority.",
-            "order": "Level {a} comes before level {b}.",
+            "order": "{a}° takes priority over {b}°.",
             "swap": "Swap",
             "deleteConfirm": "Delete the period {range}?",
             "close": "Close",

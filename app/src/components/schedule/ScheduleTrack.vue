@@ -18,6 +18,8 @@ const props = defineProps<{
     label: string;
     /** A period to ring (minutes, same day): the one being edited. */
     mark?: { start: number; end: number };
+    /** Where the edited period meets another one (minutes, same day): hatched. */
+    overlap?: { start: number; end: number };
 }>();
 
 const { t, locale } = useI18n();
@@ -78,6 +80,13 @@ const lightFrom = computed(() => (props.program.direction === 'heat' ? 6 : 5));
             </div>
         </template>
         <div
+            v-if="overlap"
+            class="track__overlap"
+            data-test="track-overlap"
+            :style="{ left: `${(overlap.start / DAY_MINUTES) * 100}%`, width: `${((overlap.end - overlap.start) / DAY_MINUTES) * 100}%` }"
+            aria-hidden="true"
+        />
+        <div
             v-if="mark"
             class="track__mark"
             :style="{ left: `${(mark.start / DAY_MINUTES) * 100}%`, width: `${((mark.end - mark.start) / DAY_MINUTES) * 100}%` }"
@@ -133,6 +142,15 @@ const lightFrom = computed(() => (props.program.direction === 'heat' ? 6 : 5));
 .track__gap {
     font-weight: 400;
     color: var(--c-text-muted);
+}
+
+.track__overlap {
+    position: absolute;
+    inset-block: 0;
+    /* Two-tone stripes keep the segment colours readable beneath in both themes. */
+    background: repeating-linear-gradient(135deg, var(--c-text) 0 2px, transparent 2px 7px);
+    opacity: 0.75;
+    pointer-events: none;
 }
 
 .track__mark {

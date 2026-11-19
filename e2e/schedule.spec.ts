@@ -58,6 +58,12 @@ async function writes(mock: MockControl, id: string): Promise<Record<string, str
  * One capture per theme. The phone project is shot at 390 px, the width the
  * mock-ups were drawn for (a Pixel 7 is 412).
  */
+async function settle(page: Page): Promise<void> {
+    await page.evaluate(() => Promise.all(document.getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => undefined))));
+}
+
 async function shot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
     if (!process.env.ARCHI_SHOT) return;
     const phone = testInfo.project.name === 'mobile-pixel7';
@@ -71,9 +77,7 @@ async function shot(page: Page, testInfo: TestInfo, name: string): Promise<void>
         }, theme);
         await page.evaluate(() => document.fonts.ready);
         // The dialog fades in: a capture taken mid-fade shows the list through it.
-        await page.evaluate(() => Promise.all(document.getAnimations()
-            .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
-            .map((a) => a.finished.catch(() => undefined))));
+        await settle(page);
         await page.screenshot({ path: testInfo.outputPath(`${name}-${format}-${theme}.png`), fullPage: true });
     }
     if (size) await page.setViewportSize(size);
@@ -326,6 +330,7 @@ test('swapping two overlapping periods that fails halfway keeps the view open; t
     const overlap = dialog.locator('[data-test="overlap"]');
     await expect(overlap).toBeVisible();
     await overlap.getByRole('button', { name: S.v2.swap }).click();
+    await expect(dialog.locator('[data-test="track-overlap"]')).toBeVisible();
     await shot(page, testInfo, 'shot-16-overlap-swapped');
 
     // The first range write succeeds, the second one is refused.
@@ -369,12 +374,14 @@ test('the program paused and the connection lost are shown in the editor', async
 test('every control of the editor is at least 44 px and shows a focus ring', async ({ page }) => {
     const dialog = await openEditor(page);
     const check = async (): Promise<void> => {
+        // The dialog fades in with a transform: measured mid-animation a 44 px box reads 43.99997.
+        await settle(page);
         const controls = dialog.locator('button:visible, [role="tab"]:visible');
         const n = await controls.count();
         for (let i = 0; i < n; i++) {
             const box = await controls.nth(i).boundingBox();
             const name = await controls.nth(i).innerText();
-            expect(box && box.width >= 44 && box.height >= 44, `${name.trim() || i}: ${box?.width}x${box?.height}`).toBe(true);
+            expect(box && Math.round(box.width) >= 44 && Math.round(box.height) >= 44, `${name.trim() || i}: ${box?.width}x${box?.height}`).toBe(true);
         }
     };
     await check();
@@ -386,4 +393,31 @@ test('every control of the editor is at least 44 px and shows a focus ring', asy
     // Tab away from the back button: the element that gets focus draws an outline.
     await page.keyboard.press('Tab');
     await expect(page.locator(':focus')).toHaveCSS('outline-style', 'solid');
+});
+
+test('the period form fits the dialog at 390 and 1280 px, error message included', async ({ page }) => {
+    const dialog = await openEditor(page);
+    await openDay(dialog, 'Monday');
+    await dialog.getByRole('button', { name: S.addSlot, exact: true }).last().click();
+    // Start equals end: the range error appears under the fields.
+    const error = dialog.getByRole('alert').filter({ hasText: S.v2.rangeError });
+    for (let i = 0; i < 96 && !(await error.isVisible()); i++) await step(dialog, S.form.end, 'minus', 1);
+    await expect(error).toBeVisible();
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({ width, height: 844 });
+        await settle(page);
+        const clipped = await dialog.evaluate((box) => {
+            // The period view's own box: the dialog's padding would hide an overflow.
+            const bounds = (box.querySelector('.period') ?? box).getBoundingClientRect();
+            const out: string[] = [];
+            for (const el of box.querySelectorAll<HTMLElement>('.period button, .period output, .period__label, .period__note, .period__field')) {
+                const r = el.getBoundingClientRect();
+                if (r.width === 0) continue;
+                if (r.left < bounds.left - 0.5 || r.right > bounds.right + 0.5) out.push(`${el.className} ${Math.round(r.left)}..${Math.round(r.right)} in ${Math.round(bounds.left)}..${Math.round(bounds.right)}`);
+                if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflow !== 'visible') out.push(`${el.className} text cut`);
+            }
+            return out;
+        });
+        expect(clipped, `${width}px`).toEqual([]);
+    }
 });

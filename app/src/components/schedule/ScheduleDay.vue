@@ -189,7 +189,7 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
 
 /* The separator trails the first part, so a wrapped line never starts on it. */
 .day__lead::after {
-    content: ' ·';
+    content: '\00a0·';
 }
 
 .day__count {

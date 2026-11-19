@@ -245,7 +245,7 @@
             "overlap": "Chevauche « {range} » ({setpoint}°).",
             "overlapMine": "Entre {from} et {to}, cette plage ({setpoint}°) s’applique : elle passe avant.",
             "overlapOther": "Entre {from} et {to}, l’autre plage ({setpoint}°) s’applique : elle passe avant.",
-            "order": "Le niveau {a} passe avant le niveau {b}.",
+            "order": "{a}° passe avant {b}°.",
             "swap": "Inverser",
             "deleteConfirm": "Supprimer la plage {range} ?",
             "close": "Fermer",

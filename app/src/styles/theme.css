@@ -28,6 +28,8 @@
     --c-accent: #38b0d3;
     /* Text on an accent fill. */
     --c-on-accent: #111111;
+    /* Accent as text: the light accent fill is only 4.5:1 on the page. */
+    --c-accent-text: #38b0d3;
     --c-accent-glow: rgba(56, 176, 211, 0.45);
 
     --c-danger: #e05656;
@@ -120,6 +122,7 @@
     --c-heat: #b07800;
     --c-accent: #0a7a9a;
     --c-on-accent: #ffffff;
+    --c-accent-text: #07657f;
     --c-accent-glow: rgba(10, 122, 154, 0.35);
     --c-danger: #c62f2f;
     --c-danger-text: #a82020;

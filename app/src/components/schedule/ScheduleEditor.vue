@@ -61,7 +61,6 @@ const busy = ref(false);
 const banner = ref<{ text: string; retry?: () => void } | null>(null);
 /** Refusals that never reached the server (7th level, bad range, nothing to copy). */
 const notice = ref('');
-const done = ref('');
 
 const locked = computed(() => props.readonly || !connection.isOpen || loadFailed.value);
 
@@ -127,7 +126,7 @@ const pausedText = computed(() => {
     const v = programCtl.current.value?.setpoint;
     return v === undefined || v === null ? t('program.paused') : t('schedule.v2.paused', { setpoint: degrees(v) });
 });
-const subtitle = computed(() => `${props.io.name ?? ''} · ${dirName(direction.value)}`.replace(/^ · /, ''));
+const subtitle = computed(() => `${props.io.name ?? ''}\u00a0· ${dirName(direction.value)}`.replace(/^\u00a0· /, ''));
 
 // --------------------------------------------------------------- read ---
 
@@ -235,8 +234,8 @@ async function apply(
     if (!before || locked.value) return null;
     const next = build(before);
     notice.value = '';
-    done.value = '';
     if (isError(next)) {
+        banner.value = null;
         notice.value = refusal(next, d);
         return null;
     }
@@ -384,6 +383,7 @@ function openCopy(): void {
         return;
     }
     notice.value = '';
+    if (!loadFailed.value) banner.value = null;
     copyOpen.value = true;
 }
 
@@ -396,12 +396,14 @@ async function runCopy(targets: number[]): Promise<void> {
 
 function selectDirection(d: Direction): void {
     direction.value = d;
+    copyOpen.value = false;
     notice.value = '';
 }
 
 function selectDay(d: number): void {
     day.value = d;
     view.value = 'day';
+    copyOpen.value = false;
     notice.value = '';
 }
 
@@ -525,8 +527,7 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                 @set-off="(v) => writeValue(ios.cool_default_off, v ? 'true' : 'false')"
             />
 
-            <p v-if="notice && view !== 'period'" ref="noticeBox" class="schedule__notice" role="alert">{{ notice }}</p>
-            <p v-if="done" class="schedule__muted" role="status">{{ done }}</p>
+            <p v-if="notice" ref="noticeBox" class="schedule__notice" role="alert">{{ notice }}</p>
 
             <ScheduleCopySheet
                 v-if="copyOpen && view === 'day'"

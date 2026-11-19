@@ -696,6 +696,17 @@ describe('a write that fails half-way', () => {
         expect(banner(wrapper).text()).toContain('The server refused the change');
     });
 
+    it('hatches the overlap on the preview track, over the shared hours only', async () => {
+        const { wrapper } = await mountEditor({ heat: { 1: [MON_8_10], 2: [wireRange(1, 12, 0, 14, 0)] } });
+        await selectDay(wrapper, 'Monday');
+        await wrapper.findAll('button.day__row[aria-label^="Edit "]')[1].trigger('click');
+        expect(form(wrapper).find('[data-test="track-overlap"]').exists()).toBe(false);
+        await fillForm(wrapper, { start: '09:00' });
+        const hatch = form(wrapper).get('[data-test="track-overlap"]');
+        expect(hatch.attributes('style')).toContain('left: 37.5');
+        expect(hatch.attributes('style')).toContain('width: 4.1666');
+    });
+
     it('still writes the other levels when the server kept one change in memory only', async () => {
         const { wrapper, server } = await mountEditor({
             heat: { 1: [MON_8_10], 2: [wireRange(1, 12, 0, 14, 0)] },
@@ -707,7 +718,7 @@ describe('a write that fails half-way', () => {
         await panel().find('button[aria-label="Tuesday"]').trigger('click');
         const mark = server.sent.length;
         await panel().findAll('.sheet__actions button')[1].trigger('click');
-        if (wrapper.find('.sheet__confirm').exists()) await panel().findAll('.sheet__actions button')[1].trigger('click');
+        expect(wrapper.find('.sheet__confirm').exists()).toBe(false);
         await flushPromises();
         expect(writes(server, mark)).toEqual(['set_timerange:H1', 'set_timerange:H2']);
     });
@@ -723,7 +734,7 @@ describe('a write that fails half-way', () => {
         await panel().find('button[aria-label="Tuesday"]').trigger('click');
         const mark = server.sent.length;
         await panel().findAll('.sheet__actions button')[1].trigger('click');
-        if (wrapper.find('.sheet__confirm').exists()) await panel().findAll('.sheet__actions button')[1].trigger('click');
+        expect(wrapper.find('.sheet__confirm').exists()).toBe(false);
         await flushPromises();
         expect(writes(server, mark)).toEqual(['set_timerange:H1', 'set_timerange:H2']);
         expect(banner(wrapper).text()).toContain('Copy incomplete: not saved, try again');

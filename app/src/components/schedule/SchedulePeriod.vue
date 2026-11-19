@@ -129,9 +129,9 @@ const priorityText = computed(() => {
 const orderText = computed(() => {
     const o = overlap.value;
     if (!o) return '';
-    const first = mineFirst.value ? Math.min(o.mineLevel, o.other.level) : Math.max(o.mineLevel, o.other.level);
-    const second = first === o.mineLevel ? o.other.level : o.mineLevel;
-    return t('schedule.v2.order', { a: first, b: second });
+    if (otherSetpoint.value === undefined) return '';
+    const [a, b] = mineFirst.value ? [setpoint.value, otherSetpoint.value] : [otherSetpoint.value, setpoint.value];
+    return t('schedule.v2.order', { a: degrees(a), b: degrees(b) });
 });
 
 const title = computed(() => (props.existing ? slotRange.value : t('schedule.addSlot')));
@@ -149,6 +149,10 @@ function save(): void {
 }
 
 /** The draft as a ring on the preview bar; a crossing one shows its first part. */
+const hatch = computed(() => {
+    const o = overlap.value;
+    return o && o.other.day === props.day ? { start: o.from, end: o.to } : undefined;
+});
 const mark = computed(() => (invalid.value ? undefined : { start: start.value, end: crossing.value ? DAY_MINUTES : end.value }));
 </script>
 
@@ -165,7 +169,7 @@ const mark = computed(() => (invalid.value ? undefined : { start: start.value, e
             </div>
         </header>
 
-        <ScheduleTrack :program="program" :day="day" :now="now" :mark="mark" :label="dayName(day)" />
+        <ScheduleTrack :program="program" :day="day" :now="now" :mark="mark" :overlap="hatch" :label="dayName(day)" />
 
         <div class="period__fields">
             <div class="period__field" role="group" :aria-label="t('schedule.form.start')">
@@ -291,12 +295,13 @@ const mark = computed(() => (invalid.value ? undefined : { start: start.value, e
 
 .period__fields {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
     gap: var(--space-3);
 }
 
 .period__field {
     display: flex;
+    min-inline-size: 0;
     flex-direction: column;
     gap: var(--space-1);
 }
@@ -319,7 +324,7 @@ const mark = computed(() => (invalid.value ? undefined : { start: start.value, e
     align-items: center;
     justify-content: center;
     gap: var(--space-1);
-    min-inline-size: 4rem;
+    min-inline-size: 3rem;
     font-size: 1.25rem;
     font-weight: 600;
     text-align: center;
@@ -404,7 +409,7 @@ button:disabled {
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-2);
+    gap: var(--space-2) var(--space-4);
     margin-block-start: var(--space-2);
 }
 

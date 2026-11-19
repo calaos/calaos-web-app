@@ -187,7 +187,7 @@ const AXIS = [0, 6, 12, 18, 24];
 }
 
 .week__name--today {
-    color: var(--c-accent);
+    color: var(--c-accent-text);
     font-weight: 600;
 }
 

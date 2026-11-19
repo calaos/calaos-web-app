@@ -103,9 +103,9 @@ onMounted(() => void nextTick(() => sheet.value?.querySelector<HTMLElement>('but
             </div>
 
             <div class="sheet__shortcuts">
-                <button type="button" class="sheet__chip" :disabled="busy" @click="pick(WORKDAYS)">{{ t('schedule.copy.workdays') }}</button>
-                <button type="button" class="sheet__chip" :disabled="busy" @click="pick(WEEKEND)">{{ t('schedule.copy.weekend') }}</button>
-                <button type="button" class="sheet__chip" :disabled="busy" @click="pick(WEEKDAYS)">{{ t('schedule.copy.all') }}</button>
+                <button type="button" class="sheet__chip" :disabled="locked || busy" @click="pick(WORKDAYS)">{{ t('schedule.copy.workdays') }}</button>
+                <button type="button" class="sheet__chip" :disabled="locked || busy" @click="pick(WEEKEND)">{{ t('schedule.copy.weekend') }}</button>
+                <button type="button" class="sheet__chip" :disabled="locked || busy" @click="pick(WEEKDAYS)">{{ t('schedule.copy.all') }}</button>
             </div>
 
             <p class="sheet__warn">{{ t('schedule.copy.warning') }}</p>
