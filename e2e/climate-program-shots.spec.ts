@@ -58,6 +58,29 @@ test('card: program on, paused, absent', async ({ page }, testInfo) => {
     await shotRow(page, testInfo, 'card-3-absent', row(page, 'Climatisation salon'));
 });
 
+test('card: keyboard focus on the row', async ({ page }, testInfo) => {
+    const card = row(page, 'Thermostat bureau');
+    await card.locator('.io-row__main').focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(card.locator('.io-row__main')).toBeFocused();
+    await expect(card.locator('.io-row__main')).toHaveCSS('outline-style', 'solid');
+    await shotRow(page, testInfo, 'card-4-focus', card);
+});
+
+test('editor: Resume refused by the server', async ({ page, mock }, testInfo) => {
+    await row(page, 'Thermostat bureau').click();
+    await settings(page).getByRole('switch').click();
+    await expect(settings(page).locator('.climate-detail__paused')).toBeVisible();
+    await settings(page).getByRole('button', { name: S.edit }).click();
+    const dialog = editor(page);
+    await expect(dialog.getByRole('group', { name: /Monday, Heating/ })).toBeVisible({ timeout: 15_000 });
+    await mock.send({ op: 'program_reject' });
+    await dialog.getByRole('button', { name: P.resume }).click();
+    await expect(dialog.getByRole('alert').filter({ hasText: P.error.generic })).toBeVisible();
+    await shot(page, testInfo, 'editor-6-resume-refused');
+});
+
 test('detail: heating and cooling tabs, auto with help', async ({ page }, testInfo) => {
     await row(page, 'Thermostat bureau').click();
     await setMode(page, C.mode.heat);
