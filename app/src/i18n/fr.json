@@ -196,12 +196,7 @@
             "edit": "Modifier la plage",
             "start": "Début",
             "end": "Fin",
-            "endHint": "Une fin avant le début passe minuit.",
-            "setpoint": "Consigne (°C)",
-            "days": "Jours",
-            "level": "Niveau {n}",
-            "raise": "Monter la priorité",
-            "lower": "Baisser la priorité",
+            "setpoint": "Température",
             "delete": "Supprimer",
             "cancel": "Annuler",
             "save": "Enregistrer"
@@ -209,24 +204,22 @@
         "copy": {
             "open": "Copier vers…",
             "title": "Copier {day} vers",
-            "nothing": "Rien à copier : ce jour n'a pas de créneau",
+            "nothing": "Rien à copier : ce jour n'a pas de plage",
             "workdays": "Jours ouvrés",
             "weekend": "Week-end",
             "all": "Tous",
-            "submit": "Copier",
+            "submit": "Copier sur {n} jour | Copier sur {n} jours",
             "cancel": "Annuler",
-            "confirmTitle": "Remplacer les créneaux ?",
-            "slots": "{day} ({count} créneau) | {day} ({count} créneaux)",
+            "warning": "Remplace les plages existantes de ces jours",
+            "confirmTitle": "Remplacer les plages ?",
+            "periods": "{day} ({count} plage) | {day} ({count} plages)",
             "and": "{list} et {last}",
-            "confirm": "{targets} sera remplacé par ceux de {source}. | {targets} seront remplacés par ceux de {source}.",
+            "confirm": "{targets} sera remplacé par celles de {source}. | {targets} seront remplacés par celles de {source}.",
             "replace": "Remplacer et copier",
-            "failed": "Copie incomplète : non enregistré, réessayer"
+            "failed": "Copie incomplète : non enregistré, réessayer",
+            "source": "source"
         },
-        "simple": {
-            "apply": "Appliquer",
-            "applied": "Appliqué au niveau {n}."
-        },
-        "tooMany": "{n} niveaux maximum pour {dir}",
+        "tooMany": "{n} consignes différentes au maximum",
         "error": {
             "range": "La fin doit suivre le début",
             "notWritten": "Non enregistré, réessayer",
@@ -246,7 +239,21 @@
             "emptyTitle": "Aucune plage ce jour-là",
             "rest": "Le reste du temps",
             "minus": "Moins",
-            "plus": "Plus"
+            "plus": "Plus",
+            "midnight": "Cette plage passe minuit. Elle sera enregistrée en deux plages : {a} et {b}.",
+            "nextDay": "+1 jour",
+            "overlap": "Chevauche « {range} » ({setpoint}°).",
+            "overlapMine": "Entre {from} et {to}, cette plage ({setpoint}°) s’applique : elle passe avant.",
+            "overlapOther": "Entre {from} et {to}, l’autre plage ({setpoint}°) s’applique : elle passe avant.",
+            "order": "Le niveau {a} passe avant le niveau {b}.",
+            "swap": "Inverser",
+            "deleteConfirm": "Supprimer la plage {range} ?",
+            "close": "Fermer",
+            "back": "Retour à {day}",
+            "retry": "Réessayer",
+            "rangeError": "La fin doit différer du début",
+            "notSaved": "Non enregistré, réessayer",
+            "breadcrumb": "Semaine › {day} › {leaf}"
         }
     },
     "dialog": {

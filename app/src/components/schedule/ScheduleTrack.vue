@@ -12,10 +12,12 @@ const props = defineProps<{
     program: DirectionProgram;
     day: number;
     /** Text for the time outside every slot ("Default 19°" or "Off"). */
-    gapLabel: string;
+    gapLabel?: string;
     /** Minutes since midnight when this track is today, for the marker. */
     now?: number;
     label: string;
+    /** A period to ring (minutes, same day): the one being edited. */
+    mark?: { start: number; end: number };
 }>();
 
 const { t, locale } = useI18n();
@@ -45,7 +47,7 @@ const pieces = computed(() =>
             left: (p.start / DAY_MINUTES) * 100,
             width,
             fits,
-            text: p.level === null ? props.gapLabel : `${degrees}°`,
+            text: p.level === null ? (props.gapLabel ?? '') : `${degrees}°`,
         };
     }),
 );
@@ -75,6 +77,12 @@ const lightFrom = computed(() => (props.program.direction === 'heat' ? 6 : 5));
                 <span v-if="p.fits && p.text">{{ p.text }}</span>
             </div>
         </template>
+        <div
+            v-if="mark"
+            class="track__mark"
+            :style="{ left: `${(mark.start / DAY_MINUTES) * 100}%`, width: `${((mark.end - mark.start) / DAY_MINUTES) * 100}%` }"
+            aria-hidden="true"
+        />
         <div v-if="now !== undefined" class="track__now" :style="{ left: `${(now / DAY_MINUTES) * 100}%` }" :title="t('schedule.now')" aria-hidden="true" />
     </div>
 </template>
@@ -114,17 +122,25 @@ const lightFrom = computed(() => (props.program.direction === 'heat' ? 6 : 5));
 }
 
 .track__seg {
-    color: #000;
+    color: var(--c-on-level-dark);
     border-inline: 1px solid var(--c-surface);
 }
 
 .track__seg--light {
-    color: #fff;
+    color: var(--c-on-level-light);
 }
 
 .track__gap {
     font-weight: 400;
     color: var(--c-text-muted);
+}
+
+.track__mark {
+    position: absolute;
+    inset-block: 0;
+    border: 2px solid var(--c-text);
+    border-radius: var(--radius-sm);
+    pointer-events: none;
 }
 
 .track__now {

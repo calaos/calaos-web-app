@@ -7,10 +7,10 @@ import {
     levelFor,
     levelIos,
     levelRanges,
-    moveLevel,
     parseMinutes,
     programFromWire,
     rangesToSlots,
+    swapLevels,
     toWireRange,
     upsertSlot,
 } from './schedule';
@@ -186,7 +186,7 @@ describe('grouping by temperature', () => {
         p = must(upsertSlot(p, { days: [1], start: 0, end: 600, setpoint: 19 }));
         p = must(upsertSlot(p, { days: [1], start: 300, end: 900, setpoint: 21 }));
         expect(effectiveDay(p, 1).map((x) => x.level)).toEqual([1, 2, null]);
-        const swapped = moveLevel(p, 2, -1);
+        const swapped = swapLevels(p, 1, 2);
         expect(swapped.levels.map((l) => l.setpoint)).toEqual([21, 19]);
         expect(effectiveDay(swapped, 1)).toEqual([
             { start: 0, end: 300, level: 2 },
