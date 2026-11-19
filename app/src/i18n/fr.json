@@ -162,7 +162,6 @@
         "tabs": "Sens du programme",
         "heat": "Chauffage",
         "cool": "Clim",
-        "tab": "{dir} ({n})",
         "days": "Jour",
         "dayShort": {
             "1": "Lun",
@@ -182,22 +181,19 @@
             "6": "samedi",
             "7": "dimanche"
         },
-        "timeline": "{day}, {dir}",
         "now": "Maintenant",
-        "segment": "Niveau {n}, {start} à {end}, {setpoint}°",
         "gapDefault": "Défaut {setpoint}°",
-        "off": "Arrêt",
+        "off": "Arrêtée",
         "week": "Semaine",
-        "weekDay": "Afficher {day}",
-        "addSlot": "+ Créneau",
-        "levelCount": "Niveaux : {n} sur {max}",
-        "empty": "Aucun créneau en {dir}. Défaut : {setpoint}°.",
-        "emptyOff": "Aucun créneau en {dir}. Arrêt hors créneau.",
+        "addSlot": "Ajouter une plage",
+        "empty": "Le chauffage reste à {setpoint}° toute la journée.",
+        "emptyCool": "La clim reste à {setpoint}° toute la journée.",
+        "emptyOff": "La clim reste arrêtée toute la journée.",
         "defaultSetpoint": "Consigne par défaut (°C)",
-        "coolOff": "Clim arrêtée hors créneau",
+        "coolOff": "Clim arrêtée en dehors des plages",
         "form": {
-            "new": "Nouveau créneau",
-            "edit": "Modifier le créneau",
+            "new": "Nouvelle plage",
+            "edit": "Modifier la plage",
             "start": "Début",
             "end": "Fin",
             "endHint": "Une fin avant le début passe minuit.",
@@ -211,7 +207,7 @@
             "save": "Enregistrer"
         },
         "copy": {
-            "open": "Copier ce jour…",
+            "open": "Copier vers…",
             "title": "Copier {day} vers",
             "nothing": "Rien à copier : ce jour n'a pas de créneau",
             "workdays": "Jours ouvrés",
@@ -239,7 +235,19 @@
             "generic": "Le serveur a refusé la modification"
         },
         "retry": "Réessayer",
-        "readOnly": "Lecture seule hors ligne."
+        "readOnly": "Lecture seule hors ligne.",
+        "v2": {
+            "edit": "Modifier",
+            "active": "Programme actif",
+            "pause": "Mettre en pause",
+            "paused": "En pause : la consigne reste à {setpoint}°",
+            "dayEmptyHint": "Aucune plage : toucher pour ajouter",
+            "count": "{n} plage | {n} plages",
+            "emptyTitle": "Aucune plage ce jour-là",
+            "rest": "Le reste du temps",
+            "minus": "Moins",
+            "plus": "Plus"
+        }
     },
     "dialog": {
         "cancel": "Annuler",
@@ -686,7 +694,7 @@
         "activeDefault": "Par défaut · {setpoint}°",
         "noLevel": "Aucun niveau en ce moment",
         "editorPaused": "Programme en pause, les plages ne s'appliquent pas",
-        "resume": "Réactiver le programme",
+        "resume": "Reprendre",
         "paused": "Programme en pause",
         "pausedLevel": "Programme en pause : niveau {level} ({setpoint}°)",
         "pausedDefault": "Programme en pause : par défaut ({setpoint}°)",

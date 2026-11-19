@@ -162,7 +162,6 @@
         "tabs": "Program direction",
         "heat": "Heating",
         "cool": "Cooling",
-        "tab": "{dir} ({n})",
         "days": "Day",
         "dayShort": {
             "1": "Mon",
@@ -182,22 +181,19 @@
             "6": "Saturday",
             "7": "Sunday"
         },
-        "timeline": "{day}, {dir}",
         "now": "Now",
-        "segment": "Level {n}, {start} to {end}, {setpoint}°",
         "gapDefault": "Default {setpoint}°",
         "off": "Off",
         "week": "Week",
-        "weekDay": "Show {day}",
-        "addSlot": "+ Slot",
-        "levelCount": "Levels: {n} of {max}",
-        "empty": "No {dir} slot. Default: {setpoint}°.",
-        "emptyOff": "No {dir} slot. Off outside slots.",
+        "addSlot": "Add a period",
+        "empty": "Heating stays at {setpoint}° all day.",
+        "emptyCool": "Cooling stays at {setpoint}° all day.",
+        "emptyOff": "Cooling stays off all day.",
         "defaultSetpoint": "Default setpoint (°C)",
-        "coolOff": "Cooling off outside slots",
+        "coolOff": "Cooling off outside periods",
         "form": {
-            "new": "New slot",
-            "edit": "Edit slot",
+            "new": "New period",
+            "edit": "Edit period",
             "start": "Start",
             "end": "End",
             "endHint": "An end before the start runs past midnight.",
@@ -211,7 +207,7 @@
             "save": "Save"
         },
         "copy": {
-            "open": "Copy this day…",
+            "open": "Copy to…",
             "title": "Copy {day} to",
             "nothing": "Nothing to copy: this day has no slot",
             "workdays": "Weekdays",
@@ -239,7 +235,19 @@
             "generic": "The server refused the change"
         },
         "retry": "Retry",
-        "readOnly": "Read-only while offline."
+        "readOnly": "Read-only while offline.",
+        "v2": {
+            "edit": "Edit",
+            "active": "Schedule active",
+            "pause": "Pause",
+            "paused": "Paused: setpoint stays at {setpoint}°",
+            "dayEmptyHint": "No period: tap to add",
+            "count": "{n} period | {n} periods",
+            "emptyTitle": "No period that day",
+            "rest": "The rest of the time",
+            "minus": "Decrease",
+            "plus": "Increase"
+        }
     },
     "dialog": {
         "cancel": "Cancel",
@@ -686,7 +694,7 @@
         "activeDefault": "Default · {setpoint}°",
         "noLevel": "No level now",
         "editorPaused": "Program paused, slots do not apply",
-        "resume": "Resume program",
+        "resume": "Resume",
         "paused": "Program paused",
         "pausedLevel": "Program paused: level {level} ({setpoint}°)",
         "pausedDefault": "Program paused: default ({setpoint}°)",

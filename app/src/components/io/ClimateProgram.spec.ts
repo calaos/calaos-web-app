@@ -368,7 +368,7 @@ describe('ClimateDetail — the program', () => {
         const edit = body().findAll('button').find((b) => b.text() === 'Edit program')!;
         await edit.trigger('click');
         await flushPromises();
-        const tabs = body().findAll('.schedule__tabs [role="tab"]');
+        const tabs = body().findAll('.week__tabs [role="tab"]');
         expect(tabs.map((t) => t.text())).toEqual(expect.arrayContaining([expect.stringContaining('Heating'), expect.stringContaining('Cooling')]));
         expect(tabs.map((t) => t.attributes('aria-selected'))).toEqual(['true', 'false']);
     });

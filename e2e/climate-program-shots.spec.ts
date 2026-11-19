@@ -41,7 +41,8 @@ async function setMode(page: Page, label: string): Promise<void> {
 test.beforeEach(async ({ page, mock }) => {
     await mock.reset();
     await mock.send({ op: 'program_clock', clock: new Date(NOW).toISOString() });
-    await page.clock.setFixedTime(new Date(NOW));
+    // install, not setFixedTime: a frozen Date.now makes Vue skip ancestor handlers of the same event.
+    await page.clock.install({ time: new Date(NOW) });
     await page.goto('/');
     await loginAs(page);
     await page.locator('.room-tile').nth(LOUNGE).click();
@@ -74,7 +75,7 @@ test('editor: Resume refused by the server', async ({ page, mock }, testInfo) =>
     await expect(settings(page).locator('.climate-detail__paused')).toBeVisible();
     await settings(page).getByRole('button', { name: S.edit }).click();
     const dialog = editor(page);
-    await expect(dialog.getByRole('group', { name: /Monday, Heating/ })).toBeVisible({ timeout: 15_000 });
+    await expect(dialog.getByRole('button', { name: /^Monday, Heating/ })).toBeVisible({ timeout: 15_000 });
     await mock.send({ op: 'program_reject' });
     await dialog.getByRole('button', { name: P.resume }).click();
     await expect(dialog.getByRole('alert').filter({ hasText: P.error.generic })).toBeVisible();
@@ -108,7 +109,7 @@ test('editor: loading, heating, cooling, paused, read-only', async ({ page, mock
     await expect(dialog.locator('.schedule__loading')).toBeVisible();
     await shot(page, testInfo, 'editor-1-loading');
     await mock.send({ op: 'latency', ms: 0 });
-    await expect(dialog.getByRole('group', { name: /Monday, Heating/ })).toBeVisible({ timeout: 15_000 });
+    await expect(dialog.getByRole('button', { name: /^Monday, Heating/ })).toBeVisible({ timeout: 15_000 });
     await shot(page, testInfo, 'editor-2-heat');
     await dialog.getByRole('tab', { name: /^Cooling/ }).click();
     await shot(page, testInfo, 'editor-3-cool');
@@ -117,7 +118,7 @@ test('editor: loading, heating, cooling, paused, read-only', async ({ page, mock
     await settings(page).getByRole('switch').click();
     await setMode(page, C.mode.auto);
     await settings(page).getByRole('button', { name: S.edit }).click();
-    await expect(editor(page).getByRole('group', { name: /Monday, Heating/ })).toBeVisible();
+    await expect(editor(page).getByRole('button', { name: /^Monday, Heating/ })).toBeVisible();
     await shot(page, testInfo, 'editor-4-auto-paused');
     await mock.drop();
     await expect(editor(page).getByText(S.readOnly)).toBeVisible();
