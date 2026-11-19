@@ -17,7 +17,7 @@ const NOW = new Date('2026-11-16T10:00:00');
 
 /** The accessible name of a period row in the day list. */
 function period(start: string, end: string, setpoint: string): string {
-    return `${S.edit} ${start} – ${end}, ${setpoint}°`;
+    return `${S.v2.edit} ${start} – ${end}, ${setpoint}°`;
 }
 
 function editor(page: Page): Locator {
@@ -114,7 +114,7 @@ test('copying a day over one that has slots asks first, then replaces them', asy
     await confirm.getByRole('button', { name: S.copy.replace }).click();
     await expect.poll(async () => (await writes(mock, HEAT_L1)).length).toBeGreaterThan(0);
 
-    await dialog.getByRole('button', { name: S.week }).click();
+    await dialog.getByRole('button', { name: S.week, exact: true }).click();
     await openDay(dialog, 'Saturday');
     await expect(dialog.getByRole('button', { name: period('06:30', '08:00', '19') })).toBeVisible();
     await expect(dialog.getByRole('button', { name: /^Edit / })).toHaveCount(2);
@@ -162,7 +162,7 @@ test('the seventh temperature is refused with a message and nothing is written',
         await addSlot.click();
         await dialog.getByLabel(S.form.start).fill(`${String(hour).padStart(2, '0')}:00`);
         await dialog.getByLabel(S.form.end).fill(`${String(hour + 1).padStart(2, '0')}:00`);
-        await dialog.getByLabel(S.form.setpoint).first().fill(setpoint);
+        await dialog.getByLabel(S.form.setpoint, { exact: true }).fill(setpoint);
         await dialog.getByRole('button', { name: S.form.save }).click();
     };
     await add(1, '22');
@@ -175,7 +175,7 @@ test('the seventh temperature is refused with a message and nothing is written',
     await addSlot.click();
     await dialog.getByLabel(S.form.start).fill('04:00');
     await dialog.getByLabel(S.form.end).fill('05:00');
-    await dialog.getByLabel(S.form.setpoint).first().fill('25');
+    await dialog.getByLabel(S.form.setpoint, { exact: true }).fill('25');
     await dialog.getByRole('button', { name: S.form.save }).click();
     await expect(dialog.getByRole('alert').filter({ hasText: S.tooMany.replace('{n}', '6').replace('{dir}', S.heat) })).toBeVisible();
     await expect(dialog.getByRole('heading', { name: S.form.new })).toBeVisible();
@@ -184,9 +184,8 @@ test('the seventh temperature is refused with a message and nothing is written',
     await shot(page, testInfo, 'shot-09-seventh-refused');
 });
 
-test('clicking a bar opens nothing; a row opens its day; the back button and Escape return to the week', async ({ page }, testInfo) => {
+test('the week has no editable bar; a row opens its day; the back button and Escape return to the week', async ({ page }, testInfo) => {
     const dialog = await openEditor(page);
-    await dialog.locator('.track').first().click({ position: { x: 5, y: 5 } });
     await expect(dialog.getByRole('heading', { name: 'Monday' })).toHaveCount(0);
     await expect(dialog.getByRole('heading', { name: S.form.edit })).toHaveCount(0);
 
@@ -199,11 +198,10 @@ test('clicking a bar opens nothing; a row opens its day; the back button and Esc
     await expect(dialog.getByRole('button', { name: /^Monday, Heating/ })).toBeVisible();
     await expect(dialog).toBeVisible();
     await openDay(dialog, 'Tuesday');
-    await dialog.getByRole('button', { name: S.week }).click();
+    await dialog.getByRole('button', { name: S.week, exact: true }).click();
     await expect(dialog.getByRole('button', { name: /^Tuesday, Heating/ })).toBeVisible();
     await shot(page, testInfo, 'shot-13-back');
-    await page.keyboard.press('Escape');
-    await expect(dialog).toHaveCount(0);
+    await expect(page.locator(':focus')).toHaveClass(/week__row/);
 });
 
 test('copying is unavailable on an empty day; a copy that fails is reported as incomplete', async ({ page, mock }, testInfo) => {
@@ -213,7 +211,7 @@ test('copying is unavailable on an empty day; a copy that fails is reported as i
     await expect(dialog.getByRole('button', { name: S.copy.open })).toBeDisabled();
     await shot(page, testInfo, 'shot-11-nothing-to-copy');
 
-    await dialog.getByRole('button', { name: S.week }).click();
+    await dialog.getByRole('button', { name: S.week, exact: true }).click();
     await dialog.getByRole('tab', { name: /^Heating/ }).click();
     await openDay(dialog, 'Saturday');
     await dialog.getByRole('button', { name: S.copy.open }).click();

@@ -501,12 +501,20 @@ function selectDay(d: number): void {
     notice.value = '';
 }
 
+const rootEl = ref<HTMLElement>();
+
 function backToWeek(): void {
+    const from = day.value;
     view.value = 'week';
     form.value = null;
     copyOpen.value = false;
     notice.value = '';
     done.value = '';
+    // The back button is gone: without a new focus target Escape no longer reaches the dialog.
+    void nextTick(() => {
+        const rows = rootEl.value?.querySelectorAll<HTMLElement>('.week__row');
+        rows?.[(WEEKDAYS as readonly number[]).indexOf(from)]?.focus();
+    });
 }
 
 /** Escape is the back button of the view; only the week lets it reach the dialog. */
@@ -536,7 +544,7 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
 </script>
 
 <template>
-    <div class="schedule" :class="`schedule--${mode}`" @keydown.esc="onEscape">
+    <div ref="rootEl" class="schedule" :class="`schedule--${mode}`" @keydown.esc="onEscape">
         <div v-if="loading" class="schedule__loading" role="status">
             <div class="schedule__skeleton" aria-hidden="true" />
             <p>{{ t('schedule.loading') }}</p>
