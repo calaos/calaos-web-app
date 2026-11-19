@@ -420,6 +420,12 @@ function backToWeek(): void {
     });
 }
 
+// The clicked row unmounts with the view it opened; without this focus falls to body and Escape is lost.
+watch(view, (now) => {
+    if (now === 'week') return;
+    void nextTick(() => rootEl.value?.querySelector<HTMLElement>(now === 'day' ? '.day__back' : '.period__back')?.focus());
+});
+
 /** Escape is the back button of the view; only the week lets it reach the dialog. */
 function onEscape(event: KeyboardEvent): void {
     if (view.value === 'week') return;
@@ -528,6 +534,7 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                 :counts="dayCounts"
                 :locked="locked"
                 :busy="busy"
+                :error="banner?.text"
                 @cancel="copyOpen = false"
                 @copy="runCopy"
             />

@@ -13,6 +13,8 @@ const props = defineProps<{
     counts: Record<number, number>;
     locked: boolean;
     busy: boolean;
+    /** Failure of the last attempt: the sheet hides the editor banner, so it is repeated here. */
+    error?: string;
 }>();
 
 const emit = defineEmits<{ cancel: []; copy: [targets: number[]] }>();
@@ -113,6 +115,8 @@ onMounted(() => void nextTick(() => sheet.value?.querySelector<HTMLElement>('but
                 <p>{{ confirmText }}</p>
             </div>
 
+            <p v-if="error" class="sheet__error" role="alert">{{ error }}</p>
+
             <div class="sheet__actions">
                 <button type="button" class="sheet__button" @click="confirming ? (confirming = false) : emit('cancel')">
                     {{ t('schedule.copy.cancel') }}
@@ -126,6 +130,12 @@ onMounted(() => void nextTick(() => sheet.value?.querySelector<HTMLElement>('but
 </template>
 
 <style scoped>
+.sheet__error {
+    margin: 0;
+    color: var(--c-danger-text);
+    font-size: 0.9rem;
+}
+
 .sheet {
     position: absolute;
     inset: 0;
