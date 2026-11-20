@@ -1,7 +1,6 @@
 <!--
     One day of one direction: back to the week, a preview bar, then one row per
-    period. Editing a period and copying to other days stay with the editor
-    until their own views exist.
+    period. Opening a period and copying are the editor's views.
 -->
 <script setup lang="ts">
 import { computed } from 'vue';
@@ -79,14 +78,16 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
             </button>
             <div class="day__titles">
                 <h3 class="day__title">{{ t(`schedule.dayName.${day}`) }}</h3>
-                <p class="day__subtitle">{{ subtitle }} · {{ countText }}</p>
+                <p class="day__subtitle">
+                    <span class="day__lead">{{ subtitle }}</span> <span class="day__count">{{ countText }}</span>
+                </p>
             </div>
             <button type="button" class="day__action" :disabled="locked || busy || slots.length === 0" @click="emit('copy')">
                 {{ t('schedule.copy.open') }}
             </button>
         </header>
 
-        <ScheduleTrack :program="program" :day="day" gap-label="" :now="now" :label="t(`schedule.dayName.${day}`)" />
+        <ScheduleTrack :program="program" :day="day" :now="now" :label="t(`schedule.dayName.${day}`)" />
 
         <div v-if="slots.length === 0" class="day__empty">
             <strong>{{ t('schedule.v2.emptyTitle') }}</strong>
@@ -173,10 +174,6 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
     white-space: nowrap;
 }
 
-.day__subtitle {
-    overflow-wrap: anywhere;
-}
-
 .day__title {
     overflow: hidden;
     font-size: 1.125rem;
@@ -187,6 +184,16 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
 .day__subtitle {
     font-size: 0.875rem;
     color: var(--c-text-muted);
+    overflow-wrap: anywhere;
+}
+
+/* The separator trails the first part, so a wrapped line never starts on it. */
+.day__lead::after {
+    content: '\00a0·';
+}
+
+.day__count {
+    white-space: nowrap;
 }
 
 .day__back,
@@ -197,8 +204,8 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
     align-items: center;
     justify-content: center;
     gap: var(--space-1);
-    min-block-size: 2.75rem;
-    min-inline-size: 2.75rem;
+    min-block-size: 44px;
+    min-inline-size: 44px;
     padding: 0 var(--space-3);
     font: inherit;
     color: var(--c-text);
@@ -259,7 +266,7 @@ button:disabled {
     align-items: center;
     gap: var(--space-3);
     inline-size: 100%;
-    min-block-size: 2.75rem;
+    min-block-size: 44px;
     padding: 0 var(--space-2);
     font: inherit;
     color: var(--c-text);
@@ -312,13 +319,15 @@ button:disabled {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    min-block-size: 2.75rem;
+    min-block-size: 44px;
 }
 
 .day__off input {
     inline-size: 1.25rem;
     block-size: 1.25rem;
     accent-color: var(--c-accent);
+    /* The native box follows the theme; otherwise it stays white in dark mode. */
+    color-scheme: inherit;
 }
 
 .day__stepper {

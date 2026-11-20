@@ -196,12 +196,7 @@
             "edit": "Edit period",
             "start": "Start",
             "end": "End",
-            "endHint": "An end before the start runs past midnight.",
-            "setpoint": "Setpoint (°C)",
-            "days": "Days",
-            "level": "Level {n}",
-            "raise": "Raise priority",
-            "lower": "Lower priority",
+            "setpoint": "Temperature",
             "delete": "Delete",
             "cancel": "Cancel",
             "save": "Save"
@@ -209,24 +204,22 @@
         "copy": {
             "open": "Copy to…",
             "title": "Copy {day} to",
-            "nothing": "Nothing to copy: this day has no slot",
-            "workdays": "Weekdays",
+            "nothing": "Nothing to copy: this day has no period",
+            "workdays": "Workdays",
             "weekend": "Weekend",
             "all": "All",
-            "submit": "Copy",
+            "submit": "Copy to {n} day | Copy to {n} days",
             "cancel": "Cancel",
-            "confirmTitle": "Replace slots?",
-            "slots": "{day} ({count} slot) | {day} ({count} slots)",
+            "warning": "Replaces the existing periods of these days",
+            "confirmTitle": "Replace periods?",
+            "periods": "{day} ({count} period) | {day} ({count} periods)",
             "and": "{list} and {last}",
             "confirm": "{targets} will be replaced by those of {source}. | {targets} will be replaced by those of {source}.",
             "replace": "Replace and copy",
-            "failed": "Copy incomplete: not saved, try again"
+            "failed": "Copy incomplete: not saved, try again",
+            "source": "source"
         },
-        "simple": {
-            "apply": "Apply",
-            "applied": "Applied to level {n}."
-        },
-        "tooMany": "{n} levels maximum for {dir}",
+        "tooMany": "{n} different setpoints maximum",
         "error": {
             "range": "The end must follow the start",
             "notWritten": "Not saved, try again",
@@ -246,7 +239,21 @@
             "emptyTitle": "No period that day",
             "rest": "The rest of the time",
             "minus": "Decrease",
-            "plus": "Increase"
+            "plus": "Increase",
+            "midnight": "This period crosses midnight. It will be saved as two periods: {a} and {b}.",
+            "nextDay": "+1 day",
+            "overlap": "Overlaps “{range}” ({setpoint}°).",
+            "overlapMine": "Between {from} and {to}, this period ({setpoint}°) applies: it takes priority.",
+            "overlapOther": "Between {from} and {to}, that period ({setpoint}°) applies: it takes priority.",
+            "order": "{a}° takes priority over {b}°.",
+            "swap": "Swap",
+            "deleteConfirm": "Delete the period {range}?",
+            "close": "Close",
+            "back": "Back to {day}",
+            "retry": "Retry",
+            "rangeError": "The end must differ from the start",
+            "notSaved": "Not saved, try again",
+            "breadcrumb": "Week › {day} › {leaf}"
         }
     },
     "dialog": {

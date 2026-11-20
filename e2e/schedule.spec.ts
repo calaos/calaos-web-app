@@ -41,6 +41,12 @@ async function openDay(dialog: Locator, name: string): Promise<void> {
     await expect(dialog.getByRole('heading', { name })).toBeVisible();
 }
 
+/** Presses a stepper of the period view n times. */
+async function step(dialog: Locator, field: string, sign: 'plus' | 'minus', n: number): Promise<void> {
+    const button = dialog.getByRole('button', { name: `${field} ${S.v2[sign]}`, exact: true });
+    for (let i = 0; i < n; i++) await button.click();
+}
+
 /** The ranges of every set_timerange the mock saw for one level IO. */
 async function writes(mock: MockControl, id: string): Promise<Record<string, string>[][]> {
     return (await mock.log())
@@ -48,13 +54,33 @@ async function writes(mock: MockControl, id: string): Promise<Record<string, str
         .map((entry) => (entry.frame?.data as unknown as { ranges: Record<string, string>[] }).ranges);
 }
 
-async function shot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
-    await page.evaluate(() => document.fonts.ready);
-    // The dialog fades in: a capture taken mid-fade shows the list through it.
+/**
+ * One capture per theme. The phone project is shot at 390 px, the width the
+ * mock-ups were drawn for (a Pixel 7 is 412).
+ */
+async function settle(page: Page): Promise<void> {
     await page.evaluate(() => Promise.all(document.getAnimations()
-                .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
-                .map((a) => a.finished.catch(() => undefined))));
-    await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
+        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => undefined))));
+}
+
+async function shot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
+    if (!process.env.ARCHI_SHOT) return;
+    const phone = testInfo.project.name === 'mobile-pixel7';
+    const format = phone ? 'phone' : 'desktop';
+    const size = page.viewportSize();
+    if (phone) await page.setViewportSize({ width: 390, height: 844 });
+    for (const theme of ['dark', 'light']) {
+        await page.evaluate((t) => {
+            if (t === 'light') document.documentElement.dataset.theme = 'light';
+            else delete document.documentElement.dataset.theme;
+        }, theme);
+        await page.evaluate(() => document.fonts.ready);
+        // The dialog fades in: a capture taken mid-fade shows the list through it.
+        await settle(page);
+        await page.screenshot({ path: testInfo.outputPath(`${name}-${format}-${theme}.png`), fullPage: true });
+    }
+    if (size) await page.setViewportSize(size);
 }
 
 test.beforeEach(async ({ page, mock }) => {
@@ -72,14 +98,11 @@ test('a slot edited in the editor is written, then read back after a reload', as
     await shot(page, testInfo, 'shot-01-nominal');
 
     await dialog.getByRole('button', { name: period('06:30', '08:00', '19') }).click();
-    await expect(dialog.getByRole('heading', { name: S.form.edit })).toBeVisible();
-    // The form edits the slot of the day being shown; other days are opt-in.
-    await expect(dialog.getByRole('button', { name: 'Monday', pressed: true, exact: true })).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Tuesday', pressed: false, exact: true })).toBeVisible();
-    await dialog.getByRole('button', { name: 'Tuesday', exact: true }).click();
+    await expect(dialog.getByRole('heading', { name: '06:30 – 08:00' })).toBeVisible();
     await shot(page, testInfo, 'shot-02-form');
 
-    await dialog.getByLabel(S.form.end).fill('09:00');
+    await step(dialog, S.form.end, 'plus', 4);
+    await expect(dialog.locator('[data-test="end"]')).toHaveText('09:00');
     await dialog.getByRole('button', { name: S.form.save }).click();
 
     await expect
@@ -88,7 +111,7 @@ test('a slot edited in the editor is written, then read back after a reload', as
             const last = sent.at(-1) ?? [];
             return last.filter((r) => r.start_hour === '6' && r.end_hour === '9').map((r) => r.day).sort();
         })
-        .toEqual(['1', '2']);
+        .toEqual(['1']);
     await expect(dialog.getByRole('button', { name: period('06:30', '09:00', '19') })).toBeVisible();
 
     await page.reload();
@@ -106,21 +129,25 @@ test('a slot edited in the editor is written, then read back after a reload', as
     await shot(page, testInfo, 'shot-01b-empty-day');
 });
 
+/** The copy sheet: pick days, then submit (a second press confirms the replacement). */
+async function copyTo(dialog: Locator, from: string, days: string[]): Promise<Locator> {
+    await dialog.getByRole('button', { name: S.copy.open }).click();
+    const sheet = dialog.getByRole('dialog', { name: `Copy ${from} to` });
+    for (const d of days) await sheet.getByRole('button', { name: d, exact: true }).click();
+    await sheet.getByRole('button', { name: /^Copy to \d/ }).click();
+    return sheet;
+}
+
 test('copying a day over one that has slots asks first, then replaces them', async ({ page, mock }, testInfo) => {
     const dialog = await openEditor(page);
     await openDay(dialog, 'Monday');
-    await dialog.getByRole('button', { name: S.copy.open }).click();
-    const panel = dialog.getByRole('region', { name: 'Copy Monday to' });
-    await panel.getByRole('button', { name: 'Saturday' }).click();
-    await panel.getByRole('button', { name: S.copy.submit }).click();
-
-    const confirm = dialog.getByRole('alertdialog', { name: S.copy.confirmTitle });
-    await expect(confirm).toBeVisible();
-    await expect(confirm).toContainText('Saturday');
+    const sheet = await copyTo(dialog, 'Monday', ['Saturday']);
+    await expect(sheet.getByRole('alert')).toContainText('Saturday');
     await shot(page, testInfo, 'shot-03-copy-confirm');
 
-    await confirm.getByRole('button', { name: S.copy.replace }).click();
+    await sheet.getByRole('button', { name: S.copy.replace }).click();
     await expect.poll(async () => (await writes(mock, HEAT_L1)).length).toBeGreaterThan(0);
+    await expect(sheet).toHaveCount(0);
 
     await dialog.getByRole('button', { name: S.week, exact: true }).click();
     await openDay(dialog, 'Saturday');
@@ -129,18 +156,44 @@ test('copying a day over one that has slots asks first, then replaces them', asy
     await shot(page, testInfo, 'shot-04-copied');
 });
 
+test('a copy to two days that fails halfway stays open; the retry copies to both', async ({ page, mock }, testInfo) => {
+    const dialog = await openEditor(page);
+    await openDay(dialog, 'Monday');
+    await mock.send({ op: 'timerange_fail', after: 0 });
+    const sheet = await copyTo(dialog, 'Monday', ['Saturday', 'Sunday']);
+    await sheet.getByRole('button', { name: S.copy.replace }).click();
+    await expect(sheet.getByRole('alert').filter({ hasText: S.copy.failed })).toBeVisible();
+    await shot(page, testInfo, 'shot-12b-copy-retry');
+
+    // The sheet stays open on the same choice: pressing it again sends the same copy.
+    await sheet.getByRole('button', { name: S.copy.replace }).click();
+    await expect(sheet).toHaveCount(0);
+    await page.reload();
+    await loginAs(page, undefined, /#\/home/);
+    const again = await openEditor(page);
+    for (const d of ['Saturday', 'Sunday']) {
+        await openDay(again, d);
+        await expect(again.getByRole('button', { name: period('06:30', '08:00', '19') })).toBeVisible();
+        await expect(again.getByRole('button', { name: /^Edit / })).toHaveCount(2);
+        await again.getByRole('button', { name: S.week, exact: true }).click();
+    }
+});
+
 test('a write the server could not save shows an alert with a retry, and the editor re-reads', async ({ page, mock }, testInfo) => {
     const dialog = await openEditor(page);
     await openDay(dialog, 'Monday');
     await mock.send({ op: 'timerange_fail' });
 
     await dialog.getByRole('button', { name: period('17:30', '22:30', '19') }).click();
-    await dialog.getByLabel(S.form.start).fill('18:00');
+    await step(dialog, S.form.start, 'plus', 2);
     await dialog.getByRole('button', { name: S.form.save }).click();
 
     const alert = dialog.getByRole('alert').filter({ hasText: S.error.notWritten });
     await expect(alert).toBeVisible();
     await expect(alert.getByRole('button', { name: S.retry })).toBeVisible();
+    // The view stays open with its draft: closing it would look like a save.
+    await expect(dialog.getByRole('heading', { name: '17:30 – 22:30' })).toBeVisible();
+    await expect(dialog.locator('[data-test="start"]')).toHaveText('18:00');
     await shot(page, testInfo, 'shot-05-not-written');
 });
 
@@ -166,42 +219,45 @@ test('the seventh temperature is refused with a message and nothing is written',
     await openDay(dialog, 'Monday');
     const addSlot = dialog.getByRole('button', { name: S.addSlot, exact: true }).last();
 
-    const add = async (hour: number, setpoint: string): Promise<void> => {
+    const add = async (hour: number, setpoint: number): Promise<void> => {
         await addSlot.click();
-        await dialog.getByLabel(S.form.start).fill(`${String(hour).padStart(2, '0')}:00`);
-        await dialog.getByLabel(S.form.end).fill(`${String(hour + 1).padStart(2, '0')}:00`);
-        await dialog.getByLabel(S.form.setpoint, { exact: true }).fill(setpoint);
+        await step(dialog, S.form.start, 'minus', 32 - hour * 4);
+        await step(dialog, S.form.end, 'minus', 36 - hour * 4);
+        const target = dialog.locator('[data-test="setpoint"]');
+        while (!(await target.innerText()).startsWith(String(setpoint))) {
+            await step(dialog, S.form.setpoint, 'plus', 2);
+        }
         await dialog.getByRole('button', { name: S.form.save }).click();
     };
-    await add(1, '22');
-    await add(2, '23');
-    await add(3, '24');
+    await add(1, 22);
+    await add(2, 23);
+    await add(3, 24);
     await expect(dialog.getByRole('button', { name: period('01:00', '02:00', '22') })).toBeVisible();
     await shot(page, testInfo, 'shot-10-six-levels');
 
     const before = (await mock.log()).length;
     await addSlot.click();
-    await dialog.getByLabel(S.form.start).fill('04:00');
-    await dialog.getByLabel(S.form.end).fill('05:00');
-    await dialog.getByLabel(S.form.setpoint, { exact: true }).fill('25');
-    await dialog.getByRole('button', { name: S.form.save }).click();
-    await expect(dialog.getByRole('alert').filter({ hasText: S.tooMany.replace('{n}', '6').replace('{dir}', S.heat) })).toBeVisible();
-    await expect(dialog.getByRole('heading', { name: S.form.new })).toBeVisible();
+    await step(dialog, S.form.setpoint, 'plus', 16);
+    const refused = S.tooMany.replace('{n}', '6');
+    await expect(dialog.getByRole('alert').filter({ hasText: refused })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: S.form.save })).toBeDisabled();
     expect((await mock.log()).length).toBe(before);
-    await dialog.getByRole('button', { name: S.form.save }).scrollIntoViewIfNeeded();
     await shot(page, testInfo, 'shot-09-seventh-refused');
 });
 
 test('the week has no editable bar; a row opens its day; the back button and Escape return to the week', async ({ page }, testInfo) => {
     const dialog = await openEditor(page);
     await expect(dialog.getByRole('heading', { name: 'Monday' })).toHaveCount(0);
-    await expect(dialog.getByRole('heading', { name: S.form.edit })).toHaveCount(0);
+    await expect(dialog.getByRole('heading', { name: '06:30 – 08:00' })).toHaveCount(0);
 
     await openDay(dialog, 'Monday');
     await expect(dialog.getByText(/\d+ periods/).first()).toBeVisible();
     await dialog.getByRole('button', { name: period('06:30', '08:00', '19') }).click();
-    await expect(dialog.getByRole('heading', { name: S.form.edit })).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: '06:30 – 08:00' })).toBeVisible();
 
+    // Escape goes back one view at a time and never closes the dialog from inside it.
+    await page.keyboard.press('Escape');
+    await expect(dialog.getByRole('heading', { name: 'Monday' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog.getByRole('button', { name: /^Monday, Heating/ })).toBeVisible();
     await expect(dialog).toBeVisible();
@@ -222,12 +278,146 @@ test('copying is unavailable on an empty day; a copy that fails is reported as i
     await dialog.getByRole('button', { name: S.week, exact: true }).click();
     await dialog.getByRole('tab', { name: /^Heating/ }).click();
     await openDay(dialog, 'Saturday');
-    await dialog.getByRole('button', { name: S.copy.open }).click();
     await mock.send({ op: 'timerange_fail' });
-    const panel = dialog.getByRole('region', { name: 'Copy Saturday to' });
-    await panel.getByRole('button', { name: 'Sunday' }).click();
-    await panel.getByRole('button', { name: S.copy.submit }).click();
-    await dialog.getByRole('alertdialog', { name: S.copy.confirmTitle }).getByRole('button', { name: S.copy.replace }).click();
-    await expect(dialog.getByText(S.copy.failed)).toBeVisible();
+    const sheet = await copyTo(dialog, 'Saturday', ['Sunday']);
+    await sheet.getByRole('button', { name: S.copy.replace }).click();
+    await expect(dialog.getByText(S.copy.failed).first()).toBeVisible();
     await shot(page, testInfo, 'shot-12-copy-incomplete');
+});
+
+test('a period that crosses midnight is saved as two ranges', async ({ page, mock }, testInfo) => {
+    const dialog = await openEditor(page);
+    await openDay(dialog, 'Monday');
+    await dialog.getByRole('button', { name: S.addSlot, exact: true }).last().click();
+    // 08:00 → 23:00, then the end goes past midnight to 00:30.
+    await step(dialog, S.form.start, 'plus', 60);
+    await step(dialog, S.form.end, 'plus', 58);
+    await expect(dialog.locator('[data-test="next-day"]')).toBeVisible();
+    await expect(dialog.getByRole('status').filter({ hasText: '24:00' })).toBeVisible();
+    await shot(page, testInfo, 'shot-14-midnight');
+    await dialog.getByRole('button', { name: S.form.save }).click();
+    await expect.poll(async () => (await mock.log()).filter((e) => e.frame?.msg === 'set_timerange').length).toBeGreaterThan(0);
+    const sent = (await mock.log()).filter((e) => e.frame?.msg === 'set_timerange').flatMap((e) => (e.frame?.data as unknown as { ranges: Record<string, string>[] }).ranges);
+    expect(sent.some((r) => r.day === '1' && r.start_hour === '23' && r.end_hour === '23' && r.end_min === '59')).toBe(true);
+    expect(sent.some((r) => r.day === '2' && r.start_hour === '0' && r.end_hour === '0' && r.end_min === '30')).toBe(true);
+});
+
+test('a period is deleted only after a confirmation', async ({ page, mock }, testInfo) => {
+    const dialog = await openEditor(page);
+    await openDay(dialog, 'Monday');
+    await dialog.getByRole('button', { name: period('17:30', '22:30', '19') }).click();
+    await dialog.getByRole('button', { name: S.form.delete }).click();
+    const confirm = dialog.getByRole('alertdialog');
+    await expect(confirm).toBeVisible();
+    await shot(page, testInfo, 'shot-15-delete-confirm');
+    const before = (await mock.log()).length;
+    await confirm.getByRole('button', { name: S.form.cancel }).click();
+    expect((await mock.log()).length).toBe(before);
+
+    await dialog.getByRole('button', { name: S.form.delete }).click();
+    await dialog.getByRole('alertdialog').getByRole('button', { name: S.form.delete }).click();
+    await expect(dialog.getByRole('button', { name: period('17:30', '22:30', '19') })).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: period('06:30', '08:00', '19') })).toBeVisible();
+});
+
+test('swapping two overlapping periods that fails halfway keeps the view open; the retry finishes the same swap', async ({ page, mock }, testInfo) => {
+    const dialog = await openEditor(page);
+    await openDay(dialog, 'Monday');
+    await dialog.getByRole('button', { name: S.addSlot, exact: true }).last().click();
+    // 07:00-10:00 at 21 overlaps the 06:30-08:00 period at 19.
+    await step(dialog, S.form.start, 'minus', 4);
+    await step(dialog, S.form.setpoint, 'plus', 8);
+    const overlap = dialog.locator('[data-test="overlap"]');
+    await expect(overlap).toBeVisible();
+    await overlap.getByRole('button', { name: S.v2.swap }).click();
+    await expect(dialog.locator('[data-test="track-overlap"]')).toBeVisible();
+    await shot(page, testInfo, 'shot-16-overlap-swapped');
+
+    // The first range write succeeds, the second one is refused.
+    await mock.send({ op: 'timerange_fail', after: 1 });
+    await dialog.getByRole('button', { name: S.form.save }).click();
+    const alert = dialog.getByRole('alert').filter({ hasText: S.error.notWritten });
+    await expect(alert).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: S.addSlot, exact: true })).toBeVisible();
+    await alert.getByRole('button', { name: S.retry }).click();
+    await expect(dialog.getByRole('heading', { name: S.addSlot, exact: true })).toHaveCount(0);
+
+    // After the retry the server holds the swap exactly once: level 1 now carries the 21 degree period.
+    const all = (await mock.log()).filter((e) => e.frame?.msg === 'set_timerange').flatMap((e) => (e.frame?.data as unknown as { ranges: Record<string, string>[] }).ranges);
+    expect(all.some((r) => r.day === '1' && r.start_hour === '7' && r.end_hour === '10')).toBe(true);
+    await page.reload();
+    await loginAs(page, undefined, /#\/home/);
+    const again = await openEditor(page);
+    await openDay(again, 'Monday');
+    await expect(again.getByRole('button', { name: period('07:00', '10:00', '21') })).toBeVisible();
+    await expect(again.getByRole('button', { name: period('06:30', '08:00', '19') })).toBeVisible();
+    await expect(again.getByRole('button', { name: /^Edit / })).toHaveCount(3);
+});
+
+test('the program paused and the connection lost are shown in the editor', async ({ page, mock }, testInfo) => {
+    await page.locator('.room-tile').nth(LOUNGE).click();
+    await page.locator('.io-row').filter({ has: page.locator('.io-row__name', { hasText: THERMOSTAT }) }).click();
+    await page.locator('.climate-detail').getByRole('switch').click();
+    await expect(page.locator('.climate-detail__paused')).toBeVisible();
+    await page.locator('.climate-detail').getByRole('button', { name: S.edit }).click();
+    const dialog = editor(page);
+    await expect(dialog.getByRole('button', { name: /^Monday, Heating/ })).toBeVisible();
+    await shot(page, testInfo, 'shot-17-paused');
+
+    await mock.drop();
+    await expect(dialog.getByText(S.readOnly)).toBeVisible();
+    await openDay(dialog, 'Monday');
+    await expect(dialog.getByRole('button', { name: S.addSlot, exact: true })).toBeDisabled();
+    await shot(page, testInfo, 'shot-18-offline');
+});
+
+test('every control of the editor is at least 44 px and shows a focus ring', async ({ page }) => {
+    const dialog = await openEditor(page);
+    const check = async (): Promise<void> => {
+        // The dialog fades in with a transform: measured mid-animation a 44 px box reads 43.99997.
+        await settle(page);
+        const controls = dialog.locator('button:visible, [role="tab"]:visible');
+        const n = await controls.count();
+        for (let i = 0; i < n; i++) {
+            const box = await controls.nth(i).boundingBox();
+            const name = await controls.nth(i).innerText();
+            expect(box && Math.round(box.width) >= 44 && Math.round(box.height) >= 44, `${name.trim() || i}: ${box?.width}x${box?.height}`).toBe(true);
+        }
+    };
+    await check();
+    await openDay(dialog, 'Monday');
+    await check();
+    await dialog.getByRole('button', { name: period('06:30', '08:00', '19') }).click();
+    await check();
+
+    // Tab away from the back button: the element that gets focus draws an outline.
+    await page.keyboard.press('Tab');
+    await expect(page.locator(':focus')).toHaveCSS('outline-style', 'solid');
+});
+
+test('the period form fits the dialog at 390 and 1280 px, error message included', async ({ page }) => {
+    const dialog = await openEditor(page);
+    await openDay(dialog, 'Monday');
+    await dialog.getByRole('button', { name: S.addSlot, exact: true }).last().click();
+    // Start equals end: the range error appears under the fields.
+    const error = dialog.getByRole('alert').filter({ hasText: S.v2.rangeError });
+    for (let i = 0; i < 96 && !(await error.isVisible()); i++) await step(dialog, S.form.end, 'minus', 1);
+    await expect(error).toBeVisible();
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({ width, height: 844 });
+        await settle(page);
+        const clipped = await dialog.evaluate((box) => {
+            // The period view's own box: the dialog's padding would hide an overflow.
+            const bounds = (box.querySelector('.period') ?? box).getBoundingClientRect();
+            const out: string[] = [];
+            for (const el of box.querySelectorAll<HTMLElement>('.period button, .period output, .period__label, .period__note, .period__field')) {
+                const r = el.getBoundingClientRect();
+                if (r.width === 0) continue;
+                if (r.left < bounds.left - 0.5 || r.right > bounds.right + 0.5) out.push(`${el.className} ${Math.round(r.left)}..${Math.round(r.right)} in ${Math.round(bounds.left)}..${Math.round(bounds.right)}`);
+                if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflow !== 'visible') out.push(`${el.className} text cut`);
+            }
+            return out;
+        });
+        expect(clipped, `${width}px`).toEqual([]);
+    }
 });

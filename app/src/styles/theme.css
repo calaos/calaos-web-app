@@ -28,6 +28,8 @@
     --c-accent: #38b0d3;
     /* Text on an accent fill. */
     --c-on-accent: #111111;
+    /* Accent as text: the light accent fill is only 4.5:1 on the page. */
+    --c-accent-text: #38b0d3;
     --c-accent-glow: rgba(56, 176, 211, 0.45);
 
     --c-danger: #e05656;
@@ -84,4 +86,49 @@
     /* Layering */
     --z-background: -1;
     --z-chrome: 100;
+
+    /* Behind a modal sheet. */
+    --c-scrim: rgba(0, 0, 0, 0.6);
+
+    /* Program levels: 1 is the strongest setpoint of a direction. Text on a
+       segment is --c-on-level-dark below level 4, --c-on-level-light above. */
+    --lv-h1: #ffe08a;
+    --lv-h2: #ffc247;
+    --lv-h3: #ff9a3c;
+    --lv-h4: #f2693a;
+    --lv-h5: #d94a4a;
+    --lv-h6: #b3345f;
+    --lv-c1: #a6e3f2;
+    --lv-c2: #6cc9e6;
+    --lv-c3: #38b0d3;
+    --lv-c4: #3b8fd0;
+    --lv-c5: #4a6fd0;
+    --lv-c6: #6a55c4;
+    --c-on-level-dark: #000000;
+    --c-on-level-light: #ffffff;
+    color-scheme: dark;
+}
+
+/* Light variant; set data-theme="light" on the root element. */
+:root[data-theme='light'] {
+    --c-bg: #f4f5f6;
+    --c-surface: #ffffff;
+    --c-surface-raised: #eef0f2;
+    --c-border: #d8dbde;
+    --c-border-strong: #9aa0a6;
+    --c-track: #8a9096;
+    --c-text: #1b1d1f;
+    --c-text-muted: #5a6066;
+    --c-heat: #b07800;
+    --c-accent: #0a7a9a;
+    --c-on-accent: #ffffff;
+    --c-accent-text: #07657f;
+    --c-accent-glow: rgba(10, 122, 154, 0.35);
+    --c-danger: #c62f2f;
+    --c-danger-text: #a82020;
+    --c-warn: #8a5a0a;
+    --c-warn-border: rgba(138, 90, 10, 0.4);
+    --c-warn-bg: rgba(255, 236, 200, 0.7);
+    --c-scrim: rgba(20, 24, 28, 0.45);
+    color-scheme: light;
 }

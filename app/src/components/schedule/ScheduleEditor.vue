@@ -1,45 +1,40 @@
 <!--
     Climate program editor. Every change is written at once: one set_state per
     changed level setpoint, then one set_timerange per changed level, in
-    sequence. 'simple' is the one-entry form the scenarios reuse.
+    sequence. Week, day and period are three views over the same program.
 -->
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ScheduleCopySheet from './ScheduleCopySheet.vue';
 import ScheduleDay from './ScheduleDay.vue';
+import SchedulePeriod from './SchedulePeriod.vue';
 import ScheduleWeek from './ScheduleWeek.vue';
+import type { PeriodEntry } from './SchedulePeriod.vue';
 import { useProgram } from '../../composables/useProgram';
 import { useConnectionStore } from '../../stores/connection';
 import { useScheduleStore } from '../../stores/schedule';
 import {
     WEEKDAYS,
-    WEEKEND,
-    WORKDAYS,
-    applySimple,
     copyDay,
     diffPrograms,
     errorKey,
-    formatMinutes,
     isError,
+    levelFor,
     levelIos,
     levelRanges,
-    moveLevel,
-    parseMinutes,
     programFromWire,
     removeSlots,
     setpointOf,
     slotsOfDay,
     sortSlots,
+    swapLevels,
     upsertSlot,
-    usedLevels,
 } from '../../protocol/schedule';
 import type { Direction, DirectionProgram, ProgramEdit, ScheduleError, Slot } from '../../protocol/schedule';
 import type { IoItem } from '../../protocol/types';
 
-const props = withDefaults(defineProps<{ io: IoItem; mode?: 'multi' | 'simple'; readonly?: boolean }>(), {
-    mode: 'multi',
-    readonly: false,
-});
+const props = withDefaults(defineProps<{ io: IoItem; readonly?: boolean }>(), { readonly: false });
 
 const { t, locale } = useI18n();
 const store = useScheduleStore();
@@ -53,8 +48,8 @@ const ios = computed(() => props.io.device?.ios ?? {});
 const levelsOf = computed(() => ({ heat: levelIos(ios.value, 'heat'), cool: levelIos(ios.value, 'cool') }));
 const directions = computed(() => (['heat', 'cool'] as Direction[]).filter((d) => levelsOf.value[d].length > 0));
 
-/** Week is the root; a day opens over it. The scenario form has no week. */
-const view = ref<'week' | 'day'>('week');
+/** Week is the root; a day opens over it, a period over the day. */
+const view = ref<'week' | 'day' | 'period'>('week');
 const direction = ref<Direction>('heat');
 const day = ref(isoDay(new Date()));
 const now = ref(minutesOf(new Date()));
@@ -66,7 +61,6 @@ const busy = ref(false);
 const banner = ref<{ text: string; retry?: () => void } | null>(null);
 /** Refusals that never reached the server (7th level, bad range, nothing to copy). */
 const notice = ref('');
-const done = ref('');
 
 const locked = computed(() => props.readonly || !connection.isOpen || loadFailed.value);
 
@@ -80,10 +74,6 @@ function minutesOf(date: Date): number {
 
 function degrees(value: number): string {
     return value.toLocaleString(locale.value, { minimumFractionDigits: 0, maximumFractionDigits: 1 });
-}
-
-function dayName(d: number): string {
-    return t(`schedule.dayName.${d}`);
 }
 
 function dirName(d: Direction): string {
@@ -125,8 +115,6 @@ const program = computed(() => programOf(direction.value));
 const coolOff = computed(() => store.values.get(ios.value.cool_default_off ?? '') === 'true');
 const defaultOf = (d: Direction) => numberValue(d === 'heat' ? ios.value.heat_default : ios.value.cool_default);
 
-const used = computed(() => (program.value ? usedLevels(program.value) : []));
-const levelCount = computed(() => levelsOf.value[direction.value].length);
 const daySlots = computed(() => (program.value ? slotsOfDay(program.value, day.value) : []));
 const emptyText = computed(() => {
     if (direction.value === 'cool' && coolOff.value) return t('schedule.emptyOff');
@@ -138,7 +126,7 @@ const pausedText = computed(() => {
     const v = programCtl.current.value?.setpoint;
     return v === undefined || v === null ? t('program.paused') : t('schedule.v2.paused', { setpoint: degrees(v) });
 });
-const subtitle = computed(() => `${props.io.name ?? ''} · ${dirName(direction.value)}`.replace(/^ · /, ''));
+const subtitle = computed(() => `${props.io.name ?? ''}\u00a0· ${dirName(direction.value)}`.replace(/^\u00a0· /, ''));
 
 // --------------------------------------------------------------- read ---
 
@@ -246,8 +234,8 @@ async function apply(
     if (!before || locked.value) return null;
     const next = build(before);
     notice.value = '';
-    done.value = '';
     if (isError(next)) {
+        banner.value = null;
         notice.value = refusal(next, d);
         return null;
     }
@@ -305,124 +293,83 @@ async function writeValue(id: string | undefined, value: string): Promise<void> 
     if (error !== '') banner.value = { text: errorText(error), retry: () => void writeValue(id, value) };
 }
 
-// --------------------------------------------------------------- form ---
+// ------------------------------------------------------------- period ---
 
-interface FormState {
-    replacing: Slot[];
-    start: string;
-    end: string;
+interface Draft {
+    slot?: Slot;
+    start: number;
+    end: number;
     setpoint: number;
-    days: number[];
-    level?: number;
 }
 
-const form = ref<FormState | null>(null);
-
-/** input[type=time] has no 24:00: midnight as an end is typed 00:00. */
-function timeText(m: number): string {
-    return m >= 1440 ? '00:00' : formatMinutes(m);
-}
+const draft = ref<Draft | null>(null);
+/** A new key per opening: the period view keeps its own draft until then. */
+const draftKey = ref(0);
 
 function sameSlot(a: Slot, b: Slot): boolean {
     return a.day === b.day && a.start === b.start && a.end === b.end && a.level === b.level;
 }
 
-function suggestedSetpoint(fresh: boolean): number {
-    const base = defaultOf(direction.value) ?? FALLBACK_SETPOINT[direction.value];
-    if (!fresh || !program.value) return base;
-    const taken = new Set(used.value.map((n) => setpointOf(program.value as DirectionProgram, n)));
-    let v = base;
-    while (taken.has(v) && v < SETPOINT_MAX) v += 0.5;
-    return v;
-}
-
-function openNew(fresh = false): void {
+function openPeriod(next: Draft): void {
     notice.value = '';
-    form.value = { replacing: [], start: '08:00', end: '10:00', setpoint: suggestedSetpoint(fresh), days: [day.value] };
+    draft.value = next;
+    draftKey.value++;
+    view.value = 'period';
 }
 
-function openSlot(level: number, at: number): void {
+function openNew(): void {
+    openPeriod({ start: 8 * 60, end: 10 * 60, setpoint: defaultOf(direction.value) ?? FALLBACK_SETPOINT[direction.value] });
+}
+
+function openSlot(slot: Slot): void {
     const p = program.value;
-    const slot = daySlots.value.find((s) => s.level === level && s.start <= at && at < s.end);
-    if (!p || !slot) return;
-    notice.value = '';
-    form.value = {
-        replacing: [slot],
-        start: timeText(slot.start),
-        end: timeText(slot.end),
-        setpoint: setpointOf(p, level) ?? suggestedSetpoint(false),
-        days: [slot.day],
-        level,
-    };
+    if (!p) return;
+    const setpoint = setpointOf(p, slot.level) ?? defaultOf(direction.value) ?? FALLBACK_SETPOINT[direction.value];
+    openPeriod({ slot, start: slot.start, end: slot.end, setpoint });
 }
 
-function toggle(list: number[], d: number): number[] {
-    return list.includes(d) ? list.filter((x) => x !== d) : [...list, d].sort();
+/** Puts the two overlapping setpoints in the wanted order; a no-op once they are, so a retry cannot undo it. */
+function orderLevels(p: DirectionProgram, setpoint: number, priority: NonNullable<PeriodEntry['priority']>): DirectionProgram {
+    const mine = levelFor(p, setpoint);
+    const other = levelFor(p, priority.otherSetpoint);
+    if (isError(mine) || isError(other) || mine.n === other.n) return p;
+    return mine.n < other.n === priority.mineFirst ? p : swapLevels(p, mine.n, other.n);
 }
 
-function entryOf(f: FormState): { days: number[]; start: number; end: number; setpoint: number } | null {
-    const start = parseMinutes(f.start);
-    const end = parseMinutes(f.end);
-    if (Number.isNaN(start) || Number.isNaN(end) || f.days.length === 0) {
-        notice.value = t('schedule.error.range');
-        return null;
-    }
-    return { days: f.days, start, end, setpoint: f.setpoint };
-}
-
-async function saveForm(): Promise<void> {
-    const f = form.value;
-    const entry = f ? entryOf(f) : null;
-    if (!f || !entry) return;
-    await apply(direction.value, (p) =>
-        upsertSlot(
-            p,
-            entry,
-            p.slots.filter((s) => f.replacing.some((r) => sameSlot(r, s))),
-        ),
-        undefined,
-        () => (form.value = null),
-    );
-}
-
-async function deleteForm(): Promise<void> {
-    const f = form.value;
-    if (!f) return;
+async function savePeriod(entry: PeriodEntry): Promise<void> {
+    const origin = draft.value?.slot;
+    const target = { days: [day.value], start: entry.start, end: entry.end, setpoint: entry.setpoint };
     await apply(
         direction.value,
-        (p) => removeSlots(p, p.slots.filter((s) => f.replacing.some((r) => sameSlot(r, s)))),
+        (p) => {
+            const next = upsertSlot(p, target, origin ? p.slots.filter((s) => sameSlot(s, origin)) : []);
+            return isError(next) || !entry.priority ? next : orderLevels(next, entry.setpoint, entry.priority);
+        },
         undefined,
-        () => (form.value = null),
+        backToDay,
     );
 }
 
-async function move(by: -1 | 1): Promise<void> {
-    const f = form.value;
-    if (!f?.level) return;
-    const n = f.level;
-    const next = await apply(direction.value, (p) => moveLevel(p, n, by));
-    if (!next || form.value !== f) return;
-    f.level = n + by;
-    f.replacing = f.replacing.map((s) => ({ ...s, level: n + by }));
+async function removePeriod(): Promise<void> {
+    const origin = draft.value?.slot;
+    if (!origin) return;
+    await apply(direction.value, (p) => removeSlots(p, p.slots.filter((s) => sameSlot(s, origin))), undefined, backToDay);
 }
 
-async function applySimpleForm(): Promise<void> {
-    const f = form.value;
-    const entry = f ? entryOf(f) : null;
-    if (!entry) return;
-    const next = await apply(direction.value, (p) => applySimple(p, entry));
-    const level = next?.slots.find((s) => s.day === entry.days[0] && s.start === entry.start)?.level;
-    if (level !== undefined) done.value = t('schedule.simple.applied', { n: level });
+function backToDay(): void {
+    view.value = 'day';
+    draft.value = null;
 }
 
 // --------------------------------------------------------------- copy ---
 
 const copyOpen = ref(false);
-const copyTargets = ref<number[]>([]);
-const confirming = ref(false);
-const confirmBox = ref<HTMLElement | null>(null);
 const bannerBox = ref<HTMLElement | null>(null);
 const noticeBox = ref<HTMLElement | null>(null);
+
+const dayCounts = computed(() =>
+    Object.fromEntries(WEEKDAYS.map((d) => [d, program.value ? slotsOfDay(program.value, d).length : 0])) as Record<number, number>,
+);
 
 // The editor sits in a scrolling dialog: an error raised from the bottom of it must not stay off screen.
 watch([banner, notice], async () => {
@@ -431,48 +378,17 @@ watch([banner, notice], async () => {
 });
 
 function openCopy(): void {
-    form.value = null;
-    done.value = '';
     if (daySlots.value.length === 0) {
         notice.value = t('schedule.copy.nothing');
         return;
     }
     notice.value = '';
-    copyTargets.value = [];
-    confirming.value = false;
+    if (!loadFailed.value) banner.value = null;
     copyOpen.value = true;
 }
 
-function pick(list: readonly number[]): void {
-    copyTargets.value = list.filter((d) => d !== day.value);
-}
-
-const occupied = computed(() =>
-    copyTargets.value
-        .map((d) => ({ d, count: program.value ? slotsOfDay(program.value, d).length : 0 }))
-        .filter((x) => x.count > 0),
-);
-
-const confirmText = computed(() => {
-    const parts = occupied.value.map((x) => t('schedule.copy.slots', { day: dayName(x.d), count: x.count }, x.count));
-    const targets = parts.length > 1 ? t('schedule.copy.and', { list: parts.slice(0, -1).join(', '), last: parts.at(-1) }) : (parts[0] ?? '');
-    const text = t('schedule.copy.confirm', { targets, source: dayName(day.value) }, parts.length);
-    return text.charAt(0).toLocaleUpperCase(locale.value) + text.slice(1);
-});
-
-function submitCopy(): void {
-    if (occupied.value.length > 0) {
-        confirming.value = true;
-        void Promise.resolve().then(() => confirmBox.value?.focus());
-    } else {
-        void runCopy();
-    }
-}
-
-async function runCopy(): Promise<void> {
+async function runCopy(targets: number[]): Promise<void> {
     const source = day.value;
-    const targets = [...copyTargets.value];
-    confirming.value = false;
     await apply(direction.value, (p) => copyDay(p, source, targets), t('schedule.copy.failed'), () => (copyOpen.value = false));
 }
 
@@ -480,17 +396,13 @@ async function runCopy(): Promise<void> {
 
 function selectDirection(d: Direction): void {
     direction.value = d;
-    form.value = null;
     copyOpen.value = false;
     notice.value = '';
-    done.value = '';
-    if (props.mode === 'simple') openNew();
 }
 
 function selectDay(d: number): void {
     day.value = d;
     view.value = 'day';
-    form.value = null;
     copyOpen.value = false;
     notice.value = '';
 }
@@ -500,36 +412,36 @@ const rootEl = ref<HTMLElement>();
 function backToWeek(): void {
     const from = day.value;
     view.value = 'week';
-    form.value = null;
+    draft.value = null;
     copyOpen.value = false;
     notice.value = '';
-    done.value = '';
-    // The back button is gone: without a new focus target Escape no longer reaches the dialog.
+    // The back button unmounts; focus would fall to body.
     void nextTick(() => {
         const rows = rootEl.value?.querySelectorAll<HTMLElement>('.week__row');
         rows?.[(WEEKDAYS as readonly number[]).indexOf(from)]?.focus();
     });
 }
 
+// The clicked row unmounts with the view it opened; without this focus falls to body and Escape is lost.
+watch(view, (now) => {
+    if (now === 'week') return;
+    void nextTick(() => rootEl.value?.querySelector<HTMLElement>(now === 'day' ? '.day__back' : '.period__back')?.focus());
+});
+
 /** Escape is the back button of the view; only the week lets it reach the dialog. */
 function onEscape(event: KeyboardEvent): void {
-    if (props.mode !== 'multi' || view.value !== 'day') return;
+    if (view.value === 'week') return;
     event.stopPropagation();
     event.preventDefault();
-    backToWeek();
-}
-
-function onSlot(slot: Slot): void {
-    openSlot(slot.level, slot.start);
+    if (view.value === 'period') backToDay();
+    else backToWeek();
 }
 
 let clock: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
     if (!directions.value.includes(direction.value)) direction.value = directions.value[0] ?? 'heat';
     clock = setInterval(() => (now.value = minutesOf(new Date())), 60_000);
-    void load().then(() => {
-        if (props.mode === 'simple') openNew();
-    });
+    void load();
 });
 onBeforeUnmount(() => clearInterval(clock));
 
@@ -538,7 +450,7 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
 </script>
 
 <template>
-    <div ref="rootEl" class="schedule" :class="`schedule--${mode}`" @keydown.esc="onEscape">
+    <div ref="rootEl" class="schedule" @keydown.esc="onEscape">
         <div v-if="loading" class="schedule__loading" role="status">
             <div class="schedule__skeleton" aria-hidden="true" />
             <p>{{ t('schedule.loading') }}</p>
@@ -554,22 +466,8 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
             <p v-if="programCtl.error.value" class="schedule__notice" role="alert">{{ programCtl.error.value }}</p>
             <p v-if="readonly || !connection.isOpen" class="schedule__muted">{{ t('schedule.readOnly') }}</p>
 
-            <div v-if="mode === 'simple' && directions.length > 1" class="schedule__tabs" role="tablist" :aria-label="t('schedule.tabs')">
-                <button
-                    v-for="d in directions"
-                    :key="d"
-                    type="button"
-                    role="tab"
-                    class="schedule__button"
-                    :aria-selected="d === direction"
-                    @click="selectDirection(d)"
-                >
-                    {{ dirName(d) }}
-                </button>
-            </div>
-
             <ScheduleWeek
-                v-if="mode === 'multi' && program && view === 'week'"
+                v-if="program && view === 'week'"
                 :program="program"
                 :directions="directions"
                 :direction="direction"
@@ -584,8 +482,28 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                 @toggle="programCtl.toggle()"
             />
 
+            <SchedulePeriod
+                v-else-if="program && view === 'period' && draft"
+                :key="draftKey"
+                :program="program"
+                :direction="direction"
+                :day="day"
+                :existing="draft.slot"
+                :start="draft.start"
+                :end="draft.end"
+                :setpoint="draft.setpoint"
+                :locked="locked"
+                :busy="busy"
+                :min="SETPOINT_MIN"
+                :max="SETPOINT_MAX"
+                :now="day === isoDay(new Date()) ? now : undefined"
+                @back="backToDay"
+                @save="savePeriod"
+                @remove="removePeriod"
+            />
+
             <ScheduleDay
-                v-else-if="mode === 'multi' && program"
+                v-else-if="program"
                 :program="program"
                 :direction="direction"
                 :day="day"
@@ -603,156 +521,31 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                 :has-default="!!ios[`${direction}_default`]"
                 @back="backToWeek"
                 @add="openNew()"
-                @open="onSlot"
+                @open="openSlot"
                 @copy="openCopy"
                 @set-default="(v) => writeValue(ios[`${direction}_default`], String(v))"
                 @set-off="(v) => writeValue(ios.cool_default_off, v ? 'true' : 'false')"
             />
 
-            <p v-if="notice && !form" ref="noticeBox" class="schedule__notice" role="alert">{{ notice }}</p>
-            <p v-if="done" class="schedule__muted" role="status">{{ done }}</p>
+            <p v-if="notice" ref="noticeBox" class="schedule__notice" role="alert">{{ notice }}</p>
 
-            <section v-if="copyOpen && mode === 'multi' && view === 'day'" class="schedule__panel" :aria-label="t('schedule.copy.title', { day: dayName(day) })">
-                <h3 class="schedule__heading">{{ t('schedule.copy.title', { day: dayName(day) }) }}</h3>
-                <div class="schedule__days">
-                    <button
-                        v-for="d in WEEKDAYS"
-                        :key="d"
-                        type="button"
-                        class="schedule__day"
-                        :aria-pressed="copyTargets.includes(d)"
-                        :aria-label="dayName(d)"
-                        :disabled="d === day"
-                        @click="copyTargets = toggle(copyTargets, d)"
-                    >
-                        {{ t(`schedule.dayShort.${d}`) }}
-                    </button>
-                </div>
-                <div class="schedule__actions">
-                    <button type="button" class="schedule__chip" @click="pick(WORKDAYS)">{{ t('schedule.copy.workdays') }}</button>
-                    <button type="button" class="schedule__chip" @click="pick(WEEKEND)">{{ t('schedule.copy.weekend') }}</button>
-                    <button type="button" class="schedule__chip" @click="pick(WEEKDAYS)">{{ t('schedule.copy.all') }}</button>
-                </div>
-                <div v-if="confirming" ref="confirmBox" class="schedule__confirm" role="alertdialog" aria-labelledby="schedule-confirm-title" aria-describedby="schedule-confirm-text" tabindex="-1">
-                    <h4 id="schedule-confirm-title" class="schedule__heading">{{ t('schedule.copy.confirmTitle') }}</h4>
-                    <p id="schedule-confirm-text">{{ confirmText }}</p>
-                    <div class="schedule__actions">
-                        <button type="button" class="schedule__button" @click="confirming = false">{{ t('schedule.copy.cancel') }}</button>
-                        <button type="button" class="schedule__button schedule__button--primary" :disabled="busy" @click="runCopy">
-                            {{ t('schedule.copy.replace') }}
-                        </button>
-                    </div>
-                </div>
-                <div v-else class="schedule__actions schedule__actions--end">
-                    <button type="button" class="schedule__button" @click="copyOpen = false">{{ t('schedule.copy.cancel') }}</button>
-                    <button
-                        type="button"
-                        class="schedule__button schedule__button--primary"
-                        :disabled="locked || busy || copyTargets.length === 0"
-                        @click="submitCopy"
-                    >
-                        {{ t('schedule.copy.submit') }}
-                    </button>
-                </div>
-            </section>
-
-            <section v-if="form" class="schedule__panel" :aria-labelledby="'schedule-form-title'">
-                <h3 v-if="mode === 'multi'" id="schedule-form-title" class="schedule__heading">
-                    {{ form.replacing.length ? t('schedule.form.edit') : t('schedule.form.new') }}
-                </h3>
-                <h3 v-else id="schedule-form-title" class="schedule__heading">{{ dirName(direction) }}</h3>
-                <div v-if="form.level" class="schedule__level">
-                    <span>{{ t('schedule.form.level', { n: form.level }) }}</span>
-                    <button type="button" class="schedule__chip" :disabled="locked || busy || form.level <= 1" @click="move(-1)">
-                        {{ t('schedule.form.raise') }}
-                    </button>
-                    <button type="button" class="schedule__chip" :disabled="locked || busy || form.level >= levelCount" @click="move(1)">
-                        {{ t('schedule.form.lower') }}
-                    </button>
-                </div>
-                <div class="schedule__fields">
-                    <label class="schedule__field">
-                        <span>{{ t('schedule.form.start') }}</span>
-                        <input v-model="form.start" type="time" step="900" required :disabled="locked" @keydown.enter.prevent />
-                    </label>
-                    <label class="schedule__field">
-                        <span>{{ t('schedule.form.end') }}</span>
-                        <input v-model="form.end" type="time" step="900" required :disabled="locked" aria-describedby="schedule-end-hint" @keydown.enter.prevent />
-                    </label>
-                    <label class="schedule__field">
-                        <span>{{ t('schedule.form.setpoint') }}</span>
-                        <input
-                            v-model.number="form.setpoint"
-                            type="number"
-                            :min="SETPOINT_MIN"
-                            :max="SETPOINT_MAX"
-                            step="0.5"
-                            required
-                            :disabled="locked"
-                            @keydown.enter.prevent
-                        />
-                    </label>
-                </div>
-                <p id="schedule-end-hint" class="schedule__muted">{{ t('schedule.form.endHint') }}</p>
-                <fieldset class="schedule__fieldset">
-                    <legend>{{ t('schedule.form.days') }}</legend>
-                    <div class="schedule__days">
-                        <button
-                            v-for="d in WEEKDAYS"
-                            :key="d"
-                            type="button"
-                            class="schedule__day"
-                            :aria-pressed="form.days.includes(d)"
-                            :aria-label="dayName(d)"
-                            :disabled="locked"
-                            @click="form.days = toggle(form.days, d)"
-                        >
-                            {{ t(`schedule.dayShort.${d}`) }}
-                        </button>
-                    </div>
-                </fieldset>
-                <p v-if="notice" ref="noticeBox" class="schedule__notice" role="alert">{{ notice }}</p>
-                <div v-if="mode === 'multi'" class="schedule__actions schedule__actions--end">
-                    <button
-                        v-if="form.replacing.length"
-                        type="button"
-                        class="schedule__button schedule__button--danger"
-                        :disabled="locked || busy"
-                        @click="deleteForm"
-                    >
-                        {{ t('schedule.form.delete') }}
-                    </button>
-                    <button type="button" class="schedule__button" @click="form = null">{{ t('schedule.form.cancel') }}</button>
-                    <button type="button" class="schedule__button schedule__button--primary" :disabled="locked || busy" @click="saveForm">
-                        {{ t('schedule.form.save') }}
-                    </button>
-                </div>
-                <div v-else class="schedule__actions schedule__actions--end">
-                    <button type="button" class="schedule__button schedule__button--primary" :disabled="locked || busy" @click="applySimpleForm">
-                        {{ t('schedule.simple.apply') }}
-                    </button>
-                </div>
-            </section>
-
+            <ScheduleCopySheet
+                v-if="copyOpen && view === 'day'"
+                :day="day"
+                :counts="dayCounts"
+                :locked="locked"
+                :busy="busy"
+                :error="banner?.text"
+                @cancel="copyOpen = false"
+                @copy="runCopy"
+            />
         </template>
     </div>
 </template>
 
 <style scoped>
 .schedule {
-    --lv-h1: #ffe08a;
-    --lv-h2: #ffc247;
-    --lv-h3: #ff9a3c;
-    --lv-h4: #f2693a;
-    --lv-h5: #d94a4a;
-    --lv-h6: #b3345f;
-    --lv-c1: #a6e3f2;
-    --lv-c2: #6cc9e6;
-    --lv-c3: #38b0d3;
-    --lv-c4: #3b8fd0;
-    --lv-c5: #4a6fd0;
-    --lv-c6: #6a55c4;
-
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
@@ -767,7 +560,7 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
 }
 
 .schedule__skeleton {
-    block-size: 2.75rem;
+    block-size: 44px;
     background: var(--c-track);
     border-radius: var(--radius-sm);
     animation: schedule-pulse 1.2s ease-in-out infinite alternate;
@@ -808,25 +601,9 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
     color: var(--c-text-muted);
 }
 
-.schedule__days,
-.schedule__actions,
-.schedule__level,
-.schedule__fields {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.schedule__actions--end {
-    justify-content: flex-end;
-}
-
-.schedule__day,
-.schedule__button,
-.schedule__chip {
-    min-block-size: 2.75rem;
-    min-inline-size: 2.75rem;
+.schedule__button {
+    min-block-size: 44px;
+    min-inline-size: 44px;
     padding: 0 var(--space-3);
     font: inherit;
     color: var(--c-text);
@@ -836,116 +613,13 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
     cursor: pointer;
 }
 
-.schedule__days {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: var(--space-1);
+.schedule__button:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
 }
 
-.schedule__day {
-    min-inline-size: 0;
-    padding: 0;
-}
-
-.schedule__tabs {
-    display: flex;
-    gap: var(--space-2);
-}
-
-.schedule__tabs .schedule__button[aria-selected='true'],
-.schedule__day[aria-selected='true'],
-.schedule__day[aria-pressed='true'] {
-    color: var(--c-on-accent);
-    background: var(--c-accent);
-    border-color: var(--c-accent);
-}
-
-.schedule__button--primary {
-    color: var(--c-on-accent);
-    background: var(--c-accent);
-    border-color: var(--c-accent);
-}
-
-.schedule__button--danger {
-    color: var(--c-danger-text);
-    border-color: var(--c-danger);
-}
-
-.schedule__chip {
-    font-size: 0.875rem;
-}
-
-button:disabled,
-input:disabled {
+.schedule__button:disabled {
     cursor: not-allowed;
     opacity: 0.65;
-}
-
-.schedule__panel,
-.schedule__confirm {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    padding: var(--space-3);
-    background: var(--c-surface-raised);
-    border: 1px solid var(--c-border);
-    border-radius: var(--radius-md);
-}
-
-.schedule__confirm {
-    border-color: var(--c-warn-border);
-}
-
-.schedule__confirm p {
-    margin: 0;
-}
-
-.schedule__heading {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.schedule__field {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    font-size: 0.875rem;
-    color: var(--c-text-muted);
-}
-
-.schedule__field input {
-    min-block-size: 2.75rem;
-    padding: 0 var(--space-2);
-    font: inherit;
-    color: var(--c-text);
-    background: var(--c-surface);
-    border: 1px solid var(--c-border-strong);
-    border-radius: var(--radius-sm);
-}
-
-.schedule__fieldset {
-    margin: 0;
-    padding: 0;
-    border: 0;
-}
-
-.schedule__fieldset legend {
-    margin-block-end: var(--space-1);
-    font-size: 0.875rem;
-    color: var(--c-text-muted);
-}
-
-.schedule__check {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-block-size: 2.75rem;
-}
-
-.schedule__check input {
-    inline-size: 1.25rem;
-    block-size: 1.25rem;
-    accent-color: var(--c-accent);
 }
 </style>

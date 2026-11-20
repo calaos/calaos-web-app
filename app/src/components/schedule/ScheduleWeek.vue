@@ -104,8 +104,8 @@ const AXIS = [0, 6, 12, 18, 24];
 
 .week__tab,
 .week__button {
-    min-block-size: 2.75rem;
-    min-inline-size: 2.75rem;
+    min-block-size: 44px;
+    min-inline-size: 44px;
     padding: 0 var(--space-4);
     font: inherit;
     color: var(--c-text);
@@ -177,7 +177,7 @@ const AXIS = [0, 6, 12, 18, 24];
     align-items: center;
     gap: var(--space-2);
     inline-size: 100%;
-    min-block-size: 2.75rem;
+    min-block-size: 44px;
     padding: 0;
     font: inherit;
     color: var(--c-text);
@@ -187,7 +187,7 @@ const AXIS = [0, 6, 12, 18, 24];
 }
 
 .week__name--today {
-    color: var(--c-accent);
+    color: var(--c-accent-text);
     font-weight: 600;
 }
 

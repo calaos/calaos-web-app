@@ -3,14 +3,15 @@ import {
     copyDay,
     diffPrograms,
     effectiveDay,
+    findOverlap,
     isError,
     levelFor,
     levelIos,
     levelRanges,
-    moveLevel,
     parseMinutes,
     programFromWire,
     rangesToSlots,
+    swapLevels,
     toWireRange,
     upsertSlot,
 } from './schedule';
@@ -186,7 +187,7 @@ describe('grouping by temperature', () => {
         p = must(upsertSlot(p, { days: [1], start: 0, end: 600, setpoint: 19 }));
         p = must(upsertSlot(p, { days: [1], start: 300, end: 900, setpoint: 21 }));
         expect(effectiveDay(p, 1).map((x) => x.level)).toEqual([1, 2, null]);
-        const swapped = moveLevel(p, 2, -1);
+        const swapped = swapLevels(p, 1, 2);
         expect(swapped.levels.map((l) => l.setpoint)).toEqual([21, 19]);
         expect(effectiveDay(swapped, 1)).toEqual([
             { start: 0, end: 300, level: 2 },
@@ -272,5 +273,36 @@ describe('helpers', () => {
         ['', NaN],
     ])('parseMinutes(%s)', (text, minutes) => {
         expect(parseMinutes(text)).toBe(minutes);
+    });
+});
+
+describe('overlap, swap and retry', () => {
+    it('names the slot of another level that an entry overlaps, and ignores the slot being replaced', () => {
+        let p = empty(3);
+        p = must(upsertSlot(p, { days: [1], start: 480, end: 600, setpoint: 22 }));
+        p = must(upsertSlot(p, { days: [1], start: 720, end: 840, setpoint: 20 }));
+        const mine = p.slots.find((s) => s.level === 2);
+        const o = findOverlap(p, { day: 1, start: 540, end: 780, setpoint: 20 }, mine ? [mine] : []);
+        expect(o).toMatchObject({ mineLevel: 2, from: 540, to: 600, other: { level: 1 } });
+        expect(findOverlap(p, { day: 1, start: 600, end: 720, setpoint: 20 })).toBeNull();
+        expect(findOverlap(p, { day: 2, start: 480, end: 600, setpoint: 20 })).toBeNull();
+    });
+
+    it('swaps two non-adjacent levels, setpoints and slots together', () => {
+        let p = empty(4);
+        p = must(upsertSlot(p, { days: [1], start: 0, end: 60, setpoint: 21 }));
+        p = must(upsertSlot(p, { days: [1], start: 120, end: 180, setpoint: 19 }));
+        p = must(upsertSlot(p, { days: [1], start: 240, end: 300, setpoint: 17 }));
+        const s = swapLevels(p, 1, 3);
+        expect(s.levels.map((l) => l.setpoint)).toEqual([17, 19, 21, undefined]);
+        expect(s.slots.map((x) => x.level)).toEqual([3, 2, 1]);
+        expect(swapLevels(s, 1, 3).slots).toEqual(p.slots);
+    });
+
+    it('replaying an upsert on a state that already holds it adds no duplicate', () => {
+        const entry = { days: [1], start: 480, end: 600, setpoint: 22 };
+        const once = must(upsertSlot(empty(2), entry));
+        const twice = must(upsertSlot(once, entry));
+        expect(twice.slots).toEqual(once.slots);
     });
 });

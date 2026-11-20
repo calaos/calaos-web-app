@@ -41,7 +41,6 @@ function climateIos(opts: { levels?: number; heat?: boolean; cool?: boolean; coo
 }
 
 interface Options {
-    mode?: 'multi' | 'simple';
     readonly?: boolean;
     ios?: Record<string, string>;
     /** Level n (1..6) → ranges the server holds for it. */
@@ -76,7 +75,7 @@ async function mountEditor(opts: Options = {}): Promise<Mounted> {
     opts.prepare?.(server);
     const io = { device: { ios: opts.ios ?? climateIos() } } as unknown as IoItem;
     const wrapper = mount(ScheduleEditor, {
-        props: { io, mode: opts.mode ?? 'multi', readonly: opts.readonly ?? false },
+        props: { io, readonly: opts.readonly ?? false },
         global: { plugins: [createI18n({ legacy: false, locale: 'en', messages })] },
     });
     await flushPromises();
@@ -199,9 +198,8 @@ const segments = (w: VueWrapper) =>
 
 const periodRow = (w: VueWrapper, n = 0) => w.findAll('button.day__row[aria-label^="Edit "]')[n];
 
-function form(w: VueWrapper) {
-    return w.find('section[aria-labelledby="schedule-form-title"]');
-}
+/** The period view; it replaces the day while a period is open. */
+const form = (w: VueWrapper) => w.find('.period');
 
 /** set_state and set_timerange frames after `from`, as "msg:id[=value]". */
 function writes(server: FakeServer, from = 0): string[] {
@@ -217,13 +215,26 @@ const reads = (server: FakeServer, from = 0) =>
         .filter((f) => f.msg === 'get_timerange')
         .map((f) => String(f.data.id));
 
-async function fillForm(w: VueWrapper, v: { start?: string; end?: string; setpoint?: number; days?: string[] }): Promise<void> {
+const minutesOf = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+
+/** Drives the steppers of the period view to the wanted values. */
+async function fillForm(w: VueWrapper, v: { start?: string; end?: string; setpoint?: number }): Promise<void> {
     const f = form(w);
-    const times = f.findAll('input[type="time"]');
-    if (v.start !== undefined) await times[0].setValue(v.start);
-    if (v.end !== undefined) await times[1].setValue(v.end);
-    if (v.setpoint !== undefined) await f.find('input[type="number"]').setValue(v.setpoint);
-    for (const day of v.days ?? []) await f.find(`button[aria-label="${day}"]`).trigger('click');
+    const click = (label: string) => f.get(`button[aria-label="${label}"]`).trigger('click');
+    const time = async (field: 'Start' | 'End', want: string, key: string) => {
+        const read = () => minutesOf(f.get(`[data-test="${key}"]`).text().slice(0, 5));
+        const target = minutesOf(want);
+        const span = 1440;
+        const forward = (((target - read()) % span) + span) % span;
+        const up = forward <= span / 2;
+        for (let n = 0; n < Math.round((up ? forward : span - forward) / 15); n++) await click(`${field} ${up ? 'Increase' : 'Decrease'}`);
+    };
+    if (v.start !== undefined) await time('Start', v.start, 'start');
+    if (v.end !== undefined) await time('End', v.end, 'end');
+    if (v.setpoint !== undefined) {
+        const read = () => Number(f.get('[data-test="setpoint"]').text().replace('°', ''));
+        for (let guard = 0; read() !== v.setpoint && guard < 120; guard++) await click(`Temperature ${read() < v.setpoint ? 'Increase' : 'Decrease'}`);
+    }
 }
 
 const MON_8_10 = wireRange(1, 8, 0, 10, 0);
@@ -346,12 +357,6 @@ const banner = (w: VueWrapper) => w.find('.schedule__banner');
 const notice = (w: VueWrapper) => w.find('.schedule__notice');
 const setTimeranges = (server: FakeServer) => server.sent.filter((f) => f.msg === 'set_timerange');
 
-/** Monday 2026-11-16, 12:00: the day a fresh form is pre-selected on. */
-function mondayNoon(): void {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(2026, 10, 16, 12, 0));
-}
-
 async function addSlot(w: VueWrapper, v: Parameters<typeof fillForm>[1]): Promise<void> {
     await selectDay(w, 'Monday');
     await button(w, 'Add a period').trigger('click');
@@ -363,114 +368,6 @@ async function save(w: VueWrapper): Promise<void> {
     await flushPromises();
 }
 
-// ---------------------------------------------------------- simple mode ---
-
-describe('simple mode', () => {
-    it('opens the form at once, with the default setpoint and no timeline', async () => {
-        mondayNoon();
-        const { wrapper, server } = await mountEditor({ mode: 'simple' });
-        expect(form(wrapper).exists()).toBe(true);
-        expect(wrapper.find('button.day__row').exists()).toBe(false);
-        expect(wrapper.findAll('button').some((b) => b.text() === 'Add a period')).toBe(false);
-        expect(writes(server)).toEqual([]);
-    });
-
-    it('proposes the default setpoint it reads, as the multi-level form does', async () => {
-        const { wrapper } = await mountEditor({ mode: 'simple' });
-        expect((form(wrapper).find('input[type="number"]').element as HTMLInputElement).value).toBe('19');
-    });
-
-    it('applies one entry to the first free level and says which one', async () => {
-        mondayNoon();
-        const { wrapper, server } = await mountEditor({ mode: 'simple' });
-        await fillForm(wrapper, { start: '06:00', end: '07:30', setpoint: 21 });
-        const mark = server.sent.length;
-        await button(form(wrapper), 'Apply').trigger('click');
-        await flushPromises();
-        expect(writes(server, mark)).toEqual(['set_state:H1S=21', 'set_timerange:H1']);
-        expect(server.writesOf('H1')).toEqual([[wireRange(1, 6, 0, 7, 30)]]);
-        expect(text(wrapper)).toContain('Applied to level 1.');
-    });
-
-    it('appends a second entry at the same temperature to the same level, without rewriting the setpoint', async () => {
-        mondayNoon();
-        const { wrapper, server } = await mountEditor({ mode: 'simple' });
-        await fillForm(wrapper, { start: '06:00', end: '07:00', setpoint: 21 });
-        await button(form(wrapper), 'Apply').trigger('click');
-        await flushPromises();
-        await fillForm(wrapper, { start: '18:00', end: '19:00', setpoint: 21 });
-        const mark = server.sent.length;
-        await button(form(wrapper), 'Apply').trigger('click');
-        await flushPromises();
-        expect(writes(server, mark)).toEqual(['set_timerange:H1']);
-        expect(server.ranges.get('H1')).toEqual([wireRange(1, 6, 0, 7, 0), wireRange(1, 18, 0, 19, 0)]);
-    });
-
-    it('sends another temperature to the next level', async () => {
-        mondayNoon();
-        const { wrapper, server } = await mountEditor({ mode: 'simple', heat: { 1: [MON_8_10] } });
-        await fillForm(wrapper, { start: '12:00', end: '13:00', setpoint: 23 });
-        const mark = server.sent.length;
-        await button(form(wrapper), 'Apply').trigger('click');
-        await flushPromises();
-        expect(writes(server, mark)).toEqual(['set_state:H2S=23', 'set_timerange:H2']);
-        expect(text(wrapper)).toContain('Applied to level 2.');
-    });
-
-    it('refuses a seventh temperature and writes nothing', async () => {
-        mondayNoon();
-        const { wrapper, server } = await mountEditor({ mode: 'simple', heat: levelsInUse(6) });
-        await fillForm(wrapper, { start: '20:00', end: '21:00', setpoint: 25 });
-        const mark = server.sent.length;
-        await button(form(wrapper), 'Apply').trigger('click');
-        await flushPromises();
-        expect(notice(wrapper).text()).toBe('6 levels maximum for Heating');
-        expect(writes(server, mark)).toEqual([]);
-        expect(text(wrapper)).not.toContain('Applied to level');
-    });
-
-    it('refuses an empty range or no day without writing', async () => {
-        mondayNoon();
-        const { wrapper, server } = await mountEditor({ mode: 'simple' });
-        await fillForm(wrapper, { start: '09:00', end: '09:00' });
-        await button(form(wrapper), 'Apply').trigger('click');
-        await flushPromises();
-        expect(notice(wrapper).text()).toBe('The end must follow the start');
-        await form(wrapper).find('button[aria-label="Monday"]').trigger('click');
-        await fillForm(wrapper, { end: '10:00' });
-        await button(form(wrapper), 'Apply').trigger('click');
-        await flushPromises();
-        expect(notice(wrapper).text()).toBe('The end must follow the start');
-        expect(writes(server)).toEqual([]);
-    });
-
-    it('writes nothing and disables Apply when read-only', async () => {
-        const { wrapper, server } = await mountEditor({ mode: 'simple', readonly: true });
-        expect(button(form(wrapper), 'Apply').attributes('disabled')).toBeDefined();
-        await button(form(wrapper), 'Apply').trigger('click');
-        await flushPromises();
-        expect(writes(server)).toEqual([]);
-    });
-
-    it('applies on the cooling levels of a device that only cools', async () => {
-        mondayNoon();
-        const { wrapper, server } = await mountEditor({ mode: 'simple', ios: climateIos({ heat: false }) });
-        await fillForm(wrapper, { start: '13:00', end: '17:00', setpoint: 26 });
-        const mark = server.sent.length;
-        await button(form(wrapper), 'Apply').trigger('click');
-        await flushPromises();
-        expect(writes(server, mark)).toEqual(['set_state:C1S=26', 'set_timerange:C1']);
-    });
-
-    it('keeps the form when the other direction is chosen', async () => {
-        const { wrapper } = await mountEditor({ mode: 'simple' });
-        await openTab(wrapper, 'Cooling');
-        expect(form(wrapper).exists()).toBe(true);
-    });
-});
-
-// -------------------------------------------------- level limit (Q2) ---
-
 describe('six levels at most (Q2)', () => {
     it('lets a sixth level be added, and never greys out Add a period', async () => {
         const { wrapper, server } = await mountEditor({ heat: levelsInUse(5) });
@@ -478,7 +375,7 @@ describe('six levels at most (Q2)', () => {
         const add = () => button(wrapper, 'Add a period');
         await add().trigger('click');
         // Default 19° is free among 22, 20, 18, 16, 14: the form proposes it.
-        expect((form(wrapper).find('input[type="number"]').element as HTMLInputElement).value).toBe('19');
+        expect(form(wrapper).get('[data-test="setpoint"]').text()).toBe('19°');
         await fillForm(wrapper, { start: '20:00', end: '21:00' });
         const mark = server.sent.length;
         await save(wrapper);
@@ -493,7 +390,9 @@ describe('six levels at most (Q2)', () => {
         await addSlot(wrapper, { start: '20:00', end: '21:00', setpoint: 25 });
         const mark = server.sent.length;
         await save(wrapper);
-        expect(notice(wrapper).text()).toBe('6 levels maximum for Heating');
+        expect(form(wrapper).text()).toContain('6 different setpoints maximum');
+        expect(button(form(wrapper), 'Save').attributes('disabled')).toBeDefined();
+        await button(form(wrapper), 'Save').trigger('click');
         expect(form(wrapper).exists()).toBe(true);
         expect(writes(server, mark)).toEqual([]);
         expect(reads(server, mark)).toEqual([]);
@@ -515,8 +414,8 @@ describe('six levels at most (Q2)', () => {
         const { wrapper, server } = await mountEditor({ ios, heat: levelsInUse(4) });
         
         await addSlot(wrapper, { start: '20:00', end: '21:00', setpoint: 25 });
-        await save(wrapper);
-        expect(notice(wrapper).text()).toBe('4 levels maximum for Heating');
+        expect(form(wrapper).text()).toContain('4 different setpoints maximum');
+        expect(button(form(wrapper), 'Save').attributes('disabled')).toBeDefined();
         expect(writes(server)).toEqual([]);
     });
 
@@ -532,9 +431,9 @@ describe('six levels at most (Q2)', () => {
         const { wrapper, server } = await mountEditor({ heat: levelsInUse(6) });
         await selectDay(wrapper, 'Monday');
         await button(wrapper, 'Copy to…').trigger('click');
-        const panel = wrapper.find('section.schedule__panel');
+        const panel = wrapper.find('[role="dialog"]');
         await panel.find('button[aria-label="Tuesday"]').trigger('click');
-        await button(panel, 'Copy').trigger('click');
+        await panel.findAll('.sheet__actions button')[1].trigger('click');
         await flushPromises();
         expect(notice(wrapper).exists()).toBe(false);
         expect(writes(server).every((w) => w.startsWith('set_timerange:H'))).toBe(true);
@@ -680,6 +579,7 @@ describe('auto mode and a disabled program', () => {
         await selectDay(wrapper, 'Monday');
         await wrapper.find('button.day__row[aria-label^="Edit "]').trigger('click');
         await button(form(wrapper), 'Delete').trigger('click');
+        await button(form(wrapper).get('[role="alertdialog"]'), 'Delete').trigger('click');
         await flushPromises();
         expect(writes(server)).toEqual(['set_state:CO=true', 'set_timerange:H1']);
         expect(server.writesOf('H1')).toEqual([[]]);
@@ -787,11 +687,24 @@ describe('a write that fails half-way', () => {
         });
         await selectDay(wrapper, 'Monday');
         await wrapper.findAll('button.day__row[aria-label^="Edit "]')[1].trigger('click');
+        await fillForm(wrapper, { start: '09:00' });
+        await button(form(wrapper).get('[data-test="overlap"]'), 'Swap').trigger('click');
         const mark = server.sent.length;
-        await button(form(wrapper), 'Raise priority').trigger('click');
+        await button(form(wrapper), 'Save').trigger('click');
         await flushPromises();
         expect(writes(server, mark)).toEqual(['set_state:H1S=20']);
         expect(banner(wrapper).text()).toContain('The server refused the change');
+    });
+
+    it('hatches the overlap on the preview track, over the shared hours only', async () => {
+        const { wrapper } = await mountEditor({ heat: { 1: [MON_8_10], 2: [wireRange(1, 12, 0, 14, 0)] } });
+        await selectDay(wrapper, 'Monday');
+        await wrapper.findAll('button.day__row[aria-label^="Edit "]')[1].trigger('click');
+        expect(form(wrapper).find('[data-test="track-overlap"]').exists()).toBe(false);
+        await fillForm(wrapper, { start: '09:00' });
+        const hatch = form(wrapper).get('[data-test="track-overlap"]');
+        expect(hatch.attributes('style')).toContain('left: 37.5');
+        expect(hatch.attributes('style')).toContain('width: 4.1666');
     });
 
     it('still writes the other levels when the server kept one change in memory only', async () => {
@@ -801,10 +714,11 @@ describe('a write that fails half-way', () => {
         });
         await selectDay(wrapper, 'Monday');
         await button(wrapper, 'Copy to…').trigger('click');
-        const panel = () => wrapper.find('section.schedule__panel');
+        const panel = () => wrapper.find('[role="dialog"]');
         await panel().find('button[aria-label="Tuesday"]').trigger('click');
         const mark = server.sent.length;
-        await button(panel(), 'Copy').trigger('click');
+        await panel().findAll('.sheet__actions button')[1].trigger('click');
+        expect(wrapper.find('.sheet__confirm').exists()).toBe(false);
         await flushPromises();
         expect(writes(server, mark)).toEqual(['set_timerange:H1', 'set_timerange:H2']);
     });
@@ -816,10 +730,11 @@ describe('a write that fails half-way', () => {
         });
         await selectDay(wrapper, 'Monday');
         await button(wrapper, 'Copy to…').trigger('click');
-        const panel = () => wrapper.find('section.schedule__panel');
+        const panel = () => wrapper.find('[role="dialog"]');
         await panel().find('button[aria-label="Tuesday"]').trigger('click');
         const mark = server.sent.length;
-        await button(panel(), 'Copy').trigger('click');
+        await panel().findAll('.sheet__actions button')[1].trigger('click');
+        expect(wrapper.find('.sheet__confirm').exists()).toBe(false);
         await flushPromises();
         expect(writes(server, mark)).toEqual(['set_timerange:H1', 'set_timerange:H2']);
         expect(banner(wrapper).text()).toContain('Copy incomplete: not saved, try again');
@@ -842,8 +757,10 @@ describe('a write that fails half-way', () => {
         });
         await selectDay(wrapper, 'Monday');
         await wrapper.findAll('button.day__row[aria-label^="Edit "]')[1].trigger('click');
+        await fillForm(wrapper, { start: '09:00' });
+        await button(form(wrapper).get('[data-test="overlap"]'), 'Swap').trigger('click');
         const mark = server.sent.length;
-        await button(form(wrapper), 'Raise priority').trigger('click');
+        await button(form(wrapper), 'Save').trigger('click');
         await flushPromises();
         expect(writes(server, mark)).toContain('set_timerange:H2');
         expect(banner(wrapper).text()).toContain('The server refused the change');
@@ -899,11 +816,13 @@ describe('months with a range write', () => {
 
 describe('copy a day (Q4)', () => {
     const TUE_6_7 = wireRange(2, 6, 0, 7, 0);
-    const panel = (w: VueWrapper) => w.find('section.schedule__panel');
-    const dialog = (w: VueWrapper) => w.find('[role="alertdialog"]');
+    const panel = (w: VueWrapper) => w.find('[role="dialog"]');
+    const dialog = (w: VueWrapper) => w.find('.sheet__confirm');
+    const day = (w: VueWrapper, name: string) => panel(w).get(`button[aria-label^="${name}"]`);
+    const submit = (w: VueWrapper) => panel(w).findAll('.sheet__actions button')[1];
 
-    async function openCopy(w: VueWrapper, day = 'Monday'): Promise<void> {
-        await selectDay(w, day);
+    async function openCopy(w: VueWrapper, name = 'Monday'): Promise<void> {
+        await selectDay(w, name);
         await button(w, 'Copy to…').trigger('click');
     }
 
@@ -912,9 +831,9 @@ describe('copy a day (Q4)', () => {
     it('copies at once, without asking, when no target holds a slot', async () => {
         const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] } });
         await openCopy(wrapper);
-        await panel(wrapper).find('button[aria-label="Tuesday"]').trigger('click');
+        await day(wrapper, 'Tuesday').trigger('click');
         const mark = server.sent.length;
-        await button(panel(wrapper), 'Copy').trigger('click');
+        await submit(wrapper).trigger('click');
         await flushPromises();
         expect(dialog(wrapper).exists()).toBe(false);
         expect(writes(server, mark)).toEqual(['set_timerange:H1']);
@@ -925,16 +844,16 @@ describe('copy a day (Q4)', () => {
     it('asks first when a target holds slots, names only those days, and writes nothing until confirmed', async () => {
         const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10], 2: [TUE_6_7] } });
         await openCopy(wrapper);
-        for (const d of ['Tuesday', 'Wednesday']) await panel(wrapper).find(`button[aria-label="${d}"]`).trigger('click');
+        for (const d of ['Tuesday', 'Wednesday']) await day(wrapper, d).trigger('click');
         const mark = server.sent.length;
-        await button(panel(wrapper), 'Copy').trigger('click');
+        await submit(wrapper).trigger('click');
         await flushPromises();
         expect(dialog(wrapper).exists()).toBe(true);
-        expect(dialog(wrapper).text()).toContain('Tuesday (1 slot)');
+        expect(dialog(wrapper).text()).toContain('Tuesday (1 period)');
         expect(dialog(wrapper).text()).not.toContain('Wednesday');
         expect(writes(server, mark)).toEqual([]);
 
-        await button(dialog(wrapper), 'Replace and copy').trigger('click');
+        await submit(wrapper).trigger('click');
         await flushPromises();
         expect(writes(server, mark)).toEqual(['set_timerange:H1', 'set_timerange:H2']);
         // Tuesday's own 06:00-07:00 slot is overwritten, by the Monday one at the same level.
@@ -943,17 +862,17 @@ describe('copy a day (Q4)', () => {
         expect(panel(wrapper).exists()).toBe(false);
     });
 
-    it('cancelling the confirmation writes nothing and keeps the panel and its targets', async () => {
+    it('cancelling the confirmation writes nothing and keeps the sheet and its targets', async () => {
         const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10], 2: [TUE_6_7] } });
         await openCopy(wrapper);
-        await panel(wrapper).find('button[aria-label="Tuesday"]').trigger('click');
-        await button(panel(wrapper), 'Copy').trigger('click');
+        await day(wrapper, 'Tuesday').trigger('click');
+        await submit(wrapper).trigger('click');
         const mark = server.sent.length;
-        await button(dialog(wrapper), 'Cancel').trigger('click');
+        await panel(wrapper).findAll('.sheet__actions button')[0].trigger('click');
         await flushPromises();
         expect(dialog(wrapper).exists()).toBe(false);
         expect(panel(wrapper).exists()).toBe(true);
-        expect(panel(wrapper).find('button[aria-label="Tuesday"]').attributes('aria-pressed')).toBe('true');
+        expect(day(wrapper, 'Tuesday').attributes('aria-pressed')).toBe('true');
         expect(writes(server, mark)).toEqual([]);
         expect(server.ranges.get('H2')).toEqual([TUE_6_7]);
     });
@@ -964,14 +883,13 @@ describe('copy a day (Q4)', () => {
             cool: { 1: [wireRange(2, 14, 0, 16, 0)] },
         });
         await openCopy(wrapper);
-        await panel(wrapper).find('button[aria-label="Tuesday"]').trigger('click');
-        await button(panel(wrapper), 'Copy').trigger('click');
-        await button(dialog(wrapper), 'Replace and copy').trigger('click');
+        await day(wrapper, 'Tuesday').trigger('click');
+        await submit(wrapper).trigger('click');
+        await submit(wrapper).trigger('click');
         await flushPromises();
         expect(writes(server).every((w) => w.startsWith('set_timerange:H'))).toBe(true);
         expect(server.writesOf('C1')).toEqual([]);
         expect(server.ranges.get('C1')).toEqual([wireRange(2, 14, 0, 16, 0)]);
-        // The occupied-target check ignores the other direction too: Cooling Tuesday has a slot, Heating Wednesday none.
         await openTab(wrapper, 'Cooling');
         await selectDay(wrapper, 'Wednesday');
         expect(button(wrapper, 'Copy to…').attributes('disabled')).toBeDefined();
@@ -982,8 +900,8 @@ describe('copy a day (Q4)', () => {
         const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] }, cool: { 1: [wireRange(2, 14, 0, 16, 0)] } });
         await openTab(wrapper, 'Cooling');
         await openCopy(wrapper, 'Tuesday');
-        await panel(wrapper).find('button[aria-label="Thursday"]').trigger('click');
-        await button(panel(wrapper), 'Copy').trigger('click');
+        await day(wrapper, 'Thursday').trigger('click');
+        await submit(wrapper).trigger('click');
         await flushPromises();
         expect(dialog(wrapper).exists()).toBe(false);
         expect(writes(server)).toEqual(['set_timerange:C1']);
@@ -999,30 +917,48 @@ describe('copy a day (Q4)', () => {
         expect(writes(server, mark)).toEqual([]);
     });
 
-    it('keeps Copy disabled until a target is picked, and never offers the source day', async () => {
+    it('greys the source day and marks it, and disables the button until a target is picked', async () => {
         const { wrapper } = await mountEditor({ heat: { 1: [MON_8_10] } });
         await openCopy(wrapper);
-        expect(button(panel(wrapper), 'Copy').attributes('disabled')).toBeDefined();
-        expect(panel(wrapper).find('button[aria-label="Monday"]').attributes('disabled')).toBeDefined();
-        await panel(wrapper).find('button[aria-label="Tuesday"]').trigger('click');
-        expect(button(panel(wrapper), 'Copy').attributes('disabled')).toBeUndefined();
+        expect(submit(wrapper).attributes('disabled')).toBeDefined();
+        expect(submit(wrapper).text()).toBe('Copy to 0 days');
+        expect(day(wrapper, 'Monday').attributes('disabled')).toBeDefined();
+        expect(day(wrapper, 'Monday').attributes('aria-label')).toBe('Monday, source');
+        expect(panel(wrapper).text()).toContain('Replaces the existing periods of these days');
+        await day(wrapper, 'Tuesday').trigger('click');
+        expect(submit(wrapper).attributes('disabled')).toBeUndefined();
+        expect(submit(wrapper).text()).toBe('Copy to 1 day');
     });
 
-    it('the Weekdays chip targets Tuesday to Friday from a Monday source, and Weekend both weekend days', async () => {
+    it('the Workdays chip targets Tuesday to Friday from a Monday source, Weekend both weekend days, All the six others', async () => {
         const { wrapper, server } = await mountEditor({ heat: { 1: [MON_8_10] } });
         await openCopy(wrapper);
-        await button(panel(wrapper), 'Weekdays').trigger('click');
         const pressed = () =>
             panel(wrapper)
-                .findAll('.schedule__days button')
+                .findAll('.sheet__days button')
                 .filter((b) => b.attributes('aria-pressed') === 'true')
                 .map((b) => b.attributes('aria-label'));
+        await button(panel(wrapper), 'Workdays').trigger('click');
         expect(pressed()).toEqual(['Tuesday', 'Wednesday', 'Thursday', 'Friday']);
+        await button(panel(wrapper), 'All').trigger('click');
+        expect(pressed()).toHaveLength(6);
         await button(panel(wrapper), 'Weekend').trigger('click');
         expect(pressed()).toEqual(['Saturday', 'Sunday']);
-        await button(panel(wrapper), 'Copy').trigger('click');
+        await submit(wrapper).trigger('click');
         await flushPromises();
         expect(days(server.ranges.get('H1'))).toEqual(['1', '6', '7']);
+    });
+
+    it('closes on Cancel and on Escape without leaving the day', async () => {
+        const { wrapper } = await mountEditor({ heat: { 1: [MON_8_10] } });
+        await openCopy(wrapper);
+        await panel(wrapper).findAll('.sheet__actions button')[0].trigger('click');
+        expect(panel(wrapper).exists()).toBe(false);
+        expect(wrapper.find('.day').exists()).toBe(true);
+        await button(wrapper, 'Copy to…').trigger('click');
+        await panel(wrapper).trigger('keydown', { key: 'Escape' });
+        expect(panel(wrapper).exists()).toBe(false);
+        expect(wrapper.find('.day').exists()).toBe(true);
     });
 
     it('cannot be opened when read-only', async () => {

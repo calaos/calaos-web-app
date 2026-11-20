@@ -260,20 +260,46 @@ export function upsertSlot(
     const added = splitEntry(entry.days, entry.start, entry.end, target.n);
     if (isError(added)) return added;
     const levels = program.levels.map((l) => (l.n === target.n ? { ...l, setpoint: entry.setpoint } : l));
-    const slots = sortSlots([...program.slots.filter((s) => !replacing.includes(s)), ...added]);
+    // A retry replays the edit on a state the first attempt may have partly written: no duplicate.
+    const dup = (s: Slot) => added.some((a) => a.day === s.day && a.start === s.start && a.end === s.end && a.level === s.level);
+    const slots = sortSlots([...program.slots.filter((s) => !replacing.includes(s) && !dup(s)), ...added]);
     return { ...program, levels, slots };
+}
+
+export interface Overlap {
+    other: Slot;
+    mineLevel: number;
+    /** The overlapping part, in minutes of `other.day`. */
+    from: number;
+    to: number;
+}
+
+/**
+ * The first slot of another level that the entry would overlap (the lowest
+ * level wins there). A slot at the same setpoint shares the level: no overlap.
+ */
+export function findOverlap(
+    program: DirectionProgram,
+    entry: { day: number; start: number; end: number; setpoint: number },
+    replacing: Slot[] = [],
+): Overlap | null {
+    const target = levelFor(program, entry.setpoint, replacing);
+    if (isError(target)) return null;
+    const parts = splitEntry([entry.day], entry.start, entry.end, target.n);
+    if (isError(parts)) return null;
+    for (const part of parts) {
+        for (const s of program.slots) {
+            if (s.day !== part.day || s.level === target.n || replacing.includes(s)) continue;
+            const from = Math.max(s.start, part.start);
+            const to = Math.min(s.end, part.end);
+            if (from < to) return { other: s, mineLevel: target.n, from, to };
+        }
+    }
+    return null;
 }
 
 export function removeSlots(program: DirectionProgram, gone: Slot[]): DirectionProgram {
     return { ...program, slots: program.slots.filter((s) => !gone.includes(s)) };
-}
-
-/** Simple mode: one setpoint, one range, some days, appended to the program. */
-export function applySimple(
-    program: DirectionProgram,
-    entry: { days: number[]; start: number; end: number; setpoint: number },
-): DirectionProgram | ScheduleError {
-    return upsertSlot(program, entry);
 }
 
 /**
@@ -289,18 +315,15 @@ export function copyDay(program: DirectionProgram, source: number, targets: numb
 }
 
 /**
- * Swaps the priority of level n with its neighbour (`by` = -1 raises it).
- * Ranges and setpoints move together, so what runs when does not change.
+ * Swaps the priority of two levels. Ranges and setpoints move together, so
+ * what runs when does not change; only who wins an overlap does.
  */
-export function moveLevel(program: DirectionProgram, n: number, by: -1 | 1): DirectionProgram {
-    const other = n + by;
-    const a = program.levels.find((l) => l.n === n);
-    const b = program.levels.find((l) => l.n === other);
-    if (!a || !b) return program;
-    const swap = (k: number) => (k === n ? other : k === other ? n : k);
-    const levels = program.levels.map((l) =>
-        l.n === n ? { ...b, n } : l.n === other ? { ...a, n: other } : l,
-    );
+export function swapLevels(program: DirectionProgram, a: number, b: number): DirectionProgram {
+    const la = program.levels.find((l) => l.n === a);
+    const lb = program.levels.find((l) => l.n === b);
+    if (!la || !lb || a === b) return program;
+    const swap = (k: number) => (k === a ? b : k === b ? a : k);
+    const levels = program.levels.map((l) => (l.n === a ? { ...lb, n: a } : l.n === b ? { ...la, n: b } : l));
     const slots = sortSlots(program.slots.map((s) => ({ ...s, level: swap(s.level) })));
     return { ...program, levels, slots };
 }
