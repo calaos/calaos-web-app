@@ -590,6 +590,43 @@ describe('auto mode and a disabled program', () => {
 
 // ---------------------------------------------- partial write failures ---
 
+describe('service session', () => {
+    async function copyMondayToTuesday(wrapper: VueWrapper): Promise<void> {
+        await selectDay(wrapper, 'Monday');
+        await button(wrapper, 'Copy to…').trigger('click');
+        const panel = wrapper.find('[role="dialog"]');
+        await panel.find('button[aria-label="Tuesday"]').trigger('click');
+        await panel.findAll('.sheet__actions button')[1].trigger('click');
+        await flushPromises();
+    }
+
+    it('turns read-only with a message, and tells its parent, when the server answers scope denied', async () => {
+        const { wrapper, server } = await mountEditor({
+            heat: { 1: [MON_8_10] },
+            prepare: (s) => (s.refuseRanges = () => 'scope denied'),
+        });
+        await copyMondayToTuesday(wrapper);
+        expect(wrapper.emitted('denied')).toHaveLength(1);
+        expect(banner(wrapper).exists()).toBe(false);
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+        expect(wrapper.find('[role="status"]').text()).toContain('Read-only: this session cannot change the program.');
+        expect(text(wrapper)).toContain('Read-only: this session cannot change the program.');
+        for (const row of wrapper.findAll('.day__row')) expect(row.attributes('disabled')).toBeDefined();
+        for (const b of wrapper.findAll('.day__step')) expect(b.attributes('disabled')).toBeDefined();
+        expect(button(wrapper, 'Copy to…').attributes('disabled')).toBeDefined();
+        const mark = server.sent.length;
+        await button(wrapper, 'Add a period').trigger('click');
+        expect(button(wrapper, 'Add a period').attributes('disabled')).toBeDefined();
+        expect(writes(server, mark)).toEqual([]);
+    });
+
+    it('shows the same message from the start when the parent already knows', async () => {
+        const { wrapper } = await mountEditor({ readonly: true });
+        expect(text(wrapper)).toContain('Read-only: this session cannot change the program.');
+        expect(text(wrapper)).not.toContain('Read-only while offline.');
+    });
+});
+
 describe('a write that fails half-way', () => {
     it('writes the setpoint, fails the ranges, reloads, shows the server truth and retries only the ranges', async () => {
         const { wrapper, server } = await mountEditor({
@@ -637,6 +674,30 @@ describe('a write that fails half-way', () => {
         expect(held).toEqual(expect.arrayContaining([MON_8_10, wireRange(1, 12, 0, 13, 0), wireRange(1, 15, 0, 16, 0)]));
         expect(held).toHaveLength(3);
         expect(banner(wrapper).exists()).toBe(false);
+    });
+
+    it('replaces the banner by the notice when the retry finds every setpoint taken by another client', async () => {
+        const { wrapper, server } = await mountEditor({
+            heat: { 1: [MON_8_10] },
+            prepare: (s) => (s.refuseValue = (id) => id === 'H2S'),
+        });
+        await addSlot(wrapper, { start: '12:00', end: '13:00', setpoint: 22.5 });
+        await save(wrapper);
+        expect(banner(wrapper).exists()).toBe(true);
+
+        server.refuseValue = () => false;
+        for (let n = 2; n <= 6; n++) {
+            server.ranges.set(`H${String(n)}`, [wireRange(2, 15, 0, 16, 0)]);
+            useScheduleStore().applyTimerangeChanged({ id: `H${String(n)}` });
+            await flushPromises();
+        }
+
+        const mark = server.sent.length;
+        await button(banner(wrapper), 'Retry').trigger('click');
+        await flushPromises();
+        expect(writes(server, mark)).toEqual([]);
+        expect(banner(wrapper).exists()).toBe(false);
+        expect(notice(wrapper).exists()).toBe(true);
     });
 
     it('retries on what another client changed meanwhile instead of erasing it', async () => {

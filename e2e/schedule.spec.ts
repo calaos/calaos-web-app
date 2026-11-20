@@ -3,6 +3,7 @@
 // edit a slot, copy a day, and see a refused write. Each test leaves a capture
 // for the UI review (ARCHI_SHOT=1 keeps them).
 
+import fr from '../app/src/i18n/fr.json';
 import { MESSAGES, expect, loginAs, test } from './fixtures';
 import type { MockControl } from './fixtures';
 import type { Locator, Page, TestInfo } from '@playwright/test';
@@ -54,16 +55,17 @@ async function writes(mock: MockControl, id: string): Promise<Record<string, str
         .map((entry) => (entry.frame?.data as unknown as { ranges: Record<string, string>[] }).ranges);
 }
 
-/**
- * One capture per theme. The phone project is shot at 390 px, the width the
- * mock-ups were drawn for (a Pixel 7 is 412).
- */
+/** Waits for the finite animations (the dialog fade), so a capture never shows the list through it. */
 async function settle(page: Page): Promise<void> {
     await page.evaluate(() => Promise.all(document.getAnimations()
         .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
         .map((a) => a.finished.catch(() => undefined))));
 }
 
+/**
+ * One capture per theme. The phone project is shot at 390 px, the width the
+ * mock-ups were drawn for (a Pixel 7 is 412).
+ */
 async function shot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
     if (!process.env.ARCHI_SHOT) return;
     const phone = testInfo.project.name === 'mobile-pixel7';
@@ -154,6 +156,25 @@ test('copying a day over one that has slots asks first, then replaces them', asy
     await expect(dialog.getByRole('button', { name: period('06:30', '08:00', '19') })).toBeVisible();
     await expect(dialog.getByRole('button', { name: /^Edit / })).toHaveCount(2);
     await shot(page, testInfo, 'shot-04-copied');
+});
+
+test('a service session is told it cannot change the program, here and when the editor is reopened', async ({ page, mock }, testInfo) => {
+    await mock.send({ op: 'program_scope' });
+    let dialog = await openEditor(page);
+    await openDay(dialog, 'Monday');
+    const sheet = await copyTo(dialog, 'Monday', ['Saturday']);
+    await sheet.getByRole('button', { name: S.copy.replace }).click();
+    await expect(dialog.getByText(S.serviceReadOnly)).toBeVisible();
+    await expect(dialog.locator('.schedule__banner')).toHaveCount(0);
+    await expect(sheet).toHaveCount(0);
+    await shot(page, testInfo, 'shot-19a-service-readonly-day');
+
+    await dialog.getByRole('button', { name: S.v2.close }).click();
+    await expect(editor(page)).toHaveCount(0);
+    await page.locator('.climate-detail').getByRole('button', { name: S.edit }).click();
+    dialog = editor(page);
+    await expect(dialog.getByText(S.serviceReadOnly)).toBeVisible();
+    await shot(page, testInfo, 'shot-19b-service-readonly-week');
 });
 
 test('a copy to two days that fails halfway stays open; the retry copies to both', async ({ page, mock }, testInfo) => {
@@ -420,4 +441,22 @@ test('the period form fits the dialog at 390 and 1280 px, error message included
         });
         expect(clipped, `${width}px`).toEqual([]);
     }
+});
+
+test.describe('french captures', () => {
+    test.use({ locale: 'fr-FR' });
+
+    test('the week, a day and the copy sheet read in french', async ({ page }, testInfo) => {
+        const tile = page.locator('.room-tile').nth(LOUNGE);
+        if (await tile.isVisible()) await tile.click();
+        await page.locator('.io-row').filter({ has: page.locator('.io-row__name', { hasText: THERMOSTAT }) }).click();
+        await shot(page, testInfo, 'shot-20a-fr-detail');
+        await page.locator('.climate-detail').getByRole('button', { name: fr.schedule.edit }).click();
+        const dialog = editor(page);
+        await dialog.locator('.week__row').first().click();
+        await shot(page, testInfo, 'shot-20b-fr-day');
+        await dialog.getByRole('button', { name: fr.schedule.copy.open }).click();
+        await dialog.locator('.sheet__day').nth(1).click();
+        await shot(page, testInfo, 'shot-20c-fr-copy');
+    });
 });

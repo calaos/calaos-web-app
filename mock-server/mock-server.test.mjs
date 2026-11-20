@@ -2129,6 +2129,21 @@ describe('climate time programs', () => {
         expect(frame.data.success).toBe('true');
     });
 
+    it('program_scope makes set_timerange answer scope denied and store nothing, until it is lifted', async () => {
+        await control({ op: 'program_scope' });
+        const { client } = await login();
+        client.send({ msg: 'get_timerange', msg_id: 'b', data: { id: LEVEL } });
+        const before = await client.waitFor(reply('get_timerange', 'b'));
+        client.send({ msg: 'set_timerange', msg_id: 'd', data: { id: LEVEL, ranges: [range({ day: 3 })] } });
+        expect((await client.waitFor(reply('set_timerange', 'd'))).data).toEqual({ error: 'scope denied' });
+        client.send({ msg: 'get_timerange', msg_id: 'a', data: { id: LEVEL } });
+        expect((await client.waitFor(reply('get_timerange', 'a'))).data).toEqual(before.data);
+
+        await control({ op: 'program_scope', on: false });
+        client.send({ msg: 'set_timerange', msg_id: 'e', data: { id: LEVEL, ranges: [range({ day: 3 })] } });
+        expect((await client.waitFor(reply('set_timerange', 'e'))).data).toEqual({ success: 'true' });
+    });
+
     it('program_reject does not change the stored value', async () => {
         await control({ op: 'program_reject' });
         const { client } = await login();

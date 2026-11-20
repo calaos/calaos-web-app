@@ -94,6 +94,7 @@ export function createProgram({ broadcast = () => {}, onChange = () => {} } = {}
     let values;
     /** @type {Map<string, {months: string, ranges: object[]}>} */
     let timeranges;
+    let scopeDenied = false;
     /** set_timerange calls still to answer normally before the armed failure. */
     let failAfter = -1;
     /** While true every set_state on a program IO answers success:false. */
@@ -107,6 +108,7 @@ export function createProgram({ broadcast = () => {}, onChange = () => {} } = {}
         );
         failAfter = -1;
         rejectValues = false;
+        scopeDenied = false;
         clock = null;
         hidden = false;
     }
@@ -241,6 +243,7 @@ export function createProgram({ broadcast = () => {}, onChange = () => {} } = {}
             const id = data?.id;
             const tr = typeof id === 'string' ? timeranges.get(id) : undefined;
             if (!tr) return { error: 'wrong input' };
+            if (scopeDenied) return { error: 'scope denied' };
             if (data.months !== undefined && !(typeof data.months === 'string' && /^[01]{12}$/.test(data.months))) {
                 return { error: 'invalid months' };
             }
@@ -268,6 +271,11 @@ export function createProgram({ broadcast = () => {}, onChange = () => {} } = {}
             }
             if (failAfter > 0) failAfter--;
             return { success: 'true' };
+        },
+
+        /** A service-scope session: set_timerange answers scope denied. */
+        serviceScope(on = true) {
+            scopeDenied = on === true;
         },
 
         reject(on = true) {

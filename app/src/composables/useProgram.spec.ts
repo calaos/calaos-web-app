@@ -201,7 +201,7 @@ describe('useProgram — the next change', () => {
         publish(wire(state()));
         await nextTick();
         expect(vi.getTimerCount()).toBe(1);
-        expect(p.nextText.value).toBe('10:45, Heating level 2 at 21.5° (in 45 min)');
+        expect(p.nextText.value).toBe('10:45, Heating period at 21.5° (in 45 min)');
 
         publish(wire(state({ next_change: null })));
         await nextTick();
@@ -230,11 +230,11 @@ describe('useProgram — the next change', () => {
 describe('useProgram — the set in force', () => {
     it('follows mode_set, and the direction of the next change in auto', () => {
         const heat = setup(wire(state()));
-        expect(heat.activeText.value).toBe('Level 1 · 20°');
+        expect(heat.activeText.value).toBe('Period · 20°');
         scope.stop();
 
         const cool = setup(wire(state({ mode_set: 'cool', cool: { levels: 2, active_level: 2, setpoint: 25.5, default: null } })));
-        expect(cool.activeText.value).toBe('Level 2 · 25.5°');
+        expect(cool.activeText.value).toBe('Period · 25.5°');
         scope.stop();
 
         const auto = setup(
@@ -264,21 +264,21 @@ describe('useProgram — the set in force', () => {
 
     it('says no level applies, and what the pause covers', () => {
         const gap = setup(wire(state({ heat: { levels: 2, active_level: null, setpoint: null, default: 17 }, enabled: false })));
-        expect(gap.activeText.value).toBe('No level now');
+        expect(gap.activeText.value).toBe('No period now');
         expect(gap.pausedText.value).toBe('Program paused');
         scope.stop();
 
         const level = setup(wire(state({ enabled: false })));
-        expect(level.pausedText.value).toBe('Program paused: level 1 (20°)');
+        expect(level.pausedText.value).toBe('Program paused: period (20°)');
         scope.stop();
 
         const none = setup(wire(null));
         expect(none.current.value).toBeUndefined();
-        expect(none.activeText.value).toBe('No level now');
+        expect(none.activeText.value).toBe('No period now');
     });
 
     it('shows half degrees', () => {
         const p = setup(wire(state({ heat: { levels: 2, active_level: 1, setpoint: 20.5, default: 17 } })));
-        expect(p.activeText.value).toBe('Level 1 · 20.5°');
+        expect(p.activeText.value).toBe('Period · 20.5°');
     });
 });

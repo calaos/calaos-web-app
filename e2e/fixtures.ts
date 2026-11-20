@@ -57,6 +57,8 @@ export type ControlOp =
     /** The (after+1)th set_timerange from now answers config_not_written (default 0: the next one). */
     | { op: 'timerange_fail'; after?: number }
     | { op: 'program_reject'; on?: boolean }
+    /** set_timerange answers `scope denied`, as in a service-scope session (default on). */
+    | { op: 'program_scope'; on?: boolean }
     | { op: 'program_clock'; clock?: string | null; hidden?: boolean }
     | { op: 'reset' };
 

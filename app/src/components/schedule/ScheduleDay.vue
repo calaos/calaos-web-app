@@ -99,7 +99,7 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
 
         <ul v-else class="day__list">
             <li v-for="s in slots" :key="`${s.start}-${s.level}`">
-                <button type="button" class="day__row" :aria-label="`${t('schedule.v2.edit')} ${range(s)}, ${temp(s)}`" @click="emit('open', s)">
+                <button type="button" class="day__row" :aria-label="`${t('schedule.v2.edit')} ${range(s)}, ${temp(s)}`" :disabled="locked" @click="emit('open', s)">
                     <span class="day__dot" :style="{ background: `var(--lv-${kind}${s.level})` }" aria-hidden="true" />
                     <span class="day__range" aria-hidden="true">{{ range(s) }}</span>
                     <span class="day__temp" aria-hidden="true">{{ temp(s) }}</span>
@@ -233,7 +233,7 @@ const countText = computed(() => t('schedule.v2.count', { n: props.slots.length 
 
 button:disabled {
     cursor: not-allowed;
-    opacity: 0.65;
+    opacity: 0.45;
 }
 
 .day__empty {

@@ -75,6 +75,8 @@ const valueTitle = computed(() => [text.setpoint.value, text.room.value, program
 const modeOpen = ref(false);
 const moreOpen = ref(false);
 const scheduleOpen = ref(false);
+// The session's scope does not change while the page lives: the first refusal is remembered.
+const serviceSession = ref(false);
 const panel = ref<HTMLElement | null>(null);
 let opener: HTMLElement | null = null;
 
@@ -249,7 +251,7 @@ function withCurrent(list: string[] | undefined, current: string): string[] {
         :cancel-label="t('climate.close')"
         @cancel="scheduleOpen = false"
     >
-        <ScheduleEditor v-if="scheduleOpen" :io="io" />
+        <ScheduleEditor v-if="scheduleOpen" :io="io" :readonly="serviceSession" @denied="serviceSession = true" />
     </BaseDialog>
 
     <ClimateMoreDialog

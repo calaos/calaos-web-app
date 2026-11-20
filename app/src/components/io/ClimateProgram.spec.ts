@@ -118,12 +118,12 @@ afterEach(() => {
 describe('ClimateIo — the program on the card', () => {
     it('says the active level and the next change on the row', () => {
         const w = mountClimate();
-        expect(w.get('.climate-io__program').text()).toBe('Level 2 · 20.5° · ▶ 13:20');
+        expect(w.get('.climate-io__program').text()).toBe('Period · 20.5° · ▶ 13:20');
     });
 
     it('says the program is paused, with the level that would apply, instead of the next change', () => {
         const w = mountClimate(device({ program: program({ enabled: false }) }));
-        expect(w.get('.climate-io__program').text()).toBe('Program paused: level 2 (20.5°)');
+        expect(w.get('.climate-io__program').text()).toBe('Program paused: period (20.5°)');
         expect(rowSwitch(w).element).toHaveProperty('checked', false);
         expect(w.get('.climate-io__pause').text()).toBe('⏸');
         expect(w.get('.climate-io__pause').attributes('aria-hidden')).toBe('true');
@@ -135,7 +135,7 @@ describe('ClimateIo — the program on the card', () => {
 
     it('says no level applies when the clock is in a gap', () => {
         const w = mountClimate(device({ program: program({ heat: { levels: 2, active_level: null, setpoint: null, default: 17 }, next_change: null }) }));
-        expect(w.get('.climate-io__program').text()).toBe('No level now');
+        expect(w.get('.climate-io__program').text()).toBe('No period now');
     });
 
     it('shows the switch on, and sends set_state on program_enabled when it is flipped', async () => {
@@ -257,11 +257,11 @@ describe('ClimateDetail — the program', () => {
     it('reads the active level and the next change, with the countdown', async () => {
         const w = mountClimate();
         await openSettings(w);
-        expect(body().get('.climate-detail__active').text()).toBe('Level 2 · 20.5°');
-        expect(body().get('.climate-detail__next').text()).toBe('13:20, Heating level 1 at 22° (in 3 h 20)');
+        expect(body().get('.climate-detail__active').text()).toBe('Period · 20.5°');
+        expect(body().get('.climate-detail__next').text()).toBe('13:20, Heating period at 22° (in 3 h 20)');
 
         await vi.advanceTimersByTimeAsync(2 * 3600_000);
-        expect(body().get('.climate-detail__next').text()).toBe('13:20, Heating level 1 at 22° (in 1 h 20)');
+        expect(body().get('.climate-detail__next').text()).toBe('13:20, Heating period at 22° (in 1 h 20)');
     });
 
     it('names the weekday when the next change is not today, and says when nothing is planned', async () => {
@@ -277,7 +277,7 @@ describe('ClimateDetail — the program', () => {
     it('replaces the level and the next change by the pause line when paused', async () => {
         const w = mountClimate(device({ program: program({ enabled: false }) }));
         await openSettings(w);
-        expect(body().get('.climate-detail__paused').text()).toBe('Program paused: level 2 (20.5°)');
+        expect(body().get('.climate-detail__paused').text()).toBe('Program paused: period (20.5°)');
         expect(body().find('.climate-detail__active').exists()).toBe(false);
         expect(body().find('.climate-detail__next').exists()).toBe(false);
     });
@@ -376,8 +376,8 @@ describe('ClimateDetail — the program', () => {
     it('speaks French', async () => {
         i18n.global.locale.value = 'fr';
         const w = mountClimate();
-        expect(w.get('.climate-io__program').text()).toMatch(/^Niveau 2 · 20,5° · ▶ 13:20$/);
+        expect(w.get('.climate-io__program').text()).toMatch(/^Plage · 20,5° · ▶ 13:20$/);
         await openSettings(w);
-        expect(body().get('.climate-detail__next').text()).toContain('Chauffage niveau 1');
+        expect(body().get('.climate-detail__next').text()).toContain('Chauffage plage');
     });
 });
