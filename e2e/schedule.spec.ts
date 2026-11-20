@@ -355,7 +355,8 @@ test('swapping two overlapping periods that fails halfway keeps the view open; t
     // 07:00-10:00 at 21 overlaps the 06:30-08:00 period at 19.
     await step(dialog, S.form.start, 'minus', 4);
     const target = dialog.locator('[data-test="setpoint"]');
-    while (!(await target.innerText()).startsWith('21')) await step(dialog, S.form.setpoint, 'plus', 1);
+    for (let i = 0; i < 40 && !(await target.innerText()).startsWith('21'); i++) await step(dialog, S.form.setpoint, 'plus', 1);
+    await expect(target).toContainText('21');
     const overlap = dialog.locator('[data-test="overlap"]');
     await expect(overlap).toBeVisible();
     await overlap.getByRole('button', { name: S.v2.swap }).click();

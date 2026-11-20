@@ -239,6 +239,7 @@
             "count": "{n} plage | {n} plages",
             "emptyTitle": "Aucune plage ce jour-là",
             "rest": "Le reste du temps",
+            "useSetpoint": "Utiliser {value} degrés",
             "minus": "Moins",
             "plus": "Plus",
             "midnight": "Cette plage passe minuit. Elle sera enregistrée en deux plages : {a} et {b}.",

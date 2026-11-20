@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+    DAY_MINUTES,
     copyDay,
     diffPrograms,
     effectiveDay,
     findOverlap,
     isError,
+    levelCeiling,
     levelFor,
     levelIos,
     levelRanges,
@@ -363,5 +365,38 @@ describe('a period carries its own temperature', () => {
         expect(midnightTwin(p, b!)).toEqual({ first: a, second: b });
         const plain = must(upsertSlot(empty(3), { days: [1], start: 60, end: 120, setpoint: 18 }));
         expect(midnightTwin(plain, plain.slots[0])).toBeUndefined();
+    });
+
+    it('midnightTwin never pairs a whole-day range with its neighbour', () => {
+        let weekend = must(upsertSlot(empty(3), { days: [6, 7], start: 0, end: DAY_MINUTES, setpoint: 21 }));
+        for (const s of weekend.slots) expect(midnightTwin(weekend, s)).toBeUndefined();
+
+        const tue = must(upsertSlot(empty(3), { days: [2], start: 0, end: DAY_MINUTES, setpoint: 21 }));
+        const mixed = must(upsertSlot(tue, { days: [3], start: 0, end: 420, setpoint: 21 }));
+        for (const s of mixed.slots) expect(midnightTwin(mixed, s)).toBeUndefined();
+
+        const eve = must(upsertSlot(empty(3), { days: [1], start: 1320, end: DAY_MINUTES, setpoint: 21 }));
+        const next = must(upsertSlot(eve, { days: [2], start: 0, end: DAY_MINUTES, setpoint: 21 }));
+        for (const s of next.slots) expect(midnightTwin(next, s)).toBeUndefined();
+
+        weekend = must(upsertSlot(empty(3), { days: [1], start: 1380, end: 120, setpoint: 18 }));
+        expect(midnightTwin(weekend, weekend.slots[0])).toBeDefined();
+    });
+
+    it('the ceiling is the smaller of the server max and the exposed levels', () => {
+        const p = empty(3);
+        expect(levelCeiling(p, 6)).toBe(3);
+        expect(levelCeiling(p, 2)).toBe(2);
+        expect(levelCeiling(p, undefined)).toBe(3);
+        expect(levelCeiling(empty(6), 10)).toBe(6);
+    });
+
+    it('Save refuses beyond a server max below the exposed levels, with the same N', () => {
+        let p = empty(6);
+        p = must(upsertSlot(p, { days: [1], start: 0, end: 60, setpoint: 18 }, [], 2));
+        p = must(upsertSlot(p, { days: [1], start: 60, end: 120, setpoint: 19 }, [], 2));
+        expect(upsertSlot(p, { days: [1], start: 120, end: 180, setpoint: 20 }, [], 2)).toEqual({ kind: 'too_many', max: 2 });
+        expect(levelFor(p, 20, [], 2)).toEqual({ kind: 'too_many', max: 2 });
+        expect(isError(upsertSlot(p, { days: [1], start: 120, end: 180, setpoint: 19 }, [], 2))).toBe(false);
     });
 });

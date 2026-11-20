@@ -52,6 +52,8 @@ interface Options {
     coolOff?: boolean;
     prepare?: (server: FakeServer) => void;
     keepConnectionClosed?: boolean;
+    /** capabilities.program.max_levels, below or above the exposed levels. */
+    maxLevels?: number;
 }
 
 interface Mounted {
@@ -73,7 +75,8 @@ async function mountEditor(opts: Options = {}): Promise<Mounted> {
     server.values.set('CD', '26');
     server.values.set('CO', opts.coolOff ? 'true' : 'false');
     opts.prepare?.(server);
-    const io = { device: { ios: opts.ios ?? climateIos() } } as unknown as IoItem;
+    const capabilities = opts.maxLevels ? { program: { maxLevels: opts.maxLevels } } : undefined;
+    const io = { device: { ios: opts.ios ?? climateIos(), capabilities } } as unknown as IoItem;
     const wrapper = mount(ScheduleEditor, {
         props: { io, readonly: opts.readonly ?? false },
         global: { plugins: [createI18n({ legacy: false, locale: 'en', messages })] },
@@ -1114,5 +1117,47 @@ describe('a period carries its own temperature', () => {
         expect(segments(wrapper)).toEqual(['23:00 – 24:00, 22°']);
         await selectDay(wrapper, 'Tuesday');
         expect(segments(wrapper)).toEqual(['00:00 – 03:00, 22°']);
+    });
+
+    it('a whole-day range is its own period: editing it keeps the next day untouched', async () => {
+        const heat = { 1: [wireRange(2, 0, 0, 24, 0), wireRange(3, 0, 0, 7, 0)] };
+        const { wrapper, server } = await mountEditor({ heat });
+        await selectDay(wrapper, 'Tuesday');
+        expect(segments(wrapper)).toHaveLength(1);
+        await periodRow(wrapper).trigger('click');
+        await fillForm(wrapper, { start: '01:00' });
+        const mark = server.sent.length;
+        await save(wrapper);
+        expect(writes(server, mark)).toEqual(['set_timerange:H1']);
+        expect(segments(wrapper)).toEqual(['01:00 – 24:00, 22°']);
+        await selectDay(wrapper, 'Wednesday');
+        expect(segments(wrapper)).toEqual(['00:00 – 07:00, 22°']);
+    });
+
+    it('deleting a whole-day weekend range removes that day only', async () => {
+        const heat = { 1: [wireRange(6, 0, 0, 24, 0), wireRange(7, 0, 0, 24, 0)] };
+        const { wrapper } = await mountEditor({ heat });
+        await selectDay(wrapper, 'Saturday');
+        await periodRow(wrapper).trigger('click');
+        await button(form(wrapper), 'Delete').trigger('click');
+        await button(form(wrapper), 'Delete').trigger('click');
+        await flushPromises();
+        await selectDay(wrapper, 'Sunday');
+        expect(segments(wrapper)).toEqual(['00:00 – 24:00, 22°']);
+    });
+
+    it('caps at the server max when it is below the exposed levels, same N in the message and at Save', async () => {
+        const { wrapper, server } = await mountEditor({ maxLevels: 3, heat: levelsInUse(3) });
+        await selectDay(wrapper, 'Monday');
+        await button(wrapper, 'Add a period').trigger('click');
+        await fillForm(wrapper, { setpoint: 15 });
+        const box = form(wrapper).get('[data-test="too-many"]');
+        expect(box.text()).toContain('already uses 3 different temperatures');
+        expect(box.findAll('.period__chip')).toHaveLength(3);
+        expect(button(form(wrapper), 'Save').attributes('disabled')).toBeDefined();
+        const mark = server.sent.length;
+        await button(form(wrapper), 'Save').trigger('click');
+        await flushPromises();
+        expect(writes(server, mark)).toEqual([]);
     });
 });

@@ -118,6 +118,7 @@ function programOf(d: Direction): DirectionProgram | undefined {
 }
 
 const program = computed(() => programOf(direction.value));
+const maxLevels = computed(() => props.io.device?.capabilities?.program?.maxLevels || undefined);
 const coolOff = computed(() => store.values.get(ios.value.cool_default_off ?? '') === 'true');
 const defaultOf = (d: Direction) => numberValue(d === 'heat' ? ios.value.heat_default : ios.value.cool_default);
 
@@ -369,7 +370,7 @@ async function savePeriod(entry: PeriodEntry): Promise<void> {
     await apply(
         direction.value,
         (p) => {
-            const next = upsertSlot(p, target, p.slots.filter((s) => origin.some((o) => sameSlot(s, o))));
+            const next = upsertSlot(p, target, p.slots.filter((s) => origin.some((o) => sameSlot(s, o))), maxLevels.value);
             return isError(next) || !entry.priority ? next : orderLevels(next, entry.setpoint, entry.priority);
         },
         undefined,
@@ -519,7 +520,7 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                 :day="day"
                 :existing="draft.slot"
                 :twin="draft.twin"
-                :max-levels="props.io.device?.capabilities?.program?.maxLevels || undefined"
+                :max-levels="maxLevels"
                 :start="draft.start"
                 :end="draft.end"
                 :setpoint="draft.setpoint"

@@ -202,15 +202,22 @@ export function usedLevels(program: DirectionProgram): number[] {
     return [...used].sort((a, b) => a - b);
 }
 
+/** How many different temperatures a direction can hold: the server's max_levels, never more than the levels it exposes. */
+export function levelCeiling(program: DirectionProgram, maxLevels?: number): number {
+    return Math.min(maxLevels && maxLevels > 0 ? maxLevels : Infinity, program.levels.length);
+}
+
 /**
  * The level a setpoint goes to: the first one already at that temperature,
  * else a free one. `ignore` frees the slots being edited; when they were the
  * only ones on their level, that level keeps them and just changes setpoint.
+ * A free level counts only within the ceiling: min(server max, exposed levels).
  */
 export function levelFor(
     program: DirectionProgram,
     setpoint: number,
     ignore: Slot[] = [],
+    maxLevels?: number,
 ): { n: number; isNew: boolean } | ScheduleError {
     if (program.levels.length === 0) return { kind: 'no_level' };
     const rest = program.slots.filter((s) => !ignore.includes(s));
@@ -219,9 +226,11 @@ export function levelFor(
     const same = program.levels.find((l) => l.setpoint === setpoint && busy.has(l.n));
     if (same) return { n: same.n, isNew: false };
     const own = ignore.length > 0 && ignore.every((s) => s.level === ignore[0].level) ? ignore[0].level : undefined;
-    const free = program.levels.find((l) => l.n === own && !busy.has(l.n)) ?? program.levels.find((l) => !busy.has(l.n));
+    const max = levelCeiling(program, maxLevels);
+    const usable = program.levels.slice(0, max);
+    const free = usable.find((l) => l.n === own && !busy.has(l.n)) ?? usable.find((l) => !busy.has(l.n));
     if (free) return { n: free.n, isNew: free.setpoint !== setpoint };
-    return { kind: 'too_many', max: program.levels.length };
+    return { kind: 'too_many', max };
 }
 
 /** The temperatures the week already uses in this direction, ascending. */
@@ -246,17 +255,18 @@ export function mostUsedSetpoint(program: DirectionProgram): number | undefined 
 /**
  * The other half of a period that crosses midnight (stored as day D to 24:00
  * and day D+1 from 00:00, same level): the one after `slot`, or before it.
+ * A whole-day range is never half of one: the merged period would not cross midnight.
  */
 export function midnightTwin(program: DirectionProgram, slot: Slot): { first: Slot; second: Slot } | undefined {
     const find = (day: number, edge: 'start' | 'end') =>
         program.slots.find((s) => s.day === day && s.level === slot.level && (edge === 'start' ? s.start === 0 : s.end === DAY_MINUTES));
     if (slot.end === DAY_MINUTES) {
         const second = find(nextDay(slot.day), 'start');
-        if (second && second !== slot) return { first: slot, second };
+        if (second && second !== slot && slot.start > 0 && second.end < DAY_MINUTES) return { first: slot, second };
     }
     if (slot.start === 0) {
         const first = find(((slot.day + 5) % 7) + 1, 'end');
-        if (first && first !== slot) return { first, second: slot };
+        if (first && first !== slot && first.start > 0 && slot.end < DAY_MINUTES) return { first, second: slot };
     }
     return undefined;
 }
@@ -293,8 +303,9 @@ export function upsertSlot(
     program: DirectionProgram,
     entry: { days: number[]; start: number; end: number; setpoint: number },
     replacing: Slot[] = [],
+    maxLevels?: number,
 ): DirectionProgram | ScheduleError {
-    const target = levelFor(program, entry.setpoint, replacing);
+    const target = levelFor(program, entry.setpoint, replacing, maxLevels);
     if (isError(target)) return target;
     const added = splitEntry(entry.days, entry.start, entry.end, target.n);
     if (isError(added)) return added;
@@ -321,8 +332,9 @@ export function findOverlap(
     program: DirectionProgram,
     entry: { day: number; start: number; end: number; setpoint: number },
     replacing: Slot[] = [],
+    maxLevels?: number,
 ): Overlap | null {
-    const target = levelFor(program, entry.setpoint, replacing);
+    const target = levelFor(program, entry.setpoint, replacing, maxLevels);
     if (isError(target)) return null;
     const parts = splitEntry([entry.day], entry.start, entry.end, target.n);
     if (isError(parts)) return null;

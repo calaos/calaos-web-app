@@ -239,6 +239,7 @@
             "count": "{n} period | {n} periods",
             "emptyTitle": "No period that day",
             "rest": "The rest of the time",
+            "useSetpoint": "Use {value} degrees",
             "minus": "Decrease",
             "plus": "Increase",
             "midnight": "This period crosses midnight. It will be saved as two periods: {a} and {b}.",

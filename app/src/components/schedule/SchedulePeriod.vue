@@ -7,7 +7,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import IconBack from '~icons/mdi/chevron-left';
 import ScheduleTrack from './ScheduleTrack.vue';
-import { DAY_MINUTES, findOverlap, formatMinutes, isError, levelFor, setpointOf, usedSetpoints } from '../../protocol/schedule';
+import { DAY_MINUTES, findOverlap, formatMinutes, isError, levelCeiling, levelFor, setpointOf, usedSetpoints } from '../../protocol/schedule';
 import type { Direction, DirectionProgram, Slot } from '../../protocol/schedule';
 
 const props = defineProps<{
@@ -89,12 +89,12 @@ function moveSetpoint(by: number): void {
 
 const entry = computed(() => ({ day: props.day, start: start.value, end: end.value, setpoint: setpoint.value }));
 
-const target = computed(() => levelFor(props.program, setpoint.value, replacing.value));
+const target = computed(() => levelFor(props.program, setpoint.value, replacing.value, props.maxLevels));
 const tooMany = computed(() => isError(target.value) && target.value.kind === 'too_many');
-const limit = computed(() => props.maxLevels ?? (isError(target.value) && target.value.kind === 'too_many' ? target.value.max : 0));
+const limit = computed(() => levelCeiling(props.program, props.maxLevels));
 const used = computed(() => (tooMany.value ? usedSetpoints(props.program, replacing.value) : []));
 
-const overlap = computed(() => (invalid.value || tooMany.value ? null : findOverlap(props.program, entry.value, replacing.value)));
+const overlap = computed(() => (invalid.value || tooMany.value ? null : findOverlap(props.program, entry.value, replacing.value, props.maxLevels)));
 const otherSetpoint = computed(() => (overlap.value ? setpointOf(props.program, overlap.value.other.level) : undefined));
 const mineFirst = computed(() => {
     const o = overlap.value;
@@ -232,7 +232,7 @@ const mark = computed(() => (invalid.value ? undefined : { start: start.value, e
         <div v-if="tooMany" class="period__note period__note--error" role="alert" data-test="too-many">
             <p>{{ t('schedule.tooMany', { n: limit }) }}</p>
             <p class="period__chips">
-                <button v-for="value in used" :key="value" type="button" class="period__chip" :disabled="locked" @click="setpoint = value">
+                <button v-for="value in used" :key="value" type="button" class="period__chip" :aria-label="t('schedule.v2.useSetpoint', { value: degrees(value) })" :disabled="locked" @click="setpoint = value">
                     {{ degrees(value) }}°
                 </button>
             </p>
@@ -361,8 +361,8 @@ const mark = computed(() => (invalid.value ? undefined : { start: start.value, e
     align-items: center;
     justify-content: center;
     gap: var(--space-1);
-    min-block-size: 44px;
-    min-inline-size: 44px;
+    min-block-size: 48px;
+    min-inline-size: 48px;
     padding: 0 var(--space-3);
     font: inherit;
     color: var(--c-text);
@@ -396,6 +396,14 @@ button:disabled {
     opacity: 0.45;
 }
 
+/* A faded accent fill leaves white text at about 2:1; a flat muted button keeps it readable. */
+.period__button--primary:disabled {
+    color: var(--c-text-muted);
+    background: var(--c-surface-raised);
+    border-color: var(--c-border-strong);
+    opacity: 1;
+}
+
 .period__note {
     margin: 0;
     padding: var(--space-2) var(--space-3);
@@ -417,11 +425,11 @@ button:disabled {
     border-color: var(--c-warn-border);
 }
 
-.period__chips {
+.period__note .period__chips {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
-    margin-block-start: var(--space-2) !important;
+    margin-block-start: var(--space-2);
 }
 
 .period__order {
