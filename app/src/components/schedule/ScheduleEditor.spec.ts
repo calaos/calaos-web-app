@@ -52,6 +52,8 @@ interface Options {
     coolOff?: boolean;
     prepare?: (server: FakeServer) => void;
     keepConnectionClosed?: boolean;
+    /** capabilities.program.max_levels, below or above the exposed levels. */
+    maxLevels?: number;
 }
 
 interface Mounted {
@@ -73,7 +75,8 @@ async function mountEditor(opts: Options = {}): Promise<Mounted> {
     server.values.set('CD', '26');
     server.values.set('CO', opts.coolOff ? 'true' : 'false');
     opts.prepare?.(server);
-    const io = { device: { ios: opts.ios ?? climateIos() } } as unknown as IoItem;
+    const capabilities = opts.maxLevels ? { program: { maxLevels: opts.maxLevels } } : undefined;
+    const io = { device: { ios: opts.ios ?? climateIos(), capabilities } } as unknown as IoItem;
     const wrapper = mount(ScheduleEditor, {
         props: { io, readonly: opts.readonly ?? false },
         global: { plugins: [createI18n({ legacy: false, locale: 'en', messages })] },
@@ -266,10 +269,10 @@ describe('reading the program', () => {
         await openTab(wrapper, 'Cooling');
     });
 
-    it('ignores a seventh level and reads only the IOs it was given', async () => {
-        const ios = { ...climateIos({ cool: false }), heat_level7: 'H7', heat_level7_setpoint: 'H7S' };
+    it('ignores an eleventh level and reads only the IOs it was given', async () => {
+        const ios = { ...climateIos({ cool: false }), heat_level11: 'H11', heat_level11_setpoint: 'H11S' };
         const { wrapper, server } = await mountEditor({ ios });
-        expect(reads(server)).not.toContain('H7');
+        expect(reads(server)).not.toContain('H11');
         expect(wrapper.find('.week__tabs').exists()).toBe(false);
     });
 
@@ -374,9 +377,9 @@ describe('six levels at most (Q2)', () => {
         await selectDay(wrapper, 'Monday');
         const add = () => button(wrapper, 'Add a period');
         await add().trigger('click');
-        // Default 19° is free among 22, 20, 18, 16, 14: the form proposes it.
-        expect(form(wrapper).get('[data-test="setpoint"]').text()).toBe('19°');
-        await fillForm(wrapper, { start: '20:00', end: '21:00' });
+        // Opens on the most used temperature (a tie goes to the lowest level), never on the default.
+        expect(form(wrapper).get('[data-test="setpoint"]').text()).toBe('22°');
+        await fillForm(wrapper, { start: '20:00', end: '21:00', setpoint: 19 });
         const mark = server.sent.length;
         await save(wrapper);
         expect(writes(server, mark)).toEqual(['set_state:H6S=19', 'set_timerange:H6']);
@@ -390,7 +393,7 @@ describe('six levels at most (Q2)', () => {
         await addSlot(wrapper, { start: '20:00', end: '21:00', setpoint: 25 });
         const mark = server.sent.length;
         await save(wrapper);
-        expect(form(wrapper).text()).toContain('6 different setpoints maximum');
+        expect(form(wrapper).text()).toContain('This week already uses 6 different temperatures. Choose one of them:');
         expect(button(form(wrapper), 'Save').attributes('disabled')).toBeDefined();
         await button(form(wrapper), 'Save').trigger('click');
         expect(form(wrapper).exists()).toBe(true);
@@ -414,7 +417,7 @@ describe('six levels at most (Q2)', () => {
         const { wrapper, server } = await mountEditor({ ios, heat: levelsInUse(4) });
         
         await addSlot(wrapper, { start: '20:00', end: '21:00', setpoint: 25 });
-        expect(form(wrapper).text()).toContain('4 different setpoints maximum');
+        expect(form(wrapper).text()).toContain('This week already uses 4 different temperatures. Choose one of them:');
         expect(button(form(wrapper), 'Save').attributes('disabled')).toBeDefined();
         expect(writes(server)).toEqual([]);
     });
@@ -1050,5 +1053,111 @@ describe('a re-read that overlaps a write', () => {
         await flushPromises();
         expect(reads(server, mark)).toEqual(['H1']);
         expect(segments(wrapper)).toEqual(['08:00 – 10:00, 22°', '12:00 – 13:00, 22°']);
+    });
+});
+
+describe('a period carries its own temperature', () => {
+    const fiveAt20 = (): Record<number, WireRange[]> => ({
+        1: [wireRange(6, 1, 0, 2, 0)],
+        2: [1, 2, 3, 4, 5].map((d) => wireRange(d, 10, 0, 11, 0)),
+        3: [wireRange(6, 3, 0, 4, 0)],
+    });
+    const editWednesday = async (w: VueWrapper, setpoint: number) => {
+        await selectDay(w, 'Wednesday');
+        await periodRow(w).trigger('click');
+        await fillForm(w, { setpoint });
+    };
+
+    it('refuses a fourth temperature with the existing ones as chips, and Save only then is off', async () => {
+        const { wrapper, server } = await mountEditor({ ios: climateIos({ levels: 3, cool: false }), heat: fiveAt20() });
+        await editWednesday(wrapper, 21);
+        const box = form(wrapper).get('[data-test="too-many"]');
+        expect(box.text()).toContain('This week already uses 3 different temperatures. Choose one of them:');
+        expect(box.findAll('.period__chip').map((c) => c.text())).toEqual(['18°', '20°', '22°']);
+        expect(button(form(wrapper), 'Save').attributes('disabled')).toBeDefined();
+        const mark = server.sent.length;
+        await box.findAll('.period__chip')[0].trigger('click');
+        expect(form(wrapper).find('[data-test="too-many"]').exists()).toBe(false);
+        expect(button(form(wrapper), 'Save').attributes('disabled')).toBeUndefined();
+        expect(writes(server, mark)).toEqual([]);
+    });
+
+    it('changes only that period when a level is free, without any message', async () => {
+        const { wrapper, server } = await mountEditor({ heat: fiveAt20() });
+        await editWednesday(wrapper, 21);
+        expect(form(wrapper).find('[data-test="too-many"]').exists()).toBe(false);
+        const mark = server.sent.length;
+        await save(wrapper);
+        expect(writes(server, mark).filter((w) => w.startsWith('set_state'))).toHaveLength(1);
+        await selectDay(wrapper, 'Tuesday');
+        expect(segments(wrapper)).toEqual(['10:00 – 11:00, 20°']);
+        await selectDay(wrapper, 'Wednesday');
+        expect(segments(wrapper)).toEqual(['10:00 – 11:00, 21°']);
+    });
+
+    it('opens "Add a period" on the most used temperature of the week', async () => {
+        const { wrapper } = await mountEditor({ heat: fiveAt20() });
+        await selectDay(wrapper, 'Sunday');
+        await button(wrapper, 'Add a period').trigger('click');
+        expect(form(wrapper).get('[data-test="setpoint"]').text()).toBe('20°');
+    });
+
+    it('edits a period that crosses midnight as one, from either half', async () => {
+        const heat = { 1: [wireRange(1, 23, 0, 24, 0), wireRange(2, 0, 0, 2, 0)] };
+        const { wrapper, server } = await mountEditor({ heat });
+        await selectDay(wrapper, 'Tuesday');
+        await periodRow(wrapper).trigger('click');
+        expect(form(wrapper).get('[data-test="start"]').text()).toContain('23:00');
+        expect(form(wrapper).get('[data-test="end"]').text()).toContain('02:00');
+        await fillForm(wrapper, { end: '03:00' });
+        const mark = server.sent.length;
+        await save(wrapper);
+        expect(writes(server, mark)).toEqual(['set_timerange:H1']);
+        await selectDay(wrapper, 'Monday');
+        expect(segments(wrapper)).toEqual(['23:00 – 24:00, 22°']);
+        await selectDay(wrapper, 'Tuesday');
+        expect(segments(wrapper)).toEqual(['00:00 – 03:00, 22°']);
+    });
+
+    it('a whole-day range is its own period: editing it keeps the next day untouched', async () => {
+        const heat = { 1: [wireRange(2, 0, 0, 24, 0), wireRange(3, 0, 0, 7, 0)] };
+        const { wrapper, server } = await mountEditor({ heat });
+        await selectDay(wrapper, 'Tuesday');
+        expect(segments(wrapper)).toHaveLength(1);
+        await periodRow(wrapper).trigger('click');
+        await fillForm(wrapper, { start: '01:00' });
+        const mark = server.sent.length;
+        await save(wrapper);
+        expect(writes(server, mark)).toEqual(['set_timerange:H1']);
+        expect(segments(wrapper)).toEqual(['01:00 – 24:00, 22°']);
+        await selectDay(wrapper, 'Wednesday');
+        expect(segments(wrapper)).toEqual(['00:00 – 07:00, 22°']);
+    });
+
+    it('deleting a whole-day weekend range removes that day only', async () => {
+        const heat = { 1: [wireRange(6, 0, 0, 24, 0), wireRange(7, 0, 0, 24, 0)] };
+        const { wrapper } = await mountEditor({ heat });
+        await selectDay(wrapper, 'Saturday');
+        await periodRow(wrapper).trigger('click');
+        await button(form(wrapper), 'Delete').trigger('click');
+        await button(form(wrapper), 'Delete').trigger('click');
+        await flushPromises();
+        await selectDay(wrapper, 'Sunday');
+        expect(segments(wrapper)).toEqual(['00:00 – 24:00, 22°']);
+    });
+
+    it('caps at the server max when it is below the exposed levels, same N in the message and at Save', async () => {
+        const { wrapper, server } = await mountEditor({ maxLevels: 3, heat: levelsInUse(3) });
+        await selectDay(wrapper, 'Monday');
+        await button(wrapper, 'Add a period').trigger('click');
+        await fillForm(wrapper, { setpoint: 15 });
+        const box = form(wrapper).get('[data-test="too-many"]');
+        expect(box.text()).toContain('already uses 3 different temperatures');
+        expect(box.findAll('.period__chip')).toHaveLength(3);
+        expect(button(form(wrapper), 'Save').attributes('disabled')).toBeDefined();
+        const mark = server.sent.length;
+        await button(form(wrapper), 'Save').trigger('click');
+        await flushPromises();
+        expect(writes(server, mark)).toEqual([]);
     });
 });

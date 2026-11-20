@@ -235,7 +235,7 @@ test('cooling tab: switching the cool off outside slots is written and the gap r
     await shot(page, testInfo, 'shot-07-cool-off');
 });
 
-test('the seventh temperature is refused with a message and nothing is written', async ({ page, mock }, testInfo) => {
+test('a temperature beyond the device levels is refused with a message and nothing is written', async ({ page, mock }, testInfo) => {
     const dialog = await openEditor(page);
     await openDay(dialog, 'Monday');
     const addSlot = dialog.getByRole('button', { name: S.addSlot, exact: true }).last();
@@ -260,10 +260,17 @@ test('the seventh temperature is refused with a message and nothing is written',
     await addSlot.click();
     await step(dialog, S.form.setpoint, 'plus', 16);
     const refused = S.tooMany.replace('{n}', '6');
-    await expect(dialog.getByRole('alert').filter({ hasText: refused })).toBeVisible();
+    const alert = dialog.getByRole('alert').filter({ hasText: refused });
+    await expect(alert).toBeVisible();
+    await expect(alert.getByRole('button')).toHaveCount(6);
     await expect(dialog.getByRole('button', { name: S.form.save })).toBeDisabled();
     expect((await mock.log()).length).toBe(before);
     await shot(page, testInfo, 'shot-09-seventh-refused');
+
+    // A chip takes one of the existing temperatures and lifts the refusal.
+    await alert.getByRole('button').first().click();
+    await expect(alert).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: S.form.save })).toBeEnabled();
 });
 
 test('the week has no editable bar; a row opens its day; the back button and Escape return to the week', async ({ page }, testInfo) => {
@@ -347,7 +354,9 @@ test('swapping two overlapping periods that fails halfway keeps the view open; t
     await dialog.getByRole('button', { name: S.addSlot, exact: true }).last().click();
     // 07:00-10:00 at 21 overlaps the 06:30-08:00 period at 19.
     await step(dialog, S.form.start, 'minus', 4);
-    await step(dialog, S.form.setpoint, 'plus', 8);
+    const target = dialog.locator('[data-test="setpoint"]');
+    for (let i = 0; i < 40 && !(await target.innerText()).startsWith('21'); i++) await step(dialog, S.form.setpoint, 'plus', 1);
+    await expect(target).toContainText('21');
     const overlap = dialog.locator('[data-test="overlap"]');
     await expect(overlap).toBeVisible();
     await overlap.getByRole('button', { name: S.v2.swap }).click();
@@ -459,4 +468,29 @@ test.describe('french captures', () => {
         await dialog.locator('.sheet__day').nth(1).click();
         await shot(page, testInfo, 'shot-20c-fr-copy');
     });
+});
+
+test('editing one period to a new temperature changes only that period', async ({ page, mock }, testInfo) => {
+    await page.clock.install({ time: NOW });
+    const dialog = await openEditor(page);
+    await openDay(dialog, 'Monday');
+    await dialog.getByRole('button', { name: new RegExp(`^${S.v2.edit} 06:30`) }).click();
+    for (let i = 0; i < 8; i++) await step(dialog, S.form.setpoint, 'plus', 1);
+    await expect(dialog.locator('[data-test="too-many"]')).toHaveCount(0);
+    await shot(page, testInfo, 'shot-19-edit-accepted');
+    const before = (await mock.log()).length;
+    await dialog.getByRole('button', { name: S.form.save }).click();
+    await expect(dialog.getByRole('heading', { name: 'Monday' })).toBeVisible();
+    const sent = (await mock.log())
+        .slice(before)
+        .map((e) => e.frame)
+        .filter((f) => f?.msg === 'set_state' || f?.msg === 'set_timerange')
+        .map((f) => `${String(f?.msg)}:${String(f?.data?.id)}`);
+    expect(sent.filter((x) => x.startsWith('set_state'))).toHaveLength(1);
+    expect(sent.filter((x) => x.startsWith('set_timerange')).length).toBeLessThanOrEqual(2);
+
+    // "Add a period" opens on a temperature the week already uses.
+    await dialog.getByRole('button', { name: S.addSlot, exact: true }).last().click();
+    await expect(dialog.locator('[data-test="setpoint"]')).toBeVisible();
+    await shot(page, testInfo, 'shot-20-add-most-used');
 });

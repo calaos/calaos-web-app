@@ -7,7 +7,7 @@
 
 import { isRecord, toWireString } from './guards';
 
-export const MAX_LEVELS = 6;
+export const MAX_LEVELS = 10;
 export const DAY_MINUTES = 1440;
 export const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 export const WORKDAYS = [1, 2, 3, 4, 5];
@@ -202,14 +202,22 @@ export function usedLevels(program: DirectionProgram): number[] {
     return [...used].sort((a, b) => a - b);
 }
 
+/** How many different temperatures a direction can hold: the server's max_levels, never more than the levels it exposes. */
+export function levelCeiling(program: DirectionProgram, maxLevels?: number): number {
+    return Math.min(maxLevels && maxLevels > 0 ? maxLevels : Infinity, program.levels.length);
+}
+
 /**
  * The level a setpoint goes to: the first one already at that temperature,
- * else the first one holding no range. `ignore` frees the slots being edited.
+ * else a free one. `ignore` frees the slots being edited; when they were the
+ * only ones on their level, that level keeps them and just changes setpoint.
+ * A free level counts only within the ceiling: min(server max, exposed levels).
  */
 export function levelFor(
     program: DirectionProgram,
     setpoint: number,
     ignore: Slot[] = [],
+    maxLevels?: number,
 ): { n: number; isNew: boolean } | ScheduleError {
     if (program.levels.length === 0) return { kind: 'no_level' };
     const rest = program.slots.filter((s) => !ignore.includes(s));
@@ -217,9 +225,50 @@ export function levelFor(
     for (const l of program.levels) if (l.kept.length > 0) busy.add(l.n);
     const same = program.levels.find((l) => l.setpoint === setpoint && busy.has(l.n));
     if (same) return { n: same.n, isNew: false };
-    const free = program.levels.find((l) => !busy.has(l.n));
+    const own = ignore.length > 0 && ignore.every((s) => s.level === ignore[0].level) ? ignore[0].level : undefined;
+    const max = levelCeiling(program, maxLevels);
+    const usable = program.levels.slice(0, max);
+    const free = usable.find((l) => l.n === own && !busy.has(l.n)) ?? usable.find((l) => !busy.has(l.n));
     if (free) return { n: free.n, isNew: free.setpoint !== setpoint };
-    return { kind: 'too_many', max: program.levels.length };
+    return { kind: 'too_many', max };
+}
+
+/** The temperatures the week already uses in this direction, ascending. */
+export function usedSetpoints(program: DirectionProgram, ignore: Slot[] = []): number[] {
+    const busy = new Set(program.slots.filter((s) => !ignore.includes(s)).map((s) => s.level));
+    for (const l of program.levels) if (l.kept.length > 0) busy.add(l.n);
+    const out = program.levels.filter((l) => busy.has(l.n) && l.setpoint !== undefined).map((l) => l.setpoint as number);
+    return [...new Set(out)].sort((a, b) => a - b);
+}
+
+/** The temperature most periods of the week use (the lowest level on a tie). */
+export function mostUsedSetpoint(program: DirectionProgram): number | undefined {
+    let best: { setpoint: number; count: number } | undefined;
+    for (const l of program.levels) {
+        if (l.setpoint === undefined) continue;
+        const count = program.slots.filter((s) => s.level === l.n).length;
+        if (count > (best?.count ?? 0)) best = { setpoint: l.setpoint, count };
+    }
+    return best?.setpoint;
+}
+
+/**
+ * The other half of a period that crosses midnight (stored as day D to 24:00
+ * and day D+1 from 00:00, same level): the one after `slot`, or before it.
+ * A whole-day range is never half of one: the merged period would not cross midnight.
+ */
+export function midnightTwin(program: DirectionProgram, slot: Slot): { first: Slot; second: Slot } | undefined {
+    const find = (day: number, edge: 'start' | 'end') =>
+        program.slots.find((s) => s.day === day && s.level === slot.level && (edge === 'start' ? s.start === 0 : s.end === DAY_MINUTES));
+    if (slot.end === DAY_MINUTES) {
+        const second = find(nextDay(slot.day), 'start');
+        if (second && second !== slot && slot.start > 0 && second.end < DAY_MINUTES) return { first: slot, second };
+    }
+    if (slot.start === 0) {
+        const first = find(((slot.day + 5) % 7) + 1, 'end');
+        if (first && first !== slot && first.start > 0 && slot.end < DAY_MINUTES) return { first, second: slot };
+    }
+    return undefined;
 }
 
 export function isError(v: unknown): v is ScheduleError {
@@ -254,8 +303,9 @@ export function upsertSlot(
     program: DirectionProgram,
     entry: { days: number[]; start: number; end: number; setpoint: number },
     replacing: Slot[] = [],
+    maxLevels?: number,
 ): DirectionProgram | ScheduleError {
-    const target = levelFor(program, entry.setpoint, replacing);
+    const target = levelFor(program, entry.setpoint, replacing, maxLevels);
     if (isError(target)) return target;
     const added = splitEntry(entry.days, entry.start, entry.end, target.n);
     if (isError(added)) return added;
@@ -282,8 +332,9 @@ export function findOverlap(
     program: DirectionProgram,
     entry: { day: number; start: number; end: number; setpoint: number },
     replacing: Slot[] = [],
+    maxLevels?: number,
 ): Overlap | null {
-    const target = levelFor(program, entry.setpoint, replacing);
+    const target = levelFor(program, entry.setpoint, replacing, maxLevels);
     if (isError(target)) return null;
     const parts = splitEntry([entry.day], entry.start, entry.end, target.n);
     if (isError(parts)) return null;

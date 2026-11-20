@@ -2041,7 +2041,7 @@ describe('climate time programs', () => {
         const thermo = FIXTURE.home.flatMap((room) => room.items).find((io) => io.id === 'thermo_bureau');
         expect(thermo.device.ios.heat_level1).toBe(LEVEL);
         expect(thermo.device.ios.cool_level6_setpoint).toBe('thermo_bureau_cool_level6_setpoint');
-        expect(thermo.device.capabilities.program).toEqual({ heat_levels: 6, cool_levels: 6, max_levels: 6 });
+        expect(thermo.device.capabilities.program).toEqual({ heat_levels: 6, cool_levels: 6, max_levels: 10 });
     });
 
     it('set_timerange replaces the ranges, get_timerange reads them back, the event carries the id', async () => {

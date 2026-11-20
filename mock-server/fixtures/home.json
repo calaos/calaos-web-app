@@ -202,7 +202,7 @@
                             "program": {
                                 "heat_levels": 6,
                                 "cool_levels": 6,
-                                "max_levels": 6
+                                "max_levels": 10
                             }
                         },
                         "state": {

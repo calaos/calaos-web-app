@@ -219,7 +219,7 @@
             "failed": "Copy incomplete: not saved, try again",
             "source": "source"
         },
-        "tooMany": "{n} different setpoints maximum",
+        "tooMany": "This week already uses {n} different temperatures. Choose one of them:",
         "error": {
             "range": "The end must follow the start",
             "notWritten": "Not saved, try again",
@@ -239,6 +239,7 @@
             "count": "{n} period | {n} periods",
             "emptyTitle": "No period that day",
             "rest": "The rest of the time",
+            "useSetpoint": "Use {value} degrees",
             "minus": "Decrease",
             "plus": "Increase",
             "midnight": "This period crosses midnight. It will be saved as two periods: {a} and {b}.",

@@ -119,10 +119,10 @@ function toTargetTemp(v: unknown): DeviceTargetTemp | undefined {
     return target;
 }
 
-/** The contract has at most 6 levels per direction; anything else is a broken device. */
+/** The contract has at most 10 levels per direction; anything else is a broken device. */
 function toLevelCount(v: unknown): number | null {
     const n = toDeviceNumber(v);
-    return n !== null && Number.isInteger(n) && n >= 0 && n <= 6 ? n : null;
+    return n !== null && Number.isInteger(n) && n >= 0 && n <= 10 ? n : null;
 }
 
 function toProgramCapability(v: unknown): ProgramCapability | undefined {
