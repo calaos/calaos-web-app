@@ -225,7 +225,6 @@
             "notWritten": "Not saved, try again",
             "timeout": "No answer from the server, try again",
             "offline": "Offline: the program is read-only",
-            "scopeDenied": "This session cannot change the program",
             "generic": "The server refused the change"
         },
         "retry": "Retry",

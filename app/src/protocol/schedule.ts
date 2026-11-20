@@ -413,8 +413,6 @@ export function errorKey(error: string): string {
             return 'range';
         case 'config_not_written':
             return 'notWritten';
-        case SCOPE_DENIED:
-            return 'scopeDenied';
         case 'timeout':
             return 'timeout';
         default:

@@ -225,7 +225,6 @@
             "notWritten": "Non enregistré, réessayer",
             "timeout": "Pas de réponse du serveur, réessayer",
             "offline": "Hors ligne : le programme est en lecture seule",
-            "scopeDenied": "Cette session ne peut pas modifier le programme",
             "generic": "Le serveur a refusé la modification"
         },
         "retry": "Réessayer",

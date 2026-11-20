@@ -97,7 +97,8 @@ onMounted(() => void nextTick(() => sheet.value?.querySelector<HTMLElement>('but
                     :disabled="d === day || locked || busy"
                     @click="toggle(d)"
                 >
-                    <span>{{ targets.includes(d) ? '✓ ' : '' }}{{ t(`schedule.dayShort.${d}`) }}</span>
+                    <span v-if="targets.includes(d)" class="sheet__check" aria-hidden="true">✓</span>
+                    <span class="sheet__label">{{ t(`schedule.dayShort.${d}`) }}</span>
                     <small v-if="d === day" aria-hidden="true">{{ t('schedule.copy.source') }}</small>
                 </button>
             </div>
@@ -175,6 +176,19 @@ onMounted(() => void nextTick(() => sheet.value?.querySelector<HTMLElement>('but
     grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
+.sheet__label {
+    white-space: nowrap;
+}
+
+/* Out of the flow: an inline check widens the chip and cuts the label at 390 px. */
+.sheet__check {
+    position: absolute;
+    inset-block-start: 2px;
+    inset-inline-start: 4px;
+    font-size: 0.7rem;
+    line-height: 1;
+}
+
 .sheet__shortcuts {
     flex-wrap: wrap;
 }
@@ -188,6 +202,7 @@ onMounted(() => void nextTick(() => sheet.value?.querySelector<HTMLElement>('but
 .sheet__day,
 .sheet__chip,
 .sheet__button {
+    position: relative;
     display: inline-flex;
     flex-direction: column;
     align-items: center;

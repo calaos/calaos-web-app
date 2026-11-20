@@ -671,6 +671,30 @@ describe('a write that fails half-way', () => {
         expect(banner(wrapper).exists()).toBe(false);
     });
 
+    it('replaces the banner by the notice when the retry finds every setpoint taken by another client', async () => {
+        const { wrapper, server } = await mountEditor({
+            heat: { 1: [MON_8_10] },
+            prepare: (s) => (s.refuseValue = (id) => id === 'H2S'),
+        });
+        await addSlot(wrapper, { start: '12:00', end: '13:00', setpoint: 22.5 });
+        await save(wrapper);
+        expect(banner(wrapper).exists()).toBe(true);
+
+        server.refuseValue = () => false;
+        for (let n = 2; n <= 6; n++) {
+            server.ranges.set(`H${String(n)}`, [wireRange(2, 15, 0, 16, 0)]);
+            useScheduleStore().applyTimerangeChanged({ id: `H${String(n)}` });
+            await flushPromises();
+        }
+
+        const mark = server.sent.length;
+        await button(banner(wrapper), 'Retry').trigger('click');
+        await flushPromises();
+        expect(writes(server, mark)).toEqual([]);
+        expect(banner(wrapper).exists()).toBe(false);
+        expect(notice(wrapper).exists()).toBe(true);
+    });
+
     it('retries on what another client changed meanwhile instead of erasing it', async () => {
         const { wrapper, server } = await mountEditor({
             heat: { 1: [MON_8_10] },

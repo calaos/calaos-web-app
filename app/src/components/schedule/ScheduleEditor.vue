@@ -64,7 +64,7 @@ const banner = ref<{ text: string; retry?: () => void } | null>(null);
 /** Refusals that never reached the server (7th level, bad range, nothing to copy). */
 const notice = ref('');
 
-/** The server refused a write for this session (service scope): nothing can be saved until it reconnects. */
+/** The server refused a write for this session (service scope): nothing can be saved for as long as the page lives. */
 const denied = ref(false);
 const readOnlySession = computed(() => props.readonly || denied.value);
 const locked = computed(() => readOnlySession.value || !connection.isOpen || loadFailed.value);
