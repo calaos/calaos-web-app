@@ -219,7 +219,7 @@
             "failed": "Copy incomplete: not saved, try again",
             "source": "source"
         },
-        "tooMany": "{n} different setpoints maximum",
+        "tooMany": "This week already uses {n} different temperatures. Choose one of them:",
         "error": {
             "range": "The end must follow the start",
             "notWritten": "Not saved, try again",

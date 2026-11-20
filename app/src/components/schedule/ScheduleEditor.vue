@@ -23,6 +23,8 @@ import {
     isError,
     levelFor,
     levelIos,
+    midnightTwin,
+    mostUsedSetpoint,
     levelRanges,
     programFromWire,
     removeSlots,
@@ -89,8 +91,7 @@ function errorText(error: string): string {
     return error === 'offline' ? t('schedule.error.offline') : t(`schedule.error.${errorKey(error)}`);
 }
 
-function refusal(error: ScheduleError, d: Direction): string {
-    if (error.kind === 'too_many') return t('schedule.tooMany', { n: error.max, dir: dirName(d) });
+function refusal(error: ScheduleError): string {
     return error.kind === 'invalid_range' ? t('schedule.error.range') : t('schedule.error.generic');
 }
 
@@ -241,7 +242,7 @@ async function apply(
     notice.value = '';
     if (isError(next)) {
         banner.value = null;
-        notice.value = refusal(next, d);
+        notice.value = refusal(next);
         return null;
     }
     const diff = diffPrograms(before, next);
@@ -310,6 +311,8 @@ async function writeValue(id: string | undefined, value: string): Promise<void> 
 
 interface Draft {
     slot?: Slot;
+    /** Second half of a period that crosses midnight; `slot` is then the first. */
+    twin?: Slot;
     start: number;
     end: number;
     setpoint: number;
@@ -331,14 +334,20 @@ function openPeriod(next: Draft): void {
 }
 
 function openNew(): void {
-    openPeriod({ start: 8 * 60, end: 10 * 60, setpoint: defaultOf(direction.value) ?? FALLBACK_SETPOINT[direction.value] });
+    const p = program.value;
+    const setpoint = (p && mostUsedSetpoint(p)) ?? defaultOf(direction.value) ?? FALLBACK_SETPOINT[direction.value];
+    openPeriod({ start: 8 * 60, end: 10 * 60, setpoint });
 }
 
 function openSlot(slot: Slot): void {
     const p = program.value;
     if (!p) return;
     const setpoint = setpointOf(p, slot.level) ?? defaultOf(direction.value) ?? FALLBACK_SETPOINT[direction.value];
-    openPeriod({ slot, start: slot.start, end: slot.end, setpoint });
+    const pair = midnightTwin(p, slot);
+    if (!pair) return openPeriod({ slot, start: slot.start, end: slot.end, setpoint });
+    // Both halves are one period: it opens on its first day, from its real start to its real end.
+    day.value = pair.first.day;
+    openPeriod({ slot: pair.first, twin: pair.second, start: pair.first.start, end: pair.second.end, setpoint });
 }
 
 /** Puts the two overlapping setpoints in the wanted order; a no-op once they are, so a retry cannot undo it. */
@@ -349,13 +358,18 @@ function orderLevels(p: DirectionProgram, setpoint: number, priority: NonNullabl
     return mine.n < other.n === priority.mineFirst ? p : swapLevels(p, mine.n, other.n);
 }
 
+function originSlots(): Slot[] {
+    const d = draft.value;
+    return d?.slot ? [d.slot, ...(d.twin ? [d.twin] : [])] : [];
+}
+
 async function savePeriod(entry: PeriodEntry): Promise<void> {
-    const origin = draft.value?.slot;
+    const origin = originSlots();
     const target = { days: [day.value], start: entry.start, end: entry.end, setpoint: entry.setpoint };
     await apply(
         direction.value,
         (p) => {
-            const next = upsertSlot(p, target, origin ? p.slots.filter((s) => sameSlot(s, origin)) : []);
+            const next = upsertSlot(p, target, p.slots.filter((s) => origin.some((o) => sameSlot(s, o))));
             return isError(next) || !entry.priority ? next : orderLevels(next, entry.setpoint, entry.priority);
         },
         undefined,
@@ -364,9 +378,9 @@ async function savePeriod(entry: PeriodEntry): Promise<void> {
 }
 
 async function removePeriod(): Promise<void> {
-    const origin = draft.value?.slot;
-    if (!origin) return;
-    await apply(direction.value, (p) => removeSlots(p, p.slots.filter((s) => sameSlot(s, origin))), undefined, backToDay);
+    const origin = originSlots();
+    if (origin.length === 0) return;
+    await apply(direction.value, (p) => removeSlots(p, p.slots.filter((s) => origin.some((o) => sameSlot(s, o)))), undefined, backToDay);
 }
 
 function backToDay(): void {
@@ -504,6 +518,8 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                 :direction="direction"
                 :day="day"
                 :existing="draft.slot"
+                :twin="draft.twin"
+                :max-levels="props.io.device?.capabilities?.program?.maxLevels || undefined"
                 :start="draft.start"
                 :end="draft.end"
                 :setpoint="draft.setpoint"

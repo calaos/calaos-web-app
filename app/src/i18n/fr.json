@@ -219,7 +219,7 @@
             "failed": "Copie incomplète : non enregistré, réessayer",
             "source": "source"
         },
-        "tooMany": "{n} consignes différentes au maximum",
+        "tooMany": "Cette semaine utilise déjà {n} températures différentes. Choisissez l'une d'elles :",
         "error": {
             "range": "La fin doit suivre le début",
             "notWritten": "Non enregistré, réessayer",

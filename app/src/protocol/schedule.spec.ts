@@ -8,12 +8,15 @@ import {
     levelFor,
     levelIos,
     levelRanges,
+    midnightTwin,
+    mostUsedSetpoint,
     parseMinutes,
     programFromWire,
     rangesToSlots,
     swapLevels,
     toWireRange,
     upsertSlot,
+    usedSetpoints,
 } from './schedule';
 import type { DirectionProgram, WireRange } from './schedule';
 
@@ -304,5 +307,61 @@ describe('overlap, swap and retry', () => {
         const once = must(upsertSlot(empty(2), entry));
         const twice = must(upsertSlot(once, entry));
         expect(twice.slots).toEqual(once.slots);
+    });
+});
+
+describe('a period carries its own temperature', () => {
+    // Three temperatures taken; five periods at 19 spread over the week.
+    function week(levels: number): DirectionProgram {
+        let p = empty(levels);
+        p = must(upsertSlot(p, { days: [1], start: 0, end: 60, setpoint: 20.5 }));
+        p = must(upsertSlot(p, { days: [1], start: 60, end: 120, setpoint: 21 }));
+        for (const d of [1, 2, 3, 4, 5]) p = must(upsertSlot(p, { days: [d], start: 600, end: 660, setpoint: 19 }));
+        return p;
+    }
+    const edited = (p: DirectionProgram) => p.slots.find((s) => s.day === 3 && s.start === 600) as DirectionProgram['slots'][number];
+
+    it('refuses a fourth temperature when the device has three levels', () => {
+        const p = week(3);
+        expect(usedSetpoints(p)).toEqual([19, 20.5, 21]);
+        expect(upsertSlot(p, { days: [3], start: 600, end: 660, setpoint: 19.5 }, [edited(p)])).toEqual({ kind: 'too_many', max: 3 });
+    });
+
+    it('changes only that period when a level is free', () => {
+        const p = week(10);
+        const out = must(upsertSlot(p, { days: [3], start: 600, end: 660, setpoint: 19.5 }, [edited(p)]));
+        const at = (prog: DirectionProgram, d: number) => prog.levels.find((l) => l.n === prog.slots.find((s) => s.day === d && s.start === 600)?.level)?.setpoint;
+        expect([1, 2, 3, 4, 5].map((d) => at(out, d))).toEqual([19, 19, 19.5, 19, 19]);
+    });
+
+    it('joins the level of a temperature that exists, and renames the level when alone on it', () => {
+        const p = week(3);
+        const joined = must(upsertSlot(p, { days: [3], start: 600, end: 660, setpoint: 21 }, [edited(p)]));
+        const lvl = joined.slots.find((s) => s.day === 3 && s.start === 600)?.level;
+        expect(joined.levels.find((l) => l.n === lvl)?.setpoint).toBe(21);
+        expect(usedSetpoints(joined)).toEqual([19, 20.5, 21]);
+        const alone = must(upsertSlot(p, { days: [1], start: 0, end: 60, setpoint: 22 }, [p.slots.find((s) => s.day === 1 && s.start === 0) as DirectionProgram['slots'][number]]));
+        expect(usedSetpoints(alone)).toEqual([19, 21, 22]);
+    });
+
+    it('usedSetpoints ignores the slots being edited', () => {
+        const p = week(3);
+        const only = p.slots.filter((s) => s.start === 0);
+        expect(usedSetpoints(p, only)).toEqual([19, 21]);
+    });
+
+    it('mostUsedSetpoint is the busiest level, the lowest on a tie, undefined when empty', () => {
+        expect(mostUsedSetpoint(week(3))).toBe(19);
+        expect(mostUsedSetpoint(empty(3, [20]))).toBeUndefined();
+    });
+
+    it('midnightTwin finds both halves from either one', () => {
+        const p = must(upsertSlot(empty(3), { days: [1], start: 1380, end: 120, setpoint: 18 }));
+        const [a, b] = [p.slots.find((s) => s.day === 1), p.slots.find((s) => s.day === 2)];
+        expect(a && b).toBeTruthy();
+        expect(midnightTwin(p, a!)).toEqual({ first: a, second: b });
+        expect(midnightTwin(p, b!)).toEqual({ first: a, second: b });
+        const plain = must(upsertSlot(empty(3), { days: [1], start: 60, end: 120, setpoint: 18 }));
+        expect(midnightTwin(plain, plain.slots[0])).toBeUndefined();
     });
 });

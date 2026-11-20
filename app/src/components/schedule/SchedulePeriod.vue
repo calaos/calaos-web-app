@@ -7,7 +7,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import IconBack from '~icons/mdi/chevron-left';
 import ScheduleTrack from './ScheduleTrack.vue';
-import { DAY_MINUTES, findOverlap, formatMinutes, isError, levelFor, setpointOf } from '../../protocol/schedule';
+import { DAY_MINUTES, findOverlap, formatMinutes, isError, levelFor, setpointOf, usedSetpoints } from '../../protocol/schedule';
 import type { Direction, DirectionProgram, Slot } from '../../protocol/schedule';
 
 const props = defineProps<{
@@ -16,6 +16,10 @@ const props = defineProps<{
     day: number;
     /** The period being edited; absent for a new one. */
     existing?: Slot;
+    /** Second half of a period that crosses midnight: edited with `existing`. */
+    twin?: Slot;
+    /** Limit announced by the server; the program's own level count when absent. */
+    maxLevels?: number;
     start: number;
     end: number;
     setpoint: number;
@@ -52,7 +56,7 @@ const nextDay = computed(() => (props.day % 7) + 1);
 const kind = computed(() => (props.direction === 'heat' ? 'h' : 'c'));
 const crossing = computed(() => end.value < start.value);
 const invalid = computed(() => start.value === end.value);
-const replacing = computed(() => props.program.slots.filter((s) => props.existing && sameSlot(s, props.existing)));
+const replacing = computed(() => props.program.slots.filter((s) => [props.existing, props.twin].some((o) => o && sameSlot(s, o))));
 
 function sameSlot(a: Slot, b: Slot): boolean {
     return a.day === b.day && a.start === b.start && a.end === b.end && a.level === b.level;
@@ -87,7 +91,8 @@ const entry = computed(() => ({ day: props.day, start: start.value, end: end.val
 
 const target = computed(() => levelFor(props.program, setpoint.value, replacing.value));
 const tooMany = computed(() => isError(target.value) && target.value.kind === 'too_many');
-const maxLevels = computed(() => (isError(target.value) && target.value.kind === 'too_many' ? target.value.max : 0));
+const limit = computed(() => props.maxLevels ?? (isError(target.value) && target.value.kind === 'too_many' ? target.value.max : 0));
+const used = computed(() => (tooMany.value ? usedSetpoints(props.program, replacing.value) : []));
 
 const overlap = computed(() => (invalid.value || tooMany.value ? null : findOverlap(props.program, entry.value, replacing.value)));
 const otherSetpoint = computed(() => (overlap.value ? setpointOf(props.program, overlap.value.other.level) : undefined));
@@ -103,7 +108,7 @@ watch(
     () => (swapped.value = false),
 );
 
-const slotRange = computed(() => (props.existing ? `${formatMinutes(props.existing.start)} – ${formatMinutes(props.existing.end)}` : ''));
+const slotRange = computed(() => (props.existing ? `${formatMinutes(props.existing.start)} – ${formatMinutes((props.twin ?? props.existing).end)}` : ''));
 const overlapRange = computed(() => {
     const o = overlap.value;
     return o ? `${formatMinutes(o.other.start)} – ${formatMinutes(o.other.end)}` : '';
@@ -224,8 +229,13 @@ const mark = computed(() => (invalid.value ? undefined : { start: start.value, e
         <p v-if="invalid" class="period__note period__note--error" role="alert">{{ t('schedule.v2.rangeError') }}</p>
         <p v-else-if="crossing" class="period__note period__note--info" role="status">{{ midnightText }}</p>
 
-        <div v-if="tooMany" class="period__note period__note--error" role="alert">
-            {{ t('schedule.tooMany', { n: maxLevels }) }}
+        <div v-if="tooMany" class="period__note period__note--error" role="alert" data-test="too-many">
+            <p>{{ t('schedule.tooMany', { n: limit }) }}</p>
+            <p class="period__chips">
+                <button v-for="value in used" :key="value" type="button" class="period__chip" :disabled="locked" @click="setpoint = value">
+                    {{ degrees(value) }}°
+                </button>
+            </p>
         </div>
 
         <div v-if="overlap && otherSetpoint !== undefined" class="period__note period__note--warn" role="status" data-test="overlap">
@@ -345,6 +355,7 @@ const mark = computed(() => (invalid.value ? undefined : { start: start.value, e
 
 .period__back,
 .period__step,
+.period__chip,
 .period__button {
     display: inline-flex;
     align-items: center;
@@ -374,6 +385,7 @@ const mark = computed(() => (invalid.value ? undefined : { start: start.value, e
 
 .period__back:focus-visible,
 .period__step:focus-visible,
+.period__chip:focus-visible,
 .period__button:focus-visible {
     outline: 2px solid var(--c-accent);
     outline-offset: 2px;
@@ -403,6 +415,13 @@ button:disabled {
 .period__note--warn {
     background: var(--c-warn-bg);
     border-color: var(--c-warn-border);
+}
+
+.period__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-block-start: var(--space-2) !important;
 }
 
 .period__order {

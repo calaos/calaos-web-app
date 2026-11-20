@@ -594,13 +594,13 @@ describe('toDeviceInfo: program', () => {
         expect(device({ program: { heat_levels: 'a', cool_levels: 1, max_levels: 6 } }, {})?.capabilities.program).toBeUndefined();
     });
 
-    it('refuses level counts that are negative, fractional or beyond 6', () => {
+    it('refuses level counts that are negative, fractional or beyond 10', () => {
         const caps = (heat: unknown, max: unknown = 6) => device({ program: { heat_levels: heat, cool_levels: 0, max_levels: max } }, {})?.capabilities.program;
         expect(caps(-1)).toBeUndefined();
         expect(caps(2.5)).toBeUndefined();
-        expect(caps(7)).toBeUndefined();
-        expect(caps(3, 7)).toBeUndefined();
-        expect(caps(6)).toEqual({ heatLevels: 6, coolLevels: 0, maxLevels: 6 });
+        expect(caps(11)).toBeUndefined();
+        expect(caps(3, 11)).toBeUndefined();
+        expect(caps(10, 10)).toEqual({ heatLevels: 10, coolLevels: 0, maxLevels: 10 });
     });
 
     it('reads a level count sent as a numeric string, like every device number', () => {
