@@ -63,6 +63,7 @@ const KNOWN_OPS = [
     'timerange_fail',
     'program_clock',
     'program_reject',
+    'program_scope',
     'reset',
 ];
 
@@ -186,6 +187,12 @@ export function applyControlOp(hub, body) {
                 return { status: 400, body: { ok: false, error: 'program_clock requires clock to be an ISO date or null' } };
             }
             hub.program.configure({ clock: body.clock, hidden: body.hidden });
+            return { status: 200, body: { ok: true, op } };
+        }
+
+        case 'program_scope': {
+            // on: answer set_timerange `scope denied`, as for a service-scope session.
+            hub.program.serviceScope(body.on !== false);
             return { status: 200, body: { ok: true, op } };
         }
 

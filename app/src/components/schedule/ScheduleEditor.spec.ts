@@ -590,6 +590,38 @@ describe('auto mode and a disabled program', () => {
 
 // ---------------------------------------------- partial write failures ---
 
+describe('service session', () => {
+    async function copyMondayToTuesday(wrapper: VueWrapper): Promise<void> {
+        await selectDay(wrapper, 'Monday');
+        await button(wrapper, 'Copy to…').trigger('click');
+        const panel = wrapper.find('[role="dialog"]');
+        await panel.find('button[aria-label="Tuesday"]').trigger('click');
+        await panel.findAll('.sheet__actions button')[1].trigger('click');
+        await flushPromises();
+    }
+
+    it('turns read-only with a message, and tells its parent, when the server answers scope denied', async () => {
+        const { wrapper, server } = await mountEditor({
+            heat: { 1: [MON_8_10] },
+            prepare: (s) => (s.refuseRanges = () => 'scope denied'),
+        });
+        await copyMondayToTuesday(wrapper);
+        expect(wrapper.emitted('denied')).toHaveLength(1);
+        expect(banner(wrapper).exists()).toBe(false);
+        expect(text(wrapper)).toContain('Read-only: this session cannot change the program.');
+        const mark = server.sent.length;
+        await button(wrapper, 'Add a period').trigger('click');
+        expect(button(wrapper, 'Add a period').attributes('disabled')).toBeDefined();
+        expect(writes(server, mark)).toEqual([]);
+    });
+
+    it('shows the same message from the start when the parent already knows', async () => {
+        const { wrapper } = await mountEditor({ readonly: true });
+        expect(text(wrapper)).toContain('Read-only: this session cannot change the program.');
+        expect(text(wrapper)).not.toContain('Read-only while offline.');
+    });
+});
+
 describe('a write that fails half-way', () => {
     it('writes the setpoint, fails the ranges, reloads, shows the server truth and retries only the ranges', async () => {
         const { wrapper, server } = await mountEditor({

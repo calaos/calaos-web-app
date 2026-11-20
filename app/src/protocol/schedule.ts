@@ -402,6 +402,9 @@ export function levelIos(ios: Record<string, string>, direction: Direction): { n
     return out;
 }
 
+/** What the server answers a write from a service-scope session. */
+export const SCOPE_DENIED = 'scope denied';
+
 /** Server error strings of set_timerange → an i18n key under `schedule.error`. */
 export function errorKey(error: string): string {
     switch (error) {
@@ -410,6 +413,8 @@ export function errorKey(error: string): string {
             return 'range';
         case 'config_not_written':
             return 'notWritten';
+        case SCOPE_DENIED:
+            return 'scopeDenied';
         case 'timeout':
             return 'timeout';
         default:

@@ -36,9 +36,9 @@ export interface UseProgram {
     nextChange: ComputedRef<ProgramNextChange | null>;
     /** `3 h 20`, `45 min`, `< 1 min`; empty when nothing is planned. */
     nextIn: ComputedRef<string>;
-    /** The one line of the detail ("17:30, Heating level 2 at 20.5° (in 3 h 20)"). */
+    /** The one line of the detail ("17:30, Heating period at 20.5° (in 3 h 20)"). */
     nextText: ComputedRef<string>;
-    /** "Level 2 · 20.5°", or that no level applies now. */
+    /** "Period · 20.5°", or that no period applies now. */
     activeText: ComputedRef<string>;
     /** Heating/cooling in play now, for the pause banner. */
     pausedText: ComputedRef<string>;

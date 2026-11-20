@@ -28,7 +28,7 @@
     --c-accent: #38b0d3;
     /* Text on an accent fill. */
     --c-on-accent: #111111;
-    /* Accent as text: the light accent fill is only 4.5:1 on the page. */
+    /* Accent as text. The fill itself reads at 6.9:1 on --c-surface here. */
     --c-accent-text: #38b0d3;
     --c-accent-glow: rgba(56, 176, 211, 0.45);
 
@@ -122,6 +122,7 @@
     --c-heat: #b07800;
     --c-accent: #0a7a9a;
     --c-on-accent: #ffffff;
+    /* The light fill is 4.3:1 on --c-surface-raised: this darker shade gives 5.8:1 there, 6.6:1 on white (AA 4.5:1). */
     --c-accent-text: #07657f;
     --c-accent-glow: rgba(10, 122, 154, 0.35);
     --c-danger: #c62f2f;

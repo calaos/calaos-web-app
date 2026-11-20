@@ -148,11 +148,12 @@ function save(): void {
     });
 }
 
-/** The draft as a ring on the preview bar; a crossing one shows its first part. */
+/** Where the draft meets another period of this day, hatched on the preview bar. */
 const hatch = computed(() => {
     const o = overlap.value;
     return o && o.other.day === props.day ? { start: o.from, end: o.to } : undefined;
 });
+/** The draft as a ring on the preview bar; a crossing one stops at midnight. */
 const mark = computed(() => (invalid.value ? undefined : { start: start.value, end: crossing.value ? DAY_MINUTES : end.value }));
 </script>
 

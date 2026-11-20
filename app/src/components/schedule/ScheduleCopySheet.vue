@@ -97,7 +97,7 @@ onMounted(() => void nextTick(() => sheet.value?.querySelector<HTMLElement>('but
                     :disabled="d === day || locked || busy"
                     @click="toggle(d)"
                 >
-                    <span>{{ t(`schedule.dayShort.${d}`) }}</span>
+                    <span>{{ targets.includes(d) ? '✓ ' : '' }}{{ t(`schedule.dayShort.${d}`) }}</span>
                     <small v-if="d === day" aria-hidden="true">{{ t('schedule.copy.source') }}</small>
                 </button>
             </div>

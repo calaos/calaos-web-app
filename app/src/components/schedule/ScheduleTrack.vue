@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { DAY_MINUTES, effectiveDay, setpointOf } from '../../protocol/schedule';
+import { DAY_MINUTES, effectiveDay, formatMinutes, setpointOf } from '../../protocol/schedule';
 import type { DirectionProgram } from '../../protocol/schedule';
 
 const props = defineProps<{
@@ -50,6 +50,7 @@ const pieces = computed(() =>
             width,
             fits,
             text: p.level === null ? (props.gapLabel ?? '') : `${degrees}°`,
+            hint: `${formatMinutes(p.start)} – ${formatMinutes(p.end)}, ${degrees}°`,
         };
     }),
 );
@@ -71,6 +72,7 @@ const lightFrom = computed(() => (props.program.direction === 'heat' ? 6 : 5));
                 class="track__seg"
                 :class="{ 'track__seg--light': p.level >= lightFrom }"
                 :style="{ left: `${p.left}%`, width: `${p.width}%`, background: `var(--lv-${kind}${p.level})` }"
+                :title="p.hint"
                 aria-hidden="true"
             >
                 <span v-if="p.fits && p.text">{{ p.text }}</span>

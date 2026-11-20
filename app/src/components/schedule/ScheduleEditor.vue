@@ -19,6 +19,7 @@ import {
     copyDay,
     diffPrograms,
     errorKey,
+    SCOPE_DENIED,
     isError,
     levelFor,
     levelIos,
@@ -35,6 +36,7 @@ import type { Direction, DirectionProgram, ProgramEdit, ScheduleError, Slot } fr
 import type { IoItem } from '../../protocol/types';
 
 const props = withDefaults(defineProps<{ io: IoItem; readonly?: boolean }>(), { readonly: false });
+const emit = defineEmits<{ denied: [] }>();
 
 const { t, locale } = useI18n();
 const store = useScheduleStore();
@@ -62,7 +64,10 @@ const banner = ref<{ text: string; retry?: () => void } | null>(null);
 /** Refusals that never reached the server (7th level, bad range, nothing to copy). */
 const notice = ref('');
 
-const locked = computed(() => props.readonly || !connection.isOpen || loadFailed.value);
+/** The server refused a write for this session (service scope): nothing can be saved until it reconnects. */
+const denied = ref(false);
+const readOnlySession = computed(() => props.readonly || denied.value);
+const locked = computed(() => readOnlySession.value || !connection.isOpen || loadFailed.value);
 
 function isoDay(date: Date): number {
     return ((date.getDay() + 6) % 7) + 1;
@@ -270,6 +275,12 @@ async function apply(
     }
     busy.value = false;
     void flushStale();
+    if (error === SCOPE_DENIED) {
+        denied.value = true;
+        emit('denied');
+        await loadDirection(d);
+        return null;
+    }
     if (error === '') {
         read[d] = next;
         onSuccess?.();
@@ -464,7 +475,9 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                 </button>
             </div>
             <p v-if="programCtl.error.value" class="schedule__notice" role="alert">{{ programCtl.error.value }}</p>
-            <p v-if="readonly || !connection.isOpen" class="schedule__muted">{{ t('schedule.readOnly') }}</p>
+            <p v-if="readOnlySession || !connection.isOpen" class="schedule__muted">
+                {{ t(readOnlySession ? 'schedule.serviceReadOnly' : 'schedule.readOnly') }}
+            </p>
 
             <ScheduleWeek
                 v-if="program && view === 'week'"
@@ -475,7 +488,7 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                 :now="now"
                 :paused="paused"
                 :paused-text="pausedText"
-                :can-toggle="!programCtl.readonly.value && !readonly"
+                :can-toggle="!programCtl.readonly.value && !readOnlySession"
                 :saving="programCtl.saving.value"
                 @direction="selectDirection"
                 @day="selectDay"
