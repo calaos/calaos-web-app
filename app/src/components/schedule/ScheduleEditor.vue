@@ -277,6 +277,8 @@ async function apply(
     void flushStale();
     if (error === SCOPE_DENIED) {
         denied.value = true;
+        // The sheet is a modal over the message: leave it so the reason is visible and announced.
+        copyOpen.value = false;
         emit('denied');
         await loadDirection(d);
         return null;
@@ -475,7 +477,7 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
                 </button>
             </div>
             <p v-if="programCtl.error.value" class="schedule__notice" role="alert">{{ programCtl.error.value }}</p>
-            <p v-if="readOnlySession || !connection.isOpen" class="schedule__muted">
+            <p v-if="readOnlySession || !connection.isOpen" class="schedule__muted" role="status">
                 {{ t(readOnlySession ? 'schedule.serviceReadOnly' : 'schedule.readOnly') }}
             </p>
 
@@ -633,6 +635,6 @@ const paused = computed(() => programCtl.state.value !== undefined && !programCt
 
 .schedule__button:disabled {
     cursor: not-allowed;
-    opacity: 0.65;
+    opacity: 0.45;
 }
 </style>

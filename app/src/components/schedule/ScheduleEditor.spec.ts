@@ -608,7 +608,12 @@ describe('service session', () => {
         await copyMondayToTuesday(wrapper);
         expect(wrapper.emitted('denied')).toHaveLength(1);
         expect(banner(wrapper).exists()).toBe(false);
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+        expect(wrapper.find('[role="status"]').text()).toContain('Read-only: this session cannot change the program.');
         expect(text(wrapper)).toContain('Read-only: this session cannot change the program.');
+        for (const row of wrapper.findAll('.day__row')) expect(row.attributes('disabled')).toBeDefined();
+        for (const b of wrapper.findAll('.day__step')) expect(b.attributes('disabled')).toBeDefined();
+        expect(button(wrapper, 'Copy to…').attributes('disabled')).toBeDefined();
         const mark = server.sent.length;
         await button(wrapper, 'Add a period').trigger('click');
         expect(button(wrapper, 'Add a period').attributes('disabled')).toBeDefined();

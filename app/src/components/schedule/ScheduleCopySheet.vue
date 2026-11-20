@@ -248,7 +248,7 @@ onMounted(() => void nextTick(() => sheet.value?.querySelector<HTMLElement>('but
 
 button:disabled {
     cursor: not-allowed;
-    opacity: 0.65;
+    opacity: 0.45;
 }
 
 .sheet__warn,

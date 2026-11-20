@@ -166,9 +166,6 @@ test('a service session is told it cannot change the program, here and when the 
     await sheet.getByRole('button', { name: S.copy.replace }).click();
     await expect(dialog.getByText(S.serviceReadOnly)).toBeVisible();
     await expect(dialog.locator('.schedule__banner')).toHaveCount(0);
-    // The sheet stays open after a denial; Cancel first leaves the confirm step, then closes.
-    await sheet.getByRole('button', { name: S.copy.cancel }).click();
-    if (await sheet.count()) await sheet.getByRole('button', { name: S.copy.cancel }).click();
     await expect(sheet).toHaveCount(0);
     await shot(page, testInfo, 'shot-19a-service-readonly-day');
 

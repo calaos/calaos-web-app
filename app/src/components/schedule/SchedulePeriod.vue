@@ -381,7 +381,7 @@ const mark = computed(() => (invalid.value ? undefined : { start: start.value, e
 
 button:disabled {
     cursor: not-allowed;
-    opacity: 0.65;
+    opacity: 0.45;
 }
 
 .period__note {

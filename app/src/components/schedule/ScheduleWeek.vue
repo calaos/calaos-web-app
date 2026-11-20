@@ -130,7 +130,7 @@ const AXIS = [0, 6, 12, 18, 24];
 
 .week__button:disabled {
     cursor: not-allowed;
-    opacity: 0.65;
+    opacity: 0.45;
 }
 
 .week__state {
