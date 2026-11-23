@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
@@ -36,9 +36,39 @@ describe('App shell', () => {
         const wrapper = await mountApp('/login');
 
         const background = wrapper.get('.app-background');
-        // Fades in on the image's own load event, so it starts hidden.
-        expect(background.classes()).not.toContain('app-background--loaded');
         expect(background.attributes('aria-hidden')).toBe('true');
+    });
+
+    describe('background layer', () => {
+        const observe = vi.fn();
+        const disconnect = vi.fn();
+
+        afterEach(() => {
+            vi.unstubAllGlobals();
+            observe.mockClear();
+            disconnect.mockClear();
+        });
+
+        it('mounts the dot layers and observes the backdrop, then detaches on unmount', async () => {
+            vi.stubGlobal('ResizeObserver', class { observe = observe; disconnect = disconnect; });
+            const wrapper = await mountApp('/login');
+
+            const background = wrapper.get('.app-background');
+            expect(background.classes()).toContain('calaos-bg');
+            expect(background.findAll('.calaos-bg__dots')).toHaveLength(2);
+            expect(observe).toHaveBeenCalledWith(background.element);
+
+            wrapper.unmount();
+            expect(disconnect).toHaveBeenCalledTimes(1);
+        });
+
+        it('leaves the backdrop empty when ResizeObserver is missing', async () => {
+            vi.stubGlobal('ResizeObserver', undefined);
+            const wrapper = await mountApp('/login');
+
+            expect(wrapper.get('.app-background').classes()).not.toContain('calaos-bg');
+            expect(wrapper.findAll('.calaos-bg__dots')).toHaveLength(0);
+        });
     });
 
     it('gives the whole viewport to the login screen', async () => {
