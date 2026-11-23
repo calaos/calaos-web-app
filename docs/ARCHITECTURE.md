@@ -166,7 +166,7 @@ Default proxy target is the mock server (`http://localhost:5454`), so `npm run d
 - Grids: `display:grid; grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr))` — replaces the JS 3-per-row chunking. Breakpoints ~480/768/1100 px.
 - Icons: `unplugin-icons` + `@iconify-json/mdi` (compile-time tree-shaken SVG). `RoomIcon.vue` maps room type → MDI icon (replaces `getRoomTypeIcon` and its implicit-global bug). `StateIcon.vue` = two stacked SVGs with opacity crossfade (the old sprite-crossfade feel). Sign-out = `mdi:logout` (old `fa-sign-out` was invalid in FA5).
 - Fonts: `@fontsource/ubuntu` woff2. Color picker: `@ckpack/vue-color`, wrapped in `ColorPickerDialog.vue` — its ONLY contract is `confirm('#rrggbb')`.
-- Background: reuse `background.png`, fade on its own `load` event. The 62-image preloader + `assets.json` are dropped entirely.
+- Background: the resizable Calaos backdrop vendored from calaos/background (`app/src/background/`, PNGs in `public/calaos-bg/`), mounted once by `AppBackground.vue`. The 62-image preloader + `assets.json` are dropped entirely.
 
 ## Camera polling (`useCameraPoll.ts`)
 

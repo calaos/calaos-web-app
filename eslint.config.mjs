@@ -75,6 +75,11 @@ export default [
         },
     },
     {
+        // Vendored from calaos/background: browser ES modules, linted for globals only.
+        files: ['app/src/background/**/*.mjs'],
+        languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: globals.browser },
+    },
+    {
         files: ['app/**/*.{ts,vue}'],
         languageOptions: {
             ecmaVersion: 'latest',

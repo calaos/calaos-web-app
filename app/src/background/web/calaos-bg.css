@@ -1,0 +1,22 @@
+/* Zero specificity: any position set by the page wins. */
+:where(.calaos-bg) {
+    position: relative;
+}
+
+.calaos-bg {
+    overflow: hidden;
+    background-color: #0b1013;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+}
+
+.calaos-bg__dots {
+    position: absolute;
+    pointer-events: none;
+    background-repeat: repeat;
+    background-position: 0 0;
+    /* Dots are hard 2x2 squares: keep them crisp on HiDPI screens. */
+    image-rendering: pixelated;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+}

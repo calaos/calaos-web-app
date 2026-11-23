@@ -1,57 +1,31 @@
 <script setup lang="ts">
-// The fixed backdrop. A real <img> rather than a CSS background-image so the
-// fade can hang off the element's own `load` event — decoding a 51 kB PNG is
-// fast, but on a cold wall panel the difference between "black flash then
-// image" and "image fades up" is the whole first impression.
-//
-// The old app preloaded 62 images through an assets.json manifest to achieve
-// this. That machinery is gone (docs/ARCHITECTURE.md "Styling"): every other
-// image in the rewrite is an inlined SVG icon.
+// The fixed backdrop, mounted once under the shell. The PNGs are static files
+// in public/ because a bundled import.meta.url no longer points next to them;
+// BASE_URL keeps them under the `/app/` prefix (vite `base: './'`).
 
-import { ref } from 'vue';
-import backgroundUrl from '../../assets/background.png';
+import { onMounted, onUnmounted, ref } from 'vue';
+import '../../background/web/calaos-bg.css';
+import { mountBackground } from '../../background/web/calaos-bg.mjs';
 
-const loaded = ref(false);
+const el = ref<HTMLElement | null>(null);
+let unmount: (() => void) | undefined;
+
+onMounted(() => {
+    if (el.value) unmount = mountBackground(el.value, { assetsUrl: `${import.meta.env.BASE_URL}calaos-bg/` });
+});
+onUnmounted(() => unmount?.());
 </script>
 
 <template>
-    <!-- Decorative: it carries no information, so it stays out of the a11y
-         tree and out of the tab order. -->
-    <img
-        class="app-background"
-        :class="{ 'app-background--loaded': loaded }"
-        :src="backgroundUrl"
-        alt=""
-        aria-hidden="true"
-        decoding="async"
-        @load="loaded = true"
-    />
+    <!-- Decorative, and empty: the dot layers are appended to it. -->
+    <div id="calaos-bg" ref="el" class="app-background" aria-hidden="true"></div>
 </template>
 
 <style scoped>
 .app-background {
     position: fixed;
     inset: 0;
-    inline-size: 100%;
-    block-size: 100%;
-    /* `cover` keeps the artwork's horizontal band of light centred at any
-       aspect ratio. The old rule (min-width/min-height, no background-size)
-       tiled the 640×910 source and repeated that band down a tall page. */
-    object-fit: cover;
-    object-position: center;
     z-index: var(--z-background);
-    opacity: 0;
-    transition: opacity 600ms ease;
     pointer-events: none;
-}
-
-.app-background--loaded {
-    opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .app-background {
-        transition: none;
-    }
 }
 </style>
